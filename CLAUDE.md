@@ -1,24 +1,34 @@
 # CLAUDE.md
 
-Court booking web app for a single venue (portfolio project). **Read [SPEC.md](SPEC.md) for product requirements, the data model and the booking lifecycle.** Update SPEC.md whenever behavior changes.
+Court booking web app for a single venue (portfolio project).
+
+## Guide docs
+- **[SPEC.md](SPEC.md)**: what the product does (requirements, data model, booking lifecycle, decisions log). Update it whenever behavior changes.
+- **[TASKS.md](TASKS.md)**: what to build next. Read its **Handoff** section first and update it before you stop. A task is done only when its acceptance criteria hold, `npm run verify` passes and the `reviewer` agent has no blocking issues.
+- **Workflow:** run `/implement` to work on the next task (`/implement T3.4` for a specific task, `/implement milestone` for the whole milestone). It goes orient → research → plan gate (risky DB or security work waits for approval) → build → verify → `reviewer` agent → tick the task and update the handoff. It never commits.
+- **[RESEARCH.md](RESEARCH.md)**: technical findings, with sources, gathered before a milestone is built. Research first, then implement. Accepted recommendations go into SPEC §10.
 
 ## Stack
 - Vite 8, React 19, TypeScript 6 (strict), React Router 7
 - Supabase: Postgres, Auth, Storage, Edge Functions, through `@supabase/supabase-js`
 - TanStack Query for server state (caching, invalidation after admin edits)
-- ESLint (flat config). No test runner yet. Add Vitest when the first logic module lands.
+- ESLint (flat config). Vitest + Testing Library (jsdom) for logic and components. pgTAP for database tests, run against the local Supabase Postgres in Docker. Playwright e2e later.
 
 ## Commands
 ```bash
 npm run dev       # start dev server
 npm run build     # type-check (tsc -b) + production build
 npm run lint      # eslint
+npm run test      # vitest run (test:watch for watch mode)
+npm run test:db   # pgTAP tests in supabase/tests against the LOCAL db (auto-starts it, applies pending migrations)
+npm run verify    # typecheck + lint + test + test:db + build: the gate for "done"
+npm run db:start / db:stop / db:reset:local   # local Supabase Postgres (Docker Desktop must be running)
 npm run db:push   # apply supabase/migrations to the linked project
 npm run db:types  # regenerate src/lib/database.types.ts from the linked project
 npx supabase db query --linked -f supabase/seed.sql   # (re)apply demo data, idempotent
 ```
 Supabase CLI is a pinned dev dependency: use `npx supabase <cmd>` (`npx supabase migration new <name>` for new migrations).
-Before saying a task is done, run `npm run build` and `npm run lint`.
+Before saying a task is done, run `npm run verify` and make sure it passes. A Stop hook (`.claude/hooks/verify-gate.mjs`) enforces this: it re-runs verify whenever code changed and blocks finishing while it fails. Never weaken tests or lint rules to get past it.
 
 ## Environment
 - `.env` (gitignored) holds `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`. Keep `.env.example` in sync when you add vars.
@@ -44,6 +54,8 @@ supabase/
 - Booking invariants (no overlaps, operating hours, price) live **in the database and RPCs**, not just in the UI. Bookings are only written through RPCs (`create_booking`, `cancel_booking`, `review_payment`).
 - Store times as `timestamptz` and booking ranges as `tstzrange`. Convert to the venue timezone only for display.
 - After schema changes, run `npm run db:push` then `npm run db:types`.
+- Every migration ships with pgTAP tests in `supabase/tests/database/NN_<area>.test.sql`: one transaction ending in `rollback`, act as users via `set local role` and `request.jwt.claims`. Cover RLS (anon/player/admin), constraints and each RPC rule. Tests run only against the local database, never the linked project.
+- Docker commands go through `scripts/with-docker.sh` (fixes PATH and socket for non-login shells).
 - See the installed skills in `.agents/skills/supabase` and `.agents/skills/supabase-postgres-best-practices` before writing SQL, RLS or Edge Functions.
 
 ## Code conventions
