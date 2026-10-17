@@ -1,0 +1,219 @@
+import { useState, type FormEvent, type ReactNode } from 'react'
+import { PageLoader } from '../../components/PageLoader'
+import { ErrorMessage } from '../../components/ErrorMessage'
+import { SaveStatus } from '../../components/SaveStatus'
+import {
+  useCourts,
+  useCreateBlackout,
+  useDeleteBlackout,
+  useOperatingHours,
+  useSaveOperatingHours,
+  useUpcomingBlackouts,
+  useVenueSettings,
+} from '../catalog/hooks'
+import type { OperatingHours } from '../catalog/api'
+import { DAY_NAMES, DISPLAY_DAY_ORDER, formatHour, hourOf, hourToTime } from '../../lib/format'
+import { formatDateTimeInZone, zonedLocalToISO } from '../../lib/time'
+
+export function SchedulePage() {
+  const hours = useOperatingHours()
+  const save = useSaveOperatingHours()
+
+  return (
+    <section className="page">
+      <h1>Schedule</h1>
+
+      <section className="card stack">
+        <h2>Operating hours</h2>
+        {hours.isPending ? (
+          <PageLoader />
+        ) : hours.isError ? (
+          <ErrorMessage error={hours.error} onRetry={() => hours.refetch()} />
+        ) : (
+          <HoursForm
+            key={hours.dataUpdatedAt}
+            initial={hours.data}
+            saving={save.isPending}
+            status={<SaveStatus isSuccess={save.isSuccess} error={save.error} />}
+            onSave={(rows) => save.mutate(rows)}
+          />
+        )}
+      </section>
+
+      <BlackoutsSection />
+    </section>
+  )
+}
+
+const OPEN_HOURS = Array.from({ length: 24 }, (_, i) => i) // 0–23
+const CLOSE_HOURS = Array.from({ length: 24 }, (_, i) => i + 1) // 1–24
+
+function HoursForm({
+  initial,
+  saving,
+  status,
+  onSave,
+}: {
+  initial: OperatingHours[]
+  saving: boolean
+  status: ReactNode
+  onSave: (rows: OperatingHours[]) => void
+}) {
+  const [rows, setRows] = useState(initial)
+  const update = (day: number, patch: Partial<OperatingHours>) =>
+    setRows((rs) => rs.map((r) => (r.day_of_week === day ? { ...r, ...patch } : r)))
+
+  const invalid = rows.find((r) => !r.is_closed && hourOf(r.open_time) >= hourOf(r.close_time))
+
+  function handleSubmit(e: FormEvent) {
+    e.preventDefault()
+    if (!invalid) onSave(rows)
+  }
+
+  return (
+    <form className="stack" onSubmit={handleSubmit}>
+      <div className="hours-rows">
+        {DISPLAY_DAY_ORDER.map((day) => {
+          const row = rows.find((r) => r.day_of_week === day)
+          if (!row) return null
+          return (
+            <div key={day} className="hours-row">
+              <span className="hours-day">{DAY_NAMES[day]}</span>
+              <label className="check">
+                <input type="checkbox" checked={row.is_closed} onChange={(e) => update(day, { is_closed: e.target.checked })} />
+                <span>Closed</span>
+              </label>
+              <select
+                aria-label={`${DAY_NAMES[day]} opens`}
+                disabled={row.is_closed}
+                value={hourOf(row.open_time)}
+                onChange={(e) => update(day, { open_time: hourToTime(Number(e.target.value)) })}
+              >
+                {OPEN_HOURS.map((h) => <option key={h} value={h}>{formatHour(h)}</option>)}
+              </select>
+              <span className="muted">to</span>
+              <select
+                aria-label={`${DAY_NAMES[day]} closes`}
+                disabled={row.is_closed}
+                value={hourOf(row.close_time)}
+                onChange={(e) => update(day, { close_time: hourToTime(Number(e.target.value)) })}
+              >
+                {CLOSE_HOURS.map((h) => <option key={h} value={h}>{h === 24 ? 'Midnight' : formatHour(h)}</option>)}
+              </select>
+            </div>
+          )
+        })}
+      </div>
+      {invalid && (
+        <p className="form-error" role="alert">{DAY_NAMES[invalid.day_of_week]}: closing time must be after opening time.</p>
+      )}
+      <div className="form-actions">
+        <button type="submit" className="btn" disabled={saving || !!invalid}>{saving ? 'Saving…' : 'Save hours'}</button>
+        {status}
+      </div>
+    </form>
+  )
+}
+
+function BlackoutsSection() {
+  const blackouts = useUpcomingBlackouts()
+  const courts = useCourts({ includeInactive: true })
+  const settings = useVenueSettings()
+  const create = useCreateBlackout()
+  const remove = useDeleteBlackout()
+  const timeZone = settings.data?.timezone ?? 'Asia/Manila'
+
+  const [courtId, setCourtId] = useState('')
+  const [startsAt, setStartsAt] = useState('')
+  const [endsAt, setEndsAt] = useState('')
+  const [reason, setReason] = useState('')
+
+  const courtName = (id: string | null) =>
+    id ? courts.data?.find((c) => c.id === id)?.name ?? 'Unknown court' : 'All courts'
+
+  function handleSubmit(e: FormEvent) {
+    e.preventDefault()
+    create.mutate(
+      {
+        court_id: courtId || null,
+        starts_at: zonedLocalToISO(startsAt, timeZone),
+        ends_at: zonedLocalToISO(endsAt, timeZone),
+        reason: reason.trim(),
+      },
+      {
+        onSuccess: () => {
+          setStartsAt('')
+          setEndsAt('')
+          setReason('')
+        },
+      },
+    )
+  }
+
+  function handleDelete(id: string) {
+    if (window.confirm('Remove this blackout? The time will become bookable again.')) remove.mutate(id)
+  }
+
+  return (
+    <section className="card stack">
+      <div>
+        <h2>Blackouts</h2>
+        <p className="muted small">Block a court (or the whole venue) for maintenance, events or holidays. Times are in {timeZone}.</p>
+      </div>
+
+      <form className="stack" onSubmit={handleSubmit}>
+        <div className="form-grid">
+          <label className="field">
+            <span>Court</span>
+            <select value={courtId} onChange={(e) => setCourtId(e.target.value)}>
+              <option value="">All courts</option>
+              {courts.data?.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </label>
+          <label className="field">
+            <span>Starts</span>
+            <input type="datetime-local" step={3600} required value={startsAt} onChange={(e) => setStartsAt(e.target.value)} />
+          </label>
+          <label className="field">
+            <span>Ends</span>
+            <input type="datetime-local" step={3600} required min={startsAt || undefined} value={endsAt} onChange={(e) => setEndsAt(e.target.value)} />
+          </label>
+          <label className="field">
+            <span>Reason</span>
+            <input value={reason} placeholder="e.g. Floor maintenance" onChange={(e) => setReason(e.target.value)} />
+          </label>
+        </div>
+        <div className="form-actions">
+          <button type="submit" className="btn" disabled={create.isPending}>{create.isPending ? 'Adding…' : 'Add blackout'}</button>
+          {create.error && <span className="form-error" role="alert">{create.error.message}</span>}
+        </div>
+      </form>
+
+      {blackouts.isPending ? (
+        <PageLoader />
+      ) : blackouts.isError ? (
+        <ErrorMessage error={blackouts.error} onRetry={() => blackouts.refetch()} />
+      ) : blackouts.data.length === 0 ? (
+        <p className="muted">No upcoming blackouts.</p>
+      ) : (
+        <ul className="list">
+          {blackouts.data.map((b) => (
+            <li key={b.id} className="list-row">
+              <span>
+                <strong>{courtName(b.court_id)}</strong>
+                <span className="block small">
+                  {formatDateTimeInZone(b.starts_at, timeZone)} → {formatDateTimeInZone(b.ends_at, timeZone)}
+                </span>
+                {b.reason && <span className="block small muted">{b.reason}</span>}
+              </span>
+              <button type="button" className="btn btn-small btn-ghost" disabled={remove.isPending} onClick={() => handleDelete(b.id)}>
+                Remove
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {remove.error && <p className="form-error" role="alert">{remove.error.message}</p>}
+    </section>
+  )
+}
