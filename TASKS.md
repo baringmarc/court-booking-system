@@ -9,7 +9,7 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
 - **Current milestone:** 4 (Payments) ✅ done; 5 (Accounts) outline proposed
 - **Next task:** waiting for the user to approve the M5 outline, then T5.1 (research), which ends with a DB plan for approval
 - **State:** M4 is complete and live on the linked project: payments, proof bucket, the `submit-payment-proof` Edge Function, review, expiry job, walk-ins, the booking-page upload loop, the admin review queue and the dashboard. Every task and the milestone itself were reviewer-PASSed. M3 and M4 are both uncommitted.
-- **Blockers / notes:** Docker Desktop must be running for `npm run verify`. `npm run smoke:proof` needs the full local stack (`npx supabase start`). Open follow-ups: H7 (check 360px phone layouts in a real browser); a user decision on capping the fresh hold after a rejection at the start time (see T4.6); the Edge Function's `index.ts` is checked only by the smoke test (no Deno type-check).
+- **Blockers / notes:** Docker Desktop must be running for `npm run verify`. `npm run test:e2e` and `npm run smoke:proof` need the full local stack (`npx supabase start`). Open follow-ups: a user decision on capping the fresh hold after a rejection at the start time (see T4.6); the Edge Function's `index.ts` is checked only by the smoke and e2e tests (no Deno type-check).
 
 ## How tasks work
 
@@ -362,6 +362,6 @@ Emails, empty, loading and error states, a11y pass, deploy, README screenshots a
 - [x] H2 Stop hook that blocks "done" until verify passes (`.claude/hooks/verify-gate.mjs`)
 - [x] H3 `reviewer` agent (`.claude/agents/reviewer.md`)
 - [x] H4 `/implement` command (`.claude/skills/implement/SKILL.md`)
-- [ ] H5 Playwright e2e (later)
+- [x] H5 Playwright e2e: `npm run test:e2e` (Chromium desktop + 360px phone, local stack, serial). Flows: guest booking and proof upload, admin reject → re-upload → approve, signed-in player, walk-in. Tagged test data is removed in global teardown. The Stop hook runs it when UI-facing files change (blocking if the local stack is down).
 - [x] H6 >500 kB main chunk warning: gone since the admin pages became lazy chunks (2026-10-17 build: largest chunk 347 kB). Watch it as the app grows.
-- [ ] H7 Check the phone layouts (360px) in a real browser: booking grid, checkout, booking page with proof upload, admin review panel and walk-in form. Can be folded into H5 (Playwright) viewport tests.
+- [x] H7 Phone layouts (360px) checked by hand in a real browser by the user (2026-10-17). The e2e phone project now runs every flow at 360px.

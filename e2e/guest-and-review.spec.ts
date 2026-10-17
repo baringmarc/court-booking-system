@@ -1,0 +1,63 @@
+// Guest books, pays and uploads a proof; an admin rejects it (the guest re-uploads), then approves it.
+import { expect, test, type Page } from '@playwright/test'
+import { createAdmin, E2E_PREFIX, logIn, pickFirstFreeSlot, uploadProof, venueDate } from './support/helpers.ts'
+
+test.describe.serial('guest booking and admin review', () => {
+  let bookingUrl = ''
+  let reference = ''
+
+  test('a guest books a court and uploads a proof of payment', async ({ page }) => {
+    await pickFirstFreeSlot(page, { date: venueDate(8), sport: 'pickleball', court: 'Pickleball 1' })
+
+    await page.getByLabel('Name').fill(`${E2E_PREFIX} Guest`)
+    await page.getByLabel('Email').fill(`e2e-guest-${Date.now()}@example.com`)
+    await page.getByLabel('Phone').fill('0917 000 1234')
+    await page.getByRole('button', { name: 'Confirm booking' }).click()
+
+    await expect(page.getByRole('heading', { name: 'Booking reserved' })).toBeVisible()
+    await expect(page).toHaveURL(/\/booking\/CB-[A-Z0-9]{6}\?token=/)
+    await expect(page.getByRole('heading', { name: 'Save this link' })).toBeVisible()
+    await expect(page.getByText('Waiting for payment')).toBeVisible()
+    await expect(page.getByRole('timer')).toBeVisible()
+
+    bookingUrl = page.url()
+    reference = new URL(bookingUrl).pathname.split('/').pop()!
+    await uploadProof(page)
+    await expect(page.getByText('Payment under review')).toBeVisible()
+  })
+
+  test('an admin rejects the proof, the guest re-uploads, and the admin approves', async ({ page, browser }) => {
+    const admin = await createAdmin()
+    const adminContext = await browser.newContext()
+    const adminPage = await adminContext.newPage()
+    await logIn(adminPage, admin.email, admin.password)
+
+    const openInQueue = async (p: Page) => {
+      await p.goto('/admin/bookings')
+      await p.getByRole('button', { name: new RegExp(reference) }).click()
+      await expect(p.getByRole('region', { name: `Booking ${reference}` })).toBeVisible()
+    }
+
+    // Reject with a reason: the guest keeps the slot and sees why.
+    await openInQueue(adminPage)
+    await expect(adminPage.getByRole('img', { name: 'Proof of payment' })).toBeVisible()
+    await adminPage.getByLabel('Reason for rejecting').fill('Screenshot is cut off')
+    await adminPage.getByRole('button', { name: 'Reject proof' }).click()
+    await expect(adminPage.getByRole('status').filter({ hasText: 'proof rejected' })).toBeVisible()
+
+    await page.goto(bookingUrl)
+    await expect(page.getByRole('alert')).toContainText('Your last proof was not accepted: Screenshot is cut off')
+    await uploadProof(page)
+
+    // Approve the second proof: the booking is confirmed.
+    await openInQueue(adminPage)
+    await adminPage.getByRole('button', { name: 'Approve and confirm' }).click()
+    await expect(adminPage.getByRole('status').filter({ hasText: `${reference} is confirmed` })).toBeVisible()
+
+    await page.goto(bookingUrl)
+    await expect(page.getByText('Confirmed', { exact: true })).toBeVisible()
+    await expect(page.getByText('Accepted', { exact: true })).toBeVisible()
+    await expect(page.getByText('Not accepted', { exact: true })).toBeVisible()
+    await adminContext.close()
+  })
+})

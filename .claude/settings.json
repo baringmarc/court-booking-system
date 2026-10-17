@@ -6,8 +6,8 @@
           {
             "type": "command",
             "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/verify-gate.mjs\"",
-            "timeout": 300,
-            "statusMessage": "Running npm run verify…"
+            "timeout": 480,
+            "statusMessage": "Running checks (verify, and e2e if UI changed)…"
           }
         ]
       }
