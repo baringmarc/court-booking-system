@@ -1,6 +1,6 @@
 # Court Booking System — Product Spec
 
-> Status: draft v0.3 (2026-10-16). Portfolio project: one realistic venue, simplified operations.
+> Status: draft v0.4 (2026-10-16). Portfolio project: one realistic venue, simplified operations.
 
 ## 1. Overview
 
@@ -126,6 +126,7 @@ Admins are promoted manually in the database (no self-signup as admin).
 ## 6. Data model (Supabase / Postgres)
 
 ```
+-- day_of_week: 0 = Sunday … 6 = Saturday (matches JS getDay / Postgres extract(dow))
 profiles          id (= auth.users.id) PK, full_name, phone, role ('player'|'admin'), created_at
 venue_settings    id (singleton), name, timezone, currency, slot_minutes (60), booking_window_days (30),
                   payment_hold_minutes (60), cancel_cutoff_hours (1), max_rejections (2),
@@ -134,7 +135,8 @@ courts            id, name, sport, description, default_hourly_rate numeric, is_
 court_rates       court_id, day_of_week (0–6), start_hour (0–23), price numeric
                   PK (court_id, day_of_week, start_hour)
 operating_hours   day_of_week (0–6) PK, open_time, close_time, is_closed
-blackouts         id, court_id (nullable = all courts), during tstzrange, reason, created_by
+blackouts         id, court_id (nullable = all courts), starts_at, ends_at, reason, created_by
+                  (gist index on tstzrange(starts_at, ends_at))
 bookings          id, reference_code unique, court_id, user_id (nullable),
                   guest_name, guest_email, guest_phone,
                   during tstzrange, total_amount numeric, status booking_status,
@@ -186,7 +188,8 @@ Guest access uses a random token. It is shown once (in the confirmation page lin
 | `/me/bookings`      | player             | Upcoming and past bookings, including claimed guest bookings.                                                                            |
 | `/admin`            | admin              | Dashboard: today's schedule, proofs waiting for review, a "+ Walk-in" quick action, and today's takings by method.                       |
 | `/admin/bookings`   | admin              | Filterable list (status, source, date). Review a proof (image or PDF preview, amount-mismatch warning), approve or reject with a reason. |
-| `/admin/courts`     | admin              | Create, edit and archive courts. Default rate and a weekly rate grid editor (day × hour).                                                |
+| `/admin/courts` | admin | Court list with an "Add court" button. |
+| `/admin/courts/:id` | admin | Edit or archive a court (`new` creates one). Weekly rate grid editor (day × hour) with a "fill a range" helper. |
 | `/admin/schedule`   | admin              | Operating hours and blackouts.                                                                                                           |
 | `/admin/settings`   | admin              | Venue settings and payment instructions.                                                                                                 |
 
@@ -198,8 +201,8 @@ Email on booking created (with the guest link), payment confirmed, proof rejecte
 
 ## 9. Milestones
 
-1. **Foundation**: Supabase project linked, migrations folder, generated types, layout, routing, auth (Google + email/password), `profiles` and role.
-2. **Catalog**: courts, rate table, operating hours and venue settings, with admin CRUD (including the rate grid editor) and the public home page. Seed data.
+1. ✅ **Foundation**: Supabase project linked, migrations folder, generated types, layout, routing, auth (Google + email/password), `profiles` and role.
+2. ✅ **Catalog**: courts, rate table, operating hours and venue settings, with admin CRUD (including the rate grid editor) and the public home page. Seed data.
 3. **Booking**: `get_availability` with prices, the slot grid, `create_booking` with the exclusion constraint and pricing, and the booking detail page.
 4. **Payments**: storage bucket, proof upload, admin review queue with the reject → re-upload loop, expiry job, walk-in flow.
 5. **Accounts**: My bookings, cancellation, guest token flow hardened, `claim_guest_bookings`.
@@ -217,6 +220,7 @@ Email on booking created (with the guest link), payment confirmed, proof rejecte
 | 2026-10-16 | Auth: Google OAuth and email + password; guest bookings are auto-claimed by a verified matching email.                                                                           |
 | 2026-10-16 | No public demo login; booking emails are a stretch goal (Resend).                                                                                                                |
 | 2026-10-16 | Venue name: Claudex Courts.                                                                                                                                                      |
+| 2026-10-17 | Blackouts use `starts_at`/`ends_at` columns instead of a `tstzrange` column, which is simpler for the client. The overlap check uses `tstzrange(starts_at, ends_at)`. |
 | 2026-10-16 | Walk-ins go straight to `confirmed` with `source = 'walk_in'` and an approved payment row (default cash) recorded by the admin. `payment_proofs` is generalized into `payments`. |
 
 ## 11. Open questions
