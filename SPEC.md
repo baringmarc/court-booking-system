@@ -1,6 +1,6 @@
 # Court Booking System — Product Spec
 
-> Status: draft v0.4 (2026-10-16). Portfolio project: one realistic venue, simplified operations.
+> Status: draft v0.6 (2026-10-17, M4 done). Portfolio project: one realistic venue, simplified operations.
 
 ## 1. Overview
 
@@ -52,6 +52,7 @@ Admins are promoted manually in the database (no self-signup as admin).
 - Tennis: 1 court
 - Opening hours: 06:00–22:00 every day
 - Pricing: peak overrides on weekday evenings and on weekends, to show the rate table in use
+- Bookings: a few demo bookings (confirmed and payment submitted) for tomorrow and the day after, so the grid shows busy slots
 
 ## 4. Booking lifecycle
 
@@ -84,7 +85,7 @@ Admins are promoted manually in the database (no self-signup as admin).
 ```
 
 - **Active statuses** (these hold the slot): `pending_payment`, `payment_submitted`, `confirmed`.
-- **Hold window**: a `pending_payment` booking expires after `payment_hold_minutes` (default **60**). Expiry is enforced lazily (availability queries ignore expired holds) and swept by a scheduled job (`pg_cron`) that sets status to `expired`.
+- **Hold window**: a `pending_payment` booking expires after `payment_hold_minutes` (default **60**). Expiry is enforced lazily: availability queries ignore expired holds, and `create_booking` sets any overlapping expired hold on the same court to `expired` before it inserts, because the exclusion constraint can't use `now()`. A scheduled job (`pg_cron`, M4) also sweeps expired holds to `expired`.
 - **Rejected proof**: the admin must give a reason, which is shown to the player.
   - First rejection: the booking goes back to `pending_payment` with a fresh hold window, and the player keeps the slot and can upload a new proof.
   - Second rejection (`max_rejections`, default **2**): the booking becomes `rejected` and the slot is freed.
@@ -138,11 +139,11 @@ operating_hours   day_of_week (0–6) PK, open_time, close_time, is_closed
 blackouts         id, court_id (nullable = all courts), starts_at, ends_at, reason, created_by
                   (gist index on tstzrange(starts_at, ends_at))
 bookings          id, reference_code unique, court_id, user_id (nullable),
-                  guest_name, guest_email, guest_phone,
+                  guest_name not null, guest_email, guest_phone   -- contact snapshot for every booking (guest, player, walk-in)
                   during tstzrange, total_amount numeric, status booking_status,
                   source ('online'|'walk_in') default 'online', created_by (admin, nullable),
                   rejection_count int default 0,
-                  guest_token_hash, expires_at, cancelled_at, cancel_reason,
+                  guest_token_hash bytea (sha256 of the guest token), expires_at, cancelled_at, cancel_reason,
                   created_at, updated_at
                   EXCLUDE USING gist (court_id WITH =, during WITH &&) WHERE (status IN active)
 payments          id, booking_id, method ('gcash'|'maya'|'bank_transfer'|'cash'),
@@ -150,6 +151,8 @@ payments          id, booking_id, method ('gcash'|'maya'|'bank_transfer'|'cash')
                   submitted_at, recorded_by (admin, nullable; set for walk-ins),
                   review_status ('pending'|'approved'|'rejected'), reviewed_by, reviewed_at, review_note
                   UNIQUE (booking_id) WHERE review_status = 'approved'
+                  UNIQUE (booking_id) WHERE review_status = 'pending'   -- one attempt awaits review at a time
+                  CHECK rejected => review_note present; CHECK storage_path under '{booking_id}/'
 ```
 
 Storage: a private bucket called `payment-proofs`. Files live at `{booking_id}/{uuid}.{ext}`. Allowed types are jpg, png, webp and pdf, up to 5 MB.
@@ -169,9 +172,10 @@ Storage: a private bucket called `payment-proofs`. Files live at `{booking_id}/{
 | `create_booking(court_id, start, slots, guest_info?)`                              | anyone      | Validates the rules, computes the price, inserts the booking and returns `{id, reference_code, guest_token?}`.                                                                                                |
 | `get_guest_booking(reference_code, token)`                                         | guest       | Returns one booking with its proofs and rejection notes, after checking the token against its hash.                                                                                                           |
 | `cancel_booking(id \| ref+token)`                                                  | owner/admin | Applies the cutoff rule and sets the status.                                                                                                                                                                  |
-| `submit_payment_proof` (Edge Function)                                             | owner/guest | Only allowed while the booking is `pending_payment`. Checks ownership or the guest token, returns a signed upload URL, and records the proof. The status changes to `payment_submitted`.                      |
+| `submit-payment-proof` (Edge Function)                                             | owner/guest | Only allowed while the booking is `pending_payment` and its hold hasn't expired. Accepts a multipart upload (≤ 5 MB; JPG, PNG, WEBP or PDF, checked by file bytes), checks ownership or the guest token, stores the file in `payment-proofs` and records the proof. The status changes to `payment_submitted`. |
 | `review_payment(booking_id, approve, note)`                                        | admin       | Approve: the status becomes `confirmed`. Reject: increments `rejection_count`, then sets `pending_payment` with a new `expires_at`, or `rejected` if the limit is reached. A note is required when rejecting. |
 | `create_walk_in(court_id, start, slots, name, phone?, method, amount, reference?)` | admin       | Creates a confirmed walk-in booking and its approved payment in one transaction (§5.8).                                                                                                                       |
+| `proof_target(ref, token, user_id)` / `record_payment_proof(...)`                 | service_role | Used only by `submit-payment-proof`: authorize the caller and check the booking is payable, then record the proof and set `payment_submitted` under a row lock. They are in `public` (PostgREST doesn't expose `private`), but only `service_role` can execute them. |
 | `claim_guest_bookings()`                                                           | player      | Links matching guest bookings to the signed-in, email-verified user (§5.7).                                                                                                                                   |
 
 Guest access uses a random token. It is shown once (in the confirmation page link and email) and stored only as a hash.
@@ -203,8 +207,8 @@ Email on booking created (with the guest link), payment confirmed, proof rejecte
 
 1. ✅ **Foundation**: Supabase project linked, migrations folder, generated types, layout, routing, auth (Google + email/password), `profiles` and role.
 2. ✅ **Catalog**: courts, rate table, operating hours and venue settings, with admin CRUD (including the rate grid editor) and the public home page. Seed data.
-3. **Booking**: `get_availability` with prices, the slot grid, `create_booking` with the exclusion constraint and pricing, and the booking detail page.
-4. **Payments**: storage bucket, proof upload, admin review queue with the reject → re-upload loop, expiry job, walk-in flow.
+3. ✅ **Booking**: `get_availability` with prices, the slot grid, `create_booking` with the exclusion constraint and pricing, and the booking detail page.
+4. ✅ **Payments**: storage bucket, proof upload, admin review queue with the reject → re-upload loop, expiry job, walk-in flow, admin dashboard.
 5. **Accounts**: My bookings, cancellation, guest token flow hardened, `claim_guest_bookings`.
 6. **Polish**: emails, empty, loading and error states, a11y pass, deploy (e.g. Vercel + Supabase), README screenshots and a demo video.
 
@@ -221,6 +225,16 @@ Email on booking created (with the guest link), payment confirmed, proof rejecte
 | 2026-10-16 | No public demo login; booking emails are a stretch goal (Resend).                                                                                                                |
 | 2026-10-16 | Venue name: Claudex Courts.                                                                                                                                                      |
 | 2026-10-17 | Blackouts use `starts_at`/`ends_at` columns instead of a `tstzrange` column, which is simpler for the client. The overlap check uses `tstzrange(starts_at, ends_at)`. |
+| 2026-10-17 | Booking engine (from RESEARCH.md, M3): the overlap rule is a `btree_gist` exclusion constraint (`bookings_no_overlap`, with the extension in the `extensions` schema), and `create_booking` expires overlapping stale holds before inserting. Slot, day-of-week and hour math always uses `at time zone venue_settings.timezone`. |
+| 2026-10-17 | Reference codes are `CB-` plus 6 characters from a 32-character unambiguous alphabet, drawn from `gen_random_bytes`, with a unique constraint and a retry on collision. Guest tokens are 32 random bytes in base64url, shown once and stored as `sha256` (`bytea`). |
+| 2026-10-17 | RPCs are `security definer` with `search_path = ''`, and their execute grant is revoked from `public, anon, authenticated` before being granted explicitly (Supabase grants new `public` functions to `anon`/`authenticated` by default). Business errors are `P0001` (HTTP 400) with a readable `message` and a stable code in `hint`. The client maps on `hint`. |
+| 2026-10-17 | `bookings.guest_name`, `guest_email` and `guest_phone` are a contact snapshot taken at booking time for every booking, not only guest bookings. The name is required, so a booking stays contactable after its player is deleted (`user_id` becomes null). `create_booking` fills them from the arguments or the player's profile, and auto-claim (§5.7) still matches only rows where `user_id` is null. |
+| 2026-10-17 | The booking window is counted in venue-local days: a slot can be booked if its local date is between today and today + `booking_window_days`, inclusive. `get_availability` and `create_booking` share `private.in_booking_window()`. `get_availability` returns no rows for closed days and for dates outside the window, and gives each slot one status, in this precedence: `past`, then `booked`, then `blackout`, then `free`. |
+| 2026-10-17 | `get_guest_booking` matches the reference code case-insensitively (codes are stored in upper case) and also returns the guest's own name and email. Any status shown to a user is the effective status: a `pending_payment` hold whose `expires_at` has passed is displayed as `expired`, in the RPC and in client code that reads bookings through RLS. |
+| 2026-10-17 | No advisory locks for booking: the exclusion constraint alone guarantees one winner when two bookings race (verified with two concurrent sessions, see RESEARCH "Concurrency"). |
+| 2026-10-17 | Payments (M4): guests and players upload proofs through one Edge Function (`submit-payment-proof`) that checks the file's bytes, stores it with the secret key and records it through service-role-only RPCs. The proof bucket is readable only by the booking owner and admins. **Guests see their payment attempts' details (time, method, amount, review status and note) but not the file.** |
+| 2026-10-17 | `get_availability` status for the slot in progress: a slot that has ended is `past`; otherwise `booked` beats `blackout`; a started slot that is free is `past`. This replaces the earlier `past`-first precedence so staff see who is playing now and the walk-in form only offers the current slot when it is really free. |
+| 2026-10-17 | Admin dashboard (M4): the walk-in form books **today** only (counter use; `create_walk_in` itself accepts other days). **Today's takings** are approved payments whose `reviewed_at` falls on the venue-local day, so they are counted on a cash basis (a proof approved today for next week's booking counts today). |
 | 2026-10-16 | Walk-ins go straight to `confirmed` with `source = 'walk_in'` and an approved payment row (default cash) recorded by the admin. `payment_proofs` is generalized into `payments`. |
 
 ## 11. Open questions

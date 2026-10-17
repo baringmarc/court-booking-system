@@ -5,6 +5,9 @@ import { PageLoader } from '../components/PageLoader'
 import { LoginPage } from '../features/auth/LoginPage'
 import { SignupPage } from '../features/auth/SignupPage'
 import { RedirectIfAuthed, RequireAdmin, RequireAuth } from '../features/auth/RouteGuards'
+import { BookPage } from '../features/booking/BookPage'
+import { BookingPage } from '../features/booking/BookingPage'
+import { CheckoutPage } from '../features/booking/CheckoutPage'
 import { HomePage } from './HomePage'
 import { NotFoundPage } from './NotFoundPage'
 
@@ -16,9 +19,9 @@ export const router = createBrowserRouter([
     hydrateFallbackElement: <PageLoader />,
     children: [
       { path: '/', element: <HomePage /> },
-      { path: '/book', element: <ComingSoon title="Book a court" milestone={3} /> },
-      { path: '/book/checkout', element: <ComingSoon title="Checkout" milestone={3} /> },
-      { path: '/booking/:ref', element: <ComingSoon title="Your booking" milestone={3} /> },
+      { path: '/book', element: <BookPage /> },
+      { path: '/book/checkout', element: <CheckoutPage /> },
+      { path: '/booking/:ref', element: <BookingPage /> },
       { path: '/login', element: <RedirectIfAuthed><LoginPage /></RedirectIfAuthed> },
       { path: '/signup', element: <RedirectIfAuthed><SignupPage /></RedirectIfAuthed> },
       {
@@ -32,8 +35,14 @@ export const router = createBrowserRouter([
           {
             lazy: () => import('../features/admin/AdminLayout').then((m) => ({ Component: m.AdminLayout })),
             children: [
-              { index: true, element: <ComingSoon title="Admin dashboard" milestone={4} /> },
-              { path: 'bookings', element: <ComingSoon title="Bookings" milestone={4} /> },
+              {
+                index: true,
+                lazy: () => import('../features/admin/DashboardPage').then((m) => ({ Component: m.DashboardPage })),
+              },
+              {
+                path: 'bookings',
+                lazy: () => import('../features/admin/AdminBookingsPage').then((m) => ({ Component: m.AdminBookingsPage })),
+              },
               {
                 path: 'courts',
                 lazy: () => import('../features/admin/CourtsPage').then((m) => ({ Component: m.CourtsPage })),
