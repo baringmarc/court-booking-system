@@ -6,8 +6,8 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
 
 > Update this section at the end of every session or task. Keep it short; it's the first thing the next session reads.
 
-- **Current milestone:** 4 (Payments) ✅ done; 5 (Accounts) outline proposed
-- **Next task:** waiting for the user to approve the M5 outline, then T5.1 (research), which ends with a DB plan for approval
+- **Current milestone:** 4 (Payments) ✅ done. Replanned on 2026-10-17: M5 = **Admin shell and accounts**, M6 = **Online payments (PayMongo, test mode)**, postponed because manual payment already works, M7 = Polish.
+- **Next task:** waiting for the user to approve the M5 outline, then T5.1 (admin shell, no DB work). T5.2 (accounts research) ends with a DB plan for approval
 - **State:** M4 is complete and live on the linked project: payments, proof bucket, the `submit-payment-proof` Edge Function, review, expiry job, walk-ins, the booking-page upload loop, the admin review queue and the dashboard. Every task and the milestone itself were reviewer-PASSed. M3 and M4 are both uncommitted.
 - **Blockers / notes:** Docker Desktop must be running for `npm run verify`. `npm run test:e2e` and `npm run smoke:proof` need the full local stack (`npx supabase start`). Open follow-ups: a user decision on capping the fresh hold after a rejection at the start time (see T4.6); the Edge Function's `index.ts` is checked only by the smoke and e2e tests (no Deno type-check).
 
@@ -305,54 +305,116 @@ Out of scope for M4: cancellation, My bookings and claiming guest bookings (M5);
   - The M5 breakdown is proposed for approval.
 - **Notes:** The seed was re-applied to the linked project: each confirmed demo booking has exactly one approved payment and CB-DEMQB3 has one pending payment (checked with a query). SPEC §9 marks M4 ✅ (v0.6). The milestone reviewer passed it, and its 4 minor findings are fixed (Handoff, keyless smoke script, RESEARCH and SPEC drift, H6 closed). The M5 breakdown is proposed below, waiting for approval.
 
-## Milestone 5: Accounts
+## Milestone 5: Admin shell and accounts
 
-Goal (SPEC §9): My bookings, cancellation, a hardened guest token flow, `claim_guest_bookings`.
+Goal (SPEC §9): a separate admin area (own layout and login), then My bookings, cancellation, a hardened guest token flow and `claim_guest_bookings`.
 
-> **Status: outline proposed, waiting for user approval.** T5.1 (research) runs first. Its findings turn T5.2–T5.4 into a concrete DB plan, which needs its own approval before any migration.
+> **Status: outline proposed, waiting for user approval.** T5.1 (admin shell) needs no DB work and can start right away. T5.2 (accounts research) ends with a DB plan for T5.3–T5.5, which needs its own approval before any migration.
 
-Out of scope for M5: refunds (a SPEC non-goal), emails (M6).
+Out of scope for M5: online payments (M6), refunds (a SPEC non-goal), emails (M7).
 
-### [ ] T5.1 Research: accounts
+### [ ] T5.1 Admin shell and `/admin/login`
+- **Do:**
+  - Move the `/admin` route tree out from under the public `Layout` in `src/routes/router.tsx`. `AdminLayout` becomes a full shell (brand, admin nav, signed-in user and log out, mobile nav) with no public header or footer. Keep every admin page lazy-loaded.
+  - Add `/admin/login` (email + password) inside the admin shell. A signed-in non-admin is refused there with a clear message. Unauthenticated `/admin/*` redirects to `/admin/login` and returns to the requested page after sign-in.
+  - Remove the Admin link from the public header.
+  - Update SPEC §7 if anything differs from the plan.
+- **Files:** `src/routes/router.tsx`, `src/features/admin/AdminLayout.tsx`, `src/features/admin/AdminLoginPage.tsx`, `src/features/auth/RouteGuards.tsx`, `src/components/Layout.tsx`, `e2e/`
+- **Acceptance:**
+  - Testing Library tests: the guard redirects to `/admin/login`, non-admins are refused, and the public header has no Admin link.
+  - The e2e admin flows sign in through `/admin/login` and pass on desktop and at 360px.
+  - The build still keeps admin code out of the public chunk.
+
+### [ ] T5.2 Research: accounts
 - **Do:** Research and record in RESEARCH.md:
   - cancellation rules: the cutoff in the venue timezone, which statuses can be cancelled, and what happens to payments (no refunds)
   - claiming guest bookings: verified email from `auth.users` (`email_confirmed_at`, Google identities) and how to trigger the claim after sign-in
   - what "hardened" should mean for the guest token flow: lookup rate limits, the token in the URL query or fragment, token lifetime after the booking ends, a lost-link path
   - the My bookings query (upcoming vs past, effective status)
-- **Acceptance:** Every entry is Decided with sources or local experiments, the DB plan for T5.2–T5.4 is written up, and the user has approved it.
+- **Acceptance:** Every entry is Decided with sources or local experiments, the DB plan for T5.3–T5.5 is written up, and the user has approved it.
 
-### [ ] T5.2 RPC `cancel_booking(id | ref + token, reason?)`
-- **Depends:** T5.1
+### [ ] T5.3 RPC `cancel_booking(id | ref + token, reason?)`
+- **Depends:** T5.2
 - **Do:** The owner (session) or guest (token) can cancel an active booking up to `cancel_cutoff_hours` before the start; admins can cancel any time. Sets `cancelled_at` and `cancel_reason`, and frees the slot.
 - **Acceptance:** pgTAP covers the cutoff boundary (venue timezone), each status, guest, owner, other player and admin, and that the freed slot can be booked again.
 
-### [ ] T5.3 RPC `claim_guest_bookings()`
-- **Depends:** T5.1
+### [ ] T5.4 RPC `claim_guest_bookings()`
+- **Depends:** T5.2
 - **Do:** Link guest bookings whose `guest_email` matches the caller's **verified** `auth.users` email and whose `user_id` is null. Idempotent, returns a count, and never trusts client input (SPEC §5.7).
 - **Acceptance:** pgTAP covers an unverified email (nothing claimed), case-insensitive matching, idempotency, never stealing another user's booking, and anon being refused.
 
-### [ ] T5.4 Guest token hardening
-- **Depends:** T5.1
-- **Do:** Whatever T5.1 decides, for example a lookup throttle and moving the token out of server-visible URLs.
-- **Acceptance:** Defined in T5.1.
-
-### [ ] T5.5 Cancel in the UI
+### [ ] T5.5 Guest token hardening
 - **Depends:** T5.2
+- **Do:** Whatever T5.2 decides, for example a lookup throttle and moving the token out of server-visible URLs.
+- **Acceptance:** Defined in T5.2.
+
+### [ ] T5.6 Cancel in the UI
+- **Depends:** T5.3
 - **Do:** A cancel button with a confirmation and a cutoff message on `/booking/:ref` (guest and owner), and an admin cancel in the review panel.
 - **Acceptance:** Testing Library tests cover the confirmation, the cutoff-passed state and errors.
 
-### [ ] T5.6 Claim after sign-in and `/me/bookings`
-- **Depends:** T5.3
+### [ ] T5.7 Claim after sign-in and `/me/bookings`
+- **Depends:** T5.4
 - **Do:** Call `claim_guest_bookings` after a verified sign-in. Add the My bookings page (upcoming and past, effective status, links to `/booking/:ref`).
 - **Acceptance:** Testing Library tests cover the list states and the claim trigger. Loading, empty and error states are handled.
 
-### [ ] T5.7 Close out M5
-- **Depends:** T5.6
-- **Do:** Mark M5 ✅ in SPEC §9, run a milestone review, and propose the M6 breakdown.
+### [ ] T5.8 Close out M5
+- **Depends:** T5.1, T5.6, T5.7
+- **Do:** Mark M5 ✅ in SPEC §9, run a milestone review, and re-confirm the M6 (PayMongo) breakdown.
 - **Acceptance:** `npm run verify` passes and the reviewer signs off.
 
-## Milestone 6: Polish
-Emails, empty, loading and error states, a11y pass, deploy, README screenshots and a demo video, Playwright e2e for the main flows. *(Break down at the end of M5.)*
+## Milestone 6: Online payments (PayMongo, test mode)
+
+Goal (SPEC §9): PayMongo test-mode checkout next to the manual proof flow, with a verified webhook confirming bookings automatically. Postponed from M5 on 2026-10-17 because manual payment and confirmation already work.
+
+> **Status: draft breakdown, re-confirm at the end of M5.** Kept from the earlier plan so the research questions aren't lost. T6.1 ends with a DB and Edge Function plan that needs approval before any migration.
+
+Out of scope for M6: live keys and real money, refunds, PayMongo for walk-ins, emails (M7).
+
+### [ ] T6.1 Research: PayMongo (test mode)
+- **Do:** Answer in RESEARCH.md, with sources (PayMongo docs) and local experiments where possible:
+  - Checkout Sessions vs Payment Intents. Which test-mode methods to offer (GCash, Maya, card, QR Ph, …). Amounts in centavos.
+  - Webhooks: which events, signature verification (`Paymongo-Signature`, test vs live signature), retries, idempotency, and registering the webhook for the deployed function.
+  - Mapping a session to a booking (metadata or reference number) and how to tell guest from owner callers when creating it.
+  - Hold interplay: session expiry vs `expires_at`, whether starting a checkout extends the hold, and the late-payment cases (paid after expiry or cancellation, or after a proof was approved). Refunds stay a non-goal, so decide what we record and show to admins.
+  - Data model: a new `method` value vs a provider column, PayMongo ids, and how this fits the unique-pending and unique-approved constraints and today's takings.
+  - Local testing without a public URL: signed fake webhook events in `smoke` and e2e.
+  - Secrets: `PAYMONGO_SECRET_KEY` and the webhook secret only as Edge Function secrets (`supabase/functions/.env` locally, `supabase secrets set` for the linked project). Never `VITE_*`.
+- **Files:** `RESEARCH.md`, `SPEC.md` (§4, §6, §10, and close the §11 open questions)
+- **Acceptance:** Every entry is Decided. The DB and Edge Function plan for T6.2–T6.4 is written up, and the user has approved it.
+
+### [ ] T6.2 Migration: PayMongo payments
+- **Depends:** T6.1
+- **Do:** The schema change T6.1 decides, plus the service-role-only RPCs that record a PayMongo payment and confirm the booking under a row lock (same pattern as `record_payment_proof`).
+- **Acceptance:** pgTAP covers the RLS (anon, player, admin, service_role), idempotency for a replayed event, the amount check, each late-payment case and the constraint interactions. `db:push` and `db:types` have been run.
+
+### [ ] T6.3 Edge Function `create-paymongo-checkout`
+- **Depends:** T6.2
+- **Do:** Authorize the owner session or the guest ref + token, check the booking is payable, create a test-mode checkout session for the stored `total_amount` with success and cancel URLs back to `/booking/:ref`, and return the checkout URL. Share the auth and payable checks with `submit-payment-proof` (`_shared`).
+- **Acceptance:** A smoke test (`npm run smoke:paymongo` or an extension of `smoke:proof`) covers owner, guest, wrong token, an unpayable booking and the amount coming from the database. PayMongo is stubbed locally unless a test key is present.
+
+### [ ] T6.4 Edge Function `paymongo-webhook`
+- **Depends:** T6.2
+- **Do:** Verify the signature, ignore events we don't handle, and record the payment through the T6.2 RPC. Idempotent, always 2xx once an event has been handled, and the function never trusts amounts or ids that aren't in the signed payload.
+- **Acceptance:** The smoke test covers a valid paid event (booking confirmed), a bad signature (401, nothing changes), a replay (no duplicate payment) and a late payment (handled as T6.1 decided).
+
+### [ ] T6.5 Booking page: "Pay online"
+- **Depends:** T6.3
+- **Do:** On `/booking/:ref`, offer "Pay online with PayMongo" next to "Upload proof" while the booking is payable. Redirect to checkout. On return, show a "confirming payment…" state that refetches until the webhook has confirmed the booking (with a timeout message). Also handle the cancel return.
+- **Acceptance:** Testing Library tests cover the button states, the return polling and errors. An e2e flow covers pay online → (signed fake webhook) → confirmed on desktop and at 360px.
+
+### [ ] T6.6 Admin: PayMongo payments
+- **Depends:** T6.4
+- **Do:** Show PayMongo payments (method, PayMongo id, paid time) in the `/admin/bookings` list and detail panel with no review actions, flag late payments that need manual follow-up, and count them in the dashboard's takings by method.
+- **Acceptance:** Testing Library tests cover the PayMongo row, the late-payment flag and the takings breakdown.
+
+### [ ] T6.7 Close out M6
+- **Depends:** T6.5, T6.6
+- **Do:** Set the PayMongo secrets on the linked project, deploy both functions, register the test-mode webhook, and do one real test-mode payment end to end. Mark M6 ✅ in SPEC §9, run a milestone review, and propose the M7 breakdown.
+- **Acceptance:** `npm run verify` and `npm run test:e2e` pass, a real test-mode payment confirms a booking on the linked project, and the reviewer signs off.
+
+## Milestone 7: Polish
+Emails, empty, loading and error states, a11y pass, deploy, README screenshots and a demo video, Playwright e2e for the main flows. *(Break down at the end of M6.)*
 
 ---
 
