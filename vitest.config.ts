@@ -7,7 +7,7 @@ export default mergeConfig(
     test: {
       environment: 'jsdom',
       setupFiles: ['./src/test/setup.ts'],
-      include: ['src/**/*.test.{ts,tsx}'],
+      include: ['src/**/*.test.{ts,tsx}', 'supabase/functions/_shared/**/*.test.ts'],
       // Dummy values so modules importing lib/supabase.ts load. Tests must mock network calls.
       env: {
         VITE_SUPABASE_URL: 'http://localhost:54321',

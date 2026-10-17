@@ -84,6 +84,94 @@ export type Database = {
           },
         ]
       }
+      bookings: {
+        Row: {
+          cancel_reason: string | null
+          cancelled_at: string | null
+          court_id: string
+          created_at: string
+          created_by: string | null
+          during: unknown
+          expires_at: string | null
+          guest_email: string | null
+          guest_name: string
+          guest_phone: string | null
+          guest_token_hash: string | null
+          id: string
+          reference_code: string
+          rejection_count: number
+          source: Database["public"]["Enums"]["booking_source"]
+          status: Database["public"]["Enums"]["booking_status"]
+          total_amount: number
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          court_id: string
+          created_at?: string
+          created_by?: string | null
+          during: unknown
+          expires_at?: string | null
+          guest_email?: string | null
+          guest_name: string
+          guest_phone?: string | null
+          guest_token_hash?: string | null
+          id?: string
+          reference_code: string
+          rejection_count?: number
+          source?: Database["public"]["Enums"]["booking_source"]
+          status?: Database["public"]["Enums"]["booking_status"]
+          total_amount: number
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          court_id?: string
+          created_at?: string
+          created_by?: string | null
+          during?: unknown
+          expires_at?: string | null
+          guest_email?: string | null
+          guest_name?: string
+          guest_phone?: string | null
+          guest_token_hash?: string | null
+          id?: string
+          reference_code?: string
+          rejection_count?: number
+          source?: Database["public"]["Enums"]["booking_source"]
+          status?: Database["public"]["Enums"]["booking_status"]
+          total_amount?: number
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bookings_court_id_fkey"
+            columns: ["court_id"]
+            isOneToOne: false
+            referencedRelation: "courts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookings_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookings_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       court_rates: {
         Row: {
           court_id: string
@@ -170,6 +258,73 @@ export type Database = {
         }
         Relationships: []
       }
+      payments: {
+        Row: {
+          amount: number
+          booking_id: string
+          id: string
+          method: Database["public"]["Enums"]["payment_method"]
+          recorded_by: string | null
+          reference_number: string | null
+          review_note: string | null
+          review_status: Database["public"]["Enums"]["payment_review_status"]
+          reviewed_at: string | null
+          reviewed_by: string | null
+          storage_path: string | null
+          submitted_at: string
+        }
+        Insert: {
+          amount: number
+          booking_id: string
+          id?: string
+          method: Database["public"]["Enums"]["payment_method"]
+          recorded_by?: string | null
+          reference_number?: string | null
+          review_note?: string | null
+          review_status?: Database["public"]["Enums"]["payment_review_status"]
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          storage_path?: string | null
+          submitted_at?: string
+        }
+        Update: {
+          amount?: number
+          booking_id?: string
+          id?: string
+          method?: Database["public"]["Enums"]["payment_method"]
+          recorded_by?: string | null
+          reference_number?: string | null
+          review_note?: string | null
+          review_status?: Database["public"]["Enums"]["payment_review_status"]
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          storage_path?: string | null
+          submitted_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_recorded_by_fkey"
+            columns: ["recorded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -244,9 +399,105 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      create_booking: {
+        Args: {
+          p_court_id: string
+          p_guest_email?: string
+          p_guest_name?: string
+          p_guest_phone?: string
+          p_slots: number
+          p_start: string
+        }
+        Returns: {
+          guest_token: string
+          id: string
+          reference_code: string
+        }[]
+      }
+      create_walk_in: {
+        Args: {
+          p_amount?: number
+          p_court_id: string
+          p_method?: Database["public"]["Enums"]["payment_method"]
+          p_name: string
+          p_phone?: string
+          p_reference_number?: string
+          p_slots: number
+          p_start: string
+        }
+        Returns: {
+          id: string
+          reference_code: string
+        }[]
+      }
+      get_availability: {
+        Args: { p_court_id?: string; p_date: string }
+        Returns: {
+          court_id: string
+          price: number
+          slot_end: string
+          slot_start: string
+          status: string
+        }[]
+      }
+      get_guest_booking: {
+        Args: { p_reference_code: string; p_token: string }
+        Returns: {
+          court_id: string
+          court_name: string
+          created_at: string
+          expires_at: string
+          guest_email: string
+          guest_name: string
+          id: string
+          payment_instructions: string
+          payments: Json
+          reference_code: string
+          rejection_count: number
+          slot_end: string
+          slot_start: string
+          sport: Database["public"]["Enums"]["sport"]
+          status: Database["public"]["Enums"]["booking_status"]
+          total_amount: number
+        }[]
+      }
+      proof_target: {
+        Args: { p_reference_code: string; p_token: string; p_user_id: string }
+        Returns: {
+          booking_id: string
+          total_amount: number
+        }[]
+      }
+      record_payment_proof: {
+        Args: {
+          p_amount: number
+          p_booking_id: string
+          p_method: Database["public"]["Enums"]["payment_method"]
+          p_reference_number?: string
+          p_storage_path: string
+        }
+        Returns: {
+          payment_id: string
+        }[]
+      }
+      review_payment: {
+        Args: { p_approve: boolean; p_booking_id: string; p_note?: string }
+        Returns: {
+          status: Database["public"]["Enums"]["booking_status"]
+        }[]
+      }
     }
     Enums: {
+      booking_source: "online" | "walk_in"
+      booking_status:
+        | "pending_payment"
+        | "payment_submitted"
+        | "confirmed"
+        | "expired"
+        | "rejected"
+        | "cancelled"
+      payment_method: "gcash" | "maya" | "bank_transfer" | "cash"
+      payment_review_status: "pending" | "approved" | "rejected"
       sport: "badminton" | "pickleball" | "basketball" | "tennis"
       user_role: "player" | "admin"
     }
@@ -379,6 +630,17 @@ export const Constants = {
   },
   public: {
     Enums: {
+      booking_source: ["online", "walk_in"],
+      booking_status: [
+        "pending_payment",
+        "payment_submitted",
+        "confirmed",
+        "expired",
+        "rejected",
+        "cancelled",
+      ],
+      payment_method: ["gcash", "maya", "bank_transfer", "cash"],
+      payment_review_status: ["pending", "approved", "rejected"],
       sport: ["badminton", "pickleball", "basketball", "tennis"],
       user_role: ["player", "admin"],
     },

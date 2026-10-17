@@ -50,6 +50,7 @@ You are the code reviewer for the Claudex Courts booking app. Your job is to dec
 - New logic modules (pure functions, selection logic, formatters) have Vitest tests that cover the edge cases named in the task.
 - Every new migration, RPC or policy has pgTAP tests in `supabase/tests/database/` that cover anon, player and admin access, each business rule and its failure path, and the constraints. A DB acceptance criterion without a pgTAP test is **unmet**.
 - Tests assert behavior. Watch for tests that were weakened, skipped (`.skip`, `.only`) or deleted to make verify pass.
+- A task that changes a user journey adds or extends a Playwright spec in `e2e/` (accessible selectors, tagged test data). Flag missing e2e coverage for new flows as **major**.
 
 ## Severity
 - **blocker**: an acceptance criterion is unmet, a SPEC rule is violated, there's a security or RLS hole, an applied migration was edited, data could be corrupted or double-booked, or tests were weakened. Any blocker means BLOCK.

@@ -12,7 +12,7 @@ Court booking web app for a single venue (portfolio project).
 - Vite 8, React 19, TypeScript 6 (strict), React Router 7
 - Supabase: Postgres, Auth, Storage, Edge Functions, through `@supabase/supabase-js`
 - TanStack Query for server state (caching, invalidation after admin edits)
-- ESLint (flat config). Vitest + Testing Library (jsdom) for logic and components. pgTAP for database tests, run against the local Supabase Postgres in Docker. Playwright e2e later.
+- ESLint (flat config). Vitest + Testing Library (jsdom) for logic and components. pgTAP for database tests, run against the local Supabase Postgres in Docker. Playwright for e2e flows (Chromium, desktop + 360px phone) against the full local stack.
 
 ## Commands
 ```bash
@@ -22,13 +22,15 @@ npm run lint      # eslint
 npm run test      # vitest run (test:watch for watch mode)
 npm run test:db   # pgTAP tests in supabase/tests against the LOCAL db (auto-starts it, applies pending migrations)
 npm run verify    # typecheck + lint + test + test:db + build: the gate for "done"
+npm run test:e2e  # Playwright flows against the LOCAL stack (needs `npx supabase start`); not in verify, but the Stop hook runs it when UI files change
+npm run smoke:proof  # Edge Function smoke test against the local stack
 npm run db:start / db:stop / db:reset:local   # local Supabase Postgres (Docker Desktop must be running)
 npm run db:push   # apply supabase/migrations to the linked project
 npm run db:types  # regenerate src/lib/database.types.ts from the linked project
 npx supabase db query --linked -f supabase/seed.sql   # (re)apply demo data, idempotent
 ```
 Supabase CLI is a pinned dev dependency: use `npx supabase <cmd>` (`npx supabase migration new <name>` for new migrations).
-Before saying a task is done, run `npm run verify` and make sure it passes. A Stop hook (`.claude/hooks/verify-gate.mjs`) enforces this: it re-runs verify whenever code changed and blocks finishing while it fails. Never weaken tests or lint rules to get past it.
+Before saying a task is done, run `npm run verify` and make sure it passes. A Stop hook (`.claude/hooks/verify-gate.mjs`) enforces this: it re-runs verify whenever code changed, and also runs `npm run test:e2e` when UI-facing files (`src/`, `e2e/`, `playwright.config.ts`, `supabase/functions/`) changed since the last passing e2e run. It blocks finishing while either fails, or while the full local stack needed for e2e isn't running. Never weaken tests or lint rules to get past it.
 
 ## Environment
 - `.env` (gitignored) holds `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`. Keep `.env.example` in sync when you add vars.
@@ -61,6 +63,7 @@ supabase/
 ## Code conventions
 - Function components and hooks only. Data access pattern: plain async functions in `features/<area>/api.ts` (using `unwrap()` from `lib/queryClient.ts`), wrapped by React Query hooks in `features/<area>/hooks.ts`. No Supabase calls inline in JSX.
 - Forms that edit fetched data: render the form only once data has loaded, seed `useState` from props, and remount with `key` to reset. Don't sync props into state with effects (the react-hooks lint rules reject it).
+- E2E tests live in `e2e/`: accessible selectors (role/label), data tagged `E2E…` / `e2e-…@example.com` so global teardown removes it, local stack only. Add or extend a flow when a task changes a user journey.
 - Admin routes are lazy-loaded (`lazy:` in `src/routes/router.tsx`). Keep admin-only code out of the public bundle.
 - Timezone conversions go through `src/lib/time.ts`. Formatting helpers live in `src/lib/format.ts`.
 - Use the generated `Database` types for all Supabase calls. Avoid `any`.

@@ -27,3 +27,8 @@ dist-ssr
 # Claude Code local state
 .claude/.verify-state.json
 .claude/settings.local.json
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/

@@ -60,6 +60,7 @@ For a task that isn't risky, state your plan in two or three lines and continue.
 
 ## 5. Verify
 - Run `npm run verify` and fix any failures until it passes.
+- If the task changes a user journey (pages, forms, flows), add or extend a spec in `e2e/` and run `npm run test:e2e` against the full local stack (`npx supabase start`). The Stop hook also runs it whenever UI-facing files changed, and blocks while it fails or the stack is down. Always run it before closing a milestone.
 - Never weaken, skip or delete tests or lint rules to get it passing. The Stop hook re-runs verify anyway.
 
 ## 6. Review
