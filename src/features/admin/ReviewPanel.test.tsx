@@ -15,6 +15,7 @@ const booking: AdminBooking = {
   status: 'payment_submitted', source: 'online', total_amount: 900, expires_at: null, rejection_count: 0,
   guest_name: 'Gina Guest', guest_email: 'gina@example.com', guest_phone: '0917 222 2222',
   created_at: '2030-01-07T02:00:00.000Z', payments: [pendingProof],
+  cancelled_at: null, cancel_reason: null, cancelled_by_venue: false,
 }
 
 function renderPanel(overrides: Partial<AdminBooking> = {}, proof: ProofLink = { state: 'ready', url: 'https://signed/proof' }, error: unknown = null) {
@@ -74,5 +75,20 @@ describe('ReviewPanel', () => {
   it('explains a missing or unloadable proof file', () => {
     renderPanel({}, { state: 'error' })
     expect(screen.getByText('The proof file could not be loaded.')).toBeInTheDocument()
+  })
+
+  it('shows who cancelled and why', () => {
+    renderPanel({ status: 'cancelled', payments: [], cancelled_at: '2030-01-07T02:30:00.000Z', cancel_reason: 'Rain', cancelled_by_venue: false })
+    expect(screen.getByText(/Cancelled by the customer on .*: Rain/)).toBeInTheDocument()
+    expect(screen.queryByText(/Cancelled after payment/)).not.toBeInTheDocument()
+  })
+
+  it('flags a booking cancelled after payment so staff settle the refund', () => {
+    renderPanel({
+      status: 'cancelled', cancelled_at: '2030-01-07T02:30:00.000Z', cancel_reason: 'Court maintenance', cancelled_by_venue: true,
+      payments: [{ ...pendingProof, review_status: 'approved' }],
+    })
+    expect(screen.getByText(/Cancelled by staff/)).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('Cancelled after payment: settle any refund outside the app.')
   })
 })

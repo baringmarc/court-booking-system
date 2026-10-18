@@ -16,9 +16,11 @@ type Props = {
   now: Date
   /** Rendered while the booking is waiting for a proof (the page owns the upload mutation). */
   proofForm?: ReactNode
+  /** The cancel card (the page owns the cancel mutation); it renders nothing once the booking is inactive. */
+  cancelSection?: ReactNode
 }
 
-export function BookingSummary({ booking, paymentInstructions, timeZone, currency, now, proofForm }: Props) {
+export function BookingSummary({ booking, paymentInstructions, timeZone, currency, now, proofForm, cancelSection }: Props) {
   const status = displayStatus(booking, now)
   const date = todayInZone(timeZone, new Date(booking.slot_start))
   const hours = Math.round((Date.parse(booking.slot_end) - Date.parse(booking.slot_start)) / 3_600_000)
@@ -83,9 +85,17 @@ export function BookingSummary({ booking, paymentInstructions, timeZone, currenc
           <p>This hold expired before payment was received, so the times were released. You can book again.</p>
         </div>
       )}
-      {(status === 'pending_payment' || status === 'payment_submitted' || status === 'confirmed') && (
-        <p className="muted small">Cancelling online is coming soon. Contact the venue if you need to cancel.</p>
+      {status === 'cancelled' && (
+        <div className="alert alert-error" role="status">
+          {booking.cancelled_by_venue ? (
+            <p>The venue cancelled this booking{booking.cancel_reason ? `: ${booking.cancel_reason}` : '.'}</p>
+          ) : (
+            <p>This booking was cancelled{booking.cancel_reason ? ` (${booking.cancel_reason})` : ''}.</p>
+          )}
+          <p>The times were released.{booking.payments.some((p) => p.review_status === 'approved') ? ' Contact the venue about any refund.' : ''}</p>
+        </div>
       )}
+      {cancelSection}
       <PaymentHistory payments={booking.payments} timeZone={timeZone} currency={currency} />
     </div>
   )

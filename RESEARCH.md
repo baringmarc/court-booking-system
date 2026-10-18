@@ -190,3 +190,401 @@ Rules:
   - Errors use the same `P0001` and hint convention (`not_found`, `invalid_state`, `note_required`, `forbidden`).
 - **`create_walk_in(court_id, start, slots, name, phone?, method, amount, reference?)`** (admin only): the same checks as `create_booking`, except there's no booking window and the start may be **the slot currently in progress** (`start <= now() < start + 1h`). It inserts a `confirmed` booking with `source = 'walk_in'`, `created_by = auth.uid()` and an `approved` payment with `recorded_by = auth.uid()`. Move the shared validation into `private.validate_booking_slot(...)` so the two RPCs can't drift apart.
 - **`payments`:** add `unique (booking_id) where review_status = 'approved'` (SPEC §6) and a partial unique index allowing only one `pending` payment per booking.
+
+---
+
+## Milestone 5: Accounts
+
+### Cancellation rules
+- **Status:** Decided (SPEC §10, 2026-10-17)
+- **Question:** Which bookings can be cancelled, and by whom? How does the cutoff interact with the venue timezone? What happens to payments when there are no refunds?
+- **Findings:**
+  - The cutoff is a duration, not a wall-clock time. "Up to `cancel_cutoff_hours` before the start" is `now() <= lower(during) - make_interval(hours => cancel_cutoff_hours)` on `timestamptz` values, which is independent of timezone. `Asia/Manila` has no DST, and even in a DST zone an absolute interval is the natural reading. The venue timezone matters only when the deadline is *displayed* (`src/lib/time.ts`). *(Postgres docs: [datetime operators](https://www.postgresql.org/docs/current/functions-datetime.html).)*
+  - The bookings that hold a slot are the **effectively** active ones: `pending_payment` with `expires_at > now()`, `payment_submitted` and `confirmed` (SPEC §4, §10). A stale hold is already `expired` to the user, so cancelling it should fail like any other inactive booking.
+  - Setting `status = 'cancelled'` frees the slot at once, because `bookings_no_overlap` only covers active statuses (03_bookings pgTAP already proves that a cancelled row doesn't block its range).
+  - `review_payment` locks the booking with `select … for update` (`20261017034431_review_payment.sql:38`). If `cancel_booking` takes the same row lock, a cancel and a review racing on one booking are serialized, and the second one sees the new status.
+  - Payments when there are no refunds (a SPEC non-goal):
+    - The dashboard's proof queue and the "proofs waiting" count filter on `bookings.status = 'payment_submitted'` (`src/features/admin/api.ts:113`). A pending proof on a cancelled booking therefore drops out of the queue with no change to the payment row.
+    - Today's takings count approved payments by `reviewed_at` (SPEC §10). An approved payment on a booking cancelled later stays counted, which is correct: the money was received, and any refund happens outside the app.
+  - Walk-ins have no `user_id` and no token, so only an admin can cancel them, with no extra rule needed.
+- **Gotchas:**
+  - A wrong token, an unknown id and another player's booking must all raise the same `not_found`, as `get_guest_booking` does.
+  - The guest path (ref + token) must never count as admin, even if the caller happens to be a signed-in admin. Only the session path checks `private.is_admin()`.
+  - Admins can cancel "any time" (SPEC §4), but cancelling a booking that has already ended would rewrite history. Limit admins to bookings that haven't ended.
+- **Recommendation:** see the DB plan below. Players and guests can cancel active bookings until the cutoff, admins until the booking ends, and admins must give a reason because the player sees it. Payment rows are never touched, and the admin view shows "cancelled after payment" so staff know to settle any refund outside the app.
+
+### Claiming guest bookings (verified email)
+- **Status:** Decided (SPEC §10, 2026-10-17)
+- **Question:** What counts as a verified email, how do we read it safely, and when should the claim run?
+- **Findings:**
+  - Supabase Auth records verification in `auth.users.email_confirmed_at`.
+    - For OAuth sign-ins, `createAccountFromExternalIdentity` calls `user.Confirm()` only `if decision.CandidateEmail.Verified || config.Mailer.Autoconfirm` ([supabase/auth `internal/api/external.go`](https://github.com/supabase/auth/blob/master/internal/api/external.go)). Google reports `email_verified`, so Google users are confirmed.
+    - Supabase also refuses to auto-link identities to unverified emails ([identity linking docs](https://supabase.com/docs/guides/auth/auth-identity-linking)).
+  - **The "Confirm email" setting decides whether `email_confirmed_at` means anything.** The docs say turning it off "implicitly confirms the user's email in the database" ([general configuration](https://supabase.com/docs/guides/auth/general-configuration)).
+    - *Local experiment (2026-10-17):* our `supabase/config.toml` has `[auth.email] enable_confirmations = false`. A `POST /auth/v1/signup` for a brand-new address returned a session immediately with `email_confirmed_at` set and identity `email`. The test user was deleted afterwards.
+    - So with confirmations off, anyone can sign up as `someone@gmail.com` and claim that person's guest bookings.
+  - `create_booking` already stores `guest_email` lower-cased and trimmed (`20261017025456_create_booking.sql:112`), so matching is `guest_email = lower(auth.users.email)`. A partial index `on bookings (guest_email) where user_id is null` keeps the claim fast.
+  - Where to trigger the claim:
+    - A trigger on `auth.users` would only fire on auth events, and would miss a guest booking made later by a signed-out user who already has an account.
+    - A client call is simpler and covers that case. SPEC §5.7 already chooses it: the client calls the RPC after sign-in and on app load with an existing session, and the RPC is idempotent.
+    - The call must stay out of `onAuthStateChange`, because awaiting Supabase inside that callback can deadlock (`AuthProvider.tsx` comment). As built in T5.7, it's a React Query query keyed on the user id (`useClaimGuestBookings`, mounted once at the app root). That deduplicates the call and needs no effect.
+- **Gotchas:**
+  - Read the email only from `auth.users` inside the `security definer` function, never from the JWT or the arguments. The JWT's `email` claim can be stale after an email change.
+  - Anyone can make a guest booking with a victim's email, and it then shows up in the victim's My bookings. That's a nuisance, not a data leak, because the attacker learns nothing. Accepted.
+  - Claim only `user_id is null` rows. A booking already attached to an account is never moved.
+  - A deleted player's bookings also have `user_id is null` and keep their email snapshot. Without another filter, a new account with that email would claim them. Requiring `guest_token_hash is not null` (set only for guest bookings) excludes them.
+- **Recommendation:**
+  - The RPC requires `email_confirmed_at is not null`.
+  - **Confirmations must be on wherever claims matter.** Turn on `enable_confirmations` in `config.toml`, so local matches the hosted project and `supabase config push` can never weaken it. e2e then confirms sign-ups through the local mail catcher, or creates confirmed users with the admin API.
+  - Check the linked project's dashboard setting (Authentication → Providers → Email → "Confirm email").
+
+### Guest token flow hardening
+- **Status:** Decided (SPEC §10, 2026-10-17)
+- **Question:** What does "hardened" mean for `/booking/:ref?token=`: rate limits, where the token sits in the URL, how long it lives, and a lost-link path?
+- **Findings:**
+  - **Brute force isn't a realistic threat.** The token has 256 bits of entropy (M3 entry "Guest access tokens"). An unknown reference code and a wrong token return the same `not_found`, so guessing reference codes (32⁶ ≈ 1.07 × 10⁹) reveals nothing. Postgres can't see a reliable client IP to throttle on anyway (only PostgREST's forwarded headers, which are spoofable from the client side). Supabase documents rate limits for Auth endpoints only ([Auth rate limits](https://supabase.com/docs/guides/auth/rate-limits)), not per RPC (not verified further). A throttle table would add writes to a `stable` read path for no security gain.
+  - **The query string reaches servers; the fragment doesn't.** The fragment "is not sent to the server" ([MDN, URI fragment](https://developer.mozilla.org/en-US/docs/Web/URI/Reference/Fragment); RFC 3986 §3.5). With `?token=`, the token lands in the static host's access logs (Vercel in M8), analytics and any proxy. `<meta name="referrer" content="no-referrer">` is already in `index.html`, so `Referer` leaks are covered either way.
+  - *Unverified, from memory of the supabase-js source (`GoTrueClient._isImplicitGrantCallback`):* it treats the URL fragment as an auth callback only when it holds `access_token` or `error_description`, so `#token=…` shouldn't collide. The T5.5 e2e proves it either way.
+  - The link grants **cancel** as well as read (T5.3), so a leaked link is now worth more than before. Its lifetime should be bounded.
+  - **Lost link:** only the token's hash is stored, so the original link can never be re-sent. The existing feature that already works as a recovery path is the auto-claim: sign up or log in with the booking's email (verified) and the booking appears in My bookings. "Email me a new link" (a fresh token, emailed) needs emails, so it belongs in M8.
+- **Gotchas:**
+  - Old `?token=` links (already shown to guests on the confirmation page) must keep working. Read both, and rewrite `?token=` to `#token=` with `history.replaceState`.
+  - Claiming doesn't need to clear `guest_token_hash`. The owner reads through RLS anyway, and links the guest saved keep working until they expire.
+- **Recommendation:**
+  - Move the token to the fragment.
+  - Guest links stop working 30 days after the booking ends, with the same `not_found` response.
+  - Don't add a lookup throttle (documented here).
+  - Show the "sign up with your booking email" recovery hint on the not-found page and in the save-link card.
+
+### My bookings query
+- **Status:** Decided (SPEC §10, 2026-10-17). No DB change needed.
+- **Question:** How do we list a player's bookings, upcoming vs past, with the effective status?
+- **Findings:**
+  - Players read their own rows through RLS. **Admins' RLS returns every booking**, so the query must also filter `.eq('user_id', user.id)` explicitly, or an admin's My bookings would list the whole venue.
+  - `bookings_user_id_idx` exists. A single player has few rows, so one ordered query with a cap is enough (`limit 200`).
+  - `displayStatus()` in `src/features/booking/status.ts` already applies the expired-hold rule on the client, and also shows a `confirmed` booking that has ended as `completed`.
+- **Recommendation:**
+  - Select through RLS with the explicit `user_id` filter and `courts(name, sport)`.
+  - A pure `splitMyBookings(rows, now)` (Vitest) built on `displayStatus()`: **Upcoming** is a booking that ends in the future and displays as `pending_payment`, `payment_submitted` or `confirmed`, soonest first. **Past** is everything else (`completed`, `expired`, `rejected`, `cancelled`), most recent first.
+
+### DB plan for T5.3–T5.5
+- **Status:** Approved by the user on 2026-10-17, including `db:push` for these three migrations. The user also chose: confirmations on locally, guest links valid until 30 days after the booking, and the hosted project already has "Confirm email" on.
+All functions are `security definer`, `set search_path = ''`, and follow RPC conventions (M3): `revoke all … from public, anon, authenticated`, then explicit grants. Errors are `P0001` with a stable `hint`.
+
+1. **Migration `cancel_booking`** (T5.3)
+   - Add `bookings.cancelled_by uuid references profiles(id) on delete set null` (an audit field with index `bookings_cancelled_by_idx`) and `bookings.cancelled_by_venue boolean not null default false`. Both are set at cancel time: the guest path always stores `cancelled_by = null, cancelled_by_venue = false`. The session path stores `cancelled_by = auth.uid()` and `cancelled_by_venue = private.is_admin()`. The flag is stored, not derived, so a later role change can't rewrite history.
+   - Add `public.cancel_booking(p_booking_id uuid default null, p_reference_code text default null, p_token text default null, p_reason text default null) returns public.booking_status`. Grant to `anon, authenticated`.
+     - **Guest path** (`p_token` given): match ref + `sha256(token)`, the same way `get_guest_booking` does. It never counts as admin.
+     - **Session path** (`p_booking_id`): admin, or `user_id = auth.uid()`. Anything else is `not_found`.
+     - Lock the row `for update`. The effective status must be active, otherwise `not_cancellable`.
+     - Player or guest: `now() <= lower(during) - cutoff`, otherwise `cutoff_passed`. Admin: `now() < upper(during)`, otherwise `booking_ended`, and a reason is required (`reason_required`).
+     - Sets `status = 'cancelled'`, `cancelled_at = now()`, `cancel_reason`, `cancelled_by` and `cancelled_by_venue` as above. Payment rows aren't touched.
+     - When both `p_token` and `p_booking_id` are given, the guest path wins. When neither is, it's `not_found`. An admin cancelling through the session path always needs a reason, even for their own player booking.
+2. **Migration `claim_guest_bookings`** (T5.4)
+   - Add `public.claim_guest_bookings() returns integer`. Grant to `authenticated` only, so anon gets `42501`.
+   - Reads `lower(email)` from `auth.users where id = auth.uid() and email_confirmed_at is not null`. If there's none, it returns 0.
+   - Then `update bookings set user_id = auth.uid() where user_id is null and source = 'online' and guest_token_hash is not null and guest_email = v_email`, and returns the row count. Requiring a guest token means only bookings made as a guest are claimable. A deleted player's old bookings (`user_id` set to null, email snapshot kept) aren't.
+   - Add a partial index `bookings_unclaimed_email_idx on bookings (guest_email) where user_id is null and guest_token_hash is not null`.
+   - `config.toml`: set `enable_confirmations = true`. This isn't a migration; it's applied by `supabase stop/start` locally.
+3. **Migration `guest_link_hardening`** (T5.5)
+   - Replace `get_guest_booking` (drop and create, because the return type grows):
+     - adds `and upper(b.during) + interval '30 days' > now()` to the match (same `not_found` otherwise)
+     - returns `cancelled_at`, `cancel_reason` and the stored `cancelled_by_venue`
+   - Client:
+     - token in `#token=`, with `?token=` rewritten for old links
+     - `CheckoutPage` and the save-link card build fragment links
+     - the recovery hint
+
+---
+
+## Milestone 6: Venue media
+
+Local experiments in this section ran on 2026-10-18 against `supabase start` with a throwaway public bucket `zz-probe-media` (2 MB, JPG/PNG/WEBP). The admin-only INSERT/UPDATE/DELETE policies were added first and a SELECT policy later. The probe used `supabase-js` as an admin, a player and anon, then removed the bucket, policies and users.
+
+### Public bucket vs signed URLs
+- **Status:** Decided (SPEC §10, 2026-10-18)
+- **Question:** Should court photos and the banner live in a public bucket, or a private one served through signed URLs?
+- **Findings:**
+  - Public buckets skip access control for reads only: "Access control is still enforced for other types of operations including uploading, deleting, moving, and copying." Anyone with the URL can fetch the file. Public buckets are also cached more effectively. Source: [bucket fundamentals](https://supabase.com/docs/guides/storage/buckets/fundamentals.md).
+  - *(Local.)* An anonymous `GET /storage/v1/object/public/zz-probe-media/courts/x/a.png` returned 200 with `content-type: image/png`. `getPublicUrl()` is synchronous and builds the URL from the path, so the database stores only the path and the same row works locally and on the hosted project.
+  - *(Local.)* An anonymous `list()` on the public bucket with no anon SELECT policy returned `[]`. Public URLs work without a SELECT policy, and file names can't be listed.
+- **Gotchas:** A private bucket would mean signing a URL for every court card on every visit, and signed URLs change, which defeats caching. Nothing here is sensitive.
+- **Recommendation:** Use a public bucket `venue-media`. Store object paths, not URLs, and build URLs with `getPublicUrl()`. Don't add an anon or player SELECT policy: public reads don't need one, and leaving it out keeps listing closed.
+
+### Storage policies and bucket limits
+- **Status:** Decided (SPEC §10, 2026-10-18)
+- **Question:** Which `storage.objects` policies do admin uploads, replacements and deletes need? What MIME and size limits should the bucket have?
+- **Findings:**
+  - Upsert needs INSERT, SELECT and UPDATE (installed skill `.agents/skills/supabase/SKILL.md`, "Storage access control"). *(Local.)* An admin upsert with only INSERT/UPDATE/DELETE failed with 403 "new row violates row-level security policy". With an admin SELECT policy added, it worked.
+  - *(Local.)* **`remove()` needs SELECT as well as DELETE.** Without a SELECT policy, an admin's `remove(['courts/x/b.png'])` returned `[]` with no error and the object stayed. With an admin SELECT policy, the same call deleted it. A player's `remove()` returned `[]` and deleted nothing.
+  - Objects must be deleted through the Storage API, never with SQL, which leaves the file behind ([delete objects](https://supabase.com/docs/guides/storage/management/delete-objects.md)).
+  - *(Local.)* The bucket limits work: `text/html` was rejected with 415 and a file over 2 MB with 413. A player and anon were both refused with 403 (RLS).
+  - *(Local.)* **The MIME allow-list trusts the declared `contentType`.** HTML bytes uploaded as `image/png` were accepted and served back as `image/png`.
+  - The existing test `09_payment_proofs_storage.test.sql` asserts there are no client INSERT/UPDATE/DELETE/ALL policies on `storage.objects` at all, and its comment says to narrow the check when another bucket needs client writes.
+- **Gotchas:**
+  - A missing SELECT policy fails silently: `remove()` reports success and leaves an orphan. Tests must check that the object is actually gone, not just that there was no error.
+  - Every policy must be scoped by `bucket_id = 'venue-media'`. Otherwise it would also open `payment-proofs`.
+- **Recommendation:**
+  - Bucket: `public = true`, `file_size_limit = 2 MB` (applies to the downscaled file), `allowed_mime_types = image/jpeg, image/png, image/webp`.
+  - Four policies `to authenticated`, one each for SELECT, INSERT, UPDATE and DELETE. Each requires `bucket_id = 'venue-media' and (select private.is_admin())`. INSERT and UPDATE also require the first folder to be `courts` or `banner`.
+  - Because only admins can write and the client re-encodes every image (next entry), the declared-type gap isn't exploitable by players.
+  - In T6.2, narrow the `09` assertion to policies that could apply to `payment-proofs`, and add an explicit test that an admin can't write to `payment-proofs`. That keeps the guarantee rather than weakening it.
+
+### Image size: transformations vs client-side downscale
+- **Status:** Decided (SPEC §10, 2026-10-18)
+- **Question:** Can we resize with Supabase image transformations, or do we downscale in the browser?
+- **Findings:**
+  - "Image Resizing is currently enabled for Pro Plan and above," billed at $5 per 1,000 origin images over quota ([image transformations](https://supabase.com/docs/guides/storage/serving/image-transformations.md)). `config.toml` also says the transformation API is Pro-only, and `[storage.image_transformation]` is commented out.
+  - *(Local.)* `GET /storage/v1/render/image/public/…?width=100` returned 404 "Route … not found", so transformations aren't available locally.
+  - Canvas WebP encoding isn't universal. `toBlob()` silently returns a PNG when it can't encode the requested type, and WebKit closed its WebP-encode bug as WONTFIX ([WebKit 226950](https://bugs.webkit.org/show_bug.cgi?id=226950), [write-up](https://dev.to/dailytechid/canvastoblob-can-silently-hand-you-back-a-png-when-it-cant-encode-what-you-asked-for-4blo)).
+  - Re-encoding through a canvas drops EXIF data, including the GPS location in phone photos. `createImageBitmap` also fails on bytes that aren't an image, so the downscale doubles as a content check.
+- **Gotchas:**
+  - Check `blob.type` after `toBlob('image/webp')` and fall back to JPEG. Never save a PNG under a `.webp` name.
+  - jsdom has no canvas. Keep the canvas code in one small module that component tests mock, and unit-test the pure size maths.
+- **Recommendation:**
+  - Downscale in the browser in `src/features/admin/media.ts`:
+    1. Accept JPG, PNG or WEBP input up to 15 MB.
+    2. Decode with `createImageBitmap(file)`. A decode failure shows "That file isn't a readable image".
+    3. Scale to fit within 1600 px wide for court photos, or 2200 px wide for the banner (2× the 1100 px container), never upscaling.
+    4. Encode WebP at quality 0.82, falling back to JPEG at 0.85 when `blob.type` isn't WebP.
+    5. Refuse the result if it's still over 2 MB.
+  - This works on the free plan and locally, whatever the hosted plan is.
+
+### Replacing and removing images
+- **Status:** Decided (SPEC §10, 2026-10-18)
+- **Question:** How do we replace or remove an image without serving stale copies or leaving orphaned files?
+- **Findings:**
+  - Changes to a public object can take "up to 60 seconds" to clear the CDN, and browsers keep their own copy. For changing assets, upload to a new path rather than overwriting ([Smart CDN](https://supabase.com/docs/guides/storage/cdn/smart-cdn.md)).
+  - *(Local.)* The default response header is `cache-control: max-age=3600`. Uploading with `cacheControl: '31536000'` served `max-age=31536000`.
+  - Courts are only archived (`is_active`) and never deleted from the client, so a court photo can't be orphaned by deleting its court.
+- **Gotchas:** The upload and the row update can't share a transaction. Order the steps so a failure leaves at most an unreferenced file and never a row pointing at a missing one.
+- **Recommendation:**
+  - Paths:
+    - court photo: `courts/{court_id}/{uuid}.{webp|jpg}`
+    - banner: `banner/{uuid}.{webp|jpg}`
+  - Upload with `upsert: false` and `cacheControl: '31536000'`. The path never changes contents, so it's safe to cache for a year.
+  - Replace:
+    1. Upload the new file.
+    2. Update the row with the new path (existing admin RLS).
+    3. Remove the old object, best effort.
+    4. If step 2 fails, remove the new file.
+  - Remove: clear the column first, then remove the object.
+  - Orphans come from a failed best-effort delete, or from an upload whose save never happened (tab closed or request lost after the upload). Accept them, and keep a read-only listing query here for manual cleanup through the Storage API:
+    ```sql
+    select o.name from storage.objects o
+    where o.bucket_id = 'venue-media'
+      and o.name not in (select photo_path from public.courts where photo_path is not null)
+      and o.name is distinct from (select banner_path from public.venue_settings);
+    ```
+  - No scheduled job is needed.
+
+### Banner and photo layout
+- **Status:** Decided (SPEC §10, 2026-10-18)
+- **Question:** What aspect ratios and loading attributes should the banner and court photos use to avoid layout shift, and what alt text?
+- **Findings:**
+  - CSS `aspect-ratio`, or `width`/`height` attributes on `<img>`, reserves the box before the image loads ([web.dev CLS](https://web.dev/articles/optimize-cls#images-without-dimensions)). `object-fit: cover` fills the box by cropping.
+  - Native `loading="lazy"` suits below-the-fold images. The banner is above the fold, so it should load eagerly with `fetchpriority="high"` ([web.dev lazy loading](https://web.dev/articles/browser-level-image-lazy-loading)).
+  - The home page already fetches `venue_settings` (`HomePage.tsx`). Per the confirmed outline, nothing renders until settings load, so the banner appears once, when settings resolve. That's one shift, at most once per visit, and settings are often already in the React Query cache.
+- **Gotchas:** `object-fit: cover` crops differently on phones and desktop, so the admin preview should show both crops.
+- **Recommendation:**
+  - Banner, inside `.container` (max 1100 px wide):
+    - `aspect-ratio: 2 / 1` below 640 px and `3 / 1` from 640 px, with `object-fit: cover; object-position: center`, rounded corners and `fetchpriority="high"`.
+    - The admin form recommends a landscape image of at least 1600 × 600.
+    - Alt text is required while a banner is set (trimmed, 1 to 200 characters) and describes the picture.
+  - Court photos: `aspect-ratio: 16 / 9`, `object-fit: cover`, `loading="lazy"`, `decoding="async"`, explicit `width`/`height`, and alt "Photo of {court name}".
+  - Courts without a photo, or whose photo fails to load, get a placeholder with a sport icon (`aria-hidden`), labelled "{Sport} court" (`role="img"`), never a broken `<img>`. The court name is shown next to it in the tile. *(As built in T6.5.)*
+
+### DB and storage plan for T6.2
+- **Status:** Approved by the user on 2026-10-18, including `db:push` for this migration.
+One migration, `venue_media`:
+1. **Columns**
+   - `courts.photo_path text null`, `check (photo_path ~ ('^courts/' || id::text || '/[0-9a-f-]{36}\.(webp|jpg|jpeg|png)$'))`. The path must sit under its own court's folder.
+   - `venue_settings.banner_path text null`, `check (banner_path ~ '^banner/[0-9a-f-]{36}\.(webp|jpg|jpeg|png)$')`.
+   - `venue_settings.banner_alt text null`, with `check ((banner_path is null) = (banner_alt is null))` and `check (banner_alt is null or (banner_alt = btrim(banner_alt, E' \t\r\n') and char_length(banner_alt) between 1 and 200 and banner_alt ~ '\S'))`. The value is stored already trimmed (the client trims before saving), and an alt made only of whitespace is refused.
+   - No new grants: `update` on `courts` and `venue_settings` is already granted table-wide to `authenticated`, and the existing admin-only RLS update policies decide who can use it. No RPC and no `security definer`.
+2. **Bucket:** insert `venue-media` into `storage.buckets` (`public = true`, `2 MB`, `image/jpeg, image/png, image/webp`), using `on conflict do update` like `payment-proofs`.
+3. **Policies on `storage.objects`**, all `to authenticated`:
+   - "Admins read venue media" (SELECT): `bucket_id = 'venue-media' and (select private.is_admin())`. Needed for `remove()` and upsert, not for public reads.
+   - "Admins upload venue media" (INSERT): the same condition, plus `(storage.foldername(name))[1] in ('courts', 'banner')`, in `with check`.
+   - "Admins update venue media" (UPDATE): the same condition in `using`, and in `with check` together with the `courts`/`banner` folder rule, so a `move()` can't place an object elsewhere.
+   - "Admins delete venue media" (DELETE): `using (bucket_id = 'venue-media' and (select private.is_admin()))`.
+4. **Tests**
+   - New `17_venue_media.test.sql`:
+     - bucket config
+     - anon and player can't insert, update or delete in `venue-media` (42501, or 0 rows)
+     - admin can insert under `courts/` and `banner/`, and is refused elsewhere
+     - admin sees objects (SELECT), and player and anon see none through RLS
+     - the path CHECKs: wrong court folder, wrong prefix, bad extension
+     - the `banner_alt` CHECKs: alt without path, path without alt, blank alt, a tab/newline-only alt, untrimmed alt, and more than 200 characters
+     - the column updates go through admin RLS: a player's update changes 0 rows, an admin's update works
+   - Update `09_payment_proofs_storage.test.sql`: the "no write policy" check excludes only the three venue-media write policies, matched by exact `policyname`, not by text-matching their definitions, so any other write policy still fails it. Add behavioral checks that admin, player and anon all get 42501 inserting into `payment-proofs`. Deletes are checked through policy definitions, because Storage blocks SQL deletes.
+   - The `00_rls_coverage` check should still pass, since there are no new tables.
+5. Then run `npm run test:db` locally, `npm run db:push` (linked project) and `npm run db:types`, and update SPEC §6.
+
+---
+
+## Milestone 7: Online payments (PayMongo, test mode)
+
+Sources are the current PayMongo docs at docs.paymongo.com (the old developers.paymongo.com pages redirect there; the `.md` versions are listed in `https://docs.paymongo.com/llms.txt`). Fetched on 2026-10-18. There's no PayMongo key in this repo yet, so the API calls themselves are verified in T7.3 (stub) and T7.7 (real test key).
+
+### Checkout Sessions vs Payment Intents, methods and amounts
+- **Status:** Decided (SPEC §10, 2026-10-18)
+- **Question:** Which PayMongo API do we use, which methods do we offer, and how are amounts expressed?
+- **Findings:**
+  - Hosted Checkout: our backend creates a Checkout Session and redirects the customer to `data.attributes.checkout_url`. The customer pays on PayMongo's page and returns to `success_url` or `cancel_url`. "**We recommend `/v2` for new integrations**" (`POST https://api.paymongo.com/v2/checkout_sessions`), which defers Payment Intent creation until the customer pays. Auth is HTTP Basic with the secret key as the username and no password. "Never call this endpoint from your frontend." Sources: [Hosted Checkout](https://docs.paymongo.com/docs/payment-channels-hosted-checkout.md), [quick start](https://docs.paymongo.com/docs/payment-channels-hosted-checkout-quick-start.md).
+  - Attributes: `line_items[]` (`name`, `amount` **in centavos as an integer**, `currency` "PHP" only, `quantity`), `payment_method_types[]`, `success_url`, `cancel_url`, `reference_number`, `metadata` (string values; `PYM_` keys are reserved), `description`, `send_email_receipt`, `billing`. Allowed methods: `qrph, card, gcash, paymaya, grab_pay, shopee_pay, billease, dob, dob_ubp, brankas_*`, but only those enabled on the merchant account work ([create a checkout](https://docs.paymongo.com/reference/create-a-checkout)).
+  - Payment Intents (self-hosted) means building the payment UI and handling each method's flow ourselves. Hosted Checkout covers e-wallets, cards and QR Ph with one redirect.
+  - Test mode: a session created with an `sk_test_…` key is a test session, and webhook endpoints are scoped to test or live mode ([testing](https://docs.paymongo.com/docs/payment-channels-testing.md), [webhook key concepts](https://docs.paymongo.com/docs/developer-tools-webhooks-key-concepts.md)).
+- **Gotchas:**
+  - Floating-point money: convert `numeric` → centavos in SQL (`(total_amount * 100)::int`) or with integer maths, never `Math.round(x * 100)` on a float that came from a client.
+  - A method that isn't enabled on the account makes session creation fail. Keep the list in one constant and confirm it with the real test key in T7.7.
+- **Recommendation:**
+  - Hosted Checkout, `/v2/checkout_sessions`, one line item "Court booking {ref}" for the booking's stored `total_amount` in centavos.
+  - Methods: `gcash`, `paymaya`, `card`, `qrph`.
+  - `reference_number = reference_code`, `metadata.booking_id = <uuid>`, `send_email_receipt = true` (PayMongo's receipt; our own emails stay in M8).
+  - The function refuses any secret key that doesn't start with `sk_test_`, so live mode can't be switched on by accident (SPEC: test mode only).
+
+### Webhooks: events, signature, retries, idempotency
+- **Status:** Decided (SPEC §10, 2026-10-18)
+- **Question:** Which events do we handle, how do we verify them, and how do we survive retries?
+- **Findings:**
+  - Event: `checkout_session.payment.paid` "is sent when a customer completes payment on a Checkout Session… The payload contains the full Checkout Session, including the latest Payment Intent and the `payments` array… At most one entry in `payments` has `status: "paid"`." The envelope is `data.id` (event id `evt_…`) with `data.attributes.{type, livemode, created_at, data}`. The session's `data.attributes.data.id` is `cs_…`, and the paid payment has `id` `pay_…`, `attributes.amount` (centavos), `fee`, `net_amount` and `source.type` ([events](https://docs.paymongo.com/docs/developer-tools-webhooks-events.md)). "PayMongo does not send an event when a Checkout Session expires."
+  - Signature ([Securing a webhook](https://docs.paymongo.com/docs/developer-tools-webhook-setup-management.md)): the header is `Paymongo-Signature: t=<unix>,te=<test sig>,li=<live sig>`. Sign the string `` `${t}.${rawBody}` `` with **HMAC-SHA256**, keyed by the endpoint's secret, then "use te for test mode events and li for live mode events". Comparing the timestamp is "optional but recommended". The [best practices](https://docs.paymongo.com/docs/developer-tools-best-practices-1.md) page adds: verify before parsing, use the raw body, and compare in constant time.
+  - *(Local experiment.)* WebCrypto `crypto.subtle` HMAC-SHA256 over `t + '.' + body` gives the same hex digest as Node's `createHmac` (`webcrypto == node crypto: true`). So the same pure TS verifier runs in Deno (the Edge Function), Node (smoke and e2e signing) and Vitest.
+  - Delivery: success is "an HTTP status code between 200 and 209, along with a JSON response within 30 seconds". Failures are retried "up to 12 times using exponential backoff", and missed events after that need a manual resend from the dashboard. "Returning errors for unrecognized events" causes retries, so return 200 for events we ignore. Deduplicate by event id ([retry logic](https://docs.paymongo.com/docs/developer-tools-retry-logic.md), [best practices](https://docs.paymongo.com/docs/developer-tools-best-practices.md)).
+  - Registration: in the dashboard (Developers → Webhooks), or `POST /v1/webhooks` with `url` and `events`. The endpoint's secret key is shown once. The endpoint must be HTTPS ([creating a webhook endpoint](https://docs.paymongo.com/docs/creating-a-webhook-endpoint.md)).
+- **Gotchas:**
+  - The docs don't say whether retries are re-signed with a fresh `t`. A strict timestamp window could reject genuine late retries, so rely on idempotency rather than a tight window.
+  - `livemode: true` or a non-empty `li` with an empty `te` means a live event. We're test-only, so ignore it.
+  - Edge Functions read the raw body with `await req.text()` before `JSON.parse`.
+- **Recommendation:**
+  - `paymongo-webhook` has `verify_jwt = false`.
+    1. Read the raw body and verify `te` against `PAYMONGO_WEBHOOK_SECRET` in constant time. Return 401 if it's invalid or missing. Log a timestamp older than 24 h, but don't reject it.
+    2. Ignore (200) any event type other than `checkout_session.payment.paid` and any `livemode: true` event.
+    3. Take the session id, the paid payment's id, amount and source **only from the signed payload**, and call the service-role RPC.
+    4. Idempotency is a unique `payments.provider_payment_id`. A replay finds the existing row and returns 200 with the same outcome.
+  - The RPC is a single short transaction, so we answer well within 30 s and don't need a queue.
+
+### Mapping a session to a booking, and who may start one
+- **Status:** Decided (SPEC §10, 2026-10-18)
+- **Question:** How does a webhook find its booking, and how do we authorize guests and owners when creating the session?
+- **Findings:**
+  - `reference_number` and `metadata` are echoed back in the webhook ([Hosted Checkout](https://docs.paymongo.com/docs/payment-channels-hosted-checkout.md)). The signed payload means they can be trusted once the signature checks out.
+  - "It is safe to send a customer back to an `active` checkout URL instead of creating a new session", and one session "can never produce more than one successful payment" ([key concepts](https://docs.paymongo.com/docs/payment-channels-key-concepts.md)).
+  - `public.proof_target(ref, token, user_id)` (M4) already authorizes an owner session or the guest ref + token, and checks the booking is `pending_payment` and its hold hasn't expired.
+- **Gotchas:**
+  - Don't build `success_url` from client input (open redirect). Use a fixed `PUBLIC_SITE_URL` secret plus the reference code.
+  - Two tabs racing to create a session: store at most one session per booking and return the stored URL to the loser. The loser's PayMongo session is never shown to anyone.
+- **Recommendation:**
+  - `create-paymongo-checkout` uses `withSupabase({ auth: ['user', 'publishable'] })`, the same as `submit-payment-proof`. It authorizes through `proof_target` (moved into `_shared` together with the error mapping) and reuses the booking's stored checkout if there is one. Otherwise it creates the session and stores it with `record_paymongo_checkout`.
+  - The webhook maps the session through our own `paymongo_checkouts` table (an unknown `cs_…` → logged, 200) and cross-checks `metadata.booking_id`.
+  - Return URLs:
+    - success: `{PUBLIC_SITE_URL}/booking/{ref}?paid=1`
+    - cancel: `{PUBLIC_SITE_URL}/booking/{ref}?paid=0`
+    - The guest token must **never** go into `success_url`. That URL is sent to PayMongo and stored there, and SPEC §6 says the token is never sent to servers. Today the token lives only in the `#token=` fragment (`guestLink.ts`), so it is lost across the redirect. T7.5 saves it in `sessionStorage` (same origin) before redirecting and reads it back on the `?paid=` return.
+
+### Hold interplay and late payments
+- **Status:** Decided (SPEC §10, 2026-10-18). The user chose to re-confirm late but recoverable payments (case 2).
+- **Question:** How do session expiry and our `expires_at` interact, does starting a checkout extend the hold, and what happens to a payment that arrives late?
+- **Findings:**
+  - "**Checkout Sessions do not expire on their own.** There is no default time limit." A session only expires through the Expire endpoint. The endpoint returns 400 if a payment is already paid, or `pending` or `processing`. No webhook is sent on expiry. "No payment can be recorded on an expired session" ([key concepts](https://docs.paymongo.com/docs/payment-channels-key-concepts.md)).
+  - A QR Ph code expires after 30 min, but the session stays active.
+  - So even if we expired sessions at hold expiry, a payment already processing at that moment would still succeed. Late payments have to be handled either way.
+- **Gotchas:**
+  - Matching the session to `expires_at` would need an outbound call when a hold lapses. Holds lapse lazily or through `pg_cron` inside Postgres, which can't call PayMongo without `pg_net` plus the secret key in the database. That's too much risk for a test-mode feature.
+  - Extending the hold whenever a checkout starts would let anyone keep a slot forever by re-opening checkout.
+- **Recommendation:**
+  - Starting a checkout **doesn't extend the hold**, and we **don't expire sessions** in M7. The webhook RPC decides under a row lock:
+    1. `pending_payment` and the hold is still valid: approved PayMongo payment, booking `confirmed`.
+    2. **Late but recoverable** (`pending_payment` with the hold passed, or `expired`, the slot hasn't started, the court is still active, no blackout overlaps it, and no other active booking overlaps): approved payment, booking `confirmed` again. An exclusion violation falls through to 4. *(Approved by the user, 2026-10-18. The blackout and active-court checks were added after the T7.1 review: the exclusion constraint doesn't see those.)*
+    3. `payment_submitted` (a proof is waiting for review): approved PayMongo payment, booking `confirmed`. The pending proof is auto-closed as `rejected` with the note "Paid online with PayMongo instead. Check for a duplicate payment.", and `rejection_count` is **not** incremented.
+    4. Anything else (cancelled, rejected, already confirmed or approved, the slot is taken or has started, or the amount doesn't match): record the payment as `review_status = 'rejected'` with an automatic note saying why ("Paid after the booking was cancelled; refund outside the app."). The booking isn't changed. Admins see it flagged (T7.6), and refunds stay a non-goal.
+  - Expiring sessions when a booking closes is a possible M8 follow-up (a scheduled Edge Function).
+
+### Data model for PayMongo payments
+- **Status:** Decided (SPEC §10, 2026-10-18)
+- **Question:** A new `method` value or a provider column? Where do PayMongo ids go, and how does this fit the unique-pending and unique-approved indexes and the takings?
+- **Findings:** *(Repo.)*
+  - `payments` has `payment_method` enum (`gcash, maya, bank_transfer, cash`), the unique partial indexes `payments_one_approved_per_booking` and `payments_one_pending_per_booking`, and a CHECK that a rejection has a note.
+  - Takings group approved payments by `method` (`src/features/admin/dashboard.ts`).
+- **Gotchas:**
+  - A value added with `alter type … add value` can't be used until the transaction that added it commits ([docs](https://www.postgresql.org/docs/current/sql-altertype.html)). *(Local experiment, Postgres 17.11, rolled back.)* After `add value 'paymongo'`, a CHECK comparing `method = 'paymongo'` in the same transaction failed with `unsafe use of new value "paymongo"… must be committed`. A `method::text = 'paymongo'` CHECK parsed fine.
+  - So the enum value goes in **its own migration**. Each migration file is applied separately, so the second one can use the value normally.
+  - PayMongo's `source.type` (gcash/paymaya/card/qrph) isn't our `method`. Store it separately for display.
+- **Recommendation:**
+  - `payment_method` gets the new value `'paymongo'`. New nullable columns: `provider_payment_id text unique` (`pay_…`), `provider_checkout_id text` (`cs_…`), `provider_source text`, `provider_event_id text`. A CHECK makes `method = 'paymongo'` equivalent to `provider_payment_id is not null`.
+  - A PayMongo payment is never `pending`, so the one-pending index isn't affected. The one-approved index is protected by case 4.
+  - Takings count approved `paymongo` rows as their own "PayMongo" line.
+  - New table `paymongo_checkouts`: `booking_id` (unique), `checkout_id` (unique), `checkout_url`, `amount_centavos`, `created_at`. RLS is on, admins can SELECT, and only service-role RPCs write.
+
+### Local testing without a public URL
+- **Status:** Decided (SPEC §10, 2026-10-18)
+- **Question:** How do we test the checkout and webhook without PayMongo calling our laptop?
+- **Findings:**
+  - PayMongo only delivers to public HTTPS endpoints, and test events can be sent from the dashboard to a deployed endpoint ([webhook testing](https://docs.paymongo.com/docs/webhook-testing.md)).
+  - The signature can be produced locally with the same secret (experiment above).
+  - `supabase start` serves functions at `/functions/v1/<name>` (M4).
+- **Gotchas:** A missing secret key must not quietly turn into "stub mode" in production.
+- **Recommendation:**
+  - `PAYMONGO_MODE=stub` (only in `supabase/functions/.env`) makes `create-paymongo-checkout` skip the API and return a fake `cs_stub_…` session with `checkout_url = https://checkout.paymongo.test/stub/{id}`.
+  - With no key and no stub mode, the function returns 503 "Online payment isn't available right now."
+  - `npm run smoke:paymongo` and the e2e flow sign fake `checkout_session.payment.paid` events with the local `PAYMONGO_WEBHOOK_SECRET` and POST them to the local function. Playwright intercepts the `checkout.paymongo.test` host.
+  - The signing, parsing and verification helpers live in `supabase/functions/_shared/paymongo.ts`, which is plain TS and Vitest-tested.
+
+### Secrets
+- **Status:** Decided (SPEC §10, 2026-10-18)
+- **Recommendation:** These are Edge Function secrets only (`supabase/functions/.env` locally, `npx supabase secrets set` for the linked project), never `VITE_*` or `src/`:
+  - `PAYMONGO_SECRET_KEY` (must start with `sk_test_`)
+  - `PAYMONGO_WEBHOOK_SECRET`
+  - `PUBLIC_SITE_URL` (for return URLs)
+  - `PAYMONGO_MODE` (local stub only)
+
+  Add them to a committed `supabase/functions/.env.example`. CLAUDE.md already states the rule.
+
+### DB and Edge Function plan for T7.2–T7.4
+- **Status:** Approved by the user on 2026-10-18, including `db:push` for both T7.2 migrations. The user also chose: methods `gcash, paymaya, card, qrph`, and re-confirm late but recoverable payments. They don't have a PayMongo account yet, so it's needed before T7.7.
+1. **Migrations** (T7.2). There are two, because a new enum value must be committed before it's used (see "Data model"):
+   - `paymongo_method` contains only `alter type public.payment_method add value if not exists 'paymongo'`.
+   - `paymongo_payments` contains everything below. All functions are `security definer`, `set search_path = ''`, `revoke all … from public, anon, authenticated`, `grant execute … to service_role` only, with `P0001` errors and stable hints.
+   - `payments` gains:
+     - `provider_payment_id text unique`
+     - `provider_checkout_id text`
+     - `provider_source text`
+     - `provider_event_id text`
+     - `check ((method = 'paymongo') = (provider_payment_id is not null))`
+   - `create table public.paymongo_checkouts`:
+     - `booking_id uuid not null unique references bookings on delete cascade`
+     - `checkout_id text not null unique`
+     - `checkout_url text not null check (checkout_url like 'https://%')`
+     - `amount_centavos bigint not null check (amount_centavos > 0)`
+     - `created_at timestamptz not null default now()`
+     - RLS enabled, with "Admins read PayMongo checkouts" (SELECT, `private.is_admin()`). No client writes.
+   - `public.paymongo_checkout_for(p_booking_id uuid) returns table (checkout_id text, checkout_url text)`: the stored session, if any.
+   - `public.record_paymongo_checkout(p_booking_id uuid, p_checkout_id text, p_checkout_url text, p_amount_centavos bigint) returns table (checkout_id text, checkout_url text)`. It inserts `on conflict (booking_id) do nothing`, then returns the stored row, which is the race winner. A stored session that already has a recorded payment (for example a case 4 amount mismatch while the booking is still payable) is dead, so `paymongo_checkout_for` doesn't return it and the new session replaces it.
+   - `public.record_paymongo_payment(p_checkout_id text, p_payment_id text, p_event_id text, p_amount_centavos bigint, p_currency text, p_source text, p_booking_id uuid) returns table (payment_id uuid, outcome text)`. Outcomes: `confirmed`, `revived`, `superseded_proof`, `late`, `duplicate`, `unknown_checkout`. It locks the booking `for update`, applies the four cases above, and compares the amount to `(total_amount * 100)::bigint` and checks `currency = 'PHP'`.
+   - Locking in `record_paymongo_payment`:
+     - Resolve the checkout, lock the booking `for update`, and only then look up an existing `provider_payment_id`.
+     - Lock a pending proof after the booking, in the same order as `review_payment`.
+     - Run the revival inside a nested `begin … exception when exclusion_violation` block, so it can fall through to case 4.
+     - In case 3, close the pending proof **before** inserting the approved row.
+   - Harden the existing RPCs in the same migration. `create or replace` `record_payment_proof` and `create_walk_in` so they reject `'paymongo'` with `P0001`/`invalid_input` instead of a raw 23514 from the new CHECK. pgTAP covers both.
+   - `paymongo_checkouts`: `revoke all … from anon, authenticated`, then grant only `select` to `authenticated` (the admin policy uses `(select private.is_admin())`). `00_rls_coverage` picks it up automatically.
+   - Update the SPEC §6 Server API table: the webhook's four outcomes and the three new RPCs.
+2. **Edge Functions** (T7.3, T7.4):
+   - `create-paymongo-checkout`: POST JSON `{ reference_code, token? }` → `{ checkout_url }`. It refuses a zero total, or one below PayMongo's minimum (to confirm in T7.7), with a readable 4xx.
+   - `paymongo-webhook`: POST, verified as above.
+   - Shared code in `_shared/`: `proof_target` errors and auth, and `paymongo.ts` (centavos, signature parse/verify/sign, payload extraction). Both functions get `verify_jwt = false` in `config.toml`.
+3. **Tests**
+   - pgTAP `18_paymongo.test.sql`:
+     - RLS on `paymongo_checkouts` for anon, player, admin and service_role
+     - the RPC grants (anon and authenticated get 42501)
+     - the method/provider CHECK
+     - `record_paymongo_checkout` race and reuse
+     - every outcome of `record_paymongo_payment`, including a replay (no duplicate row), an amount mismatch, revival vs a taken slot, a slot already started, and the pending proof closed without counting as a rejection
+     - takings-relevant rows
+   - Vitest for `_shared/paymongo.ts`.
+   - Smoke `npm run smoke:paymongo` for owner, guest, wrong token, unpayable, stub session reuse, valid webhook, bad signature 401, replay and late payment.
+4. **UI follow-ups this plan creates** (added to T7.5 and T7.6):
+   - Player views (`BookingSummary.tsx`, `PaymentHistory.tsx`) treat every `rejected` row as a failed proof. PayMongo rows must be excluded from "last rejection". Late PayMongo rows show as "Payment received after the booking closed; the venue will arrange a refund". Notes on automatic rows must be safe for players to read, and the duplicate-check hint is shown to admins only.
+   - Takings order and labels (`dashboard.ts`, `WalkInForm.tsx`, `proofInput.ts`) need the `paymongo` value after `db:types`. Case 4 money was received but isn't counted in approved takings, so T7.6 must surface it.
+5. Then `npm run test:db` locally, `npm run db:push` (linked project, both migrations), `npm run db:types`, and update SPEC §4, §6, §10 and §11.

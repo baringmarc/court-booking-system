@@ -1,6 +1,7 @@
-// A player signs up, books with prefilled details, and reads the booking as its owner (no token).
+// A player signs up (confirming the email, as on the hosted project), books with prefilled details,
+// and reads the booking as its owner (no token).
 import { expect, test } from '@playwright/test'
-import { E2E_PREFIX, PASSWORD, pickFirstFreeSlot, uniqueEmail, venueDate } from './support/helpers.ts'
+import { confirmationLink, E2E_PREFIX, PASSWORD, pickFirstFreeSlot, uniqueEmail, venueDate } from './support/helpers.ts'
 
 test('a signed-in player books with prefilled details and sees it without a token', async ({ page }) => {
   const email = uniqueEmail('player')
@@ -9,6 +10,11 @@ test('a signed-in player books with prefilled details and sees it without a toke
   await page.getByLabel('Email').fill(email)
   await page.getByLabel('Password').fill(PASSWORD)
   await page.getByRole('button', { name: 'Sign up' }).click()
+
+  // No session until the email is confirmed.
+  await expect(page.getByRole('heading', { name: 'Check your email' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Log out' })).toHaveCount(0)
+  await page.goto(await confirmationLink(email))
   await expect(page.getByRole('button', { name: 'Log out' })).toBeVisible()
 
   await pickFirstFreeSlot(page, { date: venueDate(9), sport: 'tennis', court: 'Tennis Court' })

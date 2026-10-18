@@ -35,6 +35,7 @@ Before saying a task is done, run `npm run verify` and make sure it passes. A St
 ## Environment
 - `.env` (gitignored) holds `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`. Keep `.env.example` in sync when you add vars.
 - Only publishable/anon keys go in client code. **Never** put the service-role key in `VITE_*` vars or anywhere under `src/`.
+- PayMongo is **test mode only**. `PAYMONGO_SECRET_KEY` and the webhook signing secret are Edge Function secrets only (`supabase/functions/.env` locally, `npx supabase secrets set` for the linked project), never `VITE_*` or `src/`.
 
 ## Project layout (target)
 ```

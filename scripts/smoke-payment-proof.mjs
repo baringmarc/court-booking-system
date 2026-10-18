@@ -14,12 +14,24 @@ const env = Object.fromEntries(
 )
 const URL = env.API_URL
 const PUBLISHABLE = env.PUBLISHABLE_KEY
-const LOCAL_SECRET = env.SECRET_KEY // used only to promote a local test admin
+const LOCAL_SECRET = env.SECRET_KEY // used only to create confirmed local test users and promote a test admin
 if (!URL?.startsWith('http://127.0.0.1') || !PUBLISHABLE || !LOCAL_SECRET) {
   console.error('Local Supabase stack not running (or not local). Start it with: npx supabase start')
   process.exit(1)
 }
 const client = () => createClient(URL, PUBLISHABLE, { auth: { persistSession: false } })
+const service = createClient(URL, LOCAL_SECRET, { auth: { persistSession: false } })
+
+// Email confirmation is on (as on the hosted project), so create the user already confirmed, then sign in.
+async function signedInUser(email) {
+  const password = 'smoke-password-123'
+  const { data, error } = await service.auth.admin.createUser({ email, password, email_confirm: true })
+  if (error) throw error
+  const sb = client()
+  const { error: signInError } = await sb.auth.signInWithPassword({ email, password })
+  if (signInError) throw signInError
+  return { sb, userId: data.user.id }
+}
 
 const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, ...new Array(64).fill(1)])
 const HTML = new TextEncoder().encode('<html><script>alert(1)</script></html>')
@@ -59,10 +71,7 @@ const { data: gview } = await guest.rpc('get_guest_booking', { p_reference_code:
 console.log('guest: booking status / payments'.padEnd(44), gview[0].status, gview[0].payments.length, Object.keys(gview[0].payments[0]).includes('storage_path') ? 'LEAKS PATH' : 'no path')
 
 // Player
-const player = client()
-const email = `smoke-${Date.now()}@example.com`
-const { error: se } = await player.auth.signUp({ email, password: 'smoke-password-123' })
-if (se) throw se
+const { sb: player } = await signedInUser(`smoke-${Date.now()}@example.com`)
 const { data: sess } = await player.auth.getSession()
 console.log('player: signed in'.padEnd(44), !!sess.session)
 const p = await freeSlot(player, 5, 12)
@@ -80,12 +89,8 @@ console.log('player: direct upload to bucket'.padEnd(44), upErr ? `refused (${up
 log('anon: player booking without session', await invoke(client(), { reference_code: pb[0].reference_code, method: 'maya', amount: 1 }, PNG))
 
 // Admin review access to the guest's proof (T4.10): an admin can sign it, another player cannot.
-const admin = client()
-const adminEmail = `smoke-admin-${Date.now()}@example.com`
-const { data: adminSignUp, error: ae } = await admin.auth.signUp({ email: adminEmail, password: 'smoke-password-123' })
-if (ae) throw ae
-const service = createClient(URL, LOCAL_SECRET, { auth: { persistSession: false } })
-const { error: pe2 } = await service.from('profiles').update({ role: 'admin' }).eq('id', adminSignUp.user.id)
+const { sb: admin, userId: adminId } = await signedInUser(`smoke-admin-${Date.now()}@example.com`)
+const { error: pe2 } = await service.from('profiles').update({ role: 'admin' }).eq('id', adminId)
 if (pe2) throw pe2
 const guestBookingId = gview[0].id
 const { data: adminFiles } = await admin.storage.from('payment-proofs').list(guestBookingId)

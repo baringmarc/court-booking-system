@@ -2,7 +2,7 @@ import { Link, NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../features/auth/useAuth'
 
 export function Layout() {
-  const { user, profile, isAdmin, loading, signOut } = useAuth()
+  const { user, profile, loading, signOut } = useAuth()
   const displayName = profile?.full_name || user?.email
 
   return (
@@ -16,7 +16,6 @@ export function Layout() {
           <nav className="nav" aria-label="Main">
             <NavLink to="/book">Book</NavLink>
             {user && <NavLink to="/me/bookings">My bookings</NavLink>}
-            {isAdmin && <NavLink to="/admin">Admin</NavLink>}
           </nav>
 
           <div className="auth-area">

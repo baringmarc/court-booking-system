@@ -4,7 +4,7 @@ import { formatDateLabel, formatDateTimeInZone, hourInZone, todayInZone } from '
 import { bookingErrorMessage } from '../booking/errors'
 import { amountMismatch, METHOD_LABELS } from '../booking/proofInput'
 import { displayStatus, STATUS_LABELS } from '../booking/status'
-import { pendingPayment, type AdminBooking } from './api'
+import { hasApprovedPayment, pendingPayment, type AdminBooking } from './api'
 
 export type ProofLink = { state: 'none' } | { state: 'loading' } | { state: 'error' } | { state: 'ready'; url: string }
 
@@ -56,6 +56,19 @@ export function ReviewPanel({ booking, timeZone, currency, proof, pending, error
         {booking.guest_email && <div><dt>Email</dt><dd>{booking.guest_email}</dd></div>}
         {booking.rejection_count > 0 && <div><dt>Rejections</dt><dd>{booking.rejection_count}</dd></div>}
       </dl>
+
+      {booking.status === 'cancelled' && (
+        <div className="stack">
+          <p className="small">
+            Cancelled {booking.cancelled_by_venue ? 'by staff' : 'by the customer'}
+            {booking.cancelled_at ? ` on ${formatDateTimeInZone(booking.cancelled_at, timeZone)}` : ''}
+            {booking.cancel_reason ? `: ${booking.cancel_reason}` : '.'}
+          </p>
+          {hasApprovedPayment(booking) && (
+            <p className="form-warning" role="status">Cancelled after payment: settle any refund outside the app.</p>
+          )}
+        </div>
+      )}
 
       {payment ? (
         <div className="stack">

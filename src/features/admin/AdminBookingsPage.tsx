@@ -6,10 +6,12 @@ import { formatHour, formatMoney } from '../../lib/format'
 import { formatDateLabel, hourInZone, todayInZone } from '../../lib/time'
 import { useVenueSettings } from '../catalog/hooks'
 import { displayStatus, STATUS_LABELS, type BookingStatus } from '../booking/status'
-import { ADMIN_LIST_LIMIT, pendingPayment, type AdminBooking } from './api'
+import { adminCanCancel } from '../booking/cancellation'
+import { ADMIN_LIST_LIMIT, hasApprovedPayment, pendingPayment, type AdminBooking } from './api'
+import { AdminCancelForm } from './AdminCancelForm'
 import { filtersFromParams, filtersToParams, type BookingFilters } from './bookingFilters'
 import { BookingFiltersBar } from './BookingFiltersBar'
-import { useAdminBookings, useProofUrl, useReviewPayment } from './hooks'
+import { useAdminBookings, useAdminCancelBooking, useProofUrl, useReviewPayment } from './hooks'
 import { ReviewPanel, type ProofLink } from './ReviewPanel'
 
 export function AdminBookingsPage() {
@@ -100,6 +102,7 @@ function reviewOutcome(ref: string, status: BookingStatus) {
   if (status === 'confirmed') return `${ref} is confirmed.`
   if (status === 'pending_payment') return `${ref}: proof rejected. The player has a new payment window to upload another proof.`
   if (status === 'rejected') return `${ref}: proof rejected for the last time. The booking is cancelled and the slot released.`
+  if (status === 'cancelled') return `${ref} is cancelled and the slot released.`
   return `${ref} is now ${STATUS_LABELS[status].toLowerCase()}.`
 }
 
@@ -114,6 +117,7 @@ function ReviewContainer({ booking, timeZone, currency, onReviewed }: ReviewCont
   const path = pendingPayment(booking)?.storage_path ?? null
   const proofUrl = useProofUrl(path)
   const review = useReviewPayment()
+  const cancel = useAdminCancelBooking()
   const proof: ProofLink = !path
     ? { state: 'none' }
     : proofUrl.isPending
@@ -123,15 +127,21 @@ function ReviewContainer({ booking, timeZone, currency, onReviewed }: ReviewCont
         : { state: 'ready', url: proofUrl.data }
 
   return (
-    <ReviewPanel
-      booking={booking}
-      timeZone={timeZone}
-      currency={currency}
-      proof={proof}
-      pending={review.isPending}
-      error={review.isError ? review.error : null}
-      onApprove={() => review.mutate({ bookingId: booking.id, approve: true, note: null }, { onSuccess: (s) => s && onReviewed(s) })}
-      onReject={(note) => review.mutate({ bookingId: booking.id, approve: false, note }, { onSuccess: (s) => s && onReviewed(s) })}
-    />
+    <div className="stack">
+      <ReviewPanel
+        booking={booking}
+        timeZone={timeZone}
+        currency={currency}
+        proof={proof}
+        pending={review.isPending}
+        error={review.isError ? review.error : null}
+        onApprove={() => review.mutate({ bookingId: booking.id, approve: true, note: null }, { onSuccess: (s) => s && onReviewed(s) })}
+        onReject={(note) => review.mutate({ bookingId: booking.id, approve: false, note }, { onSuccess: (s) => s && onReviewed(s) })}
+      />
+      {adminCanCancel(booking, new Date()) && (
+        <AdminCancelForm paid={hasApprovedPayment(booking)} pending={cancel.isPending} error={cancel.isError ? cancel.error : null}
+          onCancel={(reason) => cancel.mutate({ bookingId: booking.id, reason }, { onSuccess: (s) => onReviewed(s) })} />
+      )}
+    </div>
   )
 }

@@ -7,6 +7,7 @@ import { useAuth } from '../auth/useAuth'
 import { SPORT_LABELS, type Court, type VenueSettings } from '../catalog/api'
 import { useCourts, useVenueSettings } from '../catalog/hooks'
 import { CheckoutForm } from './CheckoutForm'
+import { guestBookingPath } from './guestLink'
 import { parseCheckoutSearch, type CheckoutParams } from './checkoutParams'
 import type { Contact } from './contact'
 import { bookingErrorMessage, isSlotGone } from './errors'
@@ -87,8 +88,8 @@ function Checkout({ choice, settings, court }: { choice: CheckoutParams; setting
       },
       {
         onSuccess: ({ referenceCode, guestToken }) => {
-          const search = guestToken ? `?token=${encodeURIComponent(guestToken)}` : ''
-          navigate(`/booking/${referenceCode}${search}`, { replace: true, state: { justBooked: true } })
+          const path = guestToken ? guestBookingPath(referenceCode, guestToken) : `/booking/${referenceCode}`
+          navigate(path, { replace: true, state: { justBooked: true } })
         },
       },
     )

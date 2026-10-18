@@ -1,10 +1,14 @@
 // Admin data access for bookings and payments. Admins read everything through RLS (private.is_admin());
-// writes go through RPCs. Only imported by lazy admin routes.
+// writes go through RPCs (venue media: storage plus the admin RLS on courts and venue_settings). Only imported by lazy admin routes.
 import { supabase } from '../../lib/supabase'
 import { ApiError, unwrap } from '../../lib/queryClient'
 import { parseTstzRange } from '../../lib/time'
 import type { Enums } from '../../lib/database.types'
 import { dayRangeLiteral, type BookingFilters } from './bookingFilters'
+import { VENUE_MEDIA_BUCKET } from '../catalog/media'
+import type { Court, VenueSettings } from '../catalog/api'
+import { newMediaPath, storageErrorMessage } from './mediaInput'
+import { clearStoredMedia, replaceStoredMedia } from './mediaReplace'
 
 export type AdminPayment = {
   id: string
@@ -33,6 +37,9 @@ export type AdminBooking = {
   guest_phone: string | null
   created_at: string
   payments: AdminPayment[]
+  cancelled_at: string | null
+  cancel_reason: string | null
+  cancelled_by_venue: boolean
 }
 
 export const adminKeys = {
@@ -45,7 +52,7 @@ export const adminKeys = {
 }
 
 // One literal: supabase-js infers the row type from this string.
-const SELECT = 'id, reference_code, during, status, source, total_amount, expires_at, rejection_count, guest_name, guest_email, guest_phone, created_at, courts(name), payments(id, method, amount, reference_number, storage_path, submitted_at, review_status, review_note)' as const
+const SELECT = 'id, reference_code, during, status, source, total_amount, expires_at, rejection_count, guest_name, guest_email, guest_phone, created_at, cancelled_at, cancel_reason, cancelled_by_venue, courts(name), payments(id, method, amount, reference_number, storage_path, submitted_at, review_status, review_note)' as const
 
 export const ADMIN_LIST_LIMIT = 200
 
@@ -81,6 +88,9 @@ export async function fetchAdminBookings(
       guest_email: row.guest_email,
       guest_phone: row.guest_phone,
       created_at: row.created_at,
+      cancelled_at: row.cancelled_at,
+      cancel_reason: row.cancel_reason,
+      cancelled_by_venue: row.cancelled_by_venue,
       payments: [...row.payments]
         .map((p) => ({ ...p, amount: Number(p.amount) }))
         .sort((a, b) => a.submitted_at.localeCompare(b.submitted_at)),
@@ -99,6 +109,16 @@ export async function fetchProofUrl(path: string) {
 export async function reviewPayment(bookingId: string, approve: boolean, note: string | null) {
   const rows = unwrap(await supabase.rpc('review_payment', { p_booking_id: bookingId, p_approve: approve, p_note: note ?? undefined }))
   return rows[0]?.status
+}
+
+/** Staff cancel by booking id (the session path, so cancel_booking checks is_admin) with a required reason. */
+export async function adminCancelBooking(bookingId: string, reason: string) {
+  return unwrap(await supabase.rpc('cancel_booking', { p_booking_id: bookingId, p_reason: reason }))
+}
+
+/** A payment was approved: if the booking is cancelled, staff settle any refund outside the app (SPEC §4). */
+export function hasApprovedPayment(booking: Pick<AdminBooking, 'payments'>) {
+  return booking.payments.some((p) => p.review_status === 'approved')
 }
 
 /** The attempt waiting for review, if any (there is at most one: payments_one_pending_per_booking). */
@@ -155,4 +175,73 @@ export async function createWalkIn(input: WalkInInput) {
   const row = rows[0]
   if (!row) throw new Error('The walk-in could not be recorded.')
   return { id: row.id, referenceCode: row.reference_code }
+}
+
+// --- venue media (public `venue-media` bucket; admin-only writes via storage policies) ---------------
+
+async function uploadVenueMedia(folder: string, image: Blob) {
+  const path = newMediaPath(folder, image.type)
+  // The path never changes contents, so it can be cached for a year (RESEARCH M6).
+  const { error } = await supabase.storage
+    .from(VENUE_MEDIA_BUCKET)
+    .upload(path, image, { contentType: image.type, cacheControl: '31536000', upsert: false })
+  if (error) throw new ApiError(storageErrorMessage(error))
+  return path
+}
+
+/** remove() reports success without deleting when RLS hides the object, so check what came back. */
+async function removeVenueMedia(path: string) {
+  const { data, error } = await supabase.storage.from(VENUE_MEDIA_BUCKET).remove([path])
+  if (error) throw new ApiError(storageErrorMessage(error))
+  if (!data?.length) throw new ApiError(`The file ${path} was not deleted.`)
+}
+
+async function updateCourtPhotoPath(courtId: string, photoPath: string | null) {
+  return unwrap(await supabase.from('courts').update({ photo_path: photoPath }).eq('id', courtId).select().single())
+}
+
+/** Uploads an already downscaled image as the court's photo, replacing any old one. */
+export async function setCourtPhoto(court: Pick<Court, 'id' | 'photo_path'>, image: Blob) {
+  return replaceStoredMedia({
+    oldPath: court.photo_path,
+    upload: () => uploadVenueMedia(`courts/${court.id}`, image),
+    save: (path) => updateCourtPhotoPath(court.id, path),
+    remove: removeVenueMedia,
+  })
+}
+
+export async function removeCourtPhoto(court: Pick<Court, 'id' | 'photo_path'>) {
+  if (!court.photo_path) return updateCourtPhotoPath(court.id, null)
+  return clearStoredMedia({
+    oldPath: court.photo_path,
+    save: () => updateCourtPhotoPath(court.id, null),
+    remove: removeVenueMedia,
+  })
+}
+
+async function updateBanner(values: Pick<VenueSettings, 'banner_path' | 'banner_alt'> | Pick<VenueSettings, 'banner_alt'>) {
+  return unwrap(await supabase.from('venue_settings').update(values).eq('id', true).select().single())
+}
+
+/** `alt` must already be trimmed (a CHECK enforces it). */
+export type BannerInput = { alt: string; image?: Blob }
+
+/**
+ * Sets the site banner. With an image (already downscaled), uploads it and replaces any old banner;
+ * without one, only updates the alt text of the current banner.
+ */
+export async function saveBanner(settings: Pick<VenueSettings, 'banner_path'>, { alt, image }: BannerInput) {
+  if (!image) return updateBanner({ banner_alt: alt })
+  return replaceStoredMedia({
+    oldPath: settings.banner_path,
+    upload: () => uploadVenueMedia('banner', image),
+    save: (path) => updateBanner({ banner_path: path, banner_alt: alt }),
+    remove: removeVenueMedia,
+  })
+}
+
+export async function removeBanner(settings: Pick<VenueSettings, 'banner_path'>) {
+  const clear = () => updateBanner({ banner_path: null, banner_alt: null })
+  if (!settings.banner_path) return clear()
+  return clearStoredMedia({ oldPath: settings.banner_path, save: clear, remove: removeVenueMedia })
 }

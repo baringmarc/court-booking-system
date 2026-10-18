@@ -17,23 +17,59 @@ export function serviceClient() {
   return createClient(url, secretKey, { auth: { persistSession: false, autoRefreshToken: false } })
 }
 
-/** Creates a confirmed user and promotes them to admin (admins are promoted in the database, SPEC §2). */
-export async function createAdmin() {
-  const email = uniqueEmail('admin')
-  const service = serviceClient()
-  const { data, error } = await service.auth.admin.createUser({ email, password: PASSWORD, email_confirm: true })
+/** Creates a confirmed account with the default player role. */
+export async function createPlayer(kind = 'player') {
+  const email = uniqueEmail(kind)
+  const { data, error } = await serviceClient().auth.admin.createUser({ email, password: PASSWORD, email_confirm: true })
   if (error) throw error
-  const { error: roleError } = await service.from('profiles').update({ role: 'admin', full_name: `${E2E_PREFIX} Admin` }).eq('id', data.user.id)
-  if (roleError) throw roleError
-  return { email, password: PASSWORD }
+  return { id: data.user.id, email, password: PASSWORD }
 }
 
-export async function logIn(page: Page, email: string, password: string) {
-  await page.goto('/login')
+/** Creates a confirmed user and promotes them to admin (admins are promoted in the database, SPEC §2). */
+export async function createAdmin() {
+  const user = await createPlayer('admin')
+  const { error } = await serviceClient().from('profiles').update({ role: 'admin', full_name: `${E2E_PREFIX} Admin` }).eq('id', user.id)
+  if (error) throw error
+  return { email: user.email, password: user.password }
+}
+
+/** Fills and submits the /admin/login form (the page must already show it). */
+export async function submitAdminLogin(page: Page, email: string, password: string) {
+  await expect(page.getByRole('heading', { name: 'Admin log in' })).toBeVisible()
   await page.getByLabel('Email').fill(email)
   await page.getByLabel('Password').fill(password)
   await page.getByRole('button', { name: 'Log in' }).click()
-  await expect(page.getByRole('button', { name: 'Log out' })).toBeVisible()
+}
+
+/** Opens an admin page signed out, signs in through /admin/login and waits to land back on that page. */
+export async function logInAdmin(page: Page, email: string, password: string, path = '/admin') {
+  await page.goto(path)
+  await submitAdminLogin(page, email, password)
+  await expect(page.getByRole('navigation', { name: 'Admin' })).toBeVisible()
+  await expect.poll(() => {
+    const url = new URL(page.url())
+    return url.pathname + url.search
+  }).toBe(path)
+}
+
+/**
+ * Email confirmation is on locally (as on the hosted project), so sign-ups get a confirmation email.
+ * Reads it from the local Mailpit and returns the verification link.
+ */
+export async function confirmationLink(email: string): Promise<string> {
+  const { mailpitUrl } = localSupabase()
+  let id: string | undefined
+  await expect.poll(async () => {
+    const res = await fetch(`${mailpitUrl}/api/v1/search?query=${encodeURIComponent(`to:${email}`)}`)
+    const body = (await res.json()) as { messages: { ID: string }[] }
+    id = body.messages[0]?.ID
+    return id
+  }, { message: `confirmation email for ${email}` }).toBeTruthy()
+  const res = await fetch(`${mailpitUrl}/api/v1/message/${id}`)
+  const { Text } = (await res.json()) as { Text: string }
+  const link = Text.match(/https?:\/\/\S+\/auth\/v1\/verify\?\S+/)?.[0]
+  if (!link) throw new Error(`No verification link in the confirmation email for ${email}`)
+  return link
 }
 
 /** A venue-local date (Asia/Manila) `days` from today, as YYYY-MM-DD. */

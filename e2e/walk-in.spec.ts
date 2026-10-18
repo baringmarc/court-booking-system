@@ -1,11 +1,10 @@
 // An admin records a walk-in from the dashboard; the slot then shows as booked to everyone.
 import { expect, test } from '@playwright/test'
-import { createAdmin, E2E_PREFIX, logIn, venueDate } from './support/helpers.ts'
+import { createAdmin, E2E_PREFIX, logInAdmin, venueDate } from './support/helpers.ts'
 
 test('an admin records a walk-in and the slot shows as booked on /book', async ({ page }) => {
   const admin = await createAdmin()
-  await logIn(page, admin.email, admin.password)
-  await page.goto('/admin')
+  await logInAdmin(page, admin.email, admin.password)
   await page.getByRole('button', { name: '+ Walk-in' }).click()
 
   const form = page.getByRole('form', { name: 'Walk-in booking' })

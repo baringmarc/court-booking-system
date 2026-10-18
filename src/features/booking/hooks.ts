@@ -1,11 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { accountKeys } from '../account/hooks'
 import { bookingErrorCode } from './errors'
 import {
+  cancelBooking,
   createBooking,
   fetchAvailability,
   fetchGuestBooking,
   fetchOwnBooking,
   submitPaymentProof,
+  type Cancellation,
   type NewBooking,
   type ProofSubmission,
 } from './api'
@@ -29,8 +32,11 @@ export function useCreateBooking() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (input: NewBooking) => createBooking(input),
-    // Success and "slot taken" both mean the grid is stale.
-    onSettled: () => qc.invalidateQueries({ queryKey: bookingKeys.allAvailability }),
+    // Success and "slot taken" both mean the grid is stale; a new booking also belongs in My bookings.
+    onSettled: () => Promise.all([
+      qc.invalidateQueries({ queryKey: bookingKeys.allAvailability }),
+      qc.invalidateQueries({ queryKey: accountKeys.allMyBookings }),
+    ]),
   })
 }
 
@@ -52,6 +58,22 @@ export function useSubmitPaymentProof(ref: string, token: string | null) {
     mutationFn: (input: Omit<ProofSubmission, 'referenceCode' | 'token'>) =>
       submitPaymentProof({ ...input, referenceCode: ref, token }),
     // Success moves the booking to payment_submitted; a hold_expired/invalid_state error also means it changed.
-    onSettled: () => qc.invalidateQueries({ queryKey: bookingKeys.detail(ref, token) }),
+    onSettled: () => Promise.all([
+      qc.invalidateQueries({ queryKey: bookingKeys.detail(ref, token) }),
+      qc.invalidateQueries({ queryKey: accountKeys.allMyBookings }),
+    ]),
+  })
+}
+
+export function useCancelBooking(ref: string, token: string | null) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: Omit<Cancellation, 'referenceCode' | 'token'>) => cancelBooking({ ...input, referenceCode: ref, token }),
+    // Success frees the slot; a cutoff or state error also means the page is out of date.
+    onSettled: () => Promise.all([
+      qc.invalidateQueries({ queryKey: bookingKeys.detail(ref, token) }),
+      qc.invalidateQueries({ queryKey: bookingKeys.allAvailability }),
+      qc.invalidateQueries({ queryKey: accountKeys.allMyBookings }),
+    ]),
   })
 }

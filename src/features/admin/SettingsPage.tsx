@@ -4,6 +4,7 @@ import { ErrorMessage } from '../../components/ErrorMessage'
 import { SaveStatus } from '../../components/SaveStatus'
 import { useUpdateVenueSettings, useVenueSettings } from '../catalog/hooks'
 import type { VenueSettings } from '../catalog/api'
+import { BannerSection } from './BannerSection'
 
 export function SettingsPage() {
   const settings = useVenueSettings()
@@ -16,7 +17,10 @@ export function SettingsPage() {
       ) : settings.isError ? (
         <ErrorMessage error={settings.error} onRetry={() => settings.refetch()} />
       ) : (
-        <SettingsForm initial={settings.data} />
+        <>
+          <SettingsForm initial={settings.data} />
+          <BannerSection settings={settings.data} />
+        </>
       )}
     </section>
   )

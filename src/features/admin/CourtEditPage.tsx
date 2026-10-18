@@ -5,6 +5,7 @@ import { ErrorMessage } from '../../components/ErrorMessage'
 import { SaveStatus } from '../../components/SaveStatus'
 import { useCourt, useSaveCourt } from '../catalog/hooks'
 import { SPORT_LABELS, SPORTS, type Court, type Sport } from '../catalog/api'
+import { CourtPhotoSection } from './CourtPhotoSection'
 import { CourtRatesSection } from './CourtRatesSection'
 
 export function CourtEditPage() {
@@ -28,6 +29,7 @@ export function CourtEditPage() {
         <>
           <h1>{court.data.name}</h1>
           <CourtForm key={court.data.id} court={court.data} />
+          <CourtPhotoSection court={court.data} />
           <CourtRatesSection court={court.data} />
         </>
       )}
