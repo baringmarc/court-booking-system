@@ -6,10 +6,18 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
 
 > Update this section at the end of every session or task. Keep it short; it's the first thing the next session reads.
 
-- **Current milestone:** 4 (Payments) ✅ done. Replanned on 2026-10-17: M5 = **Admin shell and accounts**, M6 = **Online payments (PayMongo, test mode)**, postponed because manual payment already works, M7 = Polish.
-- **Next task:** waiting for the user to approve the M5 outline, then T5.1 (admin shell, no DB work). T5.2 (accounts research) ends with a DB plan for approval
-- **State:** M4 is complete and live on the linked project: payments, proof bucket, the `submit-payment-proof` Edge Function, review, expiry job, walk-ins, the booking-page upload loop, the admin review queue and the dashboard. Every task and the milestone itself were reviewer-PASSed. M3 and M4 are both uncommitted.
-- **Blockers / notes:** Docker Desktop must be running for `npm run verify`. `npm run test:e2e` and `npm run smoke:proof` need the full local stack (`npx supabase start`). Open follow-ups: a user decision on capping the fresh hold after a rejection at the start time (see T4.6); the Edge Function's `index.ts` is checked only by the smoke and e2e tests (no Deno type-check).
+- **Current milestone:** 5 (Admin shell and accounts) ✅ done on 2026-10-18. Next is M6 (Venue media), then M7 (PayMongo, test mode), then M8 (Polish).
+- **Next task:** re-confirm the M6 outline with the user (it was drafted on 2026-10-17 and still has the open SPEC §11 questions: which pages show the banner, image only or headline/link). Then T6.1 (research), which ends with a DB/storage plan for approval.
+- **State:** M5 is complete. All its DB changes are live on the linked project (`cancel_booking`, `claim_guest_bookings`, hardened `get_guest_booking`, `bookings.cancelled_by`/`cancelled_by_venue`). Every M5 task and the milestone were reviewer-PASSed. M5 is uncommitted (last commit bd90896).
+- **Blockers / notes:**
+  - Docker Desktop must be running for `npm run verify`. `npm run test:e2e` and `npm run smoke:proof` need the full local stack (`npx supabase start`).
+  - Email confirmation is on locally (`config.toml`, matching the hosted project). Sign-up emails land in Mailpit at http://127.0.0.1:54324. e2e reads them with `confirmationLink()`. Don't turn it off: claims trust `email_confirmed_at`.
+  - Guest links use `#token=`. Going to the same URL again is a hash-only navigation (no reload), so e2e leaves the page first (`openGuestLink`).
+  - Open follow-ups:
+    - a user decision on capping the fresh hold after a rejection at the start time (T4.6)
+    - the Edge Function `index.ts` is checked only by smoke and e2e (no Deno type-check)
+    - if the profile fetch fails, a real admin sees "Admins only" (T5.1, for the M8 error pass)
+    - the guest cancel path doesn't check the 30-day link expiry. That's harmless, since a cancel must be before the start, but recheck it if M7 adds token-authorized RPCs.
 
 ## How tasks work
 
@@ -309,11 +317,11 @@ Out of scope for M4: cancellation, My bookings and claiming guest bookings (M5);
 
 Goal (SPEC §9): a separate admin area (own layout and login), then My bookings, cancellation, a hardened guest token flow and `claim_guest_bookings`.
 
-> **Status: outline proposed, waiting for user approval.** T5.1 (admin shell) needs no DB work and can start right away. T5.2 (accounts research) ends with a DB plan for T5.3–T5.5, which needs its own approval before any migration.
+> **Status: ✅ done (2026-10-18).** T5.2 (accounts research) ends with a DB plan for T5.3–T5.5, which needs its own approval before any migration.
 
-Out of scope for M5: online payments (M6), refunds (a SPEC non-goal), emails (M7).
+Out of scope for M5: court photos and the banner (M6), online payments (M7), refunds (a SPEC non-goal), emails (M8).
 
-### [ ] T5.1 Admin shell and `/admin/login`
+### [x] T5.1 Admin shell and `/admin/login`
 - **Do:**
   - Move the `/admin` route tree out from under the public `Layout` in `src/routes/router.tsx`. `AdminLayout` becomes a full shell (brand, admin nav, signed-in user and log out, mobile nav) with no public header or footer. Keep every admin page lazy-loaded.
   - Add `/admin/login` (email + password) inside the admin shell. A signed-in non-admin is refused there with a clear message. Unauthenticated `/admin/*` redirects to `/admin/login` and returns to the requested page after sign-in.
@@ -324,54 +332,169 @@ Out of scope for M5: online payments (M6), refunds (a SPEC non-goal), emails (M7
   - Testing Library tests: the guard redirects to `/admin/login`, non-admins are refused, and the public header has no Admin link.
   - The e2e admin flows sign in through `/admin/login` and pass on desktop and at 360px.
   - The build still keeps admin code out of the public chunk.
+- **Notes:** `/admin` is a top-level lazy route with its own `AdminLayout` shell. A lazy `AdminGuard` layout route guards every page except `login`, and unknown admin paths get a 404. `/admin/login` is email + password only, with no Google sign-in and no sign-up (the user's call). The public `RequireAdmin` and `logIn` e2e helper are gone. Tests: `AdminGuard.test.tsx`, `AdminLoginPage.test.tsx`, `components/Layout.test.tsx` (fake auth from `src/test/authState.ts`), and the new `e2e/admin-shell.spec.ts`. `walk-in` and `guest-and-review` now sign in through `logInAdmin`. e2e passes 12/12 on desktop and 360px. Admin strings appear only in lazy chunks (checked in `dist/`). The DB separation the user asked about already existed; a new `01_profiles` assertion now proves that a role in sign-up metadata is ignored. The reviewer passed it.
+- **Follow-ups:** if the profile fetch fails, a real admin sees "Admins only" instead of an error with a retry. This is older `AuthProvider` behavior; fix it in the M8 error-state pass, or earlier if it bites.
 
-### [ ] T5.2 Research: accounts
+### [x] T5.2 Research: accounts
 - **Do:** Research and record in RESEARCH.md:
   - cancellation rules: the cutoff in the venue timezone, which statuses can be cancelled, and what happens to payments (no refunds)
   - claiming guest bookings: verified email from `auth.users` (`email_confirmed_at`, Google identities) and how to trigger the claim after sign-in
   - what "hardened" should mean for the guest token flow: lookup rate limits, the token in the URL query or fragment, token lifetime after the booking ends, a lost-link path
   - the My bookings query (upcoming vs past, effective status)
 - **Acceptance:** Every entry is Decided with sources or local experiments, the DB plan for T5.3–T5.5 is written up, and the user has approved it.
+- **Notes:** RESEARCH.md "Milestone 5" has four Decided entries and the DB plan, which the user approved on 2026-10-17 (that approval covers `db:push` for the T5.3–T5.5 migrations).
+  - The key finding came from a local experiment: with `enable_confirmations = false`, sign-ups get `email_confirmed_at` at once, so claims would be unsafe. The user chose to turn confirmations on locally too. The hosted project already has "Confirm email" on.
+  - Other choices: guest links expire 30 days after the booking, the token moves to the URL fragment, and there's no throttle.
+  - SPEC §4, §5.7, §6, §7 and §10 are updated. No code changed.
+  - The reviewer passed it. Its findings were fixed in the docs: a stored `cancelled_by_venue` flag plus a `cancelled_by` index, claims limited to bookings with a guest token (so a deleted player's old bookings aren't claimable), `displayStatus()` and `completed` in the My bookings split, SPEC §2 wording, and source labels.
 
-### [ ] T5.3 RPC `cancel_booking(id | ref + token, reason?)`
+### [x] T5.3 RPC `cancel_booking(id | ref + token, reason?)`
 - **Depends:** T5.2
-- **Do:** The owner (session) or guest (token) can cancel an active booking up to `cancel_cutoff_hours` before the start; admins can cancel any time. Sets `cancelled_at` and `cancel_reason`, and frees the slot.
-- **Acceptance:** pgTAP covers the cutoff boundary (venue timezone), each status, guest, owner, other player and admin, and that the freed slot can be booked again.
+- **Plan:** approved in T5.2 (RESEARCH "DB plan", item 1): `bookings.cancelled_by` (indexed) and `cancelled_by_venue`, plus `cancel_booking(p_booking_id?, p_reference_code?, p_token?, p_reason?)`.
+- **Do:** The owner (session) or guest (ref + token) can cancel an effectively active booking while `now() <= start - cutoff`. Admins can cancel until the booking ends, with a required reason. The function locks the row, sets `cancelled`, `cancelled_at`, `cancel_reason`, `cancelled_by` and `cancelled_by_venue` (guest path: null and false; session path: `auth.uid()` and `is_admin()`), leaves payments alone and frees the slot. When both a token and an id are given, the guest path wins; when neither is, it's `not_found`.
+- **Acceptance:** pgTAP covers:
+  - the cutoff boundary (exactly at the cutoff allowed, one second after refused)
+  - each status, including a stale `pending_payment` (`not_cancellable`)
+  - guest with the right token, guest with a wrong token (`not_found`), owner, another player (`not_found`), and anon without a token
+  - admin: reason required, after the end (`booking_ended`), a walk-in
+  - a signed-in admin using the guest path doesn't get admin rights
+  - `cancelled_by` and `cancelled_by_venue` for guest, owner and admin; an admin cancelling their own player booking still needs a reason; both or neither of token and id
+  - payments unchanged, and the freed slot can be booked again
+  - `db:push` and `db:types` have been run
+- **Notes:** Migration `20261017075113_cancel_booking` adds `bookings.cancelled_by` (indexed), `cancelled_by_venue` and `public.cancel_booking(uuid, text, text, text)`, which is `security definer` and granted to anon and authenticated. Its errors are `not_found`, `not_cancellable`, `cutoff_passed`, `booking_ended`, `reason_required` and `invalid_input`. It's pushed to the linked project, and the types are regenerated.
+  - 37 assertions in `supabase/tests/database/14_cancel_booking.test.sql`. Fixtures sit at exact offsets from the transaction's fixed `now()`, so the cutoff boundary is tested to the second.
+  - The reviewer passed it. Its minors are fixed: the stored admin reason is asserted, the positive both-arguments case is added, and `cancelled_by_venue` is in the SPEC §6 row.
+  - `get_guest_booking` doesn't return the cancellation fields yet; that's T5.5.
 
-### [ ] T5.4 RPC `claim_guest_bookings()`
+### [x] T5.4 RPC `claim_guest_bookings()`
 - **Depends:** T5.2
-- **Do:** Link guest bookings whose `guest_email` matches the caller's **verified** `auth.users` email and whose `user_id` is null. Idempotent, returns a count, and never trusts client input (SPEC §5.7).
-- **Acceptance:** pgTAP covers an unverified email (nothing claimed), case-insensitive matching, idempotency, never stealing another user's booking, and anon being refused.
+- **Plan:** approved in T5.2 (RESEARCH "DB plan", item 2).
+- **Do:** Link `online` guest bookings (`guest_token_hash` set) whose `guest_email` matches the caller's **confirmed** `auth.users` email and whose `user_id` is null. Idempotent, returns a count, and never trusts client input (SPEC §5.7). Add the partial index `bookings_unclaimed_email_idx`. Set `[auth.email] enable_confirmations = true` in `supabase/config.toml` and restart the local stack. Update the e2e sign-up flow to confirm through the local mail catcher, or switch to admin-created confirmed users where sign-up isn't what's being tested.
+- **Acceptance:** pgTAP covers:
+  - an unconfirmed email (nothing claimed)
+  - case-insensitive matching (mixed-case `auth.users.email`)
+  - idempotency (a second call returns 0)
+  - never moving a booking that already has a `user_id`, and never claiming a walk-in or a deleted player's old booking (no guest token)
+  - anon refused (`42501`)
+  - `db:push` and `db:types` have been run
+  - `npm run test:e2e` still passes with confirmations on
+- **Notes:** Migration `20261018083342_claim_guest_bookings` adds the partial index `bookings_unclaimed_email_idx` and `public.claim_guest_bookings() returns integer` (`security definer`, authenticated only). It's pushed to the linked project and the types are regenerated.
+  - 13 assertions in `supabase/tests/database/15_claim_guest_bookings.test.sql`, including a misleading JWT `email` claim that is ignored.
+  - `supabase/config.toml` now has `enable_confirmations = true`, and `127.0.0.1:5179/**` is added to the redirect URLs for e2e. The local stack was restarted.
+  - Experiment after the restart: sign-up returns no session, `email_confirmed_at` is null, and Mailpit gets the email.
+  - e2e: `confirmationLink()` reads Mailpit, and `player.spec` now confirms its sign-up. `smoke:proof` creates confirmed users with the local service key. e2e passes 12/12 and the smoke test passes.
+  - The reviewer passed it; its minor (no `sub`, so `P0001`) is fixed. The client-side claim call is T5.7.
 
-### [ ] T5.5 Guest token hardening
+### [x] T5.5 Guest token hardening
 - **Depends:** T5.2
-- **Do:** Whatever T5.2 decides, for example a lookup throttle and moving the token out of server-visible URLs.
-- **Acceptance:** Defined in T5.2.
+- **Plan:** approved in T5.2 (RESEARCH "DB plan", item 3, and the "Guest token flow hardening" entry).
+- **Do:**
+  - DB: replace `get_guest_booking` so links stop matching 30 days after the booking ends (same `not_found`), and have it also return `cancelled_at`, `cancel_reason` and `cancelled_by_venue`.
+  - Client: read the token from `#token=`, rewrite old `?token=` links with `history.replaceState`, and make `CheckoutPage` and the save-link card build fragment links. Show the "sign up with your booking email" recovery hint on the not-found state.
+- **Acceptance:**
+  - pgTAP covers the 30-day boundary and the new columns.
+  - Vitest/Testing Library cover token parsing (fragment, legacy query, both, empty) and the rewrite.
+  - e2e: the guest flow uses a fragment link, and a legacy `?token=` link still opens and is rewritten.
+  - `db:push` and `db:types` have been run.
+- **Notes:** Migration `20261018084414_guest_link_hardening` recreates `get_guest_booking` with the 30-day limit and the cancellation columns. It's pushed and the types are regenerated.
+  - pgTAP: `16_guest_link_hardening.test.sql` (7 assertions, both sides of the boundary).
+  - Client: `features/booking/guestLink.ts` (with tests). `BookingPage` reads `#token=` and rewrites `?token=` with `<Navigate replace>`, keeping the page state. Checkout links to the fragment. A recovery hint shows on not-found and in the save-link card.
+  - e2e checks the fragment URL and the legacy rewrite. It also confirms that supabase-js ignores `#token=`.
+  - Gotcha: going to the same URL with a fragment is a hash-only navigation with no reload, so `openGuestLink()` in the spec leaves the page first.
+  - The reviewer passed it.
+- **Follow-ups:** T5.6 maps the cancellation fields into `BookingDetail`. The recovery hint promises My bookings, so T5.7 must land before M5 closes or deploys. Optional: a component-level test of the rewrite.
 
-### [ ] T5.6 Cancel in the UI
-- **Depends:** T5.3
-- **Do:** A cancel button with a confirmation and a cutoff message on `/booking/:ref` (guest and owner), and an admin cancel in the review panel.
+### [x] T5.6 Cancel in the UI
+- **Depends:** T5.3, T5.5
+- **Do:** A cancel button with a confirmation and a cutoff message (deadline in venue time) on `/booking/:ref` for guests and owners. Show the cancelled state with the venue's reason. In the admin review panel, add a cancel action with a required reason and a "cancelled after payment, settle any refund outside the app" flag. Extend e2e with a guest cancel and an admin cancel.
 - **Acceptance:** Testing Library tests cover the confirmation, the cutoff-passed state and errors.
+- **Notes:** Pure rules in `features/booking/cancellation.ts` (tested), mirroring `cancel_booking`.
+  - Booking page: `CancelBooking` has a confirmation step, an optional reason, a refund note when paid, and the deadline in venue time after the cutoff. `BookingSummary` shows the cancelled state with the venue's reason.
+  - Admin: `AdminCancelForm` has a required reason, and `ReviewPanel` flags "cancelled by staff/customer" and "cancelled after payment". A staff member viewing `/booking/:ref` signed in is pointed to Admin → Bookings.
+  - Tests: `cancellation.test.ts`, `CancelBooking.test.tsx`, `AdminCancelForm.test.tsx`, plus cases in `BookingSummary.test.tsx` and `ReviewPanel.test.tsx`. New `e2e/cancel.spec.ts` covers a guest cancel freeing the slot and an admin cancel showing the reason to the guest. e2e passes 16/16.
+  - The reviewer passed it; both minors are fixed, and admin hooks now use `bookingKeys.allAvailability`.
 
-### [ ] T5.7 Claim after sign-in and `/me/bookings`
+### [x] T5.7 Claim after sign-in and `/me/bookings`
 - **Depends:** T5.4
-- **Do:** Call `claim_guest_bookings` after a verified sign-in. Add the My bookings page (upcoming and past, effective status, links to `/booking/:ref`).
+- **Do:** Call `claim_guest_bookings` from an effect keyed on the user id (after sign-in and on app load with a session, never inside `onAuthStateChange`), and invalidate My bookings when it links any. Add the My bookings page: an RLS select with an explicit `.eq('user_id', user.id)` (admins' RLS sees everything), and a pure `splitMyBookings(rows, now)` built on `displayStatus()` (which also maps an ended `confirmed` booking to `completed`) that splits upcoming from past, each linking to `/booking/:ref`. Extend e2e: a guest books, then signs up with the same email and confirms it, and the booking shows in My bookings.
 - **Acceptance:** Testing Library tests cover the list states and the claim trigger. Loading, empty and error states are handled.
+- **Notes:** New `src/features/account/` area.
+  - `fetchMyBookings` filters on `user_id` explicitly and caps at 200.
+  - `splitMyBookings` is built on `isActive`/`displayStatus`.
+  - The claim trigger is a React Query query keyed on the user id (`useClaimGuestBookings`, mounted once as `GuestBookingClaimer` in `main.tsx`, only for confirmed emails). That's instead of the planned effect: same intent, no effect needed. RESEARCH is updated.
+  - `/me/bookings` is now `MyBookingsPage`, with loading, empty, error/retry, upcoming/past and a dismissible "we added N" notice. The `ComingSoon` placeholder is deleted.
+  - Tests: `myBookings.test.ts` and `MyBookingsPage.test.tsx` (claimer: once, not for anon or unconfirmed). New `e2e/claim.spec.ts`: guest → sign up with the same email → confirm via Mailpit → My bookings → opens as owner. e2e passes 18/18.
+  - The reviewer passed it; both minors are fixed.
 
-### [ ] T5.8 Close out M5
+### [x] T5.8 Close out M5
 - **Depends:** T5.1, T5.6, T5.7
-- **Do:** Mark M5 ✅ in SPEC §9, run a milestone review, and re-confirm the M6 (PayMongo) breakdown.
+- **Do:** Mark M5 ✅ in SPEC §9, run a milestone review, and re-confirm the M6 (venue media) breakdown.
 - **Acceptance:** `npm run verify` passes and the reviewer signs off.
+- **Notes:** The milestone reviewer passed it.
+  - The major is fixed: booking mutations (create, proof, cancel) didn't refresh My bookings. They now invalidate `accountKeys.allMyBookings`, tested in `features/booking/hooks.test.tsx`.
+  - The minors are fixed: the Handoff is rewritten and a stale router comment is removed.
+  - SPEC §9 marks M5 ✅ (v0.8).
+  - Final gates: verify (vitest, pgTAP 291, build), e2e 18/18 at desktop and 360px, and smoke:proof all pass.
+  - Re-confirming the M6 outline is left for the user (see Handoff).
 
-## Milestone 6: Online payments (PayMongo, test mode)
+## Milestone 6: Venue media
+
+Goal (SPEC §9): admins upload one photo per court and an optional site banner. Players see the court photos, and the banner sits under the public header, hidden while none is set. Added on 2026-10-17.
+
+> **Status: outline, re-confirm at the end of M5.** T6.1 ends with a DB and storage plan that needs approval before any migration.
+
+Out of scope for M6: several photos per court (galleries), several or rotating banners, image editing or cropping beyond a simple downscale.
+
+### [ ] T6.1 Research: venue media
+- **Do:** Answer in RESEARCH.md, with sources and local experiments:
+  - A public bucket (`venue-media`, read without auth, CDN-cacheable URLs) vs a private bucket with signed URLs. Recommendation: public, because these images aren't sensitive.
+  - Storage policies: admin-only insert, update and delete through `private.is_admin()`; a bucket-level MIME allow-list (JPG, PNG, WEBP) and a size limit.
+  - Image size: whether Supabase image transformations are available on our plan, otherwise a client-side downscale (e.g. at most 1600px wide, WEBP) before upload.
+  - Replacing a photo: new uuid filenames (so caches never serve the old one), deleting the old object, and orphan cleanup.
+  - Banner layout: aspect ratio, `object-fit`, avoiding layout shift, alt text.
+  - Which public pages show the banner (see SPEC §11).
+- **Files:** `RESEARCH.md`, `SPEC.md`
+- **Acceptance:** Every entry is Decided. The DB and storage plan for T6.2 is written up, and the user has approved it.
+
+### [ ] T6.2 Migration: media columns and the `venue-media` bucket
+- **Depends:** T6.1
+- **Do:** Add `courts.photo_path` and `venue_settings.banner_path` / `banner_alt` (nullable), with CHECKs that keep each path under its prefix. Create the bucket with its MIME and size limits, plus the storage policies.
+- **Acceptance:** pgTAP covers anon, player and admin on the storage objects (only admins can write; anyone can read), the path CHECKs and the column updates going through the existing admin RLS. `db:push` and `db:types` have been run.
+
+### [ ] T6.3 Admin: court photo
+- **Depends:** T6.2
+- **Do:** A photo section on `/admin/courts/:id` with upload (type and size checked before sending, downscaled as T6.1 decides), preview, replace and remove.
+- **Acceptance:** Testing Library tests cover the upload, wrong type or size, replace, remove and errors.
+
+### [ ] T6.4 Admin: site banner
+- **Depends:** T6.2
+- **Do:** A banner section on `/admin/settings` with upload, alt text (required when a banner is set), preview and remove.
+- **Acceptance:** Testing Library tests cover setting, replacing and removing the banner, the required alt text and errors.
+
+### [ ] T6.5 Public: court photos
+- **Depends:** T6.2
+- **Do:** Show each court's photo on the home page court cards and as court info on `/book`, lazy-loaded with fixed dimensions. Courts without a photo get a neutral placeholder for their sport, never a broken image.
+- **Acceptance:** Testing Library tests cover a court with a photo and one without.
+
+### [ ] T6.6 Public: banner under the header
+- **Depends:** T6.2
+- **Do:** In the public `Layout`, render the banner between the header and the page content when `banner_path` is set. Render nothing at all (no empty space) when it isn't, or while settings load or fail.
+- **Acceptance:** Testing Library tests cover banner set, unset, loading and error. An e2e flow covers an admin uploading a banner, the banner showing on the public site, the admin removing it and the banner disappearing (desktop and 360px).
+
+### [ ] T6.7 Close out M6
+- **Depends:** T6.3, T6.4, T6.5, T6.6
+- **Do:** Optionally add demo photos for the seed courts. Mark M6 ✅ in SPEC §9, run a milestone review, and re-confirm the M7 (PayMongo) breakdown.
+- **Acceptance:** `npm run verify` and `npm run test:e2e` pass, and the reviewer signs off.
+
+## Milestone 7: Online payments (PayMongo, test mode)
 
 Goal (SPEC §9): PayMongo test-mode checkout next to the manual proof flow, with a verified webhook confirming bookings automatically. Postponed from M5 on 2026-10-17 because manual payment and confirmation already work.
 
-> **Status: draft breakdown, re-confirm at the end of M5.** Kept from the earlier plan so the research questions aren't lost. T6.1 ends with a DB and Edge Function plan that needs approval before any migration.
+> **Status: draft breakdown, re-confirm at the end of M6.** Kept from the earlier plan so the research questions aren't lost. T7.1 ends with a DB and Edge Function plan that needs approval before any migration.
 
-Out of scope for M6: live keys and real money, refunds, PayMongo for walk-ins, emails (M7).
+Out of scope for M7: live keys and real money, refunds, PayMongo for walk-ins, emails (M8).
 
-### [ ] T6.1 Research: PayMongo (test mode)
+### [ ] T7.1 Research: PayMongo (test mode)
 - **Do:** Answer in RESEARCH.md, with sources (PayMongo docs) and local experiments where possible:
   - Checkout Sessions vs Payment Intents. Which test-mode methods to offer (GCash, Maya, card, QR Ph, …). Amounts in centavos.
   - Webhooks: which events, signature verification (`Paymongo-Signature`, test vs live signature), retries, idempotency, and registering the webhook for the deployed function.
@@ -381,40 +504,40 @@ Out of scope for M6: live keys and real money, refunds, PayMongo for walk-ins, e
   - Local testing without a public URL: signed fake webhook events in `smoke` and e2e.
   - Secrets: `PAYMONGO_SECRET_KEY` and the webhook secret only as Edge Function secrets (`supabase/functions/.env` locally, `supabase secrets set` for the linked project). Never `VITE_*`.
 - **Files:** `RESEARCH.md`, `SPEC.md` (§4, §6, §10, and close the §11 open questions)
-- **Acceptance:** Every entry is Decided. The DB and Edge Function plan for T6.2–T6.4 is written up, and the user has approved it.
+- **Acceptance:** Every entry is Decided. The DB and Edge Function plan for T7.2–T7.4 is written up, and the user has approved it.
 
-### [ ] T6.2 Migration: PayMongo payments
-- **Depends:** T6.1
-- **Do:** The schema change T6.1 decides, plus the service-role-only RPCs that record a PayMongo payment and confirm the booking under a row lock (same pattern as `record_payment_proof`).
+### [ ] T7.2 Migration: PayMongo payments
+- **Depends:** T7.1
+- **Do:** The schema change T7.1 decides, plus the service-role-only RPCs that record a PayMongo payment and confirm the booking under a row lock (same pattern as `record_payment_proof`).
 - **Acceptance:** pgTAP covers the RLS (anon, player, admin, service_role), idempotency for a replayed event, the amount check, each late-payment case and the constraint interactions. `db:push` and `db:types` have been run.
 
-### [ ] T6.3 Edge Function `create-paymongo-checkout`
-- **Depends:** T6.2
+### [ ] T7.3 Edge Function `create-paymongo-checkout`
+- **Depends:** T7.2
 - **Do:** Authorize the owner session or the guest ref + token, check the booking is payable, create a test-mode checkout session for the stored `total_amount` with success and cancel URLs back to `/booking/:ref`, and return the checkout URL. Share the auth and payable checks with `submit-payment-proof` (`_shared`).
 - **Acceptance:** A smoke test (`npm run smoke:paymongo` or an extension of `smoke:proof`) covers owner, guest, wrong token, an unpayable booking and the amount coming from the database. PayMongo is stubbed locally unless a test key is present.
 
-### [ ] T6.4 Edge Function `paymongo-webhook`
-- **Depends:** T6.2
-- **Do:** Verify the signature, ignore events we don't handle, and record the payment through the T6.2 RPC. Idempotent, always 2xx once an event has been handled, and the function never trusts amounts or ids that aren't in the signed payload.
-- **Acceptance:** The smoke test covers a valid paid event (booking confirmed), a bad signature (401, nothing changes), a replay (no duplicate payment) and a late payment (handled as T6.1 decided).
+### [ ] T7.4 Edge Function `paymongo-webhook`
+- **Depends:** T7.2
+- **Do:** Verify the signature, ignore events we don't handle, and record the payment through the T7.2 RPC. Idempotent, always 2xx once an event has been handled, and the function never trusts amounts or ids that aren't in the signed payload.
+- **Acceptance:** The smoke test covers a valid paid event (booking confirmed), a bad signature (401, nothing changes), a replay (no duplicate payment) and a late payment (handled as T7.1 decided).
 
-### [ ] T6.5 Booking page: "Pay online"
-- **Depends:** T6.3
+### [ ] T7.5 Booking page: "Pay online"
+- **Depends:** T7.3
 - **Do:** On `/booking/:ref`, offer "Pay online with PayMongo" next to "Upload proof" while the booking is payable. Redirect to checkout. On return, show a "confirming payment…" state that refetches until the webhook has confirmed the booking (with a timeout message). Also handle the cancel return.
 - **Acceptance:** Testing Library tests cover the button states, the return polling and errors. An e2e flow covers pay online → (signed fake webhook) → confirmed on desktop and at 360px.
 
-### [ ] T6.6 Admin: PayMongo payments
-- **Depends:** T6.4
+### [ ] T7.6 Admin: PayMongo payments
+- **Depends:** T7.4
 - **Do:** Show PayMongo payments (method, PayMongo id, paid time) in the `/admin/bookings` list and detail panel with no review actions, flag late payments that need manual follow-up, and count them in the dashboard's takings by method.
 - **Acceptance:** Testing Library tests cover the PayMongo row, the late-payment flag and the takings breakdown.
 
-### [ ] T6.7 Close out M6
-- **Depends:** T6.5, T6.6
-- **Do:** Set the PayMongo secrets on the linked project, deploy both functions, register the test-mode webhook, and do one real test-mode payment end to end. Mark M6 ✅ in SPEC §9, run a milestone review, and propose the M7 breakdown.
+### [ ] T7.7 Close out M7
+- **Depends:** T7.5, T7.6
+- **Do:** Set the PayMongo secrets on the linked project, deploy both functions, register the test-mode webhook, and do one real test-mode payment end to end. Mark M7 ✅ in SPEC §9, run a milestone review, and propose the M8 breakdown.
 - **Acceptance:** `npm run verify` and `npm run test:e2e` pass, a real test-mode payment confirms a booking on the linked project, and the reviewer signs off.
 
-## Milestone 7: Polish
-Emails, empty, loading and error states, a11y pass, deploy, README screenshots and a demo video, Playwright e2e for the main flows. *(Break down at the end of M6.)*
+## Milestone 8: Polish
+Emails, empty, loading and error states, a11y pass, deploy, README screenshots and a demo video, Playwright e2e for the main flows. *(Break down at the end of M7.)*
 
 ---
 

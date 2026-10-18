@@ -64,6 +64,10 @@ img, svg { display: block; }
   .nav { order: 0; width: auto; margin-left: 16px; }
 }
 
+/* Admin shell */
+.admin-header { border-bottom: 2px solid var(--accent); }
+.admin-header .brand .badge { background: var(--accent-soft); color: var(--accent); }
+
 .site-footer { border-top: 1px solid var(--border); padding: 16px 0; font-size: 0.875rem; }
 
 /* Pages */
@@ -89,6 +93,8 @@ img, svg { display: block; }
 }
 .btn:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
 .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-danger { background: var(--danger); border-color: var(--danger); color: #fff; }
+.btn-danger:hover { background: color-mix(in srgb, var(--danger) 85%, black); border-color: transparent; }
 .btn-outline { background: transparent; color: var(--text); border-color: var(--border); }
 .btn-outline:hover { background: var(--accent-soft); border-color: var(--border); }
 .btn-ghost { background: transparent; color: var(--muted); border-color: transparent; }
@@ -137,10 +143,6 @@ h3 { font-size: 1.05rem; margin: 0; }
 .chip { font-size: 0.85rem; padding: 4px 10px; border-radius: 999px; background: var(--accent-soft); color: var(--text); }
 
 /* Admin */
-.subnav { display: flex; gap: 4px; overflow-x: auto; border-bottom: 1px solid var(--border); margin: -8px 0 20px; }
-.subnav a { padding: 8px 12px; color: var(--muted); text-decoration: none; white-space: nowrap; border-bottom: 2px solid transparent; margin-bottom: -1px; }
-.subnav a:hover { color: var(--text); }
-.subnav a.active { color: var(--accent); border-bottom-color: var(--accent); }
 
 .list { list-style: none; margin: 0; padding: 0; }
 .card.flush { padding: 0; overflow: hidden; }

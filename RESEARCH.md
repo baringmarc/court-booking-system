@@ -190,3 +190,107 @@ Rules:
   - Errors use the same `P0001` and hint convention (`not_found`, `invalid_state`, `note_required`, `forbidden`).
 - **`create_walk_in(court_id, start, slots, name, phone?, method, amount, reference?)`** (admin only): the same checks as `create_booking`, except there's no booking window and the start may be **the slot currently in progress** (`start <= now() < start + 1h`). It inserts a `confirmed` booking with `source = 'walk_in'`, `created_by = auth.uid()` and an `approved` payment with `recorded_by = auth.uid()`. Move the shared validation into `private.validate_booking_slot(...)` so the two RPCs can't drift apart.
 - **`payments`:** add `unique (booking_id) where review_status = 'approved'` (SPEC §6) and a partial unique index allowing only one `pending` payment per booking.
+
+---
+
+## Milestone 5: Accounts
+
+### Cancellation rules
+- **Status:** Decided (SPEC §10, 2026-10-17)
+- **Question:** Which bookings can be cancelled, and by whom? How does the cutoff interact with the venue timezone? What happens to payments when there are no refunds?
+- **Findings:**
+  - The cutoff is a duration, not a wall-clock time. "Up to `cancel_cutoff_hours` before the start" is `now() <= lower(during) - make_interval(hours => cancel_cutoff_hours)` on `timestamptz` values, which is independent of timezone. `Asia/Manila` has no DST, and even in a DST zone an absolute interval is the natural reading. The venue timezone matters only when the deadline is *displayed* (`src/lib/time.ts`). *(Postgres docs: [datetime operators](https://www.postgresql.org/docs/current/functions-datetime.html).)*
+  - The bookings that hold a slot are the **effectively** active ones: `pending_payment` with `expires_at > now()`, `payment_submitted` and `confirmed` (SPEC §4, §10). A stale hold is already `expired` to the user, so cancelling it should fail like any other inactive booking.
+  - Setting `status = 'cancelled'` frees the slot at once, because `bookings_no_overlap` only covers active statuses (03_bookings pgTAP already proves that a cancelled row doesn't block its range).
+  - `review_payment` locks the booking with `select … for update` (`20261017034431_review_payment.sql:38`). If `cancel_booking` takes the same row lock, a cancel and a review racing on one booking are serialized, and the second one sees the new status.
+  - Payments when there are no refunds (a SPEC non-goal):
+    - The dashboard's proof queue and the "proofs waiting" count filter on `bookings.status = 'payment_submitted'` (`src/features/admin/api.ts:113`). A pending proof on a cancelled booking therefore drops out of the queue with no change to the payment row.
+    - Today's takings count approved payments by `reviewed_at` (SPEC §10). An approved payment on a booking cancelled later stays counted, which is correct: the money was received, and any refund happens outside the app.
+  - Walk-ins have no `user_id` and no token, so only an admin can cancel them, with no extra rule needed.
+- **Gotchas:**
+  - A wrong token, an unknown id and another player's booking must all raise the same `not_found`, as `get_guest_booking` does.
+  - The guest path (ref + token) must never count as admin, even if the caller happens to be a signed-in admin. Only the session path checks `private.is_admin()`.
+  - Admins can cancel "any time" (SPEC §4), but cancelling a booking that has already ended would rewrite history. Limit admins to bookings that haven't ended.
+- **Recommendation:** see the DB plan below. Players and guests can cancel active bookings until the cutoff, admins until the booking ends, and admins must give a reason because the player sees it. Payment rows are never touched, and the admin view shows "cancelled after payment" so staff know to settle any refund outside the app.
+
+### Claiming guest bookings (verified email)
+- **Status:** Decided (SPEC §10, 2026-10-17)
+- **Question:** What counts as a verified email, how do we read it safely, and when should the claim run?
+- **Findings:**
+  - Supabase Auth records verification in `auth.users.email_confirmed_at`.
+    - For OAuth sign-ins, `createAccountFromExternalIdentity` calls `user.Confirm()` only `if decision.CandidateEmail.Verified || config.Mailer.Autoconfirm` ([supabase/auth `internal/api/external.go`](https://github.com/supabase/auth/blob/master/internal/api/external.go)). Google reports `email_verified`, so Google users are confirmed.
+    - Supabase also refuses to auto-link identities to unverified emails ([identity linking docs](https://supabase.com/docs/guides/auth/auth-identity-linking)).
+  - **The "Confirm email" setting decides whether `email_confirmed_at` means anything.** The docs say turning it off "implicitly confirms the user's email in the database" ([general configuration](https://supabase.com/docs/guides/auth/general-configuration)).
+    - *Local experiment (2026-10-17):* our `supabase/config.toml` has `[auth.email] enable_confirmations = false`. A `POST /auth/v1/signup` for a brand-new address returned a session immediately with `email_confirmed_at` set and identity `email`. The test user was deleted afterwards.
+    - So with confirmations off, anyone can sign up as `someone@gmail.com` and claim that person's guest bookings.
+  - `create_booking` already stores `guest_email` lower-cased and trimmed (`20261017025456_create_booking.sql:112`), so matching is `guest_email = lower(auth.users.email)`. A partial index `on bookings (guest_email) where user_id is null` keeps the claim fast.
+  - Where to trigger the claim:
+    - A trigger on `auth.users` would only fire on auth events, and would miss a guest booking made later by a signed-out user who already has an account.
+    - A client call is simpler and covers that case. SPEC §5.7 already chooses it: the client calls the RPC after sign-in and on app load with an existing session, and the RPC is idempotent.
+    - The call must stay out of `onAuthStateChange`, because awaiting Supabase inside that callback can deadlock (`AuthProvider.tsx` comment). As built in T5.7, it's a React Query query keyed on the user id (`useClaimGuestBookings`, mounted once at the app root). That deduplicates the call and needs no effect.
+- **Gotchas:**
+  - Read the email only from `auth.users` inside the `security definer` function, never from the JWT or the arguments. The JWT's `email` claim can be stale after an email change.
+  - Anyone can make a guest booking with a victim's email, and it then shows up in the victim's My bookings. That's a nuisance, not a data leak, because the attacker learns nothing. Accepted.
+  - Claim only `user_id is null` rows. A booking already attached to an account is never moved.
+  - A deleted player's bookings also have `user_id is null` and keep their email snapshot. Without another filter, a new account with that email would claim them. Requiring `guest_token_hash is not null` (set only for guest bookings) excludes them.
+- **Recommendation:**
+  - The RPC requires `email_confirmed_at is not null`.
+  - **Confirmations must be on wherever claims matter.** Turn on `enable_confirmations` in `config.toml`, so local matches the hosted project and `supabase config push` can never weaken it. e2e then confirms sign-ups through the local mail catcher, or creates confirmed users with the admin API.
+  - Check the linked project's dashboard setting (Authentication → Providers → Email → "Confirm email").
+
+### Guest token flow hardening
+- **Status:** Decided (SPEC §10, 2026-10-17)
+- **Question:** What does "hardened" mean for `/booking/:ref?token=`: rate limits, where the token sits in the URL, how long it lives, and a lost-link path?
+- **Findings:**
+  - **Brute force isn't a realistic threat.** The token has 256 bits of entropy (M3 entry "Guest access tokens"). An unknown reference code and a wrong token return the same `not_found`, so guessing reference codes (32⁶ ≈ 1.07 × 10⁹) reveals nothing. Postgres can't see a reliable client IP to throttle on anyway (only PostgREST's forwarded headers, which are spoofable from the client side). Supabase documents rate limits for Auth endpoints only ([Auth rate limits](https://supabase.com/docs/guides/auth/rate-limits)), not per RPC (not verified further). A throttle table would add writes to a `stable` read path for no security gain.
+  - **The query string reaches servers; the fragment doesn't.** The fragment "is not sent to the server" ([MDN, URI fragment](https://developer.mozilla.org/en-US/docs/Web/URI/Reference/Fragment); RFC 3986 §3.5). With `?token=`, the token lands in the static host's access logs (Vercel in M8), analytics and any proxy. `<meta name="referrer" content="no-referrer">` is already in `index.html`, so `Referer` leaks are covered either way.
+  - *Unverified, from memory of the supabase-js source (`GoTrueClient._isImplicitGrantCallback`):* it treats the URL fragment as an auth callback only when it holds `access_token` or `error_description`, so `#token=…` shouldn't collide. The T5.5 e2e proves it either way.
+  - The link grants **cancel** as well as read (T5.3), so a leaked link is now worth more than before. Its lifetime should be bounded.
+  - **Lost link:** only the token's hash is stored, so the original link can never be re-sent. The existing feature that already works as a recovery path is the auto-claim: sign up or log in with the booking's email (verified) and the booking appears in My bookings. "Email me a new link" (a fresh token, emailed) needs emails, so it belongs in M8.
+- **Gotchas:**
+  - Old `?token=` links (already shown to guests on the confirmation page) must keep working. Read both, and rewrite `?token=` to `#token=` with `history.replaceState`.
+  - Claiming doesn't need to clear `guest_token_hash`. The owner reads through RLS anyway, and links the guest saved keep working until they expire.
+- **Recommendation:**
+  - Move the token to the fragment.
+  - Guest links stop working 30 days after the booking ends, with the same `not_found` response.
+  - Don't add a lookup throttle (documented here).
+  - Show the "sign up with your booking email" recovery hint on the not-found page and in the save-link card.
+
+### My bookings query
+- **Status:** Decided (SPEC §10, 2026-10-17). No DB change needed.
+- **Question:** How do we list a player's bookings, upcoming vs past, with the effective status?
+- **Findings:**
+  - Players read their own rows through RLS. **Admins' RLS returns every booking**, so the query must also filter `.eq('user_id', user.id)` explicitly, or an admin's My bookings would list the whole venue.
+  - `bookings_user_id_idx` exists. A single player has few rows, so one ordered query with a cap is enough (`limit 200`).
+  - `displayStatus()` in `src/features/booking/status.ts` already applies the expired-hold rule on the client, and also shows a `confirmed` booking that has ended as `completed`.
+- **Recommendation:**
+  - Select through RLS with the explicit `user_id` filter and `courts(name, sport)`.
+  - A pure `splitMyBookings(rows, now)` (Vitest) built on `displayStatus()`: **Upcoming** is a booking that ends in the future and displays as `pending_payment`, `payment_submitted` or `confirmed`, soonest first. **Past** is everything else (`completed`, `expired`, `rejected`, `cancelled`), most recent first.
+
+### DB plan for T5.3–T5.5
+- **Status:** Approved by the user on 2026-10-17, including `db:push` for these three migrations. The user also chose: confirmations on locally, guest links valid until 30 days after the booking, and the hosted project already has "Confirm email" on.
+All functions are `security definer`, `set search_path = ''`, and follow RPC conventions (M3): `revoke all … from public, anon, authenticated`, then explicit grants. Errors are `P0001` with a stable `hint`.
+
+1. **Migration `cancel_booking`** (T5.3)
+   - Add `bookings.cancelled_by uuid references profiles(id) on delete set null` (an audit field with index `bookings_cancelled_by_idx`) and `bookings.cancelled_by_venue boolean not null default false`. Both are set at cancel time: the guest path always stores `cancelled_by = null, cancelled_by_venue = false`. The session path stores `cancelled_by = auth.uid()` and `cancelled_by_venue = private.is_admin()`. The flag is stored, not derived, so a later role change can't rewrite history.
+   - Add `public.cancel_booking(p_booking_id uuid default null, p_reference_code text default null, p_token text default null, p_reason text default null) returns public.booking_status`. Grant to `anon, authenticated`.
+     - **Guest path** (`p_token` given): match ref + `sha256(token)`, the same way `get_guest_booking` does. It never counts as admin.
+     - **Session path** (`p_booking_id`): admin, or `user_id = auth.uid()`. Anything else is `not_found`.
+     - Lock the row `for update`. The effective status must be active, otherwise `not_cancellable`.
+     - Player or guest: `now() <= lower(during) - cutoff`, otherwise `cutoff_passed`. Admin: `now() < upper(during)`, otherwise `booking_ended`, and a reason is required (`reason_required`).
+     - Sets `status = 'cancelled'`, `cancelled_at = now()`, `cancel_reason`, `cancelled_by` and `cancelled_by_venue` as above. Payment rows aren't touched.
+     - When both `p_token` and `p_booking_id` are given, the guest path wins. When neither is, it's `not_found`. An admin cancelling through the session path always needs a reason, even for their own player booking.
+2. **Migration `claim_guest_bookings`** (T5.4)
+   - Add `public.claim_guest_bookings() returns integer`. Grant to `authenticated` only, so anon gets `42501`.
+   - Reads `lower(email)` from `auth.users where id = auth.uid() and email_confirmed_at is not null`. If there's none, it returns 0.
+   - Then `update bookings set user_id = auth.uid() where user_id is null and source = 'online' and guest_token_hash is not null and guest_email = v_email`, and returns the row count. Requiring a guest token means only bookings made as a guest are claimable. A deleted player's old bookings (`user_id` set to null, email snapshot kept) aren't.
+   - Add a partial index `bookings_unclaimed_email_idx on bookings (guest_email) where user_id is null and guest_token_hash is not null`.
+   - `config.toml`: set `enable_confirmations = true`. This isn't a migration; it's applied by `supabase stop/start` locally.
+3. **Migration `guest_link_hardening`** (T5.5)
+   - Replace `get_guest_booking` (drop and create, because the return type grows):
+     - adds `and upper(b.during) + interval '30 days' > now()` to the match (same `not_found` otherwise)
+     - returns `cancelled_at`, `cancel_reason` and the stored `cancelled_by_venue`
+   - Client:
+     - token in `#token=`, with `?token=` rewritten for old links
+     - `CheckoutPage` and the save-link card build fragment links
+     - the recovery hint

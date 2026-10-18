@@ -88,6 +88,8 @@ export type Database = {
         Row: {
           cancel_reason: string | null
           cancelled_at: string | null
+          cancelled_by: string | null
+          cancelled_by_venue: boolean
           court_id: string
           created_at: string
           created_by: string | null
@@ -109,6 +111,8 @@ export type Database = {
         Insert: {
           cancel_reason?: string | null
           cancelled_at?: string | null
+          cancelled_by?: string | null
+          cancelled_by_venue?: boolean
           court_id: string
           created_at?: string
           created_by?: string | null
@@ -130,6 +134,8 @@ export type Database = {
         Update: {
           cancel_reason?: string | null
           cancelled_at?: string | null
+          cancelled_by?: string | null
+          cancelled_by_venue?: boolean
           court_id?: string
           created_at?: string
           created_by?: string | null
@@ -149,6 +155,13 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "bookings_cancelled_by_fkey"
+            columns: ["cancelled_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "bookings_court_id_fkey"
             columns: ["court_id"]
@@ -399,6 +412,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      cancel_booking: {
+        Args: {
+          p_booking_id?: string
+          p_reason?: string
+          p_reference_code?: string
+          p_token?: string
+        }
+        Returns: Database["public"]["Enums"]["booking_status"]
+      }
+      claim_guest_bookings: { Args: never; Returns: number }
       create_booking: {
         Args: {
           p_court_id: string
@@ -443,6 +466,9 @@ export type Database = {
       get_guest_booking: {
         Args: { p_reference_code: string; p_token: string }
         Returns: {
+          cancel_reason: string
+          cancelled_at: string
+          cancelled_by_venue: boolean
           court_id: string
           court_name: string
           created_at: string

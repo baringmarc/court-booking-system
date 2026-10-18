@@ -33,6 +33,9 @@ export type AdminBooking = {
   guest_phone: string | null
   created_at: string
   payments: AdminPayment[]
+  cancelled_at: string | null
+  cancel_reason: string | null
+  cancelled_by_venue: boolean
 }
 
 export const adminKeys = {
@@ -45,7 +48,7 @@ export const adminKeys = {
 }
 
 // One literal: supabase-js infers the row type from this string.
-const SELECT = 'id, reference_code, during, status, source, total_amount, expires_at, rejection_count, guest_name, guest_email, guest_phone, created_at, courts(name), payments(id, method, amount, reference_number, storage_path, submitted_at, review_status, review_note)' as const
+const SELECT = 'id, reference_code, during, status, source, total_amount, expires_at, rejection_count, guest_name, guest_email, guest_phone, created_at, cancelled_at, cancel_reason, cancelled_by_venue, courts(name), payments(id, method, amount, reference_number, storage_path, submitted_at, review_status, review_note)' as const
 
 export const ADMIN_LIST_LIMIT = 200
 
@@ -81,6 +84,9 @@ export async function fetchAdminBookings(
       guest_email: row.guest_email,
       guest_phone: row.guest_phone,
       created_at: row.created_at,
+      cancelled_at: row.cancelled_at,
+      cancel_reason: row.cancel_reason,
+      cancelled_by_venue: row.cancelled_by_venue,
       payments: [...row.payments]
         .map((p) => ({ ...p, amount: Number(p.amount) }))
         .sort((a, b) => a.submitted_at.localeCompare(b.submitted_at)),
@@ -99,6 +105,16 @@ export async function fetchProofUrl(path: string) {
 export async function reviewPayment(bookingId: string, approve: boolean, note: string | null) {
   const rows = unwrap(await supabase.rpc('review_payment', { p_booking_id: bookingId, p_approve: approve, p_note: note ?? undefined }))
   return rows[0]?.status
+}
+
+/** Staff cancel by booking id (the session path, so cancel_booking checks is_admin) with a required reason. */
+export async function adminCancelBooking(bookingId: string, reason: string) {
+  return unwrap(await supabase.rpc('cancel_booking', { p_booking_id: bookingId, p_reason: reason }))
+}
+
+/** A payment was approved: if the booking is cancelled, staff settle any refund outside the app (SPEC §4). */
+export function hasApprovedPayment(booking: Pick<AdminBooking, 'payments'>) {
+  return booking.payments.some((p) => p.review_status === 'approved')
 }
 
 /** The attempt waiting for review, if any (there is at most one: payments_one_pending_per_booking). */

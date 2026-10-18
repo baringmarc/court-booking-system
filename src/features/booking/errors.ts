@@ -7,6 +7,8 @@ const CODES = [
   // Payments (M4): proof RPCs, the submit-payment-proof Edge Function, review_payment, create_walk_in.
   'hold_expired', 'invalid_state', 'file_too_large', 'invalid_file_type', 'upload_failed',
   'forbidden', 'note_required',
+  // Accounts (M5): cancel_booking.
+  'not_cancellable', 'cutoff_passed', 'booking_ended', 'reason_required',
 ] as const
 
 export type BookingErrorCode = (typeof CODES)[number]

@@ -1,10 +1,10 @@
 # Court Booking System — Product Spec
 
-> Status: draft v0.7 (2026-10-17, M4 done; replanned: M5 admin shell + accounts, M6 PayMongo). Portfolio project: one realistic venue, simplified operations.
+> Status: draft v0.8 (2026-10-18, M5 done; next: M6 venue media, then M7 PayMongo, M8 polish). Portfolio project: one realistic venue, simplified operations.
 
 ## 1. Overview
 
-A web app for booking courts at **Claudex Courts**, a single multi-sport venue in the Philippines. Players (with or without an account) pick a court and time slots. They then pay outside the app (GCash, Maya or bank transfer) and upload a proof of payment. Staff review the proof and confirm the booking, or ask for the proof to be uploaded again. *Planned for M6:* players can instead **pay online through PayMongo** (test mode, hosted checkout), which confirms the booking automatically. Staff work in a separate admin area with its own layout and login.
+A web app for booking courts at **Claudex Courts**, a single multi-sport venue in the Philippines. Players (with or without an account) pick a court and time slots. They then pay outside the app (GCash, Maya or bank transfer) and upload a proof of payment. Staff review the proof and confirm the booking, or ask for the proof to be uploaded again. *Planned for M7:* players can instead **pay online through PayMongo** (test mode, hosted checkout), which confirms the booking automatically. Staff work in a separate admin area with its own layout and login.
 
 ### Goals
 
@@ -22,7 +22,7 @@ A web app for booking courts at **Claudex Courts**, a single multi-sport venue i
 | ---------- | ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Guest**  | none                                            | View availability; create a booking with name, email and phone; view and manage _that_ booking through a private link; upload payment proof; cancel.                               |
 | **Player** | Supabase Auth: Google OAuth or email + password | Everything a guest can do, plus see a "My bookings" history and have profile details prefilled. Their earlier guest bookings are attached to the account automatically (see §5.7). |
-| **Admin**  | Supabase Auth, `profiles.role = 'admin'`        | Manage courts, rates, hours and blackouts; see all bookings; review payment proofs; confirm or reject proofs; cancel any booking; create walk-in bookings (§5.8).                  |
+| **Admin**  | Supabase Auth, `profiles.role = 'admin'`        | Manage courts, rates, hours and blackouts; see all bookings; review payment proofs; confirm or reject proofs; cancel any active booking until it ends (§4); create walk-in bookings (§5.8).                  |
 
 Admins are promoted manually in the database (no self-signup as admin).
 
@@ -33,14 +33,15 @@ Admins are promoted manually in the database (no self-signup as admin).
   - slot length (60 min)
   - booking rules: booking window, payment hold, cancellation cutoff and maximum rejections
   - payment instructions: the GCash, Maya and bank account details shown to players
-- **Court**: name, sport (`badminton` | `pickleball` | `basketball` | `tennis`), description, **default hourly rate**, active flag.
+  - site banner (*planned, M6*): an optional image with alt text, shown under the public header. No banner means no banner section at all.
+- **Court**: name, sport (`badminton` | `pickleball` | `basketball` | `tennis`), description, **default hourly rate**, active flag, and an optional **photo** (*planned, M6*) that shows players what the court looks like.
 - **Rate table**: optional per-court price overrides for each day-of-week × hour slot. A slot with no override uses the court's default hourly rate.
 - **Operating hours**: open and close time per day of week, for the whole venue.
 - **Blackout**: a time range when a court (or every court, if `court_id` is null) can't be booked, e.g. maintenance or a tournament.
 - **Slot**: a fixed 60-minute block inside operating hours, the same for every court. A booking covers 1 or more _consecutive_ slots on one court, on one day.
 - **Booking**: a reservation for one court and time range, with a status, a human-readable reference code (e.g. `CB-7KQ2XD`) and a **source**: `online` (made by a player or guest) or `walk_in` (entered by an admin at the counter).
 - **Payment**: a record of money paid toward a booking. It holds the method (`gcash` | `maya` | `bank_transfer` | `cash`), the amount, an optional transaction reference number and an optional proof file.
-  - Online bookings, PayMongo (*planned, M6*): the player pays on PayMongo's hosted checkout. A verified PayMongo webhook records an approved payment and confirms the booking; no admin review. (Exact columns and the `method` value are decided in T6.1.)
+  - Online bookings, PayMongo (*planned, M7*): the player pays on PayMongo's hosted checkout. A verified PayMongo webhook records an approved payment and confirms the booking; no admin review. (Exact columns and the `method` value are decided in T7.1.)
   - Online bookings, manual proof: the player uploads the proof, and an admin reviews it. A booking can have several payment rows, one per attempt.
   - Walk-ins: the payment is recorded directly by an admin and is approved immediately.
   - Every `confirmed` booking has exactly one approved payment, so revenue reports and cash counts come from one table.
@@ -64,7 +65,7 @@ Admins are promoted manually in the database (no self-signup as admin).
       ┌─────────────────┐  no payment before expires_at ┌─────────┐
       │ pending_payment │ ─────────────────────────────▶│ expired │
       └─────────────────┘                               └─────────┘
-          ▲       │ │ PayMongo paid (verified webhook; M6)
+          ▲       │ │ PayMongo paid (verified webhook; M7)
           │       │ └──────────────────────────────▶ confirmed
           │       │ upload proof
           │       ▼
@@ -89,11 +90,13 @@ Admins are promoted manually in the database (no self-signup as admin).
 
 - **Active statuses** (these hold the slot): `pending_payment`, `payment_submitted`, `confirmed`.
 - **Hold window**: a `pending_payment` booking expires after `payment_hold_minutes` (default **60**). Expiry is enforced lazily: availability queries ignore expired holds, and `create_booking` sets any overlapping expired hold on the same court to `expired` before it inserts, because the exclusion constraint can't use `now()`. A scheduled job (`pg_cron`, M4) also sweeps expired holds to `expired`.
-- **PayMongo** (*planned, M6*): the player can start a checkout only while the booking is `pending_payment` and its hold hasn't expired. The verified `checkout_session.payment.paid` (or equivalent) webhook confirms it. A payment that arrives after the hold expired or the slot was lost is handled as decided in T6.1 (refunds stay a non-goal).
+- **PayMongo** (*planned, M7*): the player can start a checkout only while the booking is `pending_payment` and its hold hasn't expired. The verified `checkout_session.payment.paid` (or equivalent) webhook confirms it. A payment that arrives after the hold expired or the slot was lost is handled as decided in T7.1 (refunds stay a non-goal).
 - **Rejected proof**: the admin must give a reason, which is shown to the player.
   - First rejection: the booking goes back to `pending_payment` with a fresh hold window, and the player keeps the slot and can upload a new proof.
   - Second rejection (`max_rejections`, default **2**): the booking becomes `rejected` and the slot is freed.
-- **Cancellation cutoff**: players and guests can cancel up to `cancel_cutoff_hours` (default **1**) before the start time. Admins can cancel at any time.
+- **Cancellation cutoff**: players and guests can cancel an active booking up to `cancel_cutoff_hours` (default **1**) before the start time (`now() <= start - cutoff`, an absolute duration, shown in venue time). Admins can cancel any active booking until it ends, and must give a reason, which the player sees.
+  - Only effectively active bookings can be cancelled. A hold whose `expires_at` has passed is already `expired`.
+  - Cancelling frees the slot at once. Payment rows are never changed (no refunds, a non-goal): an approved payment stays counted in takings, a pending proof drops out of the review queue, and the admin view flags "cancelled after payment" so staff can settle any refund outside the app.
 
 ## 5. Business rules
 
@@ -118,7 +121,7 @@ Admins are promoted manually in the database (no self-signup as admin).
 
 5. **Payment proof.** The amount paid should match `total_amount`. If it doesn't, the admin sees a warning, but the system does not block the proof.
 6. **Timestamps.** All timestamps are stored as `timestamptz` and shown in `Asia/Manila`.
-7. **Guest auto-claim.** When a player signs in with a **verified** email (Google accounts always have one; email + password accounts once confirmed), every guest booking whose `guest_email` matches and whose `user_id` is null is linked to that account through `user_id`. This runs in a `claim_guest_bookings()` RPC that the client calls after sign-in. The RPC is idempotent and only uses the email from the authenticated user's record (`auth.users`), never one sent by the client.
+7. **Guest auto-claim.** When a player signs in with a **verified** email (Google accounts always have one; email + password accounts once confirmed), every guest booking whose `guest_email` matches and whose `user_id` is null is linked to that account through `user_id`. This runs in a `claim_guest_bookings()` RPC that the client calls after sign-in and on app load with an existing session. The RPC is idempotent, returns how many bookings it linked, only claims `online` bookings made as a guest (`guest_token_hash` set) with no `user_id`, and only uses the email from the authenticated user's record (`auth.users`, which requires `email_confirmed_at`), never one sent by the client. "Confirm email" must be on in every environment (local `config.toml` included), because without it Supabase marks every email as confirmed.
 8. **Walk-ins.** An admin creates a walk-in booking with:
    - court, start time and number of slots
    - customer name (required) and phone (optional); no email is needed
@@ -135,8 +138,10 @@ Admins are promoted manually in the database (no self-signup as admin).
 profiles          id (= auth.users.id) PK, full_name, phone, role ('player'|'admin'), created_at
 venue_settings    id (singleton), name, timezone, currency, slot_minutes (60), booking_window_days (30),
                   payment_hold_minutes (60), cancel_cutoff_hours (1), max_rejections (2),
-                  payment_instructions (text/markdown)
-courts            id, name, sport, description, default_hourly_rate numeric, is_active, sort_order, created_at
+                  payment_instructions (text/markdown),
+                  banner_path (nullable), banner_alt (nullable)   -- M6; alt required when a banner is set
+courts            id, name, sport, description, default_hourly_rate numeric, is_active, sort_order,
+                  photo_path (nullable; M6), created_at
 court_rates       court_id, day_of_week (0–6), start_hour (0–23), price numeric
                   PK (court_id, day_of_week, start_hour)
 operating_hours   day_of_week (0–6) PK, open_time, close_time, is_closed
@@ -148,6 +153,8 @@ bookings          id, reference_code unique, court_id, user_id (nullable),
                   source ('online'|'walk_in') default 'online', created_by (admin, nullable),
                   rejection_count int default 0,
                   guest_token_hash bytea (sha256 of the guest token), expires_at, cancelled_at, cancel_reason,
+                  cancelled_by (profile, nullable, indexed; null when cancelled through a guest link),
+                  cancelled_by_venue boolean default false   -- stored at cancel time: true when an admin cancelled
                   created_at, updated_at
                   EXCLUDE USING gist (court_id WITH =, during WITH &&) WHERE (status IN active)
 payments          id, booking_id, method ('gcash'|'maya'|'bank_transfer'|'cash'),
@@ -161,12 +168,15 @@ payments          id, booking_id, method ('gcash'|'maya'|'bank_transfer'|'cash')
 
 Storage: a private bucket called `payment-proofs`. Files live at `{booking_id}/{uuid}.{ext}`. Allowed types are jpg, png, webp and pdf, up to 5 MB.
 
+*Planned, M6:* a **public** bucket called `venue-media` for court photos (`courts/{court_id}/{uuid}.{ext}`) and the banner (`banner/{uuid}.{ext}`). Anyone can read it; only admins can write. Allowed types are jpg, png and webp, with the size limit settled in T6.1. A replaced image gets a new file name and the old file is deleted.
+
 ### Access (RLS summary)
 
 - `courts`, `court_rates`, `operating_hours`, `venue_settings`, `blackouts`: anyone can read; only admins can write.
 - `bookings`: players read their own rows (`user_id = auth.uid()`); admins read and write all rows. **Nobody inserts directly.** Every write goes through RPCs.
 - Public availability comes from an RPC that returns busy ranges and prices only, with no personal data.
 - `payments` and the storage bucket: the booking owner and admins can read. Writes go through RPCs or an Edge Function.
+- `venue-media` bucket (M6): anyone can read; only admins (`private.is_admin()`) can insert, update or delete. `courts.photo_path` and the banner columns are written through the existing admin-only RLS on `courts` and `venue_settings`.
 
 ### Server API (RPCs / Edge Functions)
 
@@ -175,38 +185,40 @@ Storage: a private bucket called `payment-proofs`. Files live at `{booking_id}/{
 | `get_availability(date, court_id?)`                                                | anyone      | Returns the slots for each court on that date, each with free or busy and its price.                                                                                                                          |
 | `create_booking(court_id, start, slots, guest_info?)`                              | anyone      | Validates the rules, computes the price, inserts the booking and returns `{id, reference_code, guest_token?}`.                                                                                                |
 | `get_guest_booking(reference_code, token)`                                         | guest       | Returns one booking with its proofs and rejection notes, after checking the token against its hash.                                                                                                           |
-| `cancel_booking(id \| ref+token)`                                                  | owner/admin | Applies the cutoff rule and sets the status.                                                                                                                                                                  |
+| `cancel_booking(id?, ref?, token?, reason?)`                                      | owner/admin/guest | Guest path: ref + token (never counts as admin). Session path: booking id, as the owner or an admin. Applies the cutoff (§4), requires a reason from admins, sets `cancelled`, `cancelled_at`, `cancel_reason`, `cancelled_by` and `cancelled_by_venue`. Unknown, wrong-token and not-yours all return the same `not_found`. |
 | `submit-payment-proof` (Edge Function)                                             | owner/guest | Only allowed while the booking is `pending_payment` and its hold hasn't expired. Accepts a multipart upload (≤ 5 MB; JPG, PNG, WEBP or PDF, checked by file bytes), checks ownership or the guest token, stores the file in `payment-proofs` and records the proof. The status changes to `payment_submitted`. |
 | `review_payment(booking_id, approve, note)`                                        | admin       | Approve: the status becomes `confirmed`. Reject: increments `rejection_count`, then sets `pending_payment` with a new `expires_at`, or `rejected` if the limit is reached. A note is required when rejecting. |
 | `create_walk_in(court_id, start, slots, name, phone?, method, amount, reference?)` | admin       | Creates a confirmed walk-in booking and its approved payment in one transaction (§5.8).                                                                                                                       |
 | `proof_target(ref, token, user_id)` / `record_payment_proof(...)`                 | service_role | Used only by `submit-payment-proof`: authorize the caller and check the booking is payable, then record the proof and set `payment_submitted` under a row lock. They are in `public` (PostgREST doesn't expose `private`), but only `service_role` can execute them. |
-| `create-paymongo-checkout` (Edge Function, M6)                                    | owner/guest | Same payable check and ownership/guest-token check as `submit-payment-proof`. Creates a PayMongo (test mode) checkout session for the booking's stored `total_amount` (never a client amount) and returns its URL. |
-| `paymongo-webhook` (Edge Function, M6)                                            | PayMongo    | Verifies the webhook signature, is idempotent per PayMongo event/payment id, records the approved payment and confirms the booking through a service-role-only RPC under a row lock. |
+| `create-paymongo-checkout` (Edge Function, M7)                                    | owner/guest | Same payable check and ownership/guest-token check as `submit-payment-proof`. Creates a PayMongo (test mode) checkout session for the booking's stored `total_amount` (never a client amount) and returns its URL. |
+| `paymongo-webhook` (Edge Function, M7)                                            | PayMongo    | Verifies the webhook signature, is idempotent per PayMongo event/payment id, records the approved payment and confirms the booking through a service-role-only RPC under a row lock. |
 | `claim_guest_bookings()`                                                           | player      | Links matching guest bookings to the signed-in, email-verified user (§5.7).                                                                                                                                   |
 
-Guest access uses a random token. It is shown once (in the confirmation page link and email) and stored only as a hash.
+Guest access uses a random token. It is shown once (in the confirmation page link and email) and stored only as a hash. The link carries it in the URL **fragment** (`/booking/:ref#token=…`), which browsers never send to servers. Old `?token=` links are rewritten to the fragment. A guest link stops working 30 days after the booking ends (same "not found" response). If the link is lost, the guest can sign up or log in with the booking's email to see the booking in My bookings. "Email me a new link" waits for emails (M8). There is no lookup throttle, because a 256-bit token can't be guessed (RESEARCH M5).
 
 ## 7. Pages (React Router)
 
 | Route               | Access             | Content                                                                                                                                  |
 | ------------------- | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `/`                 | public             | Venue info, courts grouped by sport, "Book now".                                                                                         |
+| `/`                 | public             | Venue info, courts grouped by sport (with each court's photo, or a sport placeholder; M6), "Book now".                                  |
 | `/book`             | public             | Date picker and sport filter, then a court × time slot grid with the price per slot, then select consecutive slots.                      |
 | `/book/checkout`    | public             | Summary and total price. Guest form (name, email, phone) or prefilled for a logged-in player. Confirm.                                   |
-| `/booking/:ref`     | owner or `?token=` | Status, payment instructions, countdown to expiry, proof upload, rejection reason and re-upload, cancel button.                          |
+| `/booking/:ref`     | owner or `#token=` | Status, payment instructions, countdown to expiry, proof upload, rejection reason and re-upload, cancel button.                          |
 | `/login`, `/signup` | public             | "Continue with Google" and email + password.                                                                                             |
 | `/me/bookings`      | player             | Upcoming and past bookings, including claimed guest bookings.                                                                            |
-| `/admin/login`      | public             | Admin sign-in (email + password) in the admin shell. Non-admins who sign in are refused. |
+| `/admin/login`      | public             | Admin sign-in in the admin shell: email + password only, with no Google sign-in and no sign-up (admins are promoted in the database, §2). A signed-in non-admin is refused ("Admins only", with Log out). |
 | `/admin`            | admin              | Dashboard: today's schedule, proofs waiting for review, a "+ Walk-in" quick action, and today's takings by method.                       |
 | `/admin/bookings`   | admin              | Filterable list (status, source, date). Review a proof (image or PDF preview, amount-mismatch warning), approve or reject with a reason. |
 | `/admin/courts` | admin | Court list with an "Add court" button. |
-| `/admin/courts/:id` | admin | Edit or archive a court (`new` creates one). Weekly rate grid editor (day × hour) with a "fill a range" helper. |
+| `/admin/courts/:id` | admin | Edit or archive a court (`new` creates one). Weekly rate grid editor (day × hour) with a "fill a range" helper. Court photo upload, replace and remove (M6). |
 | `/admin/schedule`   | admin              | Operating hours and blackouts.                                                                                                           |
-| `/admin/settings`   | admin              | Venue settings and payment instructions.                                                                                                 |
+| `/admin/settings`   | admin              | Venue settings and payment instructions. Site banner upload with alt text, and remove (M6).                                              |
 
 The UI is mobile-first: most players will book from a phone.
 
-**Admin shell.** Every `/admin/*` route renders in its own `AdminLayout` (admin nav, no public header, footer or booking nav), not inside the public `Layout`. The public header has no Admin link; staff go to `/admin` directly, and unauthenticated visits redirect to `/admin/login`. It is still one Vite app, and admin code stays lazy-loaded out of the public bundle.
+**Site banner (M6).** When the venue has a banner, the public `Layout` shows it between the header and the page content. Without one (or while settings load or fail), the section isn't rendered at all.
+
+**Admin shell.** Every `/admin/*` route renders in its own `AdminLayout` (admin nav, no public header, footer or booking nav), not inside the public `Layout`. The public header has no Admin link; staff go to `/admin` directly, and unauthenticated visits redirect to `/admin/login` and return to the requested page after sign-in. The shell only controls what is shown: admin access itself is enforced in the database (`profiles.role` can't be changed by users, and every admin read and write checks `private.is_admin()`). It is still one Vite app, and admin code stays lazy-loaded out of the public bundle.
 
 ## 8. Notifications (stretch)
 
@@ -218,9 +230,10 @@ Email on booking created (with the guest link), payment confirmed, proof rejecte
 2. ✅ **Catalog**: courts, rate table, operating hours and venue settings, with admin CRUD (including the rate grid editor) and the public home page. Seed data.
 3. ✅ **Booking**: `get_availability` with prices, the slot grid, `create_booking` with the exclusion constraint and pricing, and the booking detail page.
 4. ✅ **Payments**: storage bucket, proof upload, admin review queue with the reject → re-upload loop, expiry job, walk-in flow, admin dashboard.
-5. **Admin shell and accounts**: separate admin layout and login; My bookings, cancellation, guest token flow hardened, `claim_guest_bookings`.
-6. **Online payments**: PayMongo (test mode) checkout with webhook auto-confirm, alongside manual proof.
-7. **Polish**: emails, empty, loading and error states, a11y pass, deploy (e.g. Vercel + Supabase), README screenshots and a demo video.
+5. ✅ **Admin shell and accounts**: separate admin layout and login; My bookings, cancellation, guest token flow hardened, `claim_guest_bookings`.
+6. **Venue media**: court photos and an optional site banner, uploaded by admins.
+7. **Online payments**: PayMongo (test mode) checkout with webhook auto-confirm, alongside manual proof.
+8. **Polish**: emails, empty, loading and error states, a11y pass, deploy (e.g. Vercel + Supabase), README screenshots and a demo video.
 
 ## 10. Decisions log
 
@@ -245,14 +258,20 @@ Email on booking created (with the guest link), payment confirmed, proof rejecte
 | 2026-10-17 | Payments (M4): guests and players upload proofs through one Edge Function (`submit-payment-proof`) that checks the file's bytes, stores it with the secret key and records it through service-role-only RPCs. The proof bucket is readable only by the booking owner and admins. **Guests see their payment attempts' details (time, method, amount, review status and note) but not the file.** |
 | 2026-10-17 | `get_availability` status for the slot in progress: a slot that has ended is `past`; otherwise `booked` beats `blackout`; a started slot that is free is `past`. This replaces the earlier `past`-first precedence so staff see who is playing now and the walk-in form only offers the current slot when it is really free. |
 | 2026-10-17 | Admin dashboard (M4): the walk-in form books **today** only (counter use; `create_walk_in` itself accepts other days). **Today's takings** are approved payments whose `reviewed_at` falls on the venue-local day, so they are counted on a cash basis (a proof approved today for next week's booking counts today). |
+| 2026-10-17 | Accounts (M5, from RESEARCH.md): `cancel_booking` lets players and guests cancel until the cutoff and admins until the booking ends (reason required), records `cancelled_by`, and leaves payments untouched. `claim_guest_bookings` claims only unclaimed `online` bookings matching the confirmed `auth.users` email. "Confirm email" is on locally too. Guest links move to the URL fragment and expire 30 days after the booking. No lookup throttle. My bookings filters on `user_id` explicitly, because admins' RLS sees every booking. |
 | 2026-10-17 | Scope change: **PayMongo online payments in test mode** are added next to manual proof upload (not replacing it). Players choose; walk-ins stay admin-recorded. Live keys, real money and refunds stay out of scope. Secret and webhook keys live only in Edge Function secrets. |
 | 2026-10-17 | Scope change: the **admin area gets its own shell** (own layout and `/admin/login`, no Admin link in the public header) in the same SPA, still lazy-loaded. It is built first in M5, together with Accounts. |
-| 2026-10-17 | PayMongo is **postponed to M6**, after Accounts, because manual payment and admin confirmation already cover the flow. Polish becomes M7. |
+| 2026-10-17 | PayMongo is **postponed**, after Accounts, because manual payment and admin confirmation already cover the flow. |
+| 2026-10-17 | New feature, **venue media (M6)**: one optional photo per court, and an optional site banner under the public header that is hidden when none is set. Both are uploaded by admins to a public `venue-media` bucket. PayMongo moves to M7 and Polish to M8. |
 | 2026-10-16 | Walk-ins go straight to `confirmed` with `source = 'walk_in'` and an approved payment row (default cash) recorded by the admin. `payment_proofs` is generalized into `payments`. |
 
 ## 11. Open questions
 
-To be settled in T6.1 (PayMongo research, M6):
+Venue media (M6), to confirm in T6.1:
+- Which public pages show the banner. Working assumption: every page in the public `Layout`. The alternative is the home page only.
+- Whether the banner needs a headline or a link, or is just an image with alt text. Working assumption: image + alt only.
+
+To be settled in T7.1 (PayMongo research, M7):
 - Checkout Sessions (hosted) vs Payment Intents. Hosted checkout is the working assumption.
 - How a PayMongo payment is stored in `payments` (a new `method` value or a provider column, plus the PayMongo ids), and how it interacts with the "one pending attempt" and "one approved payment" constraints.
 - Late payment: PayMongo reports a payment after the hold expired, the booking was cancelled, or a proof was already approved.

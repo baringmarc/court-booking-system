@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
+  adminCancelBooking,
   adminKeys,
   createWalkIn,
   fetchAdminBookings,
@@ -9,6 +10,7 @@ import {
   reviewPayment,
   type WalkInInput,
 } from './api'
+import { bookingKeys } from '../booking/hooks'
 import type { BookingFilters } from './bookingFilters'
 
 export function useAdminBookings(filters: BookingFilters, timeZone: string | undefined) {
@@ -39,7 +41,19 @@ export function useReviewPayment() {
       qc.invalidateQueries({ queryKey: adminKeys.allBookings }),
       qc.invalidateQueries({ queryKey: adminKeys.proofQueue }),
       qc.invalidateQueries({ queryKey: adminKeys.allTakings }),
-      qc.invalidateQueries({ queryKey: ['availability'] }),
+      qc.invalidateQueries({ queryKey: bookingKeys.allAvailability }),
+    ]),
+  })
+}
+
+export function useAdminCancelBooking() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ bookingId, reason }: { bookingId: string; reason: string }) => adminCancelBooking(bookingId, reason),
+    onSettled: () => Promise.all([
+      qc.invalidateQueries({ queryKey: adminKeys.allBookings }),
+      qc.invalidateQueries({ queryKey: adminKeys.proofQueue }),
+      qc.invalidateQueries({ queryKey: bookingKeys.allAvailability }),
     ]),
   })
 }
@@ -60,7 +74,7 @@ export function useCreateWalkIn() {
     onSettled: () => Promise.all([
       qc.invalidateQueries({ queryKey: adminKeys.allBookings }),
       qc.invalidateQueries({ queryKey: adminKeys.allTakings }),
-      qc.invalidateQueries({ queryKey: ['availability'] }),
+      qc.invalidateQueries({ queryKey: bookingKeys.allAvailability }),
     ]),
   })
 }

@@ -1,11 +1,12 @@
 -- Milestone 1: profiles, signup trigger, role protection, is_admin().
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(10);
+select plan(11);
 
 insert into auth.users (id, email, raw_user_meta_data) values
   ('11111111-1111-1111-1111-111111111111', 'player@test.local', '{"full_name": "Pat Player"}'),
-  ('22222222-2222-2222-2222-222222222222', 'admin@test.local',  '{"name": "Ada Admin"}');
+  ('22222222-2222-2222-2222-222222222222', 'admin@test.local',  '{"name": "Ada Admin"}'),
+  ('33333333-3333-3333-3333-333333333333', 'sneaky@test.local', '{"full_name": "Sam Sneaky", "role": "admin"}');
 update public.profiles set role = 'admin' where id = '22222222-2222-2222-2222-222222222222';
 
 select is(
@@ -15,6 +16,10 @@ select is(
 select is(
   (select full_name from public.profiles where id = '22222222-2222-2222-2222-222222222222'),
   'Ada Admin', 'signup trigger falls back to name (Google)'
+);
+select is(
+  (select role from public.profiles where id = '33333333-3333-3333-3333-333333333333'),
+  'player'::public.user_role, 'signup ignores a role in user metadata: new accounts are always players'
 );
 
 -- As the player

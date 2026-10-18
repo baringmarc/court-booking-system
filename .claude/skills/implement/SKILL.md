@@ -8,6 +8,7 @@ disable-model-invocation: true
 # /implement
 
 Arguments: `$ARGUMENTS`
+
 - empty: the **Next task** from the TASKS.md Handoff section
 - a task ID such as `T3.4`: that task
 - `milestone`: do the next task, then keep going task by task until the current milestone is done or a stop condition below is hit
@@ -15,6 +16,7 @@ Arguments: `$ARGUMENTS`
 Follow these steps in order for each task. Don't skip any of them.
 
 ## 1. Orient
+
 - Read the TASKS.md Handoff section and the target task (its Do, Depends, Files and Acceptance).
 - Read the SPEC.md sections the task touches and any related RESEARCH.md entries.
 - Run `git status --short` and note which files were already changed before you start. They're out of scope for this task's review.
@@ -26,6 +28,7 @@ Follow these steps in order for each task. Don't skip any of them.
 - Mark the task `[~]` and set **Next task** in the Handoff section to this task.
 
 ## 2. Research
+
 - If the task depends on RESEARCH.md entries that are still `Open`, fill them in first:
   - Check `.agents/skills/supabase` and `.agents/skills/supabase-postgres-best-practices` first, then the official docs.
   - Every finding needs a source, or the SQL or command you ran.
@@ -33,12 +36,15 @@ Follow these steps in order for each task. Don't skip any of them.
 - If research shows the task is wrong or too big, update or split it in TASKS.md (T3.4a, T3.4b, …), say so, and continue with the first part.
 
 ## 3. Plan gate
+
 A task is **risky** if it does any of these:
+
 - adds or changes a migration, RPC, RLS policy, grant, trigger, storage policy, Edge Function or auth flow
 - runs `npm run db:push`
 - deviates from SPEC
 
 For a risky task, pause and show the user a short plan:
+
 - the files you'll touch
 - the approach, with a sketch of the key SQL (table/constraint/function signatures, `security definer` or not, grants)
 - how you'll prove each acceptance criterion
@@ -49,6 +55,7 @@ Then ask for approval with AskUserQuestion and wait for the answer. Approving th
 For a task that isn't risky, state your plan in two or three lines and continue.
 
 ## 4. Build
+
 - Follow every rule in CLAUDE.md. Write the code the task needs and nothing from later tasks.
 - Logic modules: write Vitest tests next to the module (`*.test.ts`) covering the edge cases named in the acceptance criteria.
 - Components: add Testing Library tests where behavior matters (selection, validation, state handling). Mock the `features/<area>/api.ts` functions, never the network.
@@ -59,11 +66,13 @@ For a task that isn't risky, state your plan in two or three lines and continue.
 - If behavior changed, update SPEC.md.
 
 ## 5. Verify
+
 - Run `npm run verify` and fix any failures until it passes.
 - If the task changes a user journey (pages, forms, flows), add or extend a spec in `e2e/` and run `npm run test:e2e` against the full local stack (`npx supabase start`). The Stop hook also runs it whenever UI-facing files changed, and blocks while it fails or the stack is down. Always run it before closing a milestone.
 - Never weaken, skip or delete tests or lint rules to get it passing. The Stop hook re-runs verify anyway.
 
 ## 6. Review
+
 - Launch the `reviewer` agent in the foreground, because you need its verdict before continuing. Give it:
   - the task ID
   - the list of files this task created or changed, and the files that were already dirty before you started (from step 1), so it can tell them apart
@@ -72,6 +81,7 @@ For a task that isn't risky, state your plan in two or three lines and continue.
 - On **PASS**: fix majors that are cheap to fix now. Put the rest in a `Follow-ups` line under the task.
 
 ## 7. Close
+
 - Tick the task `[x]` and add a short `Notes:` line under it with the key evidence (test files) and any follow-ups.
 - Update the Handoff section:
   - **Next task**
@@ -81,7 +91,9 @@ For a task that isn't risky, state your plan in two or three lines and continue.
 - **No git actions.** Don't stage, commit or push. Suggest a commit message instead, e.g. `feat(booking): T3.5 create_booking RPC`.
 
 ## 8. Report
+
 Send a short message:
+
 - task ID and title, with the result
 - what changed: files grouped by area
 - how it was proven: Vitest and pgTAP tests added, and the `npm run verify` result
@@ -90,7 +102,9 @@ Send a short message:
 - what's next
 
 ## Milestone mode
+
 After step 8, continue with the next task. Stop when any of these happens:
+
 - a risky task reaches its plan gate (wait for approval)
 - the reviewer still says BLOCK after 3 rounds
 - verify can't be made to pass

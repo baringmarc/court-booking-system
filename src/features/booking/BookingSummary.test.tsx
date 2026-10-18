@@ -19,6 +19,9 @@ const booking: BookingDetail = {
   guest_email: 'gina@example.com',
   created_at: '2030-01-07T02:00:00.000Z',
   payments: [],
+  cancelled_at: null,
+  cancel_reason: null,
+  cancelled_by_venue: false,
 }
 
 const renderAt = (now: string, overrides: Partial<BookingDetail> = {}) =>
@@ -41,14 +44,36 @@ describe('BookingSummary', () => {
     expect(screen.getByText('Expired')).toBeInTheDocument()
     expect(screen.queryByRole('timer')).not.toBeInTheDocument()
     expect(screen.getByText(/hold expired/)).toBeInTheDocument()
-    expect(screen.queryByText(/Cancelling online/)).not.toBeInTheDocument()
   })
 
   it('shows confirmed bookings without payment instructions', () => {
     renderAt('2030-01-07T02:30:00.000Z', { status: 'confirmed', expires_at: null })
     expect(screen.getByText('Confirmed')).toBeInTheDocument()
     expect(screen.queryByText('GCash')).not.toBeInTheDocument()
-    expect(screen.getByText(/Cancelling online/)).toBeInTheDocument()
+  })
+
+  it('renders the cancel section it is given', () => {
+    render(
+      <BookingSummary booking={{ ...booking, status: 'confirmed', expires_at: null }} paymentInstructions="" timeZone="Asia/Manila"
+        currency="PHP" now={new Date('2030-01-07T02:30:00.000Z')} cancelSection={<p>Cancel slot</p>} />,
+    )
+    expect(screen.getByText('Cancel slot')).toBeInTheDocument()
+  })
+
+  it('shows the venue reason when staff cancelled', () => {
+    renderAt('2030-01-07T02:30:00.000Z', { status: 'cancelled', expires_at: null, cancelled_at: '2030-01-07T02:20:00.000Z', cancel_reason: 'Court maintenance', cancelled_by_venue: true })
+    expect(screen.getByText('Cancelled')).toBeInTheDocument()
+    expect(screen.getByText('The venue cancelled this booking: Court maintenance')).toBeInTheDocument()
+    expect(screen.queryByText(/refund/)).not.toBeInTheDocument()
+  })
+
+  it('shows a player cancellation and points paid bookings to the venue for refunds', () => {
+    renderAt('2030-01-07T02:30:00.000Z', {
+      status: 'cancelled', expires_at: null, cancelled_at: '2030-01-07T02:20:00.000Z', cancel_reason: null,
+      payments: [{ id: 'p1', method: 'gcash', amount: 900, reference_number: null, submitted_at: '2030-01-07T02:05:00.000Z', review_status: 'approved', reviewed_at: '2030-01-07T02:10:00.000Z', review_note: null }],
+    })
+    expect(screen.getByText('This booking was cancelled.')).toBeInTheDocument()
+    expect(screen.getByText(/Contact the venue about any refund/)).toBeInTheDocument()
   })
 
   it('shows the rejection reason and the upload form after a rejected proof', () => {

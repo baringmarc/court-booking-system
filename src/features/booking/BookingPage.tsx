@@ -1,21 +1,23 @@
 import { useState } from 'react'
-import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom'
+import { Link, Navigate, useLocation, useParams } from 'react-router-dom'
 import { ErrorMessage } from '../../components/ErrorMessage'
 import { PageLoader } from '../../components/PageLoader'
 import { useAuth } from '../auth/useAuth'
 import { useVenueSettings } from '../catalog/hooks'
 import { BookingSummary } from './BookingSummary'
+import { CancelBooking } from './CancelBooking'
+import { playerCancel } from './cancellation'
 import { bookingErrorCode } from './errors'
 import type { BookingDetail } from './api'
-import { useBooking, useSubmitPaymentProof } from './hooks'
+import { readGuestToken } from './guestLink'
+import { useBooking, useCancelBooking, useSubmitPaymentProof } from './hooks'
 import { ProofForm } from './ProofForm'
 import { useNow } from './useNow'
 
 export function BookingPage() {
   const { ref = '' } = useParams()
-  const [params] = useSearchParams()
-  const token = params.get('token')
   const location = useLocation()
+  const { token, rewriteTo } = readGuestToken(location.search, location.hash)
   const justBooked = (location.state as { justBooked?: boolean } | null)?.justBooked === true
   const { user, loading: authLoading } = useAuth()
   const settings = useVenueSettings()
@@ -23,6 +25,9 @@ export function BookingPage() {
   const canLoad = token !== null || !!user
   const booking = useBooking(canLoad ? ref : undefined, token)
   const now = useNow()
+
+  // Old ?token= links: move the token into the fragment (no server ever sees it) and keep the page state.
+  if (rewriteTo) return <Navigate replace to={{ pathname: location.pathname, ...rewriteTo }} state={location.state} />
 
   return (
     <section className="page narrow">
@@ -40,6 +45,12 @@ export function BookingPage() {
         bookingErrorCode(booking.error) === 'not_found' ? (
           <div className="card stack">
             <p>{booking.error.message}</p>
+            {token !== null && !user && (
+              <p className="small">
+                Lost your link? <Link to="/signup">Sign up</Link> or <Link to="/login">log in</Link> with the email you
+                booked with, and your booking will appear in My bookings.
+              </p>
+            )}
             <Link to="/book" className="btn btn-outline">Book a court</Link>
           </div>
         ) : (
@@ -58,6 +69,10 @@ export function BookingPage() {
               // A new attempt round (after a rejection) remounts this, clearing any earlier upload error.
               <ProofUpload key={booking.data.payments.length} booking={booking.data} token={token} currency={settings.data.currency} />
             }
+            cancelSection={
+              <CancelSection booking={booking.data} token={token} timeZone={settings.data.timezone}
+                cutoffHours={settings.data.cancel_cutoff_hours} now={now} />
+            }
           />
         </div>
       ) : null}
@@ -74,6 +89,31 @@ function ProofUpload({ booking, token, currency }: { booking: BookingDetail; tok
       pending={submitProof.isPending}
       error={submitProof.isError ? submitProof.error : null}
       onSubmit={(values) => submitProof.mutate(values)}
+    />
+  )
+}
+
+function CancelSection({ booking, token, timeZone, cutoffHours, now }: {
+  booking: BookingDetail
+  token: string | null
+  timeZone: string
+  cutoffHours: number
+  now: Date
+}) {
+  const { isAdmin } = useAuth()
+  const cancel = useCancelBooking(booking.reference_code, token)
+  // Signed in as staff (no guest link), cancel_booking applies the admin rules: reason required, until the end.
+  if (isAdmin && token === null) {
+    return <p className="muted small">Staff: cancel this booking from <Link to="/admin/bookings?status=all">Admin → Bookings</Link>.</p>
+  }
+  return (
+    <CancelBooking
+      check={playerCancel(booking, cutoffHours, now)}
+      timeZone={timeZone}
+      paid={booking.payments.some((p) => p.review_status === 'approved')}
+      pending={cancel.isPending}
+      error={cancel.isError ? cancel.error : null}
+      onCancel={(reason) => cancel.mutate({ bookingId: booking.id, reason })}
     />
   )
 }
@@ -100,6 +140,7 @@ function SaveLinkCard({ prominent }: { prominent: boolean }) {
         <input readOnly value={url} aria-label="Private booking link" onFocus={(e) => e.target.select()} />
         <button type="button" className="btn btn-small" onClick={copy}>{copied ? 'Copied' : 'Copy link'}</button>
       </div>
+      <p className="small muted">Lost it later? Sign up with the email you booked with to find this booking in My bookings.</p>
     </section>
   )
 }

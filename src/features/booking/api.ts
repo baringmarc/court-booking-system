@@ -102,6 +102,10 @@ export type BookingDetail = {
   guest_email: string | null
   created_at: string
   payments: PaymentAttempt[]
+  cancelled_at: string | null
+  cancel_reason: string | null
+  /** True when staff cancelled it (stored at cancel time). */
+  cancelled_by_venue: boolean
 }
 
 const notFound = () =>
@@ -127,6 +131,9 @@ export async function fetchGuestBooking(referenceCode: string, token: string): P
     guest_email: row.guest_email,
     created_at: row.created_at,
     payments: toPaymentAttempts(row.payments),
+    cancelled_at: row.cancelled_at,
+    cancel_reason: row.cancel_reason,
+    cancelled_by_venue: row.cancelled_by_venue,
   }
 }
 
@@ -135,7 +142,7 @@ export async function fetchOwnBooking(referenceCode: string): Promise<BookingDet
   const row = unwrap(
     await supabase
       .from('bookings')
-      .select(`id, reference_code, court_id, during, status, total_amount, expires_at, rejection_count, guest_name, guest_email, created_at, courts(name, sport), payments(${PAYMENT_FIELDS})`)
+      .select(`id, reference_code, court_id, during, status, total_amount, expires_at, rejection_count, guest_name, guest_email, created_at, cancelled_at, cancel_reason, cancelled_by_venue, courts(name, sport), payments(${PAYMENT_FIELDS})`)
       .eq('reference_code', referenceCode.trim().toUpperCase())
       .maybeSingle(),
   )
@@ -158,7 +165,27 @@ export async function fetchOwnBooking(referenceCode: string): Promise<BookingDet
     guest_email: row.guest_email,
     created_at: row.created_at,
     payments: toPaymentAttempts(row.payments),
+    cancelled_at: row.cancelled_at,
+    cancel_reason: row.cancel_reason,
+    cancelled_by_venue: row.cancelled_by_venue,
   }
+}
+
+export type Cancellation = {
+  bookingId: string
+  referenceCode: string
+  /** Guests cancel with their link's token; signed-in owners by their session. */
+  token: string | null
+  reason: string
+}
+
+/** cancel_booking (SPEC §4). The guest path never grants admin rights, so owners without a token use the id. */
+export async function cancelBooking(input: Cancellation): Promise<void> {
+  const reason = input.reason.trim() || undefined
+  const args = input.token !== null
+    ? { p_reference_code: input.referenceCode, p_token: input.token, p_reason: reason }
+    : { p_booking_id: input.bookingId, p_reason: reason }
+  unwrap(await supabase.rpc('cancel_booking', args))
 }
 
 export type ProofSubmission = {
