@@ -420,3 +420,171 @@ One migration, `venue_media`:
    - Update `09_payment_proofs_storage.test.sql`: the "no write policy" check excludes only the three venue-media write policies, matched by exact `policyname`, not by text-matching their definitions, so any other write policy still fails it. Add behavioral checks that admin, player and anon all get 42501 inserting into `payment-proofs`. Deletes are checked through policy definitions, because Storage blocks SQL deletes.
    - The `00_rls_coverage` check should still pass, since there are no new tables.
 5. Then run `npm run test:db` locally, `npm run db:push` (linked project) and `npm run db:types`, and update SPEC §6.
+
+---
+
+## Milestone 7: Online payments (PayMongo, test mode)
+
+Sources are the current PayMongo docs at docs.paymongo.com (the old developers.paymongo.com pages redirect there; the `.md` versions are listed in `https://docs.paymongo.com/llms.txt`). Fetched on 2026-10-18. There's no PayMongo key in this repo yet, so the API calls themselves are verified in T7.3 (stub) and T7.7 (real test key).
+
+### Checkout Sessions vs Payment Intents, methods and amounts
+- **Status:** Decided (SPEC §10, 2026-10-18)
+- **Question:** Which PayMongo API do we use, which methods do we offer, and how are amounts expressed?
+- **Findings:**
+  - Hosted Checkout: our backend creates a Checkout Session and redirects the customer to `data.attributes.checkout_url`. The customer pays on PayMongo's page and returns to `success_url` or `cancel_url`. "**We recommend `/v2` for new integrations**" (`POST https://api.paymongo.com/v2/checkout_sessions`), which defers Payment Intent creation until the customer pays. Auth is HTTP Basic with the secret key as the username and no password. "Never call this endpoint from your frontend." Sources: [Hosted Checkout](https://docs.paymongo.com/docs/payment-channels-hosted-checkout.md), [quick start](https://docs.paymongo.com/docs/payment-channels-hosted-checkout-quick-start.md).
+  - Attributes: `line_items[]` (`name`, `amount` **in centavos as an integer**, `currency` "PHP" only, `quantity`), `payment_method_types[]`, `success_url`, `cancel_url`, `reference_number`, `metadata` (string values; `PYM_` keys are reserved), `description`, `send_email_receipt`, `billing`. Allowed methods: `qrph, card, gcash, paymaya, grab_pay, shopee_pay, billease, dob, dob_ubp, brankas_*`, but only those enabled on the merchant account work ([create a checkout](https://docs.paymongo.com/reference/create-a-checkout)).
+  - Payment Intents (self-hosted) means building the payment UI and handling each method's flow ourselves. Hosted Checkout covers e-wallets, cards and QR Ph with one redirect.
+  - Test mode: a session created with an `sk_test_…` key is a test session, and webhook endpoints are scoped to test or live mode ([testing](https://docs.paymongo.com/docs/payment-channels-testing.md), [webhook key concepts](https://docs.paymongo.com/docs/developer-tools-webhooks-key-concepts.md)).
+- **Gotchas:**
+  - Floating-point money: convert `numeric` → centavos in SQL (`(total_amount * 100)::int`) or with integer maths, never `Math.round(x * 100)` on a float that came from a client.
+  - A method that isn't enabled on the account makes session creation fail. Keep the list in one constant and confirm it with the real test key in T7.7.
+- **Recommendation:**
+  - Hosted Checkout, `/v2/checkout_sessions`, one line item "Court booking {ref}" for the booking's stored `total_amount` in centavos.
+  - Methods: `gcash`, `paymaya`, `card`, `qrph`.
+  - `reference_number = reference_code`, `metadata.booking_id = <uuid>`, `send_email_receipt = true` (PayMongo's receipt; our own emails stay in M8).
+  - The function refuses any secret key that doesn't start with `sk_test_`, so live mode can't be switched on by accident (SPEC: test mode only).
+
+### Webhooks: events, signature, retries, idempotency
+- **Status:** Decided (SPEC §10, 2026-10-18)
+- **Question:** Which events do we handle, how do we verify them, and how do we survive retries?
+- **Findings:**
+  - Event: `checkout_session.payment.paid` "is sent when a customer completes payment on a Checkout Session… The payload contains the full Checkout Session, including the latest Payment Intent and the `payments` array… At most one entry in `payments` has `status: "paid"`." The envelope is `data.id` (event id `evt_…`) with `data.attributes.{type, livemode, created_at, data}`. The session's `data.attributes.data.id` is `cs_…`, and the paid payment has `id` `pay_…`, `attributes.amount` (centavos), `fee`, `net_amount` and `source.type` ([events](https://docs.paymongo.com/docs/developer-tools-webhooks-events.md)). "PayMongo does not send an event when a Checkout Session expires."
+  - Signature ([Securing a webhook](https://docs.paymongo.com/docs/developer-tools-webhook-setup-management.md)): the header is `Paymongo-Signature: t=<unix>,te=<test sig>,li=<live sig>`. Sign the string `` `${t}.${rawBody}` `` with **HMAC-SHA256**, keyed by the endpoint's secret, then "use te for test mode events and li for live mode events". Comparing the timestamp is "optional but recommended". The [best practices](https://docs.paymongo.com/docs/developer-tools-best-practices-1.md) page adds: verify before parsing, use the raw body, and compare in constant time.
+  - *(Local experiment.)* WebCrypto `crypto.subtle` HMAC-SHA256 over `t + '.' + body` gives the same hex digest as Node's `createHmac` (`webcrypto == node crypto: true`). So the same pure TS verifier runs in Deno (the Edge Function), Node (smoke and e2e signing) and Vitest.
+  - Delivery: success is "an HTTP status code between 200 and 209, along with a JSON response within 30 seconds". Failures are retried "up to 12 times using exponential backoff", and missed events after that need a manual resend from the dashboard. "Returning errors for unrecognized events" causes retries, so return 200 for events we ignore. Deduplicate by event id ([retry logic](https://docs.paymongo.com/docs/developer-tools-retry-logic.md), [best practices](https://docs.paymongo.com/docs/developer-tools-best-practices.md)).
+  - Registration: in the dashboard (Developers → Webhooks), or `POST /v1/webhooks` with `url` and `events`. The endpoint's secret key is shown once. The endpoint must be HTTPS ([creating a webhook endpoint](https://docs.paymongo.com/docs/creating-a-webhook-endpoint.md)).
+- **Gotchas:**
+  - The docs don't say whether retries are re-signed with a fresh `t`. A strict timestamp window could reject genuine late retries, so rely on idempotency rather than a tight window.
+  - `livemode: true` or a non-empty `li` with an empty `te` means a live event. We're test-only, so ignore it.
+  - Edge Functions read the raw body with `await req.text()` before `JSON.parse`.
+- **Recommendation:**
+  - `paymongo-webhook` has `verify_jwt = false`.
+    1. Read the raw body and verify `te` against `PAYMONGO_WEBHOOK_SECRET` in constant time. Return 401 if it's invalid or missing. Log a timestamp older than 24 h, but don't reject it.
+    2. Ignore (200) any event type other than `checkout_session.payment.paid` and any `livemode: true` event.
+    3. Take the session id, the paid payment's id, amount and source **only from the signed payload**, and call the service-role RPC.
+    4. Idempotency is a unique `payments.provider_payment_id`. A replay finds the existing row and returns 200 with the same outcome.
+  - The RPC is a single short transaction, so we answer well within 30 s and don't need a queue.
+
+### Mapping a session to a booking, and who may start one
+- **Status:** Decided (SPEC §10, 2026-10-18)
+- **Question:** How does a webhook find its booking, and how do we authorize guests and owners when creating the session?
+- **Findings:**
+  - `reference_number` and `metadata` are echoed back in the webhook ([Hosted Checkout](https://docs.paymongo.com/docs/payment-channels-hosted-checkout.md)). The signed payload means they can be trusted once the signature checks out.
+  - "It is safe to send a customer back to an `active` checkout URL instead of creating a new session", and one session "can never produce more than one successful payment" ([key concepts](https://docs.paymongo.com/docs/payment-channels-key-concepts.md)).
+  - `public.proof_target(ref, token, user_id)` (M4) already authorizes an owner session or the guest ref + token, and checks the booking is `pending_payment` and its hold hasn't expired.
+- **Gotchas:**
+  - Don't build `success_url` from client input (open redirect). Use a fixed `PUBLIC_SITE_URL` secret plus the reference code.
+  - Two tabs racing to create a session: store at most one session per booking and return the stored URL to the loser. The loser's PayMongo session is never shown to anyone.
+- **Recommendation:**
+  - `create-paymongo-checkout` uses `withSupabase({ auth: ['user', 'publishable'] })`, the same as `submit-payment-proof`. It authorizes through `proof_target` (moved into `_shared` together with the error mapping) and reuses the booking's stored checkout if there is one. Otherwise it creates the session and stores it with `record_paymongo_checkout`.
+  - The webhook maps the session through our own `paymongo_checkouts` table (an unknown `cs_…` → logged, 200) and cross-checks `metadata.booking_id`.
+  - Return URLs:
+    - success: `{PUBLIC_SITE_URL}/booking/{ref}?paid=1`
+    - cancel: `{PUBLIC_SITE_URL}/booking/{ref}?paid=0`
+    - The guest token must **never** go into `success_url`. That URL is sent to PayMongo and stored there, and SPEC §6 says the token is never sent to servers. Today the token lives only in the `#token=` fragment (`guestLink.ts`), so it is lost across the redirect. T7.5 saves it in `sessionStorage` (same origin) before redirecting and reads it back on the `?paid=` return.
+
+### Hold interplay and late payments
+- **Status:** Decided (SPEC §10, 2026-10-18). The user chose to re-confirm late but recoverable payments (case 2).
+- **Question:** How do session expiry and our `expires_at` interact, does starting a checkout extend the hold, and what happens to a payment that arrives late?
+- **Findings:**
+  - "**Checkout Sessions do not expire on their own.** There is no default time limit." A session only expires through the Expire endpoint. The endpoint returns 400 if a payment is already paid, or `pending` or `processing`. No webhook is sent on expiry. "No payment can be recorded on an expired session" ([key concepts](https://docs.paymongo.com/docs/payment-channels-key-concepts.md)).
+  - A QR Ph code expires after 30 min, but the session stays active.
+  - So even if we expired sessions at hold expiry, a payment already processing at that moment would still succeed. Late payments have to be handled either way.
+- **Gotchas:**
+  - Matching the session to `expires_at` would need an outbound call when a hold lapses. Holds lapse lazily or through `pg_cron` inside Postgres, which can't call PayMongo without `pg_net` plus the secret key in the database. That's too much risk for a test-mode feature.
+  - Extending the hold whenever a checkout starts would let anyone keep a slot forever by re-opening checkout.
+- **Recommendation:**
+  - Starting a checkout **doesn't extend the hold**, and we **don't expire sessions** in M7. The webhook RPC decides under a row lock:
+    1. `pending_payment` and the hold is still valid: approved PayMongo payment, booking `confirmed`.
+    2. **Late but recoverable** (`pending_payment` with the hold passed, or `expired`, the slot hasn't started, the court is still active, no blackout overlaps it, and no other active booking overlaps): approved payment, booking `confirmed` again. An exclusion violation falls through to 4. *(Approved by the user, 2026-10-18. The blackout and active-court checks were added after the T7.1 review: the exclusion constraint doesn't see those.)*
+    3. `payment_submitted` (a proof is waiting for review): approved PayMongo payment, booking `confirmed`. The pending proof is auto-closed as `rejected` with the note "Paid online with PayMongo instead. Check for a duplicate payment.", and `rejection_count` is **not** incremented.
+    4. Anything else (cancelled, rejected, already confirmed or approved, the slot is taken or has started, or the amount doesn't match): record the payment as `review_status = 'rejected'` with an automatic note saying why ("Paid after the booking was cancelled; refund outside the app."). The booking isn't changed. Admins see it flagged (T7.6), and refunds stay a non-goal.
+  - Expiring sessions when a booking closes is a possible M8 follow-up (a scheduled Edge Function).
+
+### Data model for PayMongo payments
+- **Status:** Decided (SPEC §10, 2026-10-18)
+- **Question:** A new `method` value or a provider column? Where do PayMongo ids go, and how does this fit the unique-pending and unique-approved indexes and the takings?
+- **Findings:** *(Repo.)*
+  - `payments` has `payment_method` enum (`gcash, maya, bank_transfer, cash`), the unique partial indexes `payments_one_approved_per_booking` and `payments_one_pending_per_booking`, and a CHECK that a rejection has a note.
+  - Takings group approved payments by `method` (`src/features/admin/dashboard.ts`).
+- **Gotchas:**
+  - A value added with `alter type … add value` can't be used until the transaction that added it commits ([docs](https://www.postgresql.org/docs/current/sql-altertype.html)). *(Local experiment, Postgres 17.11, rolled back.)* After `add value 'paymongo'`, a CHECK comparing `method = 'paymongo'` in the same transaction failed with `unsafe use of new value "paymongo"… must be committed`. A `method::text = 'paymongo'` CHECK parsed fine.
+  - So the enum value goes in **its own migration**. Each migration file is applied separately, so the second one can use the value normally.
+  - PayMongo's `source.type` (gcash/paymaya/card/qrph) isn't our `method`. Store it separately for display.
+- **Recommendation:**
+  - `payment_method` gets the new value `'paymongo'`. New nullable columns: `provider_payment_id text unique` (`pay_…`), `provider_checkout_id text` (`cs_…`), `provider_source text`, `provider_event_id text`. A CHECK makes `method = 'paymongo'` equivalent to `provider_payment_id is not null`.
+  - A PayMongo payment is never `pending`, so the one-pending index isn't affected. The one-approved index is protected by case 4.
+  - Takings count approved `paymongo` rows as their own "PayMongo" line.
+  - New table `paymongo_checkouts`: `booking_id` (unique), `checkout_id` (unique), `checkout_url`, `amount_centavos`, `created_at`. RLS is on, admins can SELECT, and only service-role RPCs write.
+
+### Local testing without a public URL
+- **Status:** Decided (SPEC §10, 2026-10-18)
+- **Question:** How do we test the checkout and webhook without PayMongo calling our laptop?
+- **Findings:**
+  - PayMongo only delivers to public HTTPS endpoints, and test events can be sent from the dashboard to a deployed endpoint ([webhook testing](https://docs.paymongo.com/docs/webhook-testing.md)).
+  - The signature can be produced locally with the same secret (experiment above).
+  - `supabase start` serves functions at `/functions/v1/<name>` (M4).
+- **Gotchas:** A missing secret key must not quietly turn into "stub mode" in production.
+- **Recommendation:**
+  - `PAYMONGO_MODE=stub` (only in `supabase/functions/.env`) makes `create-paymongo-checkout` skip the API and return a fake `cs_stub_…` session with `checkout_url = https://checkout.paymongo.test/stub/{id}`.
+  - With no key and no stub mode, the function returns 503 "Online payment isn't available right now."
+  - `npm run smoke:paymongo` and the e2e flow sign fake `checkout_session.payment.paid` events with the local `PAYMONGO_WEBHOOK_SECRET` and POST them to the local function. Playwright intercepts the `checkout.paymongo.test` host.
+  - The signing, parsing and verification helpers live in `supabase/functions/_shared/paymongo.ts`, which is plain TS and Vitest-tested.
+
+### Secrets
+- **Status:** Decided (SPEC §10, 2026-10-18)
+- **Recommendation:** These are Edge Function secrets only (`supabase/functions/.env` locally, `npx supabase secrets set` for the linked project), never `VITE_*` or `src/`:
+  - `PAYMONGO_SECRET_KEY` (must start with `sk_test_`)
+  - `PAYMONGO_WEBHOOK_SECRET`
+  - `PUBLIC_SITE_URL` (for return URLs)
+  - `PAYMONGO_MODE` (local stub only)
+
+  Add them to a committed `supabase/functions/.env.example`. CLAUDE.md already states the rule.
+
+### DB and Edge Function plan for T7.2–T7.4
+- **Status:** Approved by the user on 2026-10-18, including `db:push` for both T7.2 migrations. The user also chose: methods `gcash, paymaya, card, qrph`, and re-confirm late but recoverable payments. They don't have a PayMongo account yet, so it's needed before T7.7.
+1. **Migrations** (T7.2). There are two, because a new enum value must be committed before it's used (see "Data model"):
+   - `paymongo_method` contains only `alter type public.payment_method add value if not exists 'paymongo'`.
+   - `paymongo_payments` contains everything below. All functions are `security definer`, `set search_path = ''`, `revoke all … from public, anon, authenticated`, `grant execute … to service_role` only, with `P0001` errors and stable hints.
+   - `payments` gains:
+     - `provider_payment_id text unique`
+     - `provider_checkout_id text`
+     - `provider_source text`
+     - `provider_event_id text`
+     - `check ((method = 'paymongo') = (provider_payment_id is not null))`
+   - `create table public.paymongo_checkouts`:
+     - `booking_id uuid not null unique references bookings on delete cascade`
+     - `checkout_id text not null unique`
+     - `checkout_url text not null check (checkout_url like 'https://%')`
+     - `amount_centavos bigint not null check (amount_centavos > 0)`
+     - `created_at timestamptz not null default now()`
+     - RLS enabled, with "Admins read PayMongo checkouts" (SELECT, `private.is_admin()`). No client writes.
+   - `public.paymongo_checkout_for(p_booking_id uuid) returns table (checkout_id text, checkout_url text)`: the stored session, if any.
+   - `public.record_paymongo_checkout(p_booking_id uuid, p_checkout_id text, p_checkout_url text, p_amount_centavos bigint) returns table (checkout_id text, checkout_url text)`. It inserts `on conflict (booking_id) do nothing`, then returns the stored row, which is the race winner. A stored session that already has a recorded payment (for example a case 4 amount mismatch while the booking is still payable) is dead, so `paymongo_checkout_for` doesn't return it and the new session replaces it.
+   - `public.record_paymongo_payment(p_checkout_id text, p_payment_id text, p_event_id text, p_amount_centavos bigint, p_currency text, p_source text, p_booking_id uuid) returns table (payment_id uuid, outcome text)`. Outcomes: `confirmed`, `revived`, `superseded_proof`, `late`, `duplicate`, `unknown_checkout`. It locks the booking `for update`, applies the four cases above, and compares the amount to `(total_amount * 100)::bigint` and checks `currency = 'PHP'`.
+   - Locking in `record_paymongo_payment`:
+     - Resolve the checkout, lock the booking `for update`, and only then look up an existing `provider_payment_id`.
+     - Lock a pending proof after the booking, in the same order as `review_payment`.
+     - Run the revival inside a nested `begin … exception when exclusion_violation` block, so it can fall through to case 4.
+     - In case 3, close the pending proof **before** inserting the approved row.
+   - Harden the existing RPCs in the same migration. `create or replace` `record_payment_proof` and `create_walk_in` so they reject `'paymongo'` with `P0001`/`invalid_input` instead of a raw 23514 from the new CHECK. pgTAP covers both.
+   - `paymongo_checkouts`: `revoke all … from anon, authenticated`, then grant only `select` to `authenticated` (the admin policy uses `(select private.is_admin())`). `00_rls_coverage` picks it up automatically.
+   - Update the SPEC §6 Server API table: the webhook's four outcomes and the three new RPCs.
+2. **Edge Functions** (T7.3, T7.4):
+   - `create-paymongo-checkout`: POST JSON `{ reference_code, token? }` → `{ checkout_url }`. It refuses a zero total, or one below PayMongo's minimum (to confirm in T7.7), with a readable 4xx.
+   - `paymongo-webhook`: POST, verified as above.
+   - Shared code in `_shared/`: `proof_target` errors and auth, and `paymongo.ts` (centavos, signature parse/verify/sign, payload extraction). Both functions get `verify_jwt = false` in `config.toml`.
+3. **Tests**
+   - pgTAP `18_paymongo.test.sql`:
+     - RLS on `paymongo_checkouts` for anon, player, admin and service_role
+     - the RPC grants (anon and authenticated get 42501)
+     - the method/provider CHECK
+     - `record_paymongo_checkout` race and reuse
+     - every outcome of `record_paymongo_payment`, including a replay (no duplicate row), an amount mismatch, revival vs a taken slot, a slot already started, and the pending proof closed without counting as a rejection
+     - takings-relevant rows
+   - Vitest for `_shared/paymongo.ts`.
+   - Smoke `npm run smoke:paymongo` for owner, guest, wrong token, unpayable, stub session reuse, valid webhook, bad signature 401, replay and late payment.
+4. **UI follow-ups this plan creates** (added to T7.5 and T7.6):
+   - Player views (`BookingSummary.tsx`, `PaymentHistory.tsx`) treat every `rejected` row as a failed proof. PayMongo rows must be excluded from "last rejection". Late PayMongo rows show as "Payment received after the booking closed; the venue will arrange a refund". Notes on automatic rows must be safe for players to read, and the duplicate-check hint is shown to admins only.
+   - Takings order and labels (`dashboard.ts`, `WalkInForm.tsx`, `proofInput.ts`) need the `paymongo` value after `db:types`. Case 4 money was received but isn't counted in approved takings, so T7.6 must surface it.
+5. Then `npm run test:db` locally, `npm run db:push` (linked project, both migrations), `npm run db:types`, and update SPEC §4, §6, §10 and §11.

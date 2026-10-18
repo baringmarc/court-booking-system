@@ -7,14 +7,15 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
 > Update this section at the end of every session or task. Keep it short; it's the first thing the next session reads.
 
 - **Current milestone:** 7 (Online payments, PayMongo test mode). M6 ✅ done on 2026-10-18. Then M8 (Polish).
-- **Next task:** T7.1 (PayMongo research). The breakdown was confirmed on 2026-10-18. T7.1 ends with a DB and Edge Function plan that needs approval before any migration.
-- **State:** M6 is complete and reviewer-passed, and the `venue_media` migration is live on the linked project. M5 is committed (6f3151e). All M6 work is uncommitted. Seed demo photos were skipped (the user's call).
+- **Next task:** T7.2 (PayMongo migrations). The plan is approved, including `db:push` for both migrations, so build straight from RESEARCH "DB and Edge Function plan for T7.2–T7.4", including its locking notes and the hardening of the existing RPCs.
+- **State:** M7 in progress. T7.1 is done and reviewer-passed. M6 is committed (b07a975). T7.1 docs are uncommitted.
 - **Blockers / notes:**
   - Docker Desktop must be running for `npm run verify`. `npm run test:e2e` and `npm run smoke:proof` need the full local stack (`npx supabase start`).
   - Email confirmation is on locally (`config.toml`, matching the hosted project). Sign-up emails land in Mailpit at http://127.0.0.1:54324. e2e reads them with `confirmationLink()`. Don't turn it off: claims trust `email_confirmed_at`.
   - Guest links use `#token=`. Going to the same URL again is a hash-only navigation (no reload), so e2e leaves the page first (`openGuestLink`).
   - Venue media: paths are stored, not URLs (`mediaUrl()`). Uploads are downscaled in the browser and named with a new uuid. `remove()` fails silently without SELECT, so the code checks what it returned. Orphan listing query: RESEARCH M6.
   - `e2e/banner.spec.ts` skips itself when a banner is already set on the local stack (the banner is venue-wide). Remove it in `/admin/settings` to get the coverage back.
+  - The user has **no PayMongo account yet**. One with test keys (and GCash, Maya, card and QR Ph enabled) is needed before T7.7. T7.2–T7.6 run against `PAYMONGO_MODE=stub`.
   - Open follow-ups:
     - a user decision on capping the fresh hold after a rejection at the start time (T4.6)
     - the Edge Function `index.ts` is checked only by smoke and e2e (no Deno type-check)
@@ -538,7 +539,7 @@ Goal (SPEC §9): PayMongo test-mode checkout next to the manual proof flow, with
 
 Out of scope for M7: live keys and real money, refunds, PayMongo for walk-ins, emails (M8).
 
-### [ ] T7.1 Research: PayMongo (test mode)
+### [x] T7.1 Research: PayMongo (test mode)
 - **Do:** Answer in RESEARCH.md, with sources (PayMongo docs) and local experiments where possible:
   - Checkout Sessions vs Payment Intents. Which test-mode methods to offer (GCash, Maya, card, QR Ph, …). Amounts in centavos.
   - Webhooks: which events, signature verification (`Paymongo-Signature`, test vs live signature), retries, idempotency, and registering the webhook for the deployed function.
@@ -549,6 +550,11 @@ Out of scope for M7: live keys and real money, refunds, PayMongo for walk-ins, e
   - Secrets: `PAYMONGO_SECRET_KEY` and the webhook secret only as Edge Function secrets (`supabase/functions/.env` locally, `supabase secrets set` for the linked project). Never `VITE_*`.
 - **Files:** `RESEARCH.md`, `SPEC.md` (§4, §6, §10, and close the §11 open questions)
 - **Acceptance:** Every entry is Decided. The DB and Edge Function plan for T7.2–T7.4 is written up, and the user has approved it.
+- **Notes:** RESEARCH "Milestone 7" has 7 Decided entries and the T7.2–T7.4 plan, approved on 2026-10-18 including `db:push`. The user's choices: re-confirm late but recoverable payments, methods GCash/Maya/card/QR Ph, and no PayMongo account yet.
+  - Local experiments: WebCrypto HMAC matches Node's. A new enum value can't be used in the same transaction, so it gets its own migration.
+  - SPEC §4, §6, §10 and §11 are updated.
+  - Reviewer: PASS. Its 4 majors are folded into the plan as tightening (no scope change): revival also requires an active court and no blackout; the guest token goes in `sessionStorage`, never in `success_url`; UI items for PayMongo rows in T7.5/T7.6; existing RPCs reject `'paymongo'` readably. The minors are folded in too (bigint centavos, zero total refused, dead session replaced, SPEC API table in T7.2).
+  - verify passes (vitest 223, pgTAP 327).
 
 ### [ ] T7.2 Migration: PayMongo payments
 - **Depends:** T7.1
@@ -567,12 +573,12 @@ Out of scope for M7: live keys and real money, refunds, PayMongo for walk-ins, e
 
 ### [ ] T7.5 Booking page: "Pay online"
 - **Depends:** T7.3
-- **Do:** On `/booking/:ref`, offer "Pay online with PayMongo" next to "Upload proof" while the booking is payable. Redirect to checkout. On return, show a "confirming payment…" state that refetches until the webhook has confirmed the booking (with a timeout message). Also handle the cancel return.
-- **Acceptance:** Testing Library tests cover the button states, the return polling and errors. An e2e flow covers pay online → (signed fake webhook) → confirmed on desktop and at 360px.
+- **Do:** On `/booking/:ref`, offer "Pay online with PayMongo" next to "Upload proof" while the booking is payable. Redirect to checkout. On return, show a "confirming payment…" state that refetches until the webhook has confirmed the booking (with a timeout message). Also handle the cancel return. For guests, save the token in `sessionStorage` before redirecting and restore it on the `?paid=` return; never put it in `success_url`. In `BookingSummary` and `PaymentHistory`, PayMongo rows don't count as proof rejections, and late PayMongo rows show "payment received after the booking closed; the venue will arrange a refund" (RESEARCH M7 plan, item 4).
+- **Acceptance:** Testing Library tests cover the button states, the return polling, the guest token surviving the redirect, late PayMongo rows not shown as failed proofs, and errors. An e2e flow covers pay online → (signed fake webhook) → confirmed on desktop and at 360px.
 
 ### [ ] T7.6 Admin: PayMongo payments
 - **Depends:** T7.4
-- **Do:** Show PayMongo payments (method, PayMongo id, paid time) in the `/admin/bookings` list and detail panel with no review actions, flag late payments that need manual follow-up, and count them in the dashboard's takings by method.
+- **Do:** Show PayMongo payments (method, source, PayMongo id, paid time) in the `/admin/bookings` list and detail panel with no review actions. Flag late payments (case 4) and superseded proofs (case 3, "check for a duplicate") that need manual follow-up. Count approved ones in the dashboard's takings by method, and show money received but not accepted separately. Add `paymongo` to the takings order and the method labels.
 - **Acceptance:** Testing Library tests cover the PayMongo row, the late-payment flag and the takings breakdown.
 
 ### [ ] T7.7 Close out M7

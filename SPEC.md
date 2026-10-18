@@ -90,7 +90,12 @@ Admins are promoted manually in the database (no self-signup as admin).
 
 - **Active statuses** (these hold the slot): `pending_payment`, `payment_submitted`, `confirmed`.
 - **Hold window**: a `pending_payment` booking expires after `payment_hold_minutes` (default **60**). Expiry is enforced lazily: availability queries ignore expired holds, and `create_booking` sets any overlapping expired hold on the same court to `expired` before it inserts, because the exclusion constraint can't use `now()`. A scheduled job (`pg_cron`, M4) also sweeps expired holds to `expired`.
-- **PayMongo** (*planned, M7*): the player can start a checkout only while the booking is `pending_payment` and its hold hasn't expired. The verified `checkout_session.payment.paid` (or equivalent) webhook confirms it. A payment that arrives after the hold expired or the slot was lost is handled as decided in T7.1 (refunds stay a non-goal).
+- **PayMongo** (*planned, M7*; decided in T7.1): the player can start a hosted checkout (GCash, Maya, card, QR Ph; test mode only) only while the booking is `pending_payment` and its hold hasn't expired. Starting a checkout doesn't extend the hold, and one checkout session is kept and reused per booking. PayMongo sessions don't expire on their own, so the verified `checkout_session.payment.paid` webhook decides under a row lock:
+  1. Hold still valid: an approved PayMongo payment, and the booking is `confirmed`.
+  2. Hold lapsed (`pending_payment` past `expires_at`, or `expired`), but the slot hasn't started, the court is still active, no blackout covers it and nobody else holds it: the booking is `confirmed` again.
+  3. A proof is waiting for review (`payment_submitted`): the booking is `confirmed` with the PayMongo payment. The pending proof is closed automatically as "paid online instead" without counting as a rejection, and admins are told to check for a duplicate payment.
+  4. Anything else (cancelled, rejected, already confirmed, slot taken or started, or the amount doesn't match the stored total): the payment is recorded as not accepted, with a note, and the booking is unchanged. Admins see it flagged for a refund outside the app (refunds stay a non-goal).
+  - Players never see these PayMongo outcomes as a failed proof. A late payment shows as "payment received after the booking closed; the venue will arrange a refund". The guest token never goes to PayMongo: it's kept in `sessionStorage` across the checkout redirect.
 - **Rejected proof**: the admin must give a reason, which is shown to the player.
   - First rejection: the booking goes back to `pending_payment` with a fresh hold window, and the player keeps the slot and can upload a new proof.
   - Second rejection (`max_rejections`, default **2**): the booking becomes `rejected` and the slot is freed.
@@ -165,6 +170,11 @@ payments          id, booking_id, method ('gcash'|'maya'|'bank_transfer'|'cash')
                   UNIQUE (booking_id) WHERE review_status = 'approved'
                   UNIQUE (booking_id) WHERE review_status = 'pending'   -- one attempt awaits review at a time
                   CHECK rejected => review_note present; CHECK storage_path under '{booking_id}/'
+                  -- M7 (planned): method also 'paymongo'; provider_payment_id unique (pay_…),
+                  -- provider_checkout_id (cs_…), provider_source (gcash|paymaya|card|qrph), provider_event_id;
+                  -- CHECK method = 'paymongo' <=> provider_payment_id present
+paymongo_checkouts (M7, planned)  booking_id unique, checkout_id unique (cs_…), checkout_url, amount_centavos,
+                  created_at. Admins read; only service-role RPCs write.
 ```
 
 Storage: a private bucket called `payment-proofs`. Files live at `{booking_id}/{uuid}.{ext}`. Allowed types are jpg, png, webp and pdf, up to 5 MB.
@@ -266,13 +276,9 @@ Email on booking created (with the guest link), payment confirmed, proof rejecte
 | 2026-10-17 | New feature, **venue media (M6)**: one optional photo per court, and an optional site banner under the public header that is hidden when none is set. Both are uploaded by admins to a public `venue-media` bucket. PayMongo moves to M7 and Polish to M8. |
 | 2026-10-18 | Venue media (M6, T6.1): public `venue-media` bucket with admin-only SELECT/INSERT/UPDATE/DELETE policies (`remove()` needs SELECT); 2 MB, JPG/PNG/WEBP. No Supabase image transformations (Pro only, off locally): admins' browsers downscale and re-encode images before upload, which also strips EXIF. Paths are stored (not URLs), new uuid name per upload, old file removed best effort. Banner 2:1 on phones, 3:1 from 640 px, `object-fit: cover`; alt text required while a banner is set. |
 | 2026-10-18 | Site banner (M6): shown on the home page only, just below the header, and it's just an image with alt text (no headline or link). Closes the §11 banner questions. |
+| 2026-10-18 | PayMongo (M7, T7.1): Hosted Checkout `/v2/checkout_sessions` in test mode only (the function refuses non-`sk_test_` keys), methods GCash, Maya, card, QR Ph, amount in centavos from the stored total, one reused session per booking. Webhook `checkout_session.payment.paid` verified with HMAC-SHA256 over `t.rawBody` (`te`), idempotent on the PayMongo payment id, 2xx once handled. No hold extension and no session expiry in M7. Late payments follow the four cases in §4, including re-confirming a lapsed hold whose slot is still free (the user's call). Stored as `method = 'paymongo'` with `provider_*` ids plus a `paymongo_checkouts` table. Locally, `PAYMONGO_MODE=stub` and webhook events signed locally. |
 | 2026-10-16 | Walk-ins go straight to `confirmed` with `source = 'walk_in'` and an approved payment row (default cash) recorded by the admin. `payment_proofs` is generalized into `payments`. |
 
 ## 11. Open questions
 
-To be settled in T7.1 (PayMongo research, M7):
-- Checkout Sessions (hosted) vs Payment Intents. Hosted checkout is the working assumption.
-- How a PayMongo payment is stored in `payments` (a new `method` value or a provider column, plus the PayMongo ids), and how it interacts with the "one pending attempt" and "one approved payment" constraints.
-- Late payment: PayMongo reports a payment after the hold expired, the booking was cancelled, or a proof was already approved.
-- Whether a checkout session's expiry can be matched to `expires_at`, and whether starting a checkout extends the hold.
-- Testing webhooks locally (no public URL): signed fake events in the smoke and e2e tests.
+None right now. The T7.1 questions (checkout API, data model, late payments, hold interplay, local webhook testing) were settled on 2026-10-18 (§4, §6, §10).
