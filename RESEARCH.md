@@ -473,7 +473,7 @@ Sources are the current PayMongo docs at docs.paymongo.com (the old developers.p
   - "It is safe to send a customer back to an `active` checkout URL instead of creating a new session", and one session "can never produce more than one successful payment" ([key concepts](https://docs.paymongo.com/docs/payment-channels-key-concepts.md)).
   - `public.proof_target(ref, token, user_id)` (M4) already authorizes an owner session or the guest ref + token, and checks the booking is `pending_payment` and its hold hasn't expired.
 - **Gotchas:**
-  - Don't build `success_url` from client input (open redirect). Use a fixed `PUBLIC_SITE_URL` secret plus the reference code.
+  - Don't build `success_url` from client input (open redirect). Use the `PUBLIC_SITE_URL` secret plus the reference code. *(As built in T7.3: a comma-separated allow-list. The request's `Origin` is used only if it's listed, otherwise the first entry, so local dev (5173) and e2e (5179) both return to the right port.)*
   - Two tabs racing to create a session: store at most one session per booking and return the stored URL to the loser. The loser's PayMongo session is never shown to anyone.
 - **Recommendation:**
   - `create-paymongo-checkout` uses `withSupabase({ auth: ['user', 'publishable'] })`, the same as `submit-payment-proof`. It authorizes through `proof_target` (moved into `_shared` together with the error mapping) and reuses the booking's stored checkout if there is one. Otherwise it creates the session and stores it with `record_paymongo_checkout`.
@@ -535,11 +535,19 @@ Sources are the current PayMongo docs at docs.paymongo.com (the old developers.p
 - **Status:** Decided (SPEC §10, 2026-10-18)
 - **Recommendation:** These are Edge Function secrets only (`supabase/functions/.env` locally, `npx supabase secrets set` for the linked project), never `VITE_*` or `src/`:
   - `PAYMONGO_SECRET_KEY` (must start with `sk_test_`)
-  - `PAYMONGO_WEBHOOK_SECRET`
-  - `PUBLIC_SITE_URL` (for return URLs)
+  - `PAYMONGO_WEBHOOK_SECRET` *(as built in T7.4: the committed `.env.example` holds the local-only value `whsk_local_dev_only` so smoke and e2e can sign fake events. The webhook refuses that value unless `SUPABASE_URL` is the local http stack, so it can never protect the deployed endpoint.)*
+  - `PUBLIC_SITE_URL` (for return URLs; a comma-separated allow-list, the first is the default)
   - `PAYMONGO_MODE` (local stub only)
 
   Add them to a committed `supabase/functions/.env.example`. CLAUDE.md already states the rule.
+
+### Verified on the linked project (T7.7)
+- **Status:** Decided (2026-10-18)
+- **Findings:**
+  - Webhooks are registered in the dashboard under **Settings → Webhooks** (https://dashboard.paymongo.com/webhooks) with the **Test Mode** toggle on, not under Developers ([access & navigation](https://docs.paymongo.com/docs/developer-tools-dashboard-module-access-and-navigation.md)). The user registered ours there and set `PAYMONGO_WEBHOOK_SECRET` themselves.
+  - Before the secret was set, the deployed webhook answered `{"code":"not_configured"}` (503), and the checkout preflight answered 204 once deployed (it was 404 before deploying, which browsers show as a CORS error).
+  - A real test-mode payment on CB-6L7YXZ (₱350, QR Ph) went through PayMongo's hosted checkout. The webhook recorded it (`provider_event_id` set, no reviewer) and the booking became `confirmed` with one approved `paymongo` payment for the stored total (checked with a linked query).
+- **Still open:** only QR Ph was exercised for real. The PHP 20 minimum (`MIN_CHECKOUT_CENTAVOS`) is still an assumption; all court rates are far above it.
 
 ### DB and Edge Function plan for T7.2–T7.4
 - **Status:** Approved by the user on 2026-10-18, including `db:push` for both T7.2 migrations. The user also chose: methods `gcash, paymaya, card, qrph`, and re-confirm late but recoverable payments. They don't have a PayMongo account yet, so it's needed before T7.7.
@@ -567,7 +575,7 @@ Sources are the current PayMongo docs at docs.paymongo.com (the old developers.p
      - Lock a pending proof after the booking, in the same order as `review_payment`.
      - Run the revival inside a nested `begin … exception when exclusion_violation` block, so it can fall through to case 4.
      - In case 3, close the pending proof **before** inserting the approved row.
-   - Harden the existing RPCs in the same migration. `create or replace` `record_payment_proof` and `create_walk_in` so they reject `'paymongo'` with `P0001`/`invalid_input` instead of a raw 23514 from the new CHECK. pgTAP covers both.
+   - Harden the existing RPCs in the same migration, so `record_payment_proof` and `create_walk_in` reject `'paymongo'` with `P0001`/`invalid_input` instead of a raw 23514 from the new CHECK. *(As built in T7.2: a `BEFORE INSERT/UPDATE` guard trigger on `payments` (`private.payments_paymongo_guard`) instead of copying both function bodies, which covers any future path too. pgTAP covers both RPCs.)*
    - `paymongo_checkouts`: `revoke all … from anon, authenticated`, then grant only `select` to `authenticated` (the admin policy uses `(select private.is_admin())`). `00_rls_coverage` picks it up automatically.
    - Update the SPEC §6 Server API table: the webhook's four outcomes and the three new RPCs.
 2. **Edge Functions** (T7.3, T7.4):

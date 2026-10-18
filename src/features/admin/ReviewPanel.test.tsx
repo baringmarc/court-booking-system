@@ -8,6 +8,7 @@ import { ReviewPanel, type ProofLink } from './ReviewPanel'
 const pendingProof: AdminPayment = {
   id: 'p1', method: 'gcash', amount: 900, reference_number: '1234', storage_path: 'b1/proof.png',
   submitted_at: '2030-01-07T02:10:00.000Z', review_status: 'pending', review_note: null,
+  reviewed_at: null, reviewed_by: null, provider_payment_id: null, provider_source: null,
 }
 const booking: AdminBooking = {
   id: 'b1', reference_code: 'CB-7KQ2XD', court_name: 'Badminton 1',
@@ -90,5 +91,54 @@ describe('ReviewPanel', () => {
     })
     expect(screen.getByText(/Cancelled by staff/)).toBeInTheDocument()
     expect(screen.getByRole('status')).toHaveTextContent('Cancelled after payment: settle any refund outside the app.')
+  })
+
+  describe('PayMongo payments', () => {
+    const online = (overrides: Partial<AdminPayment>): AdminPayment => ({
+      ...pendingProof, id: 'pm1', method: 'paymongo', storage_path: null, reference_number: null,
+      review_status: 'approved', reviewed_at: '2030-01-07T02:20:00.000Z', reviewed_by: null,
+      provider_payment_id: 'pay_abc123', provider_source: 'paymaya', ...overrides,
+    })
+
+    it('shows an accepted online payment with its source, PayMongo id and paid time, and no review actions', () => {
+      renderPanel({ status: 'confirmed', payments: [online({})] })
+      expect(screen.getByRole('heading', { name: 'Online payments' })).toBeInTheDocument()
+      expect(screen.getByText(/PayMongo · Maya · ₱900/)).toBeInTheDocument()
+      expect(screen.getByText(/pay_abc123 · paid Mon, Jan 7, 10:20/)).toBeInTheDocument()
+      expect(screen.getByText('Accepted')).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Approve and confirm' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Reject proof' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    })
+
+    it('flags a late online payment for a refund outside the app', () => {
+      renderPanel({
+        status: 'cancelled', cancel_reason: 'Changed plans',
+        payments: [online({ review_status: 'rejected', review_note: 'Payment received after the booking was cancelled. The venue will arrange a refund.' })],
+      })
+      expect(screen.getByText('Refund due')).toBeInTheDocument()
+      expect(screen.getByRole('status')).toHaveTextContent(
+        'Paid online (₱900) but not accepted: Payment received after the booking was cancelled. The venue will arrange a refund. Refund it outside the app.',
+      )
+    })
+
+    it('flags a proof that was closed because the customer paid online', () => {
+      renderPanel({
+        status: 'confirmed',
+        payments: [
+          { ...pendingProof, review_status: 'rejected', review_note: 'Paid online with PayMongo instead.', reviewed_by: null },
+          online({}),
+        ],
+      })
+      expect(screen.getByRole('status')).toHaveTextContent(/paid online after uploading a proof.*Check it for a duplicate payment/)
+    })
+
+    it("doesn't flag a proof that staff rejected", () => {
+      renderPanel({
+        status: 'pending_payment',
+        payments: [{ ...pendingProof, review_status: 'rejected', review_note: 'Blurry', reviewed_by: 'admin-1' }],
+      })
+      expect(screen.queryByText(/duplicate payment/)).not.toBeInTheDocument()
+    })
   })
 })

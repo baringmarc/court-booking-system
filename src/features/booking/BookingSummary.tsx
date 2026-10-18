@@ -16,16 +16,21 @@ type Props = {
   now: Date
   /** Rendered while the booking is waiting for a proof (the page owns the upload mutation). */
   proofForm?: ReactNode
+  /** "Pay online with PayMongo", shown above the manual instructions while payable (the page owns the checkout). */
+  payOnline?: ReactNode
+  /** The PayMongo return message, shown under the booking details. */
+  paymentNotice?: ReactNode
   /** The cancel card (the page owns the cancel mutation); it renders nothing once the booking is inactive. */
   cancelSection?: ReactNode
 }
 
-export function BookingSummary({ booking, paymentInstructions, timeZone, currency, now, proofForm, cancelSection }: Props) {
+export function BookingSummary({ booking, paymentInstructions, timeZone, currency, now, proofForm, payOnline, paymentNotice, cancelSection }: Props) {
   const status = displayStatus(booking, now)
   const date = todayInZone(timeZone, new Date(booking.slot_start))
   const hours = Math.round((Date.parse(booking.slot_end) - Date.parse(booking.slot_start)) / 3_600_000)
   const awaitingPayment = status === 'pending_payment'
-  const lastRejection = [...booking.payments].reverse().find((p) => p.review_status === 'rejected')
+  // Only proofs count as rejections: a PayMongo payment that wasn't accepted is a refund case, not a failed proof.
+  const lastRejection = [...booking.payments].reverse().find((p) => p.review_status === 'rejected' && p.method !== 'paymongo')
 
   return (
     <div className="stack">
@@ -50,6 +55,8 @@ export function BookingSummary({ booking, paymentInstructions, timeZone, currenc
         </dl>
       </section>
 
+      {paymentNotice}
+
       {awaitingPayment && booking.expires_at && (
         <section className="card stack" aria-labelledby="pay-heading">
           <h2 id="pay-heading">Pay within <span className="countdown" role="timer">{formatRemaining(Date.parse(booking.expires_at) - now.getTime())}</span></h2>
@@ -62,6 +69,13 @@ export function BookingSummary({ booking, paymentInstructions, timeZone, currenc
               <p>Your last proof was not accepted{lastRejection.review_note ? `: ${lastRejection.review_note}` : '.'}</p>
               <p>Please upload a new proof before the timer runs out.</p>
             </div>
+          )}
+          {payOnline && (
+            <>
+              <h3>Pay online</h3>
+              {payOnline}
+              <h3>Or pay manually</h3>
+            </>
           )}
           <div className="instructions"><SimpleMarkdown text={paymentInstructions} /></div>
           <h3>Upload your proof</h3>

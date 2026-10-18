@@ -5,6 +5,7 @@ import { bookingErrorMessage } from '../booking/errors'
 import { amountMismatch, METHOD_LABELS } from '../booking/proofInput'
 import { displayStatus, STATUS_LABELS } from '../booking/status'
 import { hasApprovedPayment, pendingPayment, type AdminBooking } from './api'
+import { onlinePayments, paymentFlags, sourceLabel } from './paymentFlags'
 
 export type ProofLink = { state: 'none' } | { state: 'loading' } | { state: 'error' } | { state: 'ready'; url: string }
 
@@ -27,6 +28,8 @@ export function ReviewPanel({ booking, timeZone, currency, proof, pending, error
   const canReview = booking.status === 'payment_submitted' && payment !== null
   const status = displayStatus(booking, now)
   const date = todayInZone(timeZone, new Date(booking.slot_start))
+  const online = onlinePayments(booking)
+  const flags = paymentFlags(booking)
 
   function handleReject(e: FormEvent) {
     e.preventDefault()
@@ -68,6 +71,37 @@ export function ReviewPanel({ booking, timeZone, currency, proof, pending, error
             <p className="form-warning" role="status">Cancelled after payment: settle any refund outside the app.</p>
           )}
         </div>
+      )}
+
+      {online.length > 0 && (
+        // Paid on PayMongo and recorded by its webhook: nothing to review here (SPEC §4).
+        <div className="stack">
+          <h3>Online payments</h3>
+          <ul className="list">
+            {online.map((p) => (
+              <li key={p.id} className="list-row">
+                <span className="small">
+                  {METHOD_LABELS[p.method]}{sourceLabel(p.provider_source) ? ` · ${sourceLabel(p.provider_source)}` : ''} · {formatMoney(p.amount, currency)}
+                  <span className="muted block">
+                    {p.provider_payment_id} · paid {formatDateTimeInZone(p.reviewed_at ?? p.submitted_at, timeZone)}
+                  </span>
+                </span>
+                <span className={`badge review-${p.review_status}`}>{p.review_status === 'approved' ? 'Accepted' : 'Refund due'}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {flags.refundDue.map((p) => (
+        <p key={p.id} className="form-warning" role="status">
+          Paid online ({formatMoney(p.amount, currency)}) but not accepted{p.review_note ? `: ${p.review_note}` : '.'} Refund it outside the app.
+        </p>
+      ))}
+      {flags.supersededProofs.length > 0 && (
+        <p className="form-warning" role="status">
+          The customer paid online after uploading a proof, so the proof was closed automatically. Check it for a duplicate
+          payment and refund outside the app if needed.
+        </p>
       )}
 
       {payment ? (

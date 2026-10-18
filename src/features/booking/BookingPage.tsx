@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, Navigate, useLocation, useParams } from 'react-router-dom'
 import { ErrorMessage } from '../../components/ErrorMessage'
 import { PageLoader } from '../../components/PageLoader'
@@ -9,8 +9,10 @@ import { CancelBooking } from './CancelBooking'
 import { playerCancel } from './cancellation'
 import { bookingErrorCode } from './errors'
 import type { BookingDetail } from './api'
-import { readGuestToken } from './guestLink'
-import { useBooking, useCancelBooking, useSubmitPaymentProof } from './hooks'
+import { readGuestToken, tokenHash } from './guestLink'
+import { useBooking, useCancelBooking, useStartPaymongoCheckout, useSubmitPaymentProof } from './hooks'
+import { PaymongoReturnNotice, PayOnline } from './PayOnline'
+import { paymongoReturnState, readPaidParam, readReturnState, returnPollMs, tokenToRestore } from './paymongoReturn'
 import { ProofForm } from './ProofForm'
 import { useNow } from './useNow'
 
@@ -19,15 +21,30 @@ export function BookingPage() {
   const location = useLocation()
   const { token, rewriteTo } = readGuestToken(location.search, location.hash)
   const justBooked = (location.state as { justBooked?: boolean } | null)?.justBooked === true
-  const { user, loading: authLoading } = useAuth()
+  // Back from PayMongo (?paid=1 or ?paid=0): a guest's token comes back from this tab's storage (SPEC §4), and the
+  // return moves from the URL into history state so later copies of the link don't re-enter it.
+  const paidInUrl = readPaidParam(location.search)
+  const paid = paidInUrl ?? readReturnState(location.state)
+  const restoredToken = tokenToRestore(ref, token, paidInUrl)
+  const [returnedAt] = useState(() => Date.now())
+  const { user, isAdmin, loading: authLoading } = useAuth()
   const settings = useVenueSettings()
   // Without a token, only a logged-in owner (or admin) can read the booking.
   const canLoad = token !== null || !!user
-  const booking = useBooking(canLoad ? ref : undefined, token)
   const now = useNow()
+  const elapsed = now.getTime() - returnedAt
+  const booking = useBooking(canLoad ? ref : undefined, token, {
+    pollMs: (b) => returnPollMs(paymongoReturnState(paid, b, elapsed)),
+  })
 
   // Old ?token= links: move the token into the fragment (no server ever sees it) and keep the page state.
   if (rewriteTo) return <Navigate replace to={{ pathname: location.pathname, ...rewriteTo }} state={location.state} />
+  if (paidInUrl) {
+    const hash = restoredToken ? tokenHash(restoredToken) : location.hash
+    const state = { ...(location.state as object | null), paymongoReturn: paidInUrl }
+    return <Navigate replace to={{ pathname: location.pathname, hash }} state={state} />
+  }
+  const returnState = booking.data ? paymongoReturnState(paid, booking.data, elapsed) : null
 
   return (
     <section className="page narrow">
@@ -65,6 +82,13 @@ export function BookingPage() {
             timeZone={settings.data.timezone}
             currency={settings.data.currency}
             now={now}
+            paymentNotice={<PaymongoReturnNotice state={returnState} />}
+            // Not while we wait for PayMongo's confirmation (no second payment), and not for staff viewing someone
+            // else's booking without its link (create-paymongo-checkout only authorizes the owner or the guest token).
+            // An admin's own booking is theirs to pay.
+            payOnline={returnState === 'confirming' || (isAdmin && token === null && booking.data.user_id !== user?.id)
+              ? undefined
+              : <PayOnlineButton reference={booking.data.reference_code} token={token} />}
             proofForm={
               // A new attempt round (after a rejection) remounts this, clearing any earlier upload error.
               <ProofUpload key={booking.data.payments.length} booking={booking.data} token={token} currency={settings.data.currency} />
@@ -90,6 +114,22 @@ function ProofUpload({ booking, token, currency }: { booking: BookingDetail; tok
       error={submitProof.isError ? submitProof.error : null}
       onSubmit={(values) => submitProof.mutate(values)}
     />
+  )
+}
+
+function PayOnlineButton({ reference, token }: { reference: string; token: string | null }) {
+  const checkout = useStartPaymongoCheckout(reference, token)
+  const { reset } = checkout
+  // Back from PayMongo through the back/forward cache: the page is restored as it was ("Opening PayMongo…").
+  useEffect(() => {
+    const onPageShow = (e: PageTransitionEvent) => { if (e.persisted) reset() }
+    window.addEventListener('pageshow', onPageShow)
+    return () => window.removeEventListener('pageshow', onPageShow)
+  }, [reset])
+  // isSuccess too: the browser is already on its way to PayMongo.
+  return (
+    <PayOnline pending={checkout.isPending || checkout.isSuccess} error={checkout.isError ? checkout.error : null}
+      onPay={() => checkout.mutate()} />
   )
 }
 

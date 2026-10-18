@@ -22,6 +22,7 @@ const booking: BookingDetail = {
   cancelled_at: null,
   cancel_reason: null,
   cancelled_by_venue: false,
+  user_id: null,
 }
 
 const renderAt = (now: string, overrides: Partial<BookingDetail> = {}) =>
@@ -112,5 +113,53 @@ describe('BookingSummary', () => {
         review_status: 'rejected', reviewed_at: null, review_note: 'Not a receipt' }],
     })
     expect(screen.getByText(/booking was cancelled and the times were released/)).toHaveTextContent('(Not a receipt)')
+  })
+
+  it('offers paying online above the manual instructions while payable', () => {
+    render(
+      <BookingSummary booking={booking} paymentInstructions="**GCash**: 0917" timeZone="Asia/Manila" currency="PHP"
+        now={new Date('2030-01-07T02:30:00.000Z')} payOnline={<button type="button">Pay online with PayMongo</button>}
+        proofForm={<form aria-label="Upload proof of payment" />} paymentNotice={<p role="status">Online payment was cancelled.</p>} />,
+    )
+    expect(screen.getByRole('heading', { name: 'Pay online' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Or pay manually' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Pay online with PayMongo' })).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('Online payment was cancelled.')
+  })
+
+  it('never shows a PayMongo payment as a failed proof', () => {
+    renderAt('2030-01-07T02:30:00.000Z', {
+      status: 'cancelled', cancel_reason: 'Changed plans',
+      payments: [{ id: 'p1', method: 'paymongo', amount: 900, reference_number: null, submitted_at: '2030-01-07T02:10:00.000Z',
+        review_status: 'rejected', reviewed_at: null,
+        review_note: 'Payment received after the booking was cancelled. The venue will arrange a refund.' }],
+    })
+    expect(screen.queryByText(/proof was not accepted/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Reason:/)).not.toBeInTheDocument()
+    expect(screen.getByText(/^PayMongo · ₱900/)).toBeInTheDocument()
+    expect(screen.getByText('Refund due')).toBeInTheDocument()
+    expect(screen.getByText('Payment received after the booking was cancelled. The venue will arrange a refund.')).toBeInTheDocument()
+  })
+
+  it('keeps the last proof rejection when a PayMongo payment is also on the booking', () => {
+    renderAt('2030-01-07T02:30:00.000Z', {
+      status: 'pending_payment',
+      payments: [
+        { id: 'p1', method: 'gcash', amount: 900, reference_number: null, submitted_at: '2030-01-07T02:05:00.000Z',
+          review_status: 'rejected', reviewed_at: null, review_note: 'Blurry' },
+        { id: 'p2', method: 'paymongo', amount: 899, reference_number: null, submitted_at: '2030-01-07T02:10:00.000Z',
+          review_status: 'rejected', reviewed_at: null, review_note: "The amount paid online didn't match the booking total. The venue will arrange a refund." },
+      ],
+    })
+    expect(screen.getByRole('alert')).toHaveTextContent('Your last proof was not accepted: Blurry')
+  })
+
+  it('labels an accepted PayMongo payment as paid online', () => {
+    renderAt('2030-01-07T02:30:00.000Z', {
+      status: 'confirmed',
+      payments: [{ id: 'p1', method: 'paymongo', amount: 900, reference_number: null, submitted_at: '2030-01-07T02:10:00.000Z',
+        review_status: 'approved', reviewed_at: null, review_note: null }],
+    })
+    expect(screen.getByText('Paid online')).toBeInTheDocument()
   })
 })

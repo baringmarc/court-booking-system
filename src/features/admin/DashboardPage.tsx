@@ -2,17 +2,17 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ErrorMessage } from '../../components/ErrorMessage'
 import { PageLoader } from '../../components/PageLoader'
-import { formatHour, formatMoney } from '../../lib/format'
+import { formatHour } from '../../lib/format'
 import { addDays, formatDateLabel, hourInZone, todayInZone, zonedLocalToISO } from '../../lib/time'
 import { useAvailability } from '../booking/hooks'
-import { METHOD_LABELS } from '../booking/proofInput'
 import type { Slot } from '../booking/selection'
 import { displayStatus, STATUS_LABELS } from '../booking/status'
 import { useNow } from '../booking/useNow'
 import type { Court, VenueSettings } from '../catalog/api'
 import { useCourts, useVenueSettings } from '../catalog/hooks'
-import { takingsByMethod } from './dashboard'
-import { useAdminBookings, useCreateWalkIn, useProofQueueCount, useTakings } from './hooks'
+import { refundsDueSummary, takingsByMethod } from './dashboard'
+import { useAdminBookings, useCreateWalkIn, useProofQueueCount, useRefundsDue, useTakings } from './hooks'
+import { TakingsCard } from './TakingsCard'
 import { WalkInForm } from './WalkInForm'
 
 export function DashboardPage() {
@@ -48,6 +48,7 @@ function Dashboard({ settings, courts }: { settings: VenueSettings; courts: Cour
   const schedule = useAdminBookings({ status: 'all', source: 'all', date: today }, tz)
   const queue = useProofQueueCount()
   const takings = useTakings(dayStart, dayEnd)
+  const refundsDue = useRefundsDue(dayStart, dayEnd)
   const [showWalkIn, setShowWalkIn] = useState(false)
   const [lastWalkIn, setLastWalkIn] = useState<string | null>(null)
 
@@ -72,18 +73,10 @@ function Dashboard({ settings, courts }: { settings: VenueSettings; courts: Cour
           <h2>Today's takings</h2>
           {takings.isPending ? <PageLoader /> : takings.isError ? (
             <ErrorMessage error={takings.error} onRetry={() => takings.refetch()} />
-          ) : summary && summary.rows.length > 0 ? (
-            <>
-              <p className="big-number">{formatMoney(summary.total, currency)}</p>
-              <ul className="list">
-                {summary.rows.map((r) => (
-                  <li key={r.method} className="list-row"><span>{METHOD_LABELS[r.method]}</span><span>{formatMoney(r.total, currency)}</span></li>
-                ))}
-              </ul>
-            </>
-          ) : (
-            <p className="muted">Nothing taken yet today.</p>
-          )}
+          ) : summary ? (
+            <TakingsCard takings={summary} refundsDue={refundsDue.data ? refundsDueSummary(refundsDue.data) : null} currency={currency}
+              refundsError={refundsDue.isError} onRetryRefunds={() => refundsDue.refetch()} />
+          ) : null}
         </section>
       </div>
 

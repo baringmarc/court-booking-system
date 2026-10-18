@@ -280,6 +280,10 @@ export type Database = {
           booking_id: string
           id: string
           method: Database["public"]["Enums"]["payment_method"]
+          provider_checkout_id: string | null
+          provider_event_id: string | null
+          provider_payment_id: string | null
+          provider_source: string | null
           recorded_by: string | null
           reference_number: string | null
           review_note: string | null
@@ -294,6 +298,10 @@ export type Database = {
           booking_id: string
           id?: string
           method: Database["public"]["Enums"]["payment_method"]
+          provider_checkout_id?: string | null
+          provider_event_id?: string | null
+          provider_payment_id?: string | null
+          provider_source?: string | null
           recorded_by?: string | null
           reference_number?: string | null
           review_note?: string | null
@@ -308,6 +316,10 @@ export type Database = {
           booking_id?: string
           id?: string
           method?: Database["public"]["Enums"]["payment_method"]
+          provider_checkout_id?: string | null
+          provider_event_id?: string | null
+          provider_payment_id?: string | null
+          provider_source?: string | null
           recorded_by?: string | null
           reference_number?: string | null
           review_note?: string | null
@@ -337,6 +349,38 @@ export type Database = {
             columns: ["reviewed_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      paymongo_checkouts: {
+        Row: {
+          amount_centavos: number
+          booking_id: string
+          checkout_id: string
+          checkout_url: string
+          created_at: string
+        }
+        Insert: {
+          amount_centavos: number
+          booking_id: string
+          checkout_id: string
+          checkout_url: string
+          created_at?: string
+        }
+        Update: {
+          amount_centavos?: number
+          booking_id?: string
+          checkout_id?: string
+          checkout_url?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "paymongo_checkouts_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: true
+            referencedRelation: "bookings"
             referencedColumns: ["id"]
           },
         ]
@@ -496,6 +540,13 @@ export type Database = {
           total_amount: number
         }[]
       }
+      paymongo_checkout_for: {
+        Args: { p_booking_id: string }
+        Returns: {
+          checkout_id: string
+          checkout_url: string
+        }[]
+      }
       proof_target: {
         Args: { p_reference_code: string; p_token: string; p_user_id: string }
         Returns: {
@@ -515,6 +566,33 @@ export type Database = {
           payment_id: string
         }[]
       }
+      record_paymongo_checkout: {
+        Args: {
+          p_amount_centavos: number
+          p_booking_id: string
+          p_checkout_id: string
+          p_checkout_url: string
+        }
+        Returns: {
+          checkout_id: string
+          checkout_url: string
+        }[]
+      }
+      record_paymongo_payment: {
+        Args: {
+          p_amount_centavos: number
+          p_booking_id?: string
+          p_checkout_id: string
+          p_currency: string
+          p_event_id: string
+          p_payment_id: string
+          p_source: string
+        }
+        Returns: {
+          outcome: string
+          payment_id: string
+        }[]
+      }
       review_payment: {
         Args: { p_approve: boolean; p_booking_id: string; p_note?: string }
         Returns: {
@@ -531,7 +609,7 @@ export type Database = {
         | "expired"
         | "rejected"
         | "cancelled"
-      payment_method: "gcash" | "maya" | "bank_transfer" | "cash"
+      payment_method: "gcash" | "maya" | "bank_transfer" | "cash" | "paymongo"
       payment_review_status: "pending" | "approved" | "rejected"
       sport: "badminton" | "pickleball" | "basketball" | "tennis"
       user_role: "player" | "admin"
@@ -674,7 +752,7 @@ export const Constants = {
         "rejected",
         "cancelled",
       ],
-      payment_method: ["gcash", "maya", "bank_transfer", "cash"],
+      payment_method: ["gcash", "maya", "bank_transfer", "cash", "paymongo"],
       payment_review_status: ["pending", "approved", "rejected"],
       sport: ["badminton", "pickleball", "basketball", "tennis"],
       user_role: ["player", "admin"],

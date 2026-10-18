@@ -19,6 +19,13 @@ export type AdminPayment = {
   submitted_at: string
   review_status: Enums<'payment_review_status'>
   review_note: string | null
+  reviewed_at: string | null
+  /** Null on an approved or rejected row means nobody reviewed it: recorded by PayMongo's webhook RPC. */
+  reviewed_by: string | null
+  /** PayMongo payment id (pay_…), for method 'paymongo'. */
+  provider_payment_id: string | null
+  /** How the customer paid on PayMongo (gcash, paymaya, card, qrph, …). */
+  provider_source: string | null
 }
 
 export type AdminBooking = {
@@ -48,11 +55,13 @@ export const adminKeys = {
   proofUrl: (path: string) => ['proof-url', path] as const,
   proofQueue: ['admin-proof-queue'] as const,
   takings: (from: string) => ['admin-takings', from] as const,
+  // Under the takings prefix, so everything that refreshes takings refreshes this too.
+  refundsDue: (from: string) => ['admin-takings', 'refunds-due', from] as const,
   allTakings: ['admin-takings'] as const,
 }
 
 // One literal: supabase-js infers the row type from this string.
-const SELECT = 'id, reference_code, during, status, source, total_amount, expires_at, rejection_count, guest_name, guest_email, guest_phone, created_at, cancelled_at, cancel_reason, cancelled_by_venue, courts(name), payments(id, method, amount, reference_number, storage_path, submitted_at, review_status, review_note)' as const
+const SELECT = 'id, reference_code, during, status, source, total_amount, expires_at, rejection_count, guest_name, guest_email, guest_phone, created_at, cancelled_at, cancel_reason, cancelled_by_venue, courts(name), payments(id, method, amount, reference_number, storage_path, submitted_at, review_status, review_note, reviewed_at, reviewed_by, provider_payment_id, provider_source)' as const
 
 export const ADMIN_LIST_LIMIT = 200
 
@@ -146,6 +155,23 @@ export async function fetchApprovedPayments(fromIso: string, toIso: string) {
       .lt('reviewed_at', toIso),
   )
   return rows.map((r) => ({ method: r.method, amount: Number(r.amount) }))
+}
+
+/**
+ * PayMongo payments received in [from, to) that weren't accepted (late or the wrong amount, SPEC §4 case 4): money
+ * that came in but isn't in the takings, because staff refund it outside the app.
+ */
+export async function fetchRefundsDue(fromIso: string, toIso: string) {
+  const rows = unwrap(
+    await supabase
+      .from('payments')
+      .select('amount')
+      .eq('method', 'paymongo')
+      .eq('review_status', 'rejected')
+      .gte('reviewed_at', fromIso)
+      .lt('reviewed_at', toIso),
+  )
+  return rows.map((r) => Number(r.amount))
 }
 
 export type WalkInInput = {

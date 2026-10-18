@@ -394,6 +394,15 @@ deno_version = 2
 # The function's withSupabase wrapper verifies signed-in sessions itself (auth: ['user', 'publishable']).
 verify_jwt = false
 
+[functions.create-paymongo-checkout]
+# Same auth model as submit-payment-proof: guests call with the publishable key (not a JWT), and the
+# withSupabase wrapper verifies signed-in sessions itself (auth: ['user', 'publishable']).
+verify_jwt = false
+
+[functions.paymongo-webhook]
+# PayMongo sends no JWT or API key; the function verifies the Paymongo-Signature header instead.
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327

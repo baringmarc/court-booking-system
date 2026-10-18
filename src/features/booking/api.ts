@@ -106,6 +106,8 @@ export type BookingDetail = {
   cancel_reason: string | null
   /** True when staff cancelled it (stored at cancel time). */
   cancelled_by_venue: boolean
+  /** The owning account. Null for guest bookings, and on the guest path (get_guest_booking doesn't return it). */
+  user_id: string | null
 }
 
 const notFound = () =>
@@ -134,6 +136,7 @@ export async function fetchGuestBooking(referenceCode: string, token: string): P
     cancelled_at: row.cancelled_at,
     cancel_reason: row.cancel_reason,
     cancelled_by_venue: row.cancelled_by_venue,
+    user_id: null,
   }
 }
 
@@ -142,7 +145,7 @@ export async function fetchOwnBooking(referenceCode: string): Promise<BookingDet
   const row = unwrap(
     await supabase
       .from('bookings')
-      .select(`id, reference_code, court_id, during, status, total_amount, expires_at, rejection_count, guest_name, guest_email, created_at, cancelled_at, cancel_reason, cancelled_by_venue, courts(name, sport), payments(${PAYMENT_FIELDS})`)
+      .select(`id, reference_code, court_id, user_id, during, status, total_amount, expires_at, rejection_count, guest_name, guest_email, created_at, cancelled_at, cancel_reason, cancelled_by_venue, courts(name, sport), payments(${PAYMENT_FIELDS})`)
       .eq('reference_code', referenceCode.trim().toUpperCase())
       .maybeSingle(),
   )
@@ -168,6 +171,7 @@ export async function fetchOwnBooking(referenceCode: string): Promise<BookingDet
     cancelled_at: row.cancelled_at,
     cancel_reason: row.cancel_reason,
     cancelled_by_venue: row.cancelled_by_venue,
+    user_id: row.user_id,
   }
 }
 
@@ -209,11 +213,29 @@ export async function submitPaymentProof(input: ProofSubmission): Promise<void> 
   form.append('file', input.file)
 
   const { error } = await supabase.functions.invoke('submit-payment-proof', { body: form })
-  if (!error) return
+  if (error) throw await functionError(error, 'The proof could not be submitted.')
+}
+
+/** Edge Function errors come back as `{ code, message }`; turn them into ApiError with the code as hint. */
+async function functionError(error: unknown, fallback: string) {
   if (error instanceof FunctionsHttpError) {
     const response = error.context as Response
     const body = (await response.json().catch(() => null)) as { code?: string; message?: string } | null
-    throw new ApiError(body?.message ?? 'The proof could not be submitted.', String(response.status), body?.code)
+    return new ApiError(body?.message ?? fallback, String(response.status), body?.code)
   }
-  throw new ApiError('Could not reach the server. Please check your connection and try again.')
+  return new ApiError('Could not reach the server. Please check your connection and try again.')
+}
+
+/**
+ * Starts (or resumes) a PayMongo test-mode checkout through the create-paymongo-checkout Edge Function and returns
+ * the hosted checkout URL. The amount is the stored total; guests send their token, owners rely on their session.
+ */
+export async function startPaymongoCheckout(input: { referenceCode: string; token: string | null }): Promise<string> {
+  const { data, error } = await supabase.functions.invoke('create-paymongo-checkout', {
+    body: { reference_code: input.referenceCode, ...(input.token ? { token: input.token } : {}) },
+  })
+  if (error) throw await functionError(error, "We couldn't start the online payment.")
+  const url = (data as { checkout_url?: unknown } | null)?.checkout_url
+  if (typeof url !== 'string' || !url.startsWith('https://')) throw new ApiError("We couldn't start the online payment.")
+  return url
 }

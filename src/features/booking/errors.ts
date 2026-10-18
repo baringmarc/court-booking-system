@@ -9,6 +9,8 @@ const CODES = [
   'forbidden', 'note_required',
   // Accounts (M5): cancel_booking.
   'not_cancellable', 'cutoff_passed', 'booking_ended', 'reason_required',
+  // Online payments (M7): the create-paymongo-checkout Edge Function.
+  'payments_unavailable', 'payments_failed', 'amount_too_low',
 ] as const
 
 export type BookingErrorCode = (typeof CODES)[number]

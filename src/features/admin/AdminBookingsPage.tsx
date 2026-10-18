@@ -8,6 +8,7 @@ import { useVenueSettings } from '../catalog/hooks'
 import { displayStatus, STATUS_LABELS, type BookingStatus } from '../booking/status'
 import { adminCanCancel } from '../booking/cancellation'
 import { ADMIN_LIST_LIMIT, hasApprovedPayment, pendingPayment, type AdminBooking } from './api'
+import { hasPaidOnline, paymentFlags } from './paymentFlags'
 import { AdminCancelForm } from './AdminCancelForm'
 import { filtersFromParams, filtersToParams, type BookingFilters } from './bookingFilters'
 import { BookingFiltersBar } from './BookingFiltersBar'
@@ -78,9 +79,10 @@ export function AdminBookingsPage() {
   )
 }
 
-function BookingRow({ booking, timeZone, currency }: { booking: AdminBooking; timeZone: string; currency: string }) {
+export function BookingRow({ booking, timeZone, currency }: { booking: AdminBooking; timeZone: string; currency: string }) {
   const status = displayStatus(booking)
   const date = todayInZone(timeZone, new Date(booking.slot_start))
+  const flags = paymentFlags(booking)
   return (
     <>
       <span>
@@ -93,6 +95,9 @@ function BookingRow({ booking, timeZone, currency }: { booking: AdminBooking; ti
       <span className="list-row-end">
         <span>{formatMoney(booking.total_amount, currency)}</span>
         <span className={`badge status-${status}`}>{STATUS_LABELS[status]}</span>
+        {hasPaidOnline(booking) && <span className="badge review-approved">Paid online</span>}
+        {flags.refundDue.length > 0 && <span className="badge review-rejected">Refund due</span>}
+        {flags.supersededProofs.length > 0 && <span className="badge review-pending">Check duplicate</span>}
       </span>
     </>
   )

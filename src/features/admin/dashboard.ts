@@ -26,9 +26,14 @@ export type TakingsRow = { method: Enums<'payment_method'>; amount: number }
 
 /** Today's takings per method, in a fixed display order, skipping methods with nothing taken. */
 export function takingsByMethod(payments: TakingsRow[]) {
-  const order: Enums<'payment_method'>[] = ['cash', 'gcash', 'maya', 'bank_transfer']
+  const order: Enums<'payment_method'>[] = ['cash', 'gcash', 'maya', 'bank_transfer', 'paymongo']
   const totals = new Map<Enums<'payment_method'>, number>()
   for (const p of payments) totals.set(p.method, (totals.get(p.method) ?? 0) + p.amount)
   const rows = order.filter((m) => totals.has(m)).map((method) => ({ method, total: Math.round(totals.get(method)! * 100) / 100 }))
   return { rows, total: Math.round(rows.reduce((sum, r) => sum + r.total, 0) * 100) / 100 }
+}
+
+/** PayMongo money received today but not accepted (refund outside the app): kept out of the takings total. */
+export function refundsDueSummary(amounts: number[]) {
+  return { count: amounts.length, total: Math.round(amounts.reduce((sum, a) => sum + a, 0) * 100) / 100 }
 }

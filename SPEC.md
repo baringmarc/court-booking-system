@@ -1,6 +1,6 @@
 # Court Booking System — Product Spec
 
-> Status: draft v0.9 (2026-10-18, M6 done; next: M7 PayMongo, then M8 polish). Portfolio project: one realistic venue, simplified operations.
+> Status: draft v0.10 (2026-10-18, M7 done; next: M8 polish). Portfolio project: one realistic venue, simplified operations.
 
 ## 1. Overview
 
@@ -40,8 +40,8 @@ Admins are promoted manually in the database (no self-signup as admin).
 - **Blackout**: a time range when a court (or every court, if `court_id` is null) can't be booked, e.g. maintenance or a tournament.
 - **Slot**: a fixed 60-minute block inside operating hours, the same for every court. A booking covers 1 or more _consecutive_ slots on one court, on one day.
 - **Booking**: a reservation for one court and time range, with a status, a human-readable reference code (e.g. `CB-7KQ2XD`) and a **source**: `online` (made by a player or guest) or `walk_in` (entered by an admin at the counter).
-- **Payment**: a record of money paid toward a booking. It holds the method (`gcash` | `maya` | `bank_transfer` | `cash`), the amount, an optional transaction reference number and an optional proof file.
-  - Online bookings, PayMongo (*planned, M7*): the player pays on PayMongo's hosted checkout. A verified PayMongo webhook records an approved payment and confirms the booking; no admin review. (Exact columns and the `method` value are decided in T7.1.)
+- **Payment**: a record of money paid toward a booking. It holds the method (`gcash` | `maya` | `bank_transfer` | `cash` | `paymongo`), the amount, an optional transaction reference number and an optional proof file.
+  - Online bookings, PayMongo (M7, test mode): the player pays on PayMongo's hosted checkout. A verified PayMongo webhook records the payment (`method = 'paymongo'`, with the PayMongo ids; see §6) and confirms the booking; no admin review. A payment it can't accept is recorded for a refund outside the app (§4).
   - Online bookings, manual proof: the player uploads the proof, and an admin reviews it. A booking can have several payment rows, one per attempt.
   - Walk-ins: the payment is recorded directly by an admin and is approved immediately.
   - Every `confirmed` booking has exactly one approved payment, so revenue reports and cash counts come from one table.
@@ -90,7 +90,7 @@ Admins are promoted manually in the database (no self-signup as admin).
 
 - **Active statuses** (these hold the slot): `pending_payment`, `payment_submitted`, `confirmed`.
 - **Hold window**: a `pending_payment` booking expires after `payment_hold_minutes` (default **60**). Expiry is enforced lazily: availability queries ignore expired holds, and `create_booking` sets any overlapping expired hold on the same court to `expired` before it inserts, because the exclusion constraint can't use `now()`. A scheduled job (`pg_cron`, M4) also sweeps expired holds to `expired`.
-- **PayMongo** (*planned, M7*; decided in T7.1): the player can start a hosted checkout (GCash, Maya, card, QR Ph; test mode only) only while the booking is `pending_payment` and its hold hasn't expired. Starting a checkout doesn't extend the hold, and one checkout session is kept and reused per booking. PayMongo sessions don't expire on their own, so the verified `checkout_session.payment.paid` webhook decides under a row lock:
+- **PayMongo** (M7, test mode; decided in T7.1): the player can start a hosted checkout (GCash, Maya, card, QR Ph; test mode only) only while the booking is `pending_payment` and its hold hasn't expired. Starting a checkout doesn't extend the hold, and one checkout session is kept and reused per booking. PayMongo sessions don't expire on their own, so the verified `checkout_session.payment.paid` webhook decides under a row lock:
   1. Hold still valid: an approved PayMongo payment, and the booking is `confirmed`.
   2. Hold lapsed (`pending_payment` past `expires_at`, or `expired`), but the slot hasn't started, the court is still active, no blackout covers it and nobody else holds it: the booking is `confirmed` again.
   3. A proof is waiting for review (`payment_submitted`): the booking is `confirmed` with the PayMongo payment. The pending proof is closed automatically as "paid online instead" without counting as a rejection, and admins are told to check for a duplicate payment.
@@ -163,17 +163,18 @@ bookings          id, reference_code unique, court_id, user_id (nullable),
                   cancelled_by_venue boolean default false   -- stored at cancel time: true when an admin cancelled
                   created_at, updated_at
                   EXCLUDE USING gist (court_id WITH =, during WITH &&) WHERE (status IN active)
-payments          id, booking_id, method ('gcash'|'maya'|'bank_transfer'|'cash'),
+payments          id, booking_id, method ('gcash'|'maya'|'bank_transfer'|'cash'|'paymongo'),
                   amount numeric, reference_number (nullable), storage_path (nullable; proof file),
                   submitted_at, recorded_by (admin, nullable; set for walk-ins),
                   review_status ('pending'|'approved'|'rejected'), reviewed_by, reviewed_at, review_note
                   UNIQUE (booking_id) WHERE review_status = 'approved'
                   UNIQUE (booking_id) WHERE review_status = 'pending'   -- one attempt awaits review at a time
                   CHECK rejected => review_note present; CHECK storage_path under '{booking_id}/'
-                  -- M7 (planned): method also 'paymongo'; provider_payment_id unique (pay_…),
+                  -- M7: method also 'paymongo'; provider_payment_id unique (pay_…),
                   -- provider_checkout_id (cs_…), provider_source (gcash|paymaya|card|qrph), provider_event_id;
-                  -- CHECK method = 'paymongo' <=> provider_payment_id present
-paymongo_checkouts (M7, planned)  booking_id unique, checkout_id unique (cs_…), checkout_url, amount_centavos,
+                  -- CHECK method = 'paymongo' <=> provider_payment_id present; a trigger turns 'paymongo' from
+                  -- the proof and walk-in RPCs into a readable P0001 invalid_input
+paymongo_checkouts (M7)  booking_id unique, checkout_id unique (cs_…), checkout_url, amount_centavos,
                   created_at. Admins read; only service-role RPCs write.
 ```
 
@@ -201,8 +202,10 @@ A **public** bucket called `venue-media` holds court photos (`courts/{court_id}/
 | `review_payment(booking_id, approve, note)`                                        | admin       | Approve: the status becomes `confirmed`. Reject: increments `rejection_count`, then sets `pending_payment` with a new `expires_at`, or `rejected` if the limit is reached. A note is required when rejecting. |
 | `create_walk_in(court_id, start, slots, name, phone?, method, amount, reference?)` | admin       | Creates a confirmed walk-in booking and its approved payment in one transaction (§5.8).                                                                                                                       |
 | `proof_target(ref, token, user_id)` / `record_payment_proof(...)`                 | service_role | Used only by `submit-payment-proof`: authorize the caller and check the booking is payable, then record the proof and set `payment_submitted` under a row lock. They are in `public` (PostgREST doesn't expose `private`), but only `service_role` can execute them. |
-| `create-paymongo-checkout` (Edge Function, M7)                                    | owner/guest | Same payable check and ownership/guest-token check as `submit-payment-proof`. Creates a PayMongo (test mode) checkout session for the booking's stored `total_amount` (never a client amount) and returns its URL. |
-| `paymongo-webhook` (Edge Function, M7)                                            | PayMongo    | Verifies the webhook signature, is idempotent per PayMongo event/payment id, records the approved payment and confirms the booking through a service-role-only RPC under a row lock. |
+| `create-paymongo-checkout` (Edge Function, M7)                                    | owner/guest | POST `{ reference_code, token? }` → `{ checkout_url }`. Same payable check and ownership/guest-token check as `submit-payment-proof` (shared `_shared/payable.ts`). Reuses the booking's stored session, otherwise creates a PayMongo test-mode session for the stored `total_amount` (never a client amount; below PHP 20 → 422 `amount_too_low`). Return links come from the `PUBLIC_SITE_URL` allow-list. With no test key and no stub mode → 503 `payments_unavailable`; a PayMongo error → 502 with a generic message. |
+| `paymongo-webhook` (Edge Function, M7)                                            | PayMongo    | `verify_jwt = false`. Verifies the webhook signature (HMAC-SHA256 over `t.rawBody`, `te` only; live signatures are never accepted) before parsing: 401 if it fails. Handles only test-mode `checkout_session.payment.paid` (200 with `ignored` for anything else) and passes only signed-payload values to `record_paymongo_payment`. 200 with the outcome once handled, 500 on a database error so PayMongo retries, 503 if the secret isn't configured (the local dev secret is refused on the hosted project). |
+| `paymongo_checkout_for(booking_id)` / `record_paymongo_checkout(...)` (M7)        | service_role | Used only by `create-paymongo-checkout`: return the booking's stored, still usable session, or store a new one (the first stored wins a race; a session with a recorded payment is replaced). Only for a payable booking. |
+| `record_paymongo_payment(checkout_id, payment_id, event_id, amount_centavos, currency, source, booking_id?)` (M7) | service_role | Used only by `paymongo-webhook`. Locks the booking and applies the four cases in §4. Outcomes: `confirmed`, `revived`, `superseded_proof`, `late` (stored as a not-accepted payment with a player-safe refund note), `duplicate` (replay, idempotent on the PayMongo payment id) or `unknown_checkout` (a session we didn't create, or a metadata mismatch). |
 | `claim_guest_bookings()`                                                           | player      | Links matching guest bookings to the signed-in, email-verified user (§5.7).                                                                                                                                   |
 
 Guest access uses a random token. It is shown once (in the confirmation page link and email) and stored only as a hash. The link carries it in the URL **fragment** (`/booking/:ref#token=…`), which browsers never send to servers. Old `?token=` links are rewritten to the fragment. A guest link stops working 30 days after the booking ends (same "not found" response). If the link is lost, the guest can sign up or log in with the booking's email to see the booking in My bookings. "Email me a new link" waits for emails (M8). There is no lookup throttle, because a 256-bit token can't be guessed (RESEARCH M5).
@@ -214,12 +217,12 @@ Guest access uses a random token. It is shown once (in the confirmation page lin
 | `/`                 | public             | Site banner when set (M6), venue info, courts grouped by sport (with each court's photo, or a sport placeholder; M6), "Book now".       |
 | `/book`             | public             | Date picker and sport filter, a collapsed "About the … courts" panel with each court's photo (or sport placeholder) and description (M6), then a court × time slot grid with the price per slot, then select consecutive slots. |
 | `/book/checkout`    | public             | Summary and total price. Guest form (name, email, phone) or prefilled for a logged-in player. Confirm.                                   |
-| `/booking/:ref`     | owner or `#token=` | Status, payment instructions, countdown to expiry, proof upload, rejection reason and re-upload, cancel button.                          |
+| `/booking/:ref`     | owner or `#token=` | Status, payment instructions, countdown to expiry, "Pay online with PayMongo" (M7) next to proof upload, rejection reason and re-upload, cancel button. After PayMongo: `?paid=1` polls every 3 s until the webhook confirms (then "Payment received"; a refund note if the payment wasn't accepted). After 90 s it says so and keeps checking every 30 s. `?paid=0` says it was cancelled. The return moves from the URL into history state, so copied links don't replay it. A guest's token is kept in `sessionStorage` across the redirect and restored to the fragment. Staff viewing a booking without its link get no Pay online button. |
 | `/login`, `/signup` | public             | "Continue with Google" and email + password.                                                                                             |
 | `/me/bookings`      | player             | Upcoming and past bookings, including claimed guest bookings.                                                                            |
 | `/admin/login`      | public             | Admin sign-in in the admin shell: email + password only, with no Google sign-in and no sign-up (admins are promoted in the database, §2). A signed-in non-admin is refused ("Admins only", with Log out). |
-| `/admin`            | admin              | Dashboard: today's schedule, proofs waiting for review, a "+ Walk-in" quick action, and today's takings by method.                       |
-| `/admin/bookings`   | admin              | Filterable list (status, source, date). Review a proof (image or PDF preview, amount-mismatch warning), approve or reject with a reason. |
+| `/admin`            | admin              | Dashboard: today's schedule, proofs waiting for review, a "+ Walk-in" quick action, and today's takings by method (PayMongo as its own line, M7). PayMongo money received but not accepted is shown apart from the total, for a refund outside the app. |
+| `/admin/bookings`   | admin              | Filterable list (status, source, date). Review a proof (image or PDF preview, amount-mismatch warning), approve or reject with a reason. PayMongo payments (M7) show in the panel with source, PayMongo id and paid time, and have no review actions. Rows and the panel flag "Refund due" (paid online but not accepted) and "Check duplicate" (a proof closed because the customer also paid online). |
 | `/admin/courts` | admin | Court list with an "Add court" button. |
 | `/admin/courts/:id` | admin | Edit or archive a court (`new` creates one). Weekly rate grid editor (day × hour) with a "fill a range" helper. Court photo upload, replace and remove (M6). |
 | `/admin/schedule`   | admin              | Operating hours and blackouts.                                                                                                           |
@@ -243,7 +246,7 @@ Email on booking created (with the guest link), payment confirmed, proof rejecte
 4. ✅ **Payments**: storage bucket, proof upload, admin review queue with the reject → re-upload loop, expiry job, walk-in flow, admin dashboard.
 5. ✅ **Admin shell and accounts**: separate admin layout and login; My bookings, cancellation, guest token flow hardened, `claim_guest_bookings`.
 6. ✅ **Venue media**: court photos and an optional site banner, uploaded by admins.
-7. **Online payments**: PayMongo (test mode) checkout with webhook auto-confirm, alongside manual proof.
+7. ✅ **Online payments**: PayMongo (test mode) checkout with webhook auto-confirm, alongside manual proof.
 8. **Polish**: emails, empty, loading and error states, a11y pass, deploy (e.g. Vercel + Supabase), README screenshots and a demo video.
 
 ## 10. Decisions log
@@ -277,6 +280,7 @@ Email on booking created (with the guest link), payment confirmed, proof rejecte
 | 2026-10-18 | Venue media (M6, T6.1): public `venue-media` bucket with admin-only SELECT/INSERT/UPDATE/DELETE policies (`remove()` needs SELECT); 2 MB, JPG/PNG/WEBP. No Supabase image transformations (Pro only, off locally): admins' browsers downscale and re-encode images before upload, which also strips EXIF. Paths are stored (not URLs), new uuid name per upload, old file removed best effort. Banner 2:1 on phones, 3:1 from 640 px, `object-fit: cover`; alt text required while a banner is set. |
 | 2026-10-18 | Site banner (M6): shown on the home page only, just below the header, and it's just an image with alt text (no headline or link). Closes the §11 banner questions. |
 | 2026-10-18 | PayMongo (M7, T7.1): Hosted Checkout `/v2/checkout_sessions` in test mode only (the function refuses non-`sk_test_` keys), methods GCash, Maya, card, QR Ph, amount in centavos from the stored total, one reused session per booking. Webhook `checkout_session.payment.paid` verified with HMAC-SHA256 over `t.rawBody` (`te`), idempotent on the PayMongo payment id, 2xx once handled. No hold extension and no session expiry in M7. Late payments follow the four cases in §4, including re-confirming a lapsed hold whose slot is still free (the user's call). Stored as `method = 'paymongo'` with `provider_*` ids plus a `paymongo_checkouts` table. Locally, `PAYMONGO_MODE=stub` and webhook events signed locally. |
+| 2026-10-18 | PayMongo live in test mode on the linked project (M7, T7.7): both functions deployed. `PUBLIC_SITE_URL` is `http://localhost:5173,http://127.0.0.1:5173` until the app is deployed (M8 adds the real site). The test-mode webhook is registered for `checkout_session.payment.paid`. A real test payment (QR Ph) confirmed CB-6L7YXZ through the webhook. |
 | 2026-10-16 | Walk-ins go straight to `confirmed` with `source = 'walk_in'` and an approved payment row (default cash) recorded by the admin. `payment_proofs` is generalized into `payments`. |
 
 ## 11. Open questions

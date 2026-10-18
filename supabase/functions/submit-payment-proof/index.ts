@@ -4,24 +4,11 @@
 // deleting the uploaded file if recording fails. All rules live in SQL and _shared/proof.ts.
 import { withSupabase } from 'npm:@supabase/server@1'
 import { checkProofFile, MAX_PROOF_BYTES, parseProofFields, ProofError } from '../_shared/proof.ts'
+import { callerUserId, rpcError } from '../_shared/payable.ts'
 
 const BUCKET = 'payment-proofs'
 // File limit plus room for the other multipart fields; checked before the body is read into memory.
 const MAX_REQUEST_BYTES = MAX_PROOF_BYTES + 512 * 1024
-
-// RPC hint codes -> HTTP status for the client.
-const STATUS_BY_CODE: Record<string, number> = {
-  not_found: 404,
-  hold_expired: 409,
-  invalid_state: 409,
-  invalid_input: 400,
-}
-
-function rpcError(error: { message: string; hint?: string | null }) {
-  const code = error.hint && error.hint in STATUS_BY_CODE ? error.hint : 'server_error'
-  const status = STATUS_BY_CODE[code] ?? 500
-  return new ProofError(code, status === 500 ? 'Something went wrong. Please try again.' : error.message, status)
-}
 
 export default {
   fetch: withSupabase({ auth: ['user', 'publishable'] }, async (req, ctx) => {
@@ -39,7 +26,7 @@ export default {
       const type = checkProofFile(file.size, new Uint8Array(await file.slice(0, 16).arrayBuffer()))
 
       // Only a session verified by the wrapper identifies a player; guests rely on the token.
-      const userId = ctx.authMode === 'user' ? (ctx.userClaims?.id ?? ctx.jwtClaims?.sub ?? null) : null
+      const userId = callerUserId(ctx)
       const admin = ctx.supabaseAdmin
 
       const target = await admin.rpc('proof_target', {
