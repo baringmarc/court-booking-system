@@ -7,9 +7,11 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
 > Update this section at the end of every session or task. Keep it short; it's the first thing the next session reads.
 
 - **Current milestone:** 8 (Polish). The breakdown was approved on 2026-10-18. M7 ✅ done on 2026-10-18.
-- **Next task:** T8.1 (emails and deploy research). It ends with a plan that needs the user's approval.
-- **State:** M7 is complete and reviewer-passed. PayMongo test mode is live on the linked project (real test payment CB-6L7YXZ confirmed). T7.2–T7.7 work is uncommitted.
+- **Next task:** T8.2 (migration: email outbox + payments index). Its plan is already approved (RESEARCH M8 "Email and deploy plan"), including `db:push`.
+- **State:** T8.1 done: the email and deploy plan is approved. M7 is complete, reviewer-passed and committed (7eb46be). PayMongo test mode is live on the linked project.
 - **Blockers / notes:**
+  - The >500 kB main chunk warning is back (`index-*.js` 614 kB in the 2026-10-18 build, see H6). Check it during T8.5/T8.7.
+  - M8 emails need from the user: a verified Resend domain and API key (before T8.6; local work uses Mailpit), and the Vercel project (T8.6). Never commit `RESEND_API_KEY` or the Vault worker secret.
   - Docker Desktop must be running for `npm run verify`. `npm run test:e2e` and `npm run smoke:proof` need the full local stack (`npx supabase start`).
   - Email confirmation is on locally (`config.toml`, matching the hosted project). Sign-up emails land in Mailpit at http://127.0.0.1:54324. e2e reads them with `confirmationLink()`. Don't turn it off: claims trust `email_confirmed_at`.
   - Guest links use `#token=`. Going to the same URL again is a hash-only navigation (no reload), so e2e leaves the page first (`openGuestLink`).
@@ -664,7 +666,7 @@ Goal (SPEC §9): emails; empty, loading and error states; an accessibility pass;
 
 Out of scope for M8: live PayMongo keys and real money, refunds, SMS, new features.
 
-### [ ] T8.1 Research: emails and deploy
+### [x] T8.1 Research: emails and deploy
 - **Do:** Answer in RESEARCH.md, with sources:
   - Emails (SPEC §8: booking created with the guest link, payment confirmed, proof rejected, cancelled):
     - provider (e.g. Resend or Supabase's SMTP)
@@ -682,6 +684,8 @@ Out of scope for M8: live PayMongo keys and real money, refunds, SMS, new featur
     - preview vs production
 - **Files:** `RESEARCH.md`, `SPEC.md`
 - **Acceptance:** Every entry is Decided. The email and deploy plan (migrations, functions, secrets) is written up and approved.
+- **Notes:** RESEARCH M8 has 8 Decided entries plus the approved plan. SPEC §8 is rewritten, and §10 has a new row. The user approved it on 2026-10-18: Resend from a verified domain the user has or will get (API for booking emails, SMTP for Auth); the outbox with triggers, plus `send-emails` run by pg_cron and pg_net; the token-checked `email-guest-link`; Vercel. That approval includes `db:push` of the T8.2 migration. Local experiment: Mailpit's `POST /api/v1/send` works, and the edge runtime reaches `supabase_inbucket_court-booking-system:8025`. pg_net is available but not installed (local and linked).
+- **Follow-ups:** The reviewer passed it. Its 2 majors and 2 minors (triggers must never fail the RPC, the stale booking-created email, Resend 409 on a reused key, anon grants), plus the extra notes, are written into the plan as item 5 "Refinements from the T8.1 review" for T8.2 and T8.3.
 
 ### [ ] T8.2 Migration: carried DB follow-ups and email outbox
 - **Depends:** T8.1

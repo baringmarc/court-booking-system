@@ -208,7 +208,7 @@ A **public** bucket called `venue-media` holds court photos (`courts/{court_id}/
 | `record_paymongo_payment(checkout_id, payment_id, event_id, amount_centavos, currency, source, booking_id?)` (M7) | service_role | Used only by `paymongo-webhook`. Locks the booking and applies the four cases in §4. Outcomes: `confirmed`, `revived`, `superseded_proof`, `late` (stored as a not-accepted payment with a player-safe refund note), `duplicate` (replay, idempotent on the PayMongo payment id) or `unknown_checkout` (a session we didn't create, or a metadata mismatch). |
 | `claim_guest_bookings()`                                                           | player      | Links matching guest bookings to the signed-in, email-verified user (§5.7).                                                                                                                                   |
 
-Guest access uses a random token. It is shown once (in the confirmation page link and email) and stored only as a hash. The link carries it in the URL **fragment** (`/booking/:ref#token=…`), which browsers never send to servers. Old `?token=` links are rewritten to the fragment. A guest link stops working 30 days after the booking ends (same "not found" response). If the link is lost, the guest can sign up or log in with the booking's email to see the booking in My bookings. "Email me a new link" waits for emails (M8). There is no lookup throttle, because a 256-bit token can't be guessed (RESEARCH M5).
+Guest access uses a random token. It is shown once (in the confirmation page link and email) and stored only as a hash. The link carries it in the URL **fragment** (`/booking/:ref#token=…`), which browsers never send to servers. Old `?token=` links are rewritten to the fragment. A guest link stops working 30 days after the booking ends (same "not found" response). If the link is lost, the guest can sign up or log in with the booking's email to see the booking in My bookings. "Email me a new link" is out of scope (decided in M8): emails can't re-issue a token, because only its hash is stored. There is no lookup throttle, because a 256-bit token can't be guessed (RESEARCH M5).
 
 ## 7. Pages (React Router)
 
@@ -234,9 +234,16 @@ The UI is mobile-first: most players will book from a phone.
 
 **Admin shell.** Every `/admin/*` route renders in its own `AdminLayout` (admin nav, no public header, footer or booking nav), not inside the public `Layout`. The public header has no Admin link; staff go to `/admin` directly, and unauthenticated visits redirect to `/admin/login` and return to the requested page after sign-in. The shell only controls what is shown: admin access itself is enforced in the database (`profiles.role` can't be changed by users, and every admin read and write checks `private.is_admin()`). It is still one Vite app, and admin code stays lazy-loaded out of the public bundle.
 
-## 8. Notifications (stretch)
+## 8. Notifications (M8)
 
-Email on booking created (with the guest link), payment confirmed, proof rejected (with the reason and the re-upload link) and cancelled. Use Supabase Auth emails for auth and an Edge Function plus Resend for booking emails. Until that is built, the confirmation page shows the private link with a "save this link" prompt.
+Emails go out on four events: booking created (online bookings only), payment confirmed, proof rejected (with the reason) and booking cancelled. Walk-ins get no email. Supabase Auth sends the auth emails through Resend SMTP. Booking emails use the Resend API, from the venue's verified domain.
+
+- **Queueing.** Database triggers on `bookings` and `payments` add a row to `email_outbox` in the same transaction as the change, whatever the path (RPC, webhook or cancellation).
+- **Sending and retries.** A `send-emails` Edge Function, run every minute by pg_cron through pg_net, sends the queued rows. It retries with backoff and gives up after 5 attempts.
+- **The guest link.** Only the booking-created email carries it. The checkout page passes the token to `email-guest-link`, which checks it against the hash and sends that one email. The token is never stored, queued or logged. If the call doesn't arrive within 10 minutes, the email goes out without the link. Other guest emails carry the reference and explain that signing up with the same email shows the booking in My bookings.
+- **Local testing.** Locally, emails go to Mailpit.
+
+Until emails ship, the confirmation page shows the private link with a "save this link" prompt.
 
 ## 9. Milestones
 
@@ -281,6 +288,7 @@ Email on booking created (with the guest link), payment confirmed, proof rejecte
 | 2026-10-18 | Site banner (M6): shown on the home page only, just below the header, and it's just an image with alt text (no headline or link). Closes the §11 banner questions. |
 | 2026-10-18 | PayMongo (M7, T7.1): Hosted Checkout `/v2/checkout_sessions` in test mode only (the function refuses non-`sk_test_` keys), methods GCash, Maya, card, QR Ph, amount in centavos from the stored total, one reused session per booking. Webhook `checkout_session.payment.paid` verified with HMAC-SHA256 over `t.rawBody` (`te`), idempotent on the PayMongo payment id, 2xx once handled. No hold extension and no session expiry in M7. Late payments follow the four cases in §4, including re-confirming a lapsed hold whose slot is still free (the user's call). Stored as `method = 'paymongo'` with `provider_*` ids plus a `paymongo_checkouts` table. Locally, `PAYMONGO_MODE=stub` and webhook events signed locally. |
 | 2026-10-18 | PayMongo live in test mode on the linked project (M7, T7.7): both functions deployed. `PUBLIC_SITE_URL` is `http://localhost:5173,http://127.0.0.1:5173` until the app is deployed (M8 adds the real site). The test-mode webhook is registered for `checkout_session.payment.paid`. A real test payment (QR Ph) confirmed CB-6L7YXZ through the webhook. |
+| 2026-10-18 | Emails and deploy (M8, T8.1): Resend from a verified domain (API for booking emails, SMTP for Supabase Auth). A transactional outbox (`email_outbox`, filled by triggers) is drained by the `send-emails` Edge Function, run every minute by pg_cron + pg_net (URL and worker secret in Vault). Retries use backoff, at most 5 attempts, with the Resend idempotency key = outbox id. The guest link is only in the booking-created email, sent by the token-checked `email-guest-link` function, and the token is never stored. Deploy on Vercel (production from `master`, previews from branches, SPA rewrite), one Supabase project shared by previews and production, hosted Auth URLs set in the dashboard, and the production origin first in `PUBLIC_SITE_URL`. |
 | 2026-10-16 | Walk-ins go straight to `confirmed` with `source = 'walk_in'` and an approved payment row (default cash) recorded by the admin. `payment_proofs` is generalized into `payments`. |
 
 ## 11. Open questions

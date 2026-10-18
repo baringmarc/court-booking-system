@@ -596,3 +596,147 @@ Sources are the current PayMongo docs at docs.paymongo.com (the old developers.p
    - Player views (`BookingSummary.tsx`, `PaymentHistory.tsx`) treat every `rejected` row as a failed proof. PayMongo rows must be excluded from "last rejection". Late PayMongo rows show as "Payment received after the booking closed; the venue will arrange a refund". Notes on automatic rows must be safe for players to read, and the duplicate-check hint is shown to admins only.
    - Takings order and labels (`dashboard.ts`, `WalkInForm.tsx`, `proofInput.ts`) need the `paymongo` value after `db:types`. Case 4 money was received but isn't counted in approved takings, so T7.6 must surface it.
 5. Then `npm run test:db` locally, `npm run db:push` (linked project, both migrations), `npm run db:types`, and update SPEC §4, §6, §10 and §11.
+
+## Milestone 8: Emails and deploy
+
+Fetched on 2026-10-18. Local experiments ran against the running local stack.
+
+### Email provider and sender domain
+- **Status:** Decided (SPEC §10, 2026-10-18)
+- **Question:** Which provider sends the four SPEC §8 emails and the Auth emails in production, and what do we need to reach any recipient?
+- **Findings:**
+  - Supabase's default Auth SMTP "will refuse to deliver messages to addresses that are not part of the project's team" and is limited to "2 messages per hour". Custom SMTP is recommended for anything beyond exploration ([auth-smtp](https://supabase.com/docs/guides/auth/auth-smtp)). So on the deployed site, sign-up confirmation emails reach only team members until custom SMTP is set.
+  - Resend: the `resend.dev` test sender "can only send emails to the email address associated with your Resend account". Other recipients get a 403 "You can only send testing emails to your own email address". Reaching anyone needs a verified domain ([403 resend.dev](https://resend.com/docs/knowledge-base/403-error-resend-dev-domain)). The free plan allows 3,000 emails a month, 100 a day and 3 domains ([pricing](https://resend.com/pricing)).
+  - Resend also works as Supabase Auth custom SMTP: `smtp.resend.com:465`, user `resend`, password = API key ([send with Supabase SMTP](https://resend.com/docs/send-with-supabase-smtp)). One provider and one domain cover both kinds of email.
+  - Resend's `Idempotency-Key` header dedupes a send for 24 h ([idempotency keys](https://resend.com/docs/dashboard/emails/idempotency-keys)).
+  - Edge Functions: "Outgoing connections to ports `25` and `587` are not allowed" ([limits](https://supabase.com/docs/guides/functions/limits)). So we send over Resend's HTTPS API, not SMTP.
+- **Gotchas:** Without a domain the deployed app can only email the Resend account owner, and Auth emails only team members. That's fine for a recorded demo, but real visitors wouldn't receive anything.
+- **Recommendation:** Resend over its HTTPS API for booking emails, plus Resend SMTP for Supabase Auth, both from a verified domain. *(User decision, 2026-10-18: the user has or will get a domain.)*
+
+### Where emails are sent from: transactional outbox
+- **Status:** Decided (SPEC §10, 2026-10-18)
+- **Question:** Do we send from DB triggers plus a queue, or have the RPCs, webhook and client call an Edge Function?
+- **Findings:** *(Repo.)*
+  - The four events come from several paths: `create_booking` (client RPC), `review_payment` (admin client RPC), `record_paymongo_payment` (webhook, including revival and a superseded proof), `record_payment_proof` (no email), and `cancel_booking` (owner, guest or admin). Calling a function from every caller duplicates logic, and a client that closes the tab loses the email.
+  - pg_net is available but not installed (local and linked: `select name, installed_version from pg_available_extensions where name in ('pg_net','supabase_vault','pg_cron')` → pg_net `null`, vault 0.3.1, pg_cron 1.6.4). Its requests "are not started until the transaction is committed", and pending request bodies sit in `net.http_request_queue` until sent ([pg_net](https://supabase.com/docs/guides/database/extensions/pg_net)).
+  - The documented way to schedule an Edge Function is `cron.schedule(... net.http_post(url from vault.decrypted_secrets ...))` ([schedule functions](https://supabase.com/docs/guides/functions/schedule-functions)).
+- **Gotchas:**
+  - A trigger that calls `net.http_post` directly would put its body (recipient, booking details) into an unlogged queue table, and would have no retry once pg_net's 6 h response log expires.
+  - The `net` schema grants USAGE to PUBLIC (not exposed through the Data API).
+- **Recommendation:**
+  - `AFTER` triggers on `bookings` and `payments` insert one `email_outbox` row in the **same transaction** as the state change, so an email is queued if and only if the change commits, whatever the path.
+  - A `send-emails` Edge Function drains the outbox. pg_cron runs it every minute through pg_net, with the URL and a worker secret read from Vault. If the Vault secrets are missing (local), the job does nothing.
+  - The pg_net body is just `{}`: no PII goes through the pg_net queue.
+
+### Retries and the outbox table
+- **Status:** Decided (SPEC §10, 2026-10-18)
+- **Recommendation:**
+  - `public.email_outbox`:
+    - `id uuid`, `booking_id` (FK, `on delete cascade`)
+    - `kind` (`booking_created | payment_confirmed | proof_rejected | booking_cancelled`)
+    - `to_email`
+    - `data jsonb`: a snapshot of what the template needs, such as ref, court, local times, amount and note. **No token, ever.**
+    - `status` (`pending | sending | sent | failed`), `attempts`, `next_attempt_at`, `last_error`, `created_at`, `sent_at`
+    - `unique (booking_id, kind)` where the kind happens once (`booking_created`, `payment_confirmed`, `booking_cancelled`). `proof_rejected` can repeat (up to 2 rejections).
+    - RLS on, admins can SELECT, no client writes. Service-role RPCs only.
+  - The worker claims a batch with `claim_email_outbox(limit)`, which uses `for update skip locked`, sets `sending` and `attempts + 1`, and leases the row for 5 min. A crashed worker's row comes back after the lease.
+  - It reports back with `finish_email(id, ok, error)`. On failure the backoff is 1, 5, 15 and 60 min, and the row becomes `failed` after 5 attempts.
+  - Resend `Idempotency-Key = outbox id`, so a retry after a lost response doesn't send twice.
+  - Walk-ins (`source = 'walk_in'`) and rows without an email are never queued. A PayMongo case 4 payment (refund due) sends no email in M8 (follow-up).
+
+### The guest token and the booking-created email
+- **Status:** Decided (SPEC §10, 2026-10-18)
+- **Question:** SPEC §8 wants the guest link in the booking-created email, but the token exists only in `create_booking`'s return value. Its sha256 is all we store.
+- **Findings:** *(Repo.)* The token hash is checked inline in `get_guest_booking`, `proof_target`, `cancel_booking` and others (single `bookings.guest_token_hash`). Rotating it would break the link already shown on the confirmation page. Multi-token support would mean rewriting every one of those checks.
+- **Gotchas:**
+  - Putting the plaintext token in the outbox, in pg_net, in a log or in Resend's metadata would break SPEC §6 ("shown once… stored only as a hash").
+  - The email body itself necessarily contains it: that's the link.
+- **Recommendation:**
+  - **Players:** the trigger queues `booking_created`, and the worker sends it with `/booking/{ref}` (a session is needed to open it).
+  - **Guests:** the trigger queues `booking_created` as well. The checkout page then calls a new `email-guest-link` Edge Function with `{ reference_code, token }` (the same body pattern as `submit-payment-proof`), and does it in the background so it can't fail the booking. The function checks the token against the hash, claims the booking's own `booking_created` row (only while it's still `pending`, so at most one email per booking), renders the link in memory and sends it. The token is never stored or logged.
+  - If no valid call arrives within 10 min, the worker sends a version **without** the link. That version gives the reference and explains that the guest can sign up with this email to see the booking.
+  - Later guest emails (confirmed, rejected, cancelled) carry the reference and the same explanation, not a link. Re-issuing a link ("email me a new link") stays out of scope.
+
+### Templates
+- **Status:** Decided (SPEC §10, 2026-10-18)
+- **Recommendation:**
+  - Plain TS functions in `supabase/functions/_shared/emailTemplates.ts`: `render(kind, data, link?) → { subject, html, text }`. They escape HTML, format money and dates in PHP/Asia/Manila, and are covered by Vitest. No template engine.
+  - The guest link is a parameter of the `booking_created` render only, so a test can assert it appears in no other email.
+
+### Local testing through Mailpit
+- **Status:** Decided (SPEC §10, 2026-10-18)
+- **Findings:** *(Local experiment.)*
+  - The local Mailpit is v1.31.3 (`GET http://127.0.0.1:54324/api/v1/info`).
+  - `POST /api/v1/send` with `{From:{Email,Name},To:[{Email}],Subject,HTML,Text,Headers}` returned `{"ID":…}`, and the message was found with `GET /api/v1/search?query=subject:"T8.1 probe"`.
+  - The edge runtime container resolves `supabase_inbucket_court-booking-system` (`getent hosts` → 172.18.0.7), and port 8025 answers on the Docker network.
+- **Recommendation:**
+  - `EMAIL_TRANSPORT=mailpit` plus `MAILPIT_URL=http://supabase_inbucket_court-booking-system:8025` in `supabase/functions/.env`. Like `PAYMONGO_MODE=stub`, they're honoured only when `SUPABASE_URL` is the local http stack.
+  - On the hosted project, a missing `RESEND_API_KEY` gives 503 `email_unavailable` and leaves rows pending.
+  - Smoke and e2e call `send-emails` directly with the local worker secret instead of waiting for cron, then read Mailpit's API.
+
+### Deploy: SPA host, env vars, preview vs production
+- **Status:** Decided (SPEC §10, 2026-10-18)
+- **Findings:**
+  - Vercel builds Vite as-is. Deep links in a SPA need a `vercel.json` rewrite of `"/(.*)"` to `"/index.html"` ([Vite on Vercel](https://vercel.com/docs/frameworks/frontend/vite)). Static files still win over rewrites, so hashed assets are served normally.
+  - `VITE_*` env vars are inlined at build time. Vercel has separate Production, Preview and Development scopes, and `VITE_VERCEL_ENV` exposes which one is running (same page).
+- **Gotchas:**
+  - There's one Supabase project, so previews talk to the same database as production. That's acceptable for a portfolio app with test-mode payments. Say so in the README.
+  - Only the publishable key goes in Vercel (CLAUDE.md).
+- **Recommendation:**
+  - Vercel connected to the GitHub repo. Production comes from `master`, and previews from other branches.
+  - Env vars `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` in Production and Preview.
+  - `vercel.json` with the SPA rewrite.
+
+### Deploy: Auth URLs, Google OAuth, PUBLIC_SITE_URL, PayMongo return
+- **Status:** Decided (SPEC §10, 2026-10-18)
+- **Findings:**
+  - Site URL is "the default redirect URL when no `redirectTo` is specified". The Redirect URLs allow-list supports `*` (not across `.` or `/`) and `**`. For Vercel previews, add `https://*-<team-or-account-slug>.vercel.app/**` ([redirect URLs](https://supabase.com/docs/guides/auth/redirect-urls)).
+  - The app already passes `redirectTo` and `emailRedirectTo` from `window.location.origin` (`GoogleButton.tsx`, `SignupPage.tsx`), so no code change is needed. The new origin just has to be on the allow-list.
+  - Google: the **Authorized redirect URI** stays the Supabase callback. The app's URL goes under **Authorized JavaScript origins** ([Google login](https://supabase.com/docs/guides/auth/social-login/auth-google)).
+  - `PUBLIC_SITE_URL` is an exact-match allow-list. The first entry is the default for PayMongo returns and, from M8, for email links.
+- **Gotchas:**
+  - A preview origin isn't in `PUBLIC_SITE_URL`, so PayMongo returns from a preview land on production. That's acceptable and documented.
+  - Don't `supabase config push` the local `config.toml`: it would push `site_url = localhost`. Hosted Auth settings are set in the dashboard and recorded in the T8.6 checklist.
+- **Recommendation:**
+  - Hosted Auth Site URL = production origin.
+  - Redirect URLs: `https://<prod>/**`, `https://*-<slug>.vercel.app/**`, `http://localhost:5173/**`.
+  - Google JS origin: add the production origin.
+  - `PUBLIC_SITE_URL = https://<prod>,http://localhost:5173,http://127.0.0.1:5173`.
+  - PayMongo needs no change: its return links come from `PUBLIC_SITE_URL`, and the webhook URL is the Supabase function URL.
+
+### Email and deploy plan for T8.2–T8.3 and T8.6
+- **Status:** Approved by the user on 2026-10-18, including `db:push` of the T8.2 migration. The user will use a verified domain for Resend (booking emails and Auth SMTP), and chose Vercel.
+1. **Migration** (T8.2), applied with `db:push` to the linked project:
+   - `create extension if not exists pg_net`
+   - `payments (provider_checkout_id) where provider_checkout_id is not null` index
+   - `email_outbox` table with the columns above. RLS: an admin SELECT policy only, and grants revoked from anon and authenticated except a `select` that the policy gates.
+   - `private.queue_booking_email()` triggers:
+     - `bookings` AFTER INSERT (online only) → `booking_created`
+     - `bookings` AFTER UPDATE OF `status`: to `confirmed` → `payment_confirmed`, to `cancelled` → `booking_cancelled`
+     - `payments` AFTER UPDATE OF `review_status`: a proof (`method <> 'paymongo'`) rejected by an admin, excluding a proof auto-closed as superseded → `proof_rejected` with the note
+   - Service-role-only RPCs: `claim_email_outbox(p_limit int)`, `finish_email(p_id uuid, p_ok bool, p_error text)`, `claim_guest_link_email(p_ref text, p_token text)` (checks the hash, claims a still-pending `booking_created` row, returns its data). All `security definer`, `search_path = ''`, with `P0001` hints.
+   - The cron job `send-emails`, every minute, `net.http_post` to Vault `email_worker_url` with header `x-worker-secret` from Vault `email_worker_secret`. It's a no-op when either secret is missing.
+   - pgTAP `19_email_outbox.test.sql`: RLS for anon, player and admin; grants; each trigger (and no row for walk-ins, a superseded proof or a PayMongo row); claim, lease, backoff and `failed`; guest-link claim with a wrong token, a second call and a non-guest booking.
+2. **Edge Functions** (T8.3):
+   - `send-emails` (`verify_jwt = false`, constant-time check of the worker secret)
+   - `email-guest-link` (`verify_jwt = false`, publishable key like the others)
+   - `_shared/email.ts` (transport: Resend or local Mailpit) and `_shared/emailTemplates.ts` (Vitest)
+   - Client: `create_booking` success calls `email-guest-link` for guests (fire-and-forget, errors ignored).
+   - `npm run smoke:emails`, and an e2e check that the guest booking-created email in Mailpit has the `#token=` link.
+3. **Secrets:** `RESEND_API_KEY`, `EMAIL_FROM`, `EMAIL_WORKER_SECRET`, local `EMAIL_TRANSPORT` and `MAILPIT_URL` in `supabase/functions/.env.example`. Vault holds `email_worker_url` and `email_worker_secret` on the linked project only (set by hand in T8.6, never committed).
+4. **Deploy** (T8.6), as above, plus Supabase Auth custom SMTP through Resend.
+5. **Refinements from the T8.1 review.** These are binding for T8.2 and T8.3. They don't change the approved design.
+   - **Email triggers must never fail the business transaction.**
+     - Use `insert … on conflict do nothing` with the partial-unique predicate.
+     - The status trigger also checks `old.status is distinct from new.status`.
+     - Add a pgTAP case: a duplicate event doesn't fail the RPC. This matters most for the webhook, where a failure would make PayMongo retry forever.
+   - Guest `booking_created` rows are queued with `next_attempt_at = now() + 10 min`. Player rows send at once.
+   - Before sending `booking_created`, the worker re-reads the booking's current status, so the email never reports a stale "pay within 60 min" after a later event. It skips the email, or renders it from the current state.
+   - A Resend `409` on a reused idempotency key, such as the guest-link send followed by the fallback retry, counts as **sent** and isn't retried. Vitest covers this.
+   - `email_outbox` grants: `select` to `authenticated` only (gated by the admin policy), nothing to `anon`.
+   - `proof_rejected` is queued only for admin rejections (`reviewed_by is not null`), not for a proof auto-closed by the webhook. Its data says whether this was the final rejection (booking `rejected`, slot freed).
+   - `email-guest-link` takes the recipient only from the outbox row, and gives one uniform response whatever went wrong (`not_found` convention, SPEC §6).
+   - The cron `net.http_post` sets `timeout_milliseconds` explicitly. The lease covers a worker that's cut off.
+   - A daily cron purges `sent` and `failed` rows older than 30 days (PII retention). Note it in SPEC §6.
+   - The worker secret sits in pg_net's queue for a short time. That's the documented pattern; rotate the secret if it leaks.
+   - In T8.2, SPEC §6 gains the `email_outbox` model, its RLS summary and the Server API rows for the three RPCs and two functions.
