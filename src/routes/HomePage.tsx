@@ -4,6 +4,8 @@ import { ErrorMessage } from '../components/ErrorMessage'
 import { useCourts, useOperatingHours, useVenueSettings } from '../features/catalog/hooks'
 import { SPORT_LABELS, SPORTS, type Court } from '../features/catalog/api'
 import { summarizeHours } from '../features/catalog/hours'
+import { CourtTiles } from '../features/catalog/CourtTiles'
+import { HomeBanner } from '../features/catalog/HomeBanner'
 import { formatMoney } from '../lib/format'
 
 export function HomePage() {
@@ -16,6 +18,7 @@ export function HomePage() {
 
   return (
     <section className="page">
+      <HomeBanner />
       <div className="hero">
         <h1>Book a court at {venueName}</h1>
         <p className="lead">
@@ -62,9 +65,7 @@ function SportGroup({ title, courts, currency }: { title: string; courts: Court[
         </span>
       </div>
       <p className="muted small">{courts[0].description}</p>
-      <ul className="chip-list">
-        {courts.map((c) => <li key={c.id} className="chip">{c.name}</li>)}
-      </ul>
+      <CourtTiles courts={courts} />
     </section>
   )
 }

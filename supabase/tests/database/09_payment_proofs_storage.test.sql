@@ -1,7 +1,7 @@
 -- T4.3: payment-proofs bucket config and storage.objects access.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(10);
+select plan(11);
 
 insert into auth.users (id, email) values
   ('11111111-1111-1111-1111-111111111111', 'player@test.local'),
@@ -17,15 +17,16 @@ insert into public.bookings (id, reference_code, court_id, user_id, guest_name, 
    tstzrange('2030-01-07 12:00+08', '2030-01-07 13:00+08'), 500, 'payment_submitted');
 
 -- The Storage API enforces storage.objects policies, so clients can write only where a write policy exists.
--- payment-proofs is the only bucket, so there must be no write policy at all; a bucket-agnostic one
--- (e.g. "with check (true)") would open it too. If another bucket ever needs client writes, scope this
--- check to policies that could match bucket_id = 'payment-proofs'.
+-- The only client write policies allowed are the three admin-only venue-media ones (M6, tested in
+-- 17_venue_media), listed by exact name so that any other write policy, including a bucket-agnostic one
+-- (e.g. "with check (true)") that would open payment-proofs too, fails this check.
 -- (Direct SQL deletes are blocked by Storage itself, so delete is checked through the policy list.)
 select is_empty(
   $$ select policyname from pg_policies
      where schemaname = 'storage' and tablename = 'objects'
-       and cmd in ('INSERT', 'UPDATE', 'DELETE', 'ALL') $$,
-  'no insert, update, delete or all policy lets clients write to storage'
+       and cmd in ('INSERT', 'UPDATE', 'DELETE', 'ALL')
+       and policyname not in ('Admins upload venue media', 'Admins update venue media', 'Admins delete venue media') $$,
+  'no insert, update, delete or all policy lets clients write to storage, except the venue-media admin policies'
 );
 select results_eq(
   $$ select public, file_size_limit, allowed_mime_types from storage.buckets where id = 'payment-proofs' $$,
@@ -69,6 +70,10 @@ select is(
    where bucket_id = 'payment-proofs'
      and name in ('b0000000-0000-0000-0000-000000000001/a.png', 'b0000000-0000-0000-0000-000000000002/b.pdf', 'not-a-uuid/c.png')),
   3, 'admins see every proof (counted on this test''s fixtures, so other local data cannot affect it)'
+);
+select throws_ok(
+  $$ insert into storage.objects (bucket_id, name) values ('payment-proofs', 'b0000000-0000-0000-0000-000000000001/admin.png') $$,
+  '42501', null, 'admins cannot upload proofs directly either (the venue-media policies do not open this bucket)'
 );
 
 reset role;

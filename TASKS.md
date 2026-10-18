@@ -6,17 +6,20 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
 
 > Update this section at the end of every session or task. Keep it short; it's the first thing the next session reads.
 
-- **Current milestone:** 5 (Admin shell and accounts) ✅ done on 2026-10-18. Next is M6 (Venue media), then M7 (PayMongo, test mode), then M8 (Polish).
-- **Next task:** re-confirm the M6 outline with the user (it was drafted on 2026-10-17 and still has the open SPEC §11 questions: which pages show the banner, image only or headline/link). Then T6.1 (research), which ends with a DB/storage plan for approval.
-- **State:** M5 is complete. All its DB changes are live on the linked project (`cancel_booking`, `claim_guest_bookings`, hardened `get_guest_booking`, `bookings.cancelled_by`/`cancelled_by_venue`). Every M5 task and the milestone were reviewer-PASSed. M5 is uncommitted (last commit bd90896).
+- **Current milestone:** 7 (Online payments, PayMongo test mode). M6 ✅ done on 2026-10-18. Then M8 (Polish).
+- **Next task:** T7.1 (PayMongo research). The breakdown was confirmed on 2026-10-18. T7.1 ends with a DB and Edge Function plan that needs approval before any migration.
+- **State:** M6 is complete and reviewer-passed, and the `venue_media` migration is live on the linked project. M5 is committed (6f3151e). All M6 work is uncommitted. Seed demo photos were skipped (the user's call).
 - **Blockers / notes:**
   - Docker Desktop must be running for `npm run verify`. `npm run test:e2e` and `npm run smoke:proof` need the full local stack (`npx supabase start`).
   - Email confirmation is on locally (`config.toml`, matching the hosted project). Sign-up emails land in Mailpit at http://127.0.0.1:54324. e2e reads them with `confirmationLink()`. Don't turn it off: claims trust `email_confirmed_at`.
   - Guest links use `#token=`. Going to the same URL again is a hash-only navigation (no reload), so e2e leaves the page first (`openGuestLink`).
+  - Venue media: paths are stored, not URLs (`mediaUrl()`). Uploads are downscaled in the browser and named with a new uuid. `remove()` fails silently without SELECT, so the code checks what it returned. Orphan listing query: RESEARCH M6.
+  - `e2e/banner.spec.ts` skips itself when a banner is already set on the local stack (the banner is venue-wide). Remove it in `/admin/settings` to get the coverage back.
   - Open follow-ups:
     - a user decision on capping the fresh hold after a rejection at the start time (T4.6)
     - the Edge Function `index.ts` is checked only by smoke and e2e (no Deno type-check)
     - if the profile fetch fails, a real admin sees "Admins only" (T5.1, for the M8 error pass)
+    - raw PostgREST errors in admin media saves (T6.4, for the M8 error pass)
     - the guest cancel path doesn't check the 30-day link expiry. That's harmless, since a cancel must be before the start, but recheck it if M7 adds token-authorized RPCs.
 
 ## How tasks work
@@ -439,58 +442,99 @@ Out of scope for M5: court photos and the banner (M6), online payments (M7), ref
 
 ## Milestone 6: Venue media
 
-Goal (SPEC §9): admins upload one photo per court and an optional site banner. Players see the court photos, and the banner sits under the public header, hidden while none is set. Added on 2026-10-17.
+Goal (SPEC §9): admins upload one photo per court and an optional site banner. Players see the court photos. The banner (image + alt text only) sits on the home page just below the header, hidden while none is set. Added on 2026-10-17; banner placement confirmed 2026-10-18.
 
-> **Status: outline, re-confirm at the end of M5.** T6.1 ends with a DB and storage plan that needs approval before any migration.
+> **Status: ✅ done (2026-10-18).** The milestone review passed. The DB plan was approved in T6.1, and the migration is live on the linked project.
 
 Out of scope for M6: several photos per court (galleries), several or rotating banners, image editing or cropping beyond a simple downscale.
 
-### [ ] T6.1 Research: venue media
+### [x] T6.1 Research: venue media
 - **Do:** Answer in RESEARCH.md, with sources and local experiments:
   - A public bucket (`venue-media`, read without auth, CDN-cacheable URLs) vs a private bucket with signed URLs. Recommendation: public, because these images aren't sensitive.
   - Storage policies: admin-only insert, update and delete through `private.is_admin()`; a bucket-level MIME allow-list (JPG, PNG, WEBP) and a size limit.
   - Image size: whether Supabase image transformations are available on our plan, otherwise a client-side downscale (e.g. at most 1600px wide, WEBP) before upload.
   - Replacing a photo: new uuid filenames (so caches never serve the old one), deleting the old object, and orphan cleanup.
   - Banner layout: aspect ratio, `object-fit`, avoiding layout shift, alt text.
-  - Which public pages show the banner (see SPEC §11).
 - **Files:** `RESEARCH.md`, `SPEC.md`
 - **Acceptance:** Every entry is Decided. The DB and storage plan for T6.2 is written up, and the user has approved it.
+- **Notes:** Five RESEARCH entries are Decided, each checked by a local probe (throwaway `zz-probe-media` bucket, cleaned up):
+  - `remove()` and upsert need an admin SELECT policy. Without one, `remove()` silently deletes nothing.
+  - The bucket checks only the declared type. HTML labelled `image/png` was accepted, so the client re-encodes every image.
+  - Transformations are Pro-only and off locally, so images are downscaled in the browser (WEBP with a JPEG fallback).
+  - Public URLs are served with `max-age=3600` by default; `cacheControl` can raise it.
+  
+  SPEC §6 and §10 are updated. The user approved the T6.2 plan, including `db:push`, on 2026-10-18. The reviewer passed it, and its 4 minors are folded in: a stricter `banner_alt` CHECK, the folder rule on the UPDATE policy, an exact policy-name list for the narrowed `09` check, and the §10 row order. verify passes (vitest 163, pgTAP 291).
 
-### [ ] T6.2 Migration: media columns and the `venue-media` bucket
+### [x] T6.2 Migration: media columns and the `venue-media` bucket
 - **Depends:** T6.1
 - **Do:** Add `courts.photo_path` and `venue_settings.banner_path` / `banner_alt` (nullable), with CHECKs that keep each path under its prefix. Create the bucket with its MIME and size limits, plus the storage policies.
 - **Acceptance:** pgTAP covers anon, player and admin on the storage objects (only admins can write; anyone can read), the path CHECKs and the column updates going through the existing admin RLS. `db:push` and `db:types` have been run.
+- **Notes:** Migration `20261018102500_venue_media.sql`:
+  - adds `courts.photo_path`, `venue_settings.banner_path` and `banner_alt`, with CHECKs for the path prefixes and the alt-text rules
+  - creates the public `venue-media` bucket (2 MB, JPG/PNG/WEBP) with four admin-only policies; INSERT and UPDATE must stay under `courts/` or `banner/`
+  - adds no RPC and no new grant
+  
+  Tests: `17_venue_media.test.sql` (35 assertions). `09_payment_proofs_storage.test.sql` now excludes the three venue-media write policies by exact name and checks that an admin insert into `payment-proofs` gets 42501. `db:push` was applied to the linked project and checked by query (bucket config and 4 policies), and `db:types` was regenerated. verify passes (vitest 163, pgTAP 327), and e2e passes 18/18. The reviewer passed it with no findings.
 
-### [ ] T6.3 Admin: court photo
+### [x] T6.3 Admin: court photo
 - **Depends:** T6.2
 - **Do:** A photo section on `/admin/courts/:id` with upload (type and size checked before sending, downscaled as T6.1 decides), preview, replace and remove.
 - **Acceptance:** Testing Library tests cover the upload, wrong type or size, replace, remove and errors.
+- **Notes:** `CourtPhotoSection` on `/admin/courts/:id`.
+  - Shared helpers for T6.4 to reuse:
+    - `admin/mediaInput.ts`: checks, `fitWithin`, `newMediaPath`, `storageErrorMessage`
+    - `admin/imageResize.ts`: canvas downscale, WEBP with a JPEG fallback
+    - `admin/mediaReplace.ts`: upload → save → remove old; the new file is cleaned up if the save fails
+    - storage functions in `admin/api.ts`, where `remove()` must return the object
+    - `catalog/media.ts` `mediaUrl()` for public URLs
+  - Tests: `CourtPhotoSection.test.tsx` (11), `mediaInput.test.ts`, `mediaReplace.test.ts`, `imageResize.test.ts` (stubbed canvas).
+  - New e2e `court-photo.spec.ts` runs the real browser downscale, storage policies and path CHECK: a non-image is refused, then upload → replace (old file deleted) → remove. It passes at desktop and 360px. Teardown removes `E2E…` courts and their photos through the Storage API.
+  - verify passes (vitest 197, pgTAP 327), e2e 20/20. Admin media code stays in the lazy `CourtEditPage` chunk.
+  - Reviewer: PASS. Both findings are fixed: the e2e flow was added, and Storage 403/413/415 now show plain messages.
 
-### [ ] T6.4 Admin: site banner
+### [x] T6.4 Admin: site banner
 - **Depends:** T6.2
 - **Do:** A banner section on `/admin/settings` with upload, alt text (required when a banner is set), preview and remove.
 - **Acceptance:** Testing Library tests cover setting, replacing and removing the banner, the required alt text and errors.
+- **Notes:** `BannerSection` on `/admin/settings`.
+  - Alt text is required and trimmed in the form, and `validateBannerAlt` matches the DB CHECK. The image is downscaled to 2200 px wide. Saving with no new image updates only the alt text. The preview shows both crops (3:1 and 2:1, the phone copy with empty alt).
+  - Tests: `BannerSection.test.tsx` (13) and `validateBannerAlt` in `mediaInput.test.ts`.
+  - New e2e `banner.spec.ts`: alt required, set, remove, with storage and DB checked. It skips itself if a local banner is already set. Teardown clears only a banner whose alt starts with `E2E`.
+  - verify passes (vitest 212, pgTAP 327), and e2e passes 22/22. The reviewer passed it, and the SPEC wording is fixed.
+- **Follow-ups:** PostgREST errors from the `venue_settings`/`courts` updates are shown as they are (as in every admin form today). Map them in the M8 error pass.
 
-### [ ] T6.5 Public: court photos
+### [x] T6.5 Public: court photos
 - **Depends:** T6.2
 - **Do:** Show each court's photo on the home page court cards and as court info on `/book`, lazy-loaded with fixed dimensions. Courts without a photo get a neutral placeholder for their sport, never a broken image.
 - **Acceptance:** Testing Library tests cover a court with a photo and one without.
+- **Notes:** New `catalog/CourtPhoto.tsx` and `CourtTiles.tsx`.
+  - Photos are 16:9, `loading="lazy"`, with fixed 640×360 dimensions and alt "Photo of {name}".
+  - A missing photo, or one that fails to load, shows a sport placeholder (`role="img"` "{Sport} court"). A new path gets a fresh try.
+  - The home page sport cards show court tiles instead of name chips. `/book` has a collapsed "About the … courts" panel above the grid, so phones keep the grid near the top.
+  - Tests: `CourtTiles.test.tsx` (6). `court-photo.spec.ts` now also checks the photo on `/` and in the `/book` panel; the court is activated briefly, with try/finally.
+  - verify passes (vitest 218), and e2e passes 22/22. The reviewer passed it, and its 3 minors are fixed (SPEC sentence, try/finally, /book check).
 
-### [ ] T6.6 Public: banner under the header
+### [x] T6.6 Public: home page banner
 - **Depends:** T6.2
-- **Do:** In the public `Layout`, render the banner between the header and the page content when `banner_path` is set. Render nothing at all (no empty space) when it isn't, or while settings load or fail.
-- **Acceptance:** Testing Library tests cover banner set, unset, loading and error. An e2e flow covers an admin uploading a banner, the banner showing on the public site, the admin removing it and the banner disappearing (desktop and 360px).
+- **Do:** On the home page only, render the banner just below the header, before the page content, when `banner_path` is set. It's an image with its alt text, no headline or link. Render nothing at all (no empty space) when it isn't set, or while settings load or fail.
+- **Acceptance:** Testing Library tests cover banner set, unset, loading and error. An e2e flow covers an admin uploading a banner, the banner showing on `/` and not on `/book`, the admin removing it and the banner disappearing (desktop and 360px).
+- **Notes:** New `catalog/HomeBanner.tsx`, the first child of the home page.
+  - It uses the cached settings query and renders nothing while loading, on error, when no banner is set, or if the image fails.
+  - The image is eager with `fetchPriority="high"`, fixed 2200×733, at 2:1 on phones and 3:1 from 640px.
+  - Tests: `HomeBanner.test.tsx` (5; it waits on the query state). `banner.spec.ts` now also checks that the banner shows on `/` above the h1, not on `/book`, and is gone from `/` after removal (desktop and 360px).
+  - verify passes (vitest 223), and e2e passes 22/22 with nothing skipped. The reviewer passed it with no findings.
 
-### [ ] T6.7 Close out M6
+### [x] T6.7 Close out M6
 - **Depends:** T6.3, T6.4, T6.5, T6.6
 - **Do:** Optionally add demo photos for the seed courts. Mark M6 ✅ in SPEC §9, run a milestone review, and re-confirm the M7 (PayMongo) breakdown.
 - **Acceptance:** `npm run verify` and `npm run test:e2e` pass, and the reviewer signs off.
+- **Notes:** SPEC §9 marks M6 ✅ (v0.9). The seed demo photos were skipped (the user's call on 2026-10-18; revisit for the M8 README screenshots). Final gates: verify (vitest 223, pgTAP 327, build) and e2e 22/22 at desktop and 360px, with nothing skipped. The milestone reviewer passed it; its major (stale Handoff) and 2 minors (RESEARCH placeholder wording, orphan cases) are fixed. The user re-confirmed the M7 breakdown as drafted on 2026-10-18.
 
 ## Milestone 7: Online payments (PayMongo, test mode)
 
 Goal (SPEC §9): PayMongo test-mode checkout next to the manual proof flow, with a verified webhook confirming bookings automatically. Postponed from M5 on 2026-10-17 because manual payment and confirmation already work.
 
-> **Status: draft breakdown, re-confirm at the end of M6.** Kept from the earlier plan so the research questions aren't lost. T7.1 ends with a DB and Edge Function plan that needs approval before any migration.
+> **Status: breakdown confirmed by the user (2026-10-18).** Kept from the earlier plan so the research questions aren't lost. T7.1 ends with a DB and Edge Function plan that needs approval before any migration.
 
 Out of scope for M7: live keys and real money, refunds, PayMongo for walk-ins, emails (M8).
 

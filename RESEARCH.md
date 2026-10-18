@@ -294,3 +294,129 @@ All functions are `security definer`, `set search_path = ''`, and follow RPC con
      - token in `#token=`, with `?token=` rewritten for old links
      - `CheckoutPage` and the save-link card build fragment links
      - the recovery hint
+
+---
+
+## Milestone 6: Venue media
+
+Local experiments in this section ran on 2026-10-18 against `supabase start` with a throwaway public bucket `zz-probe-media` (2 MB, JPG/PNG/WEBP). The admin-only INSERT/UPDATE/DELETE policies were added first and a SELECT policy later. The probe used `supabase-js` as an admin, a player and anon, then removed the bucket, policies and users.
+
+### Public bucket vs signed URLs
+- **Status:** Decided (SPEC §10, 2026-10-18)
+- **Question:** Should court photos and the banner live in a public bucket, or a private one served through signed URLs?
+- **Findings:**
+  - Public buckets skip access control for reads only: "Access control is still enforced for other types of operations including uploading, deleting, moving, and copying." Anyone with the URL can fetch the file. Public buckets are also cached more effectively. Source: [bucket fundamentals](https://supabase.com/docs/guides/storage/buckets/fundamentals.md).
+  - *(Local.)* An anonymous `GET /storage/v1/object/public/zz-probe-media/courts/x/a.png` returned 200 with `content-type: image/png`. `getPublicUrl()` is synchronous and builds the URL from the path, so the database stores only the path and the same row works locally and on the hosted project.
+  - *(Local.)* An anonymous `list()` on the public bucket with no anon SELECT policy returned `[]`. Public URLs work without a SELECT policy, and file names can't be listed.
+- **Gotchas:** A private bucket would mean signing a URL for every court card on every visit, and signed URLs change, which defeats caching. Nothing here is sensitive.
+- **Recommendation:** Use a public bucket `venue-media`. Store object paths, not URLs, and build URLs with `getPublicUrl()`. Don't add an anon or player SELECT policy: public reads don't need one, and leaving it out keeps listing closed.
+
+### Storage policies and bucket limits
+- **Status:** Decided (SPEC §10, 2026-10-18)
+- **Question:** Which `storage.objects` policies do admin uploads, replacements and deletes need? What MIME and size limits should the bucket have?
+- **Findings:**
+  - Upsert needs INSERT, SELECT and UPDATE (installed skill `.agents/skills/supabase/SKILL.md`, "Storage access control"). *(Local.)* An admin upsert with only INSERT/UPDATE/DELETE failed with 403 "new row violates row-level security policy". With an admin SELECT policy added, it worked.
+  - *(Local.)* **`remove()` needs SELECT as well as DELETE.** Without a SELECT policy, an admin's `remove(['courts/x/b.png'])` returned `[]` with no error and the object stayed. With an admin SELECT policy, the same call deleted it. A player's `remove()` returned `[]` and deleted nothing.
+  - Objects must be deleted through the Storage API, never with SQL, which leaves the file behind ([delete objects](https://supabase.com/docs/guides/storage/management/delete-objects.md)).
+  - *(Local.)* The bucket limits work: `text/html` was rejected with 415 and a file over 2 MB with 413. A player and anon were both refused with 403 (RLS).
+  - *(Local.)* **The MIME allow-list trusts the declared `contentType`.** HTML bytes uploaded as `image/png` were accepted and served back as `image/png`.
+  - The existing test `09_payment_proofs_storage.test.sql` asserts there are no client INSERT/UPDATE/DELETE/ALL policies on `storage.objects` at all, and its comment says to narrow the check when another bucket needs client writes.
+- **Gotchas:**
+  - A missing SELECT policy fails silently: `remove()` reports success and leaves an orphan. Tests must check that the object is actually gone, not just that there was no error.
+  - Every policy must be scoped by `bucket_id = 'venue-media'`. Otherwise it would also open `payment-proofs`.
+- **Recommendation:**
+  - Bucket: `public = true`, `file_size_limit = 2 MB` (applies to the downscaled file), `allowed_mime_types = image/jpeg, image/png, image/webp`.
+  - Four policies `to authenticated`, one each for SELECT, INSERT, UPDATE and DELETE. Each requires `bucket_id = 'venue-media' and (select private.is_admin())`. INSERT and UPDATE also require the first folder to be `courts` or `banner`.
+  - Because only admins can write and the client re-encodes every image (next entry), the declared-type gap isn't exploitable by players.
+  - In T6.2, narrow the `09` assertion to policies that could apply to `payment-proofs`, and add an explicit test that an admin can't write to `payment-proofs`. That keeps the guarantee rather than weakening it.
+
+### Image size: transformations vs client-side downscale
+- **Status:** Decided (SPEC §10, 2026-10-18)
+- **Question:** Can we resize with Supabase image transformations, or do we downscale in the browser?
+- **Findings:**
+  - "Image Resizing is currently enabled for Pro Plan and above," billed at $5 per 1,000 origin images over quota ([image transformations](https://supabase.com/docs/guides/storage/serving/image-transformations.md)). `config.toml` also says the transformation API is Pro-only, and `[storage.image_transformation]` is commented out.
+  - *(Local.)* `GET /storage/v1/render/image/public/…?width=100` returned 404 "Route … not found", so transformations aren't available locally.
+  - Canvas WebP encoding isn't universal. `toBlob()` silently returns a PNG when it can't encode the requested type, and WebKit closed its WebP-encode bug as WONTFIX ([WebKit 226950](https://bugs.webkit.org/show_bug.cgi?id=226950), [write-up](https://dev.to/dailytechid/canvastoblob-can-silently-hand-you-back-a-png-when-it-cant-encode-what-you-asked-for-4blo)).
+  - Re-encoding through a canvas drops EXIF data, including the GPS location in phone photos. `createImageBitmap` also fails on bytes that aren't an image, so the downscale doubles as a content check.
+- **Gotchas:**
+  - Check `blob.type` after `toBlob('image/webp')` and fall back to JPEG. Never save a PNG under a `.webp` name.
+  - jsdom has no canvas. Keep the canvas code in one small module that component tests mock, and unit-test the pure size maths.
+- **Recommendation:**
+  - Downscale in the browser in `src/features/admin/media.ts`:
+    1. Accept JPG, PNG or WEBP input up to 15 MB.
+    2. Decode with `createImageBitmap(file)`. A decode failure shows "That file isn't a readable image".
+    3. Scale to fit within 1600 px wide for court photos, or 2200 px wide for the banner (2× the 1100 px container), never upscaling.
+    4. Encode WebP at quality 0.82, falling back to JPEG at 0.85 when `blob.type` isn't WebP.
+    5. Refuse the result if it's still over 2 MB.
+  - This works on the free plan and locally, whatever the hosted plan is.
+
+### Replacing and removing images
+- **Status:** Decided (SPEC §10, 2026-10-18)
+- **Question:** How do we replace or remove an image without serving stale copies or leaving orphaned files?
+- **Findings:**
+  - Changes to a public object can take "up to 60 seconds" to clear the CDN, and browsers keep their own copy. For changing assets, upload to a new path rather than overwriting ([Smart CDN](https://supabase.com/docs/guides/storage/cdn/smart-cdn.md)).
+  - *(Local.)* The default response header is `cache-control: max-age=3600`. Uploading with `cacheControl: '31536000'` served `max-age=31536000`.
+  - Courts are only archived (`is_active`) and never deleted from the client, so a court photo can't be orphaned by deleting its court.
+- **Gotchas:** The upload and the row update can't share a transaction. Order the steps so a failure leaves at most an unreferenced file and never a row pointing at a missing one.
+- **Recommendation:**
+  - Paths:
+    - court photo: `courts/{court_id}/{uuid}.{webp|jpg}`
+    - banner: `banner/{uuid}.{webp|jpg}`
+  - Upload with `upsert: false` and `cacheControl: '31536000'`. The path never changes contents, so it's safe to cache for a year.
+  - Replace:
+    1. Upload the new file.
+    2. Update the row with the new path (existing admin RLS).
+    3. Remove the old object, best effort.
+    4. If step 2 fails, remove the new file.
+  - Remove: clear the column first, then remove the object.
+  - Orphans come from a failed best-effort delete, or from an upload whose save never happened (tab closed or request lost after the upload). Accept them, and keep a read-only listing query here for manual cleanup through the Storage API:
+    ```sql
+    select o.name from storage.objects o
+    where o.bucket_id = 'venue-media'
+      and o.name not in (select photo_path from public.courts where photo_path is not null)
+      and o.name is distinct from (select banner_path from public.venue_settings);
+    ```
+  - No scheduled job is needed.
+
+### Banner and photo layout
+- **Status:** Decided (SPEC §10, 2026-10-18)
+- **Question:** What aspect ratios and loading attributes should the banner and court photos use to avoid layout shift, and what alt text?
+- **Findings:**
+  - CSS `aspect-ratio`, or `width`/`height` attributes on `<img>`, reserves the box before the image loads ([web.dev CLS](https://web.dev/articles/optimize-cls#images-without-dimensions)). `object-fit: cover` fills the box by cropping.
+  - Native `loading="lazy"` suits below-the-fold images. The banner is above the fold, so it should load eagerly with `fetchpriority="high"` ([web.dev lazy loading](https://web.dev/articles/browser-level-image-lazy-loading)).
+  - The home page already fetches `venue_settings` (`HomePage.tsx`). Per the confirmed outline, nothing renders until settings load, so the banner appears once, when settings resolve. That's one shift, at most once per visit, and settings are often already in the React Query cache.
+- **Gotchas:** `object-fit: cover` crops differently on phones and desktop, so the admin preview should show both crops.
+- **Recommendation:**
+  - Banner, inside `.container` (max 1100 px wide):
+    - `aspect-ratio: 2 / 1` below 640 px and `3 / 1` from 640 px, with `object-fit: cover; object-position: center`, rounded corners and `fetchpriority="high"`.
+    - The admin form recommends a landscape image of at least 1600 × 600.
+    - Alt text is required while a banner is set (trimmed, 1 to 200 characters) and describes the picture.
+  - Court photos: `aspect-ratio: 16 / 9`, `object-fit: cover`, `loading="lazy"`, `decoding="async"`, explicit `width`/`height`, and alt "Photo of {court name}".
+  - Courts without a photo, or whose photo fails to load, get a placeholder with a sport icon (`aria-hidden`), labelled "{Sport} court" (`role="img"`), never a broken `<img>`. The court name is shown next to it in the tile. *(As built in T6.5.)*
+
+### DB and storage plan for T6.2
+- **Status:** Approved by the user on 2026-10-18, including `db:push` for this migration.
+One migration, `venue_media`:
+1. **Columns**
+   - `courts.photo_path text null`, `check (photo_path ~ ('^courts/' || id::text || '/[0-9a-f-]{36}\.(webp|jpg|jpeg|png)$'))`. The path must sit under its own court's folder.
+   - `venue_settings.banner_path text null`, `check (banner_path ~ '^banner/[0-9a-f-]{36}\.(webp|jpg|jpeg|png)$')`.
+   - `venue_settings.banner_alt text null`, with `check ((banner_path is null) = (banner_alt is null))` and `check (banner_alt is null or (banner_alt = btrim(banner_alt, E' \t\r\n') and char_length(banner_alt) between 1 and 200 and banner_alt ~ '\S'))`. The value is stored already trimmed (the client trims before saving), and an alt made only of whitespace is refused.
+   - No new grants: `update` on `courts` and `venue_settings` is already granted table-wide to `authenticated`, and the existing admin-only RLS update policies decide who can use it. No RPC and no `security definer`.
+2. **Bucket:** insert `venue-media` into `storage.buckets` (`public = true`, `2 MB`, `image/jpeg, image/png, image/webp`), using `on conflict do update` like `payment-proofs`.
+3. **Policies on `storage.objects`**, all `to authenticated`:
+   - "Admins read venue media" (SELECT): `bucket_id = 'venue-media' and (select private.is_admin())`. Needed for `remove()` and upsert, not for public reads.
+   - "Admins upload venue media" (INSERT): the same condition, plus `(storage.foldername(name))[1] in ('courts', 'banner')`, in `with check`.
+   - "Admins update venue media" (UPDATE): the same condition in `using`, and in `with check` together with the `courts`/`banner` folder rule, so a `move()` can't place an object elsewhere.
+   - "Admins delete venue media" (DELETE): `using (bucket_id = 'venue-media' and (select private.is_admin()))`.
+4. **Tests**
+   - New `17_venue_media.test.sql`:
+     - bucket config
+     - anon and player can't insert, update or delete in `venue-media` (42501, or 0 rows)
+     - admin can insert under `courts/` and `banner/`, and is refused elsewhere
+     - admin sees objects (SELECT), and player and anon see none through RLS
+     - the path CHECKs: wrong court folder, wrong prefix, bad extension
+     - the `banner_alt` CHECKs: alt without path, path without alt, blank alt, a tab/newline-only alt, untrimmed alt, and more than 200 characters
+     - the column updates go through admin RLS: a player's update changes 0 rows, an admin's update works
+   - Update `09_payment_proofs_storage.test.sql`: the "no write policy" check excludes only the three venue-media write policies, matched by exact `policyname`, not by text-matching their definitions, so any other write policy still fails it. Add behavioral checks that admin, player and anon all get 42501 inserting into `payment-proofs`. Deletes are checked through policy definitions, because Storage blocks SQL deletes.
+   - The `00_rls_coverage` check should still pass, since there are no new tables.
+5. Then run `npm run test:db` locally, `npm run db:push` (linked project) and `npm run db:types`, and update SPEC §6.

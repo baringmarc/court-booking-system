@@ -5,6 +5,7 @@ import { PageLoader } from '../../components/PageLoader'
 import { addDays, formatDateLabel, todayInZone } from '../../lib/time'
 import { SPORT_LABELS, SPORTS, type Court, type Sport, type VenueSettings } from '../catalog/api'
 import { useCourts, useVenueSettings } from '../catalog/hooks'
+import { CourtTiles } from '../catalog/CourtTiles'
 import { toCheckoutSearch } from './checkoutParams'
 import { useAvailability } from './hooks'
 import { reconcileSelection, summarizeSelection, toggleSlot, type Selection, type Slot } from './selection'
@@ -111,6 +112,11 @@ function BookingBoard({ settings, courts }: { settings: VenueSettings; courts: C
           </div>
         )}
       </div>
+
+      <details className="court-info">
+        <summary>About the {SPORT_LABELS[sport].toLowerCase()} courts</summary>
+        <CourtTiles courts={sportCourts} showDescription />
+      </details>
 
       <p className="muted small">
         {formatDateLabel(date, tz)} · Tap a time to select it, then tap more to extend. Prices are per hour.

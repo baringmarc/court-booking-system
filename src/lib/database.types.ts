@@ -222,6 +222,7 @@ export type Database = {
           id: string
           is_active: boolean
           name: string
+          photo_path: string | null
           sort_order: number
           sport: Database["public"]["Enums"]["sport"]
           updated_at: string
@@ -233,6 +234,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           name: string
+          photo_path?: string | null
           sort_order?: number
           sport: Database["public"]["Enums"]["sport"]
           updated_at?: string
@@ -244,6 +246,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           name?: string
+          photo_path?: string | null
           sort_order?: number
           sport?: Database["public"]["Enums"]["sport"]
           updated_at?: string
@@ -367,6 +370,8 @@ export type Database = {
       }
       venue_settings: {
         Row: {
+          banner_alt: string | null
+          banner_path: string | null
           booking_window_days: number
           cancel_cutoff_hours: number
           currency: string
@@ -380,6 +385,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          banner_alt?: string | null
+          banner_path?: string | null
           booking_window_days?: number
           cancel_cutoff_hours?: number
           currency?: string
@@ -393,6 +400,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          banner_alt?: string | null
+          banner_path?: string | null
           booking_window_days?: number
           cancel_cutoff_hours?: number
           currency?: string

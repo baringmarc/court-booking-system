@@ -1,6 +1,6 @@
 # Court Booking System — Product Spec
 
-> Status: draft v0.8 (2026-10-18, M5 done; next: M6 venue media, then M7 PayMongo, M8 polish). Portfolio project: one realistic venue, simplified operations.
+> Status: draft v0.9 (2026-10-18, M6 done; next: M7 PayMongo, then M8 polish). Portfolio project: one realistic venue, simplified operations.
 
 ## 1. Overview
 
@@ -33,8 +33,8 @@ Admins are promoted manually in the database (no self-signup as admin).
   - slot length (60 min)
   - booking rules: booking window, payment hold, cancellation cutoff and maximum rejections
   - payment instructions: the GCash, Maya and bank account details shown to players
-  - site banner (*planned, M6*): an optional image with alt text, shown under the public header. No banner means no banner section at all.
-- **Court**: name, sport (`badminton` | `pickleball` | `basketball` | `tennis`), description, **default hourly rate**, active flag, and an optional **photo** (*planned, M6*) that shows players what the court looks like.
+  - site banner: an optional image with alt text (no headline or link), shown on the home page just below the header. No banner means no banner section at all.
+- **Court**: name, sport (`badminton` | `pickleball` | `basketball` | `tennis`), description, **default hourly rate**, active flag, and an optional **photo** that shows players what the court looks like.
 - **Rate table**: optional per-court price overrides for each day-of-week × hour slot. A slot with no override uses the court's default hourly rate.
 - **Operating hours**: open and close time per day of week, for the whole venue.
 - **Blackout**: a time range when a court (or every court, if `court_id` is null) can't be booked, e.g. maintenance or a tournament.
@@ -139,9 +139,10 @@ profiles          id (= auth.users.id) PK, full_name, phone, role ('player'|'adm
 venue_settings    id (singleton), name, timezone, currency, slot_minutes (60), booking_window_days (30),
                   payment_hold_minutes (60), cancel_cutoff_hours (1), max_rejections (2),
                   payment_instructions (text/markdown),
-                  banner_path (nullable), banner_alt (nullable)   -- M6; alt required when a banner is set
+                  banner_path (nullable), banner_alt (nullable)   -- M6; CHECK banner_path under 'banner/'; set together;
+                                                                  -- alt stored trimmed, 1–200 chars
 courts            id, name, sport, description, default_hourly_rate numeric, is_active, sort_order,
-                  photo_path (nullable; M6), created_at
+                  photo_path (nullable; M6; CHECK under 'courts/{id}/'), created_at
 court_rates       court_id, day_of_week (0–6), start_hour (0–23), price numeric
                   PK (court_id, day_of_week, start_hour)
 operating_hours   day_of_week (0–6) PK, open_time, close_time, is_closed
@@ -168,7 +169,7 @@ payments          id, booking_id, method ('gcash'|'maya'|'bank_transfer'|'cash')
 
 Storage: a private bucket called `payment-proofs`. Files live at `{booking_id}/{uuid}.{ext}`. Allowed types are jpg, png, webp and pdf, up to 5 MB.
 
-*Planned, M6:* a **public** bucket called `venue-media` for court photos (`courts/{court_id}/{uuid}.{ext}`) and the banner (`banner/{uuid}.{ext}`). Anyone can read it; only admins can write. Allowed types are jpg, png and webp, with the size limit settled in T6.1. A replaced image gets a new file name and the old file is deleted.
+A **public** bucket called `venue-media` holds court photos (`courts/{court_id}/{uuid}.{ext}`) and the banner (`banner/{uuid}.{ext}`) (M6). Anyone can read it through public URLs (no listing); only admins can write. Allowed types are jpg, png and webp, up to 2 MB after the browser downscales the image (court photos at most 1600 px wide, the banner at most 2200 px, re-encoded as WEBP with a JPEG fallback). A replaced image gets a new file name (cached for a year) and the old file is deleted. Public photos are lazy-loaded at 16:9 with fixed dimensions, and a missing or failed photo shows a sport placeholder.
 
 ### Access (RLS summary)
 
@@ -176,7 +177,7 @@ Storage: a private bucket called `payment-proofs`. Files live at `{booking_id}/{
 - `bookings`: players read their own rows (`user_id = auth.uid()`); admins read and write all rows. **Nobody inserts directly.** Every write goes through RPCs.
 - Public availability comes from an RPC that returns busy ranges and prices only, with no personal data.
 - `payments` and the storage bucket: the booking owner and admins can read. Writes go through RPCs or an Edge Function.
-- `venue-media` bucket (M6): anyone can read; only admins (`private.is_admin()`) can insert, update or delete. `courts.photo_path` and the banner columns are written through the existing admin-only RLS on `courts` and `venue_settings`.
+- `venue-media` bucket (M6): anyone can read through public URLs (there's no anon or player SELECT policy, so files can't be listed); only admins (`private.is_admin()`) can select, insert, update or delete, and uploads must go under `courts/` or `banner/`. `courts.photo_path` and the banner columns are written through the existing admin-only RLS on `courts` and `venue_settings`.
 
 ### Server API (RPCs / Edge Functions)
 
@@ -200,8 +201,8 @@ Guest access uses a random token. It is shown once (in the confirmation page lin
 
 | Route               | Access             | Content                                                                                                                                  |
 | ------------------- | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `/`                 | public             | Venue info, courts grouped by sport (with each court's photo, or a sport placeholder; M6), "Book now".                                  |
-| `/book`             | public             | Date picker and sport filter, then a court × time slot grid with the price per slot, then select consecutive slots.                      |
+| `/`                 | public             | Site banner when set (M6), venue info, courts grouped by sport (with each court's photo, or a sport placeholder; M6), "Book now".       |
+| `/book`             | public             | Date picker and sport filter, a collapsed "About the … courts" panel with each court's photo (or sport placeholder) and description (M6), then a court × time slot grid with the price per slot, then select consecutive slots. |
 | `/book/checkout`    | public             | Summary and total price. Guest form (name, email, phone) or prefilled for a logged-in player. Confirm.                                   |
 | `/booking/:ref`     | owner or `#token=` | Status, payment instructions, countdown to expiry, proof upload, rejection reason and re-upload, cancel button.                          |
 | `/login`, `/signup` | public             | "Continue with Google" and email + password.                                                                                             |
@@ -216,7 +217,7 @@ Guest access uses a random token. It is shown once (in the confirmation page lin
 
 The UI is mobile-first: most players will book from a phone.
 
-**Site banner (M6).** When the venue has a banner, the public `Layout` shows it between the header and the page content. Without one (or while settings load or fail), the section isn't rendered at all.
+**Site banner (M6).** When the venue has a banner, the **home page** (`/`) shows it just below the header, before the page content. Other pages never show it. It's an image with alt text only (no headline or link). Without one (or while settings load or fail), the section isn't rendered at all.
 
 **Admin shell.** Every `/admin/*` route renders in its own `AdminLayout` (admin nav, no public header, footer or booking nav), not inside the public `Layout`. The public header has no Admin link; staff go to `/admin` directly, and unauthenticated visits redirect to `/admin/login` and return to the requested page after sign-in. The shell only controls what is shown: admin access itself is enforced in the database (`profiles.role` can't be changed by users, and every admin read and write checks `private.is_admin()`). It is still one Vite app, and admin code stays lazy-loaded out of the public bundle.
 
@@ -231,7 +232,7 @@ Email on booking created (with the guest link), payment confirmed, proof rejecte
 3. ✅ **Booking**: `get_availability` with prices, the slot grid, `create_booking` with the exclusion constraint and pricing, and the booking detail page.
 4. ✅ **Payments**: storage bucket, proof upload, admin review queue with the reject → re-upload loop, expiry job, walk-in flow, admin dashboard.
 5. ✅ **Admin shell and accounts**: separate admin layout and login; My bookings, cancellation, guest token flow hardened, `claim_guest_bookings`.
-6. **Venue media**: court photos and an optional site banner, uploaded by admins.
+6. ✅ **Venue media**: court photos and an optional site banner, uploaded by admins.
 7. **Online payments**: PayMongo (test mode) checkout with webhook auto-confirm, alongside manual proof.
 8. **Polish**: emails, empty, loading and error states, a11y pass, deploy (e.g. Vercel + Supabase), README screenshots and a demo video.
 
@@ -263,13 +264,11 @@ Email on booking created (with the guest link), payment confirmed, proof rejecte
 | 2026-10-17 | Scope change: the **admin area gets its own shell** (own layout and `/admin/login`, no Admin link in the public header) in the same SPA, still lazy-loaded. It is built first in M5, together with Accounts. |
 | 2026-10-17 | PayMongo is **postponed**, after Accounts, because manual payment and admin confirmation already cover the flow. |
 | 2026-10-17 | New feature, **venue media (M6)**: one optional photo per court, and an optional site banner under the public header that is hidden when none is set. Both are uploaded by admins to a public `venue-media` bucket. PayMongo moves to M7 and Polish to M8. |
+| 2026-10-18 | Venue media (M6, T6.1): public `venue-media` bucket with admin-only SELECT/INSERT/UPDATE/DELETE policies (`remove()` needs SELECT); 2 MB, JPG/PNG/WEBP. No Supabase image transformations (Pro only, off locally): admins' browsers downscale and re-encode images before upload, which also strips EXIF. Paths are stored (not URLs), new uuid name per upload, old file removed best effort. Banner 2:1 on phones, 3:1 from 640 px, `object-fit: cover`; alt text required while a banner is set. |
+| 2026-10-18 | Site banner (M6): shown on the home page only, just below the header, and it's just an image with alt text (no headline or link). Closes the §11 banner questions. |
 | 2026-10-16 | Walk-ins go straight to `confirmed` with `source = 'walk_in'` and an approved payment row (default cash) recorded by the admin. `payment_proofs` is generalized into `payments`. |
 
 ## 11. Open questions
-
-Venue media (M6), to confirm in T6.1:
-- Which public pages show the banner. Working assumption: every page in the public `Layout`. The alternative is the home page only.
-- Whether the banner needs a headline or a link, or is just an image with alt text. Working assumption: image + alt only.
 
 To be settled in T7.1 (PayMongo research, M7):
 - Checkout Sessions (hosted) vs Payment Intents. Hosted checkout is the working assumption.

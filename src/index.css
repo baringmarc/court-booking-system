@@ -78,6 +78,8 @@ img, svg { display: block; }
 .stack { display: flex; flex-direction: column; gap: 14px; }
 
 .hero { padding: 24px 0 32px; }
+.home-banner { display: block; width: 100%; height: auto; aspect-ratio: 2 / 1; object-fit: cover; object-position: center; border-radius: var(--radius); margin-top: 16px; background: var(--accent-soft); }
+@media (min-width: 640px) { .home-banner { aspect-ratio: 3 / 1; } }
 .hero h1 { font-size: clamp(1.75rem, 5vw, 2.5rem); }
 .hero-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 
@@ -139,8 +141,15 @@ h3 { font-size: 1.05rem; margin: 0; }
 .hours-summary { list-style: none; padding: 0; margin: 0 0 16px; color: var(--muted); }
 .sport-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
 .card > :last-child { margin-bottom: 0; }
-.chip-list { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 6px; }
-.chip { font-size: 0.85rem; padding: 4px 10px; border-radius: 999px; background: var(--accent-soft); color: var(--text); }
+.court-tiles { list-style: none; padding: 0; margin: 12px 0 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+@media (min-width: 640px) { .court-tiles { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); } }
+.court-tile { min-width: 0; }
+.court-tile-body { padding-top: 6px; }
+.court-tile-name { margin: 0; font-weight: 600; font-size: 0.95rem; }
+.court-photo { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 8px; background: var(--accent-soft); }
+.court-photo-placeholder { display: flex; align-items: center; justify-content: center; font-size: 2rem; }
+.court-info { margin: 4px 0 12px; }
+.court-info > summary { cursor: pointer; font-weight: 600; padding: 6px 0; }
 
 /* Admin */
 
@@ -250,6 +259,13 @@ button.day:focus-visible, .slot:focus-visible, .date-nav input:focus-visible { o
 .form-warning { color: #8a5a00; margin: 0; font-size: 0.9rem; }
 @media (prefers-color-scheme: dark) { .form-warning { color: #f5c451; } }
 .proof-preview { max-width: 100%; max-height: 240px; border-radius: 8px; border: 1px solid var(--border); object-fit: contain; }
+.media-preview { display: block; width: 100%; max-width: 480px; height: auto; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 8px; border: 1px solid var(--border); background: var(--border); }
+.banner-previews { display: grid; grid-template-columns: 1fr; gap: 12px; }
+.banner-previews figure { margin: 0; }
+.banner-preview { display: block; width: 100%; height: auto; object-fit: cover; border-radius: 8px; border: 1px solid var(--border); background: var(--border); }
+.banner-preview-wide { aspect-ratio: 3 / 1; }
+.banner-preview-narrow { aspect-ratio: 2 / 1; max-width: 360px; }
+@media (min-width: 640px) { .banner-previews { grid-template-columns: 2fr 1fr; align-items: start; } }
 .badge.review-pending { background: color-mix(in srgb, #f5b400 25%, transparent); color: var(--text); }
 .badge.review-approved { background: var(--accent-soft); color: var(--accent); }
 .badge.review-rejected { background: color-mix(in srgb, var(--danger) 12%, transparent); color: var(--danger); }

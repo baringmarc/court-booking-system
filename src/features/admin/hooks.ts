@@ -7,9 +7,15 @@ import {
   fetchApprovedPayments,
   fetchProofQueueCount,
   fetchProofUrl,
+  removeBanner,
+  removeCourtPhoto,
+  saveBanner,
   reviewPayment,
+  setCourtPhoto,
+  type BannerInput,
   type WalkInInput,
 } from './api'
+import { catalogKeys, type Court, type VenueSettings } from '../catalog/api'
 import { bookingKeys } from '../booking/hooks'
 import type { BookingFilters } from './bookingFilters'
 
@@ -77,4 +83,46 @@ export function useCreateWalkIn() {
       qc.invalidateQueries({ queryKey: bookingKeys.allAvailability }),
     ]),
   })
+}
+
+// --- venue media -----------------------------------------------------------------
+
+function useCourtPhotoMutation<V>(court: Pick<Court, 'id' | 'photo_path'>, run: (vars: V) => Promise<Court>) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: run,
+    onSuccess: (saved) => {
+      qc.setQueryData(catalogKeys.court(saved.id), saved)
+      return qc.invalidateQueries({ queryKey: catalogKeys.allCourts })
+    },
+    // A failed save may still have changed storage; refetch so the page shows what's stored.
+    onError: () => qc.invalidateQueries({ queryKey: catalogKeys.court(court.id) }),
+  })
+}
+
+/** Takes an image that's already downscaled (see imageResize.ts). */
+export function useSetCourtPhoto(court: Pick<Court, 'id' | 'photo_path'>) {
+  return useCourtPhotoMutation(court, (image: Blob) => setCourtPhoto(court, image))
+}
+
+export function useRemoveCourtPhoto(court: Pick<Court, 'id' | 'photo_path'>) {
+  return useCourtPhotoMutation<void>(court, () => removeCourtPhoto(court))
+}
+
+function useBannerMutation<V>(run: (vars: V) => Promise<VenueSettings>) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: run,
+    onSuccess: (saved) => qc.setQueryData(catalogKeys.settings, saved),
+    onError: () => qc.invalidateQueries({ queryKey: catalogKeys.settings }),
+  })
+}
+
+/** Image (if any) must already be downscaled (see imageResize.ts). */
+export function useSaveBanner(settings: Pick<VenueSettings, 'banner_path'>) {
+  return useBannerMutation((input: BannerInput) => saveBanner(settings, input))
+}
+
+export function useRemoveBanner(settings: Pick<VenueSettings, 'banner_path'>) {
+  return useBannerMutation<void>(() => removeBanner(settings))
 }
