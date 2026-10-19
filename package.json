@@ -13,6 +13,7 @@
     "test:db": "sh scripts/with-docker.sh sh scripts/test-db.sh",
     "smoke:proof": "node scripts/smoke-payment-proof.mjs",
     "smoke:paymongo": "node scripts/smoke-paymongo.mjs",
+    "smoke:emails": "node scripts/smoke-emails.mjs",
     "test:e2e": "playwright test",
     "verify": "npm run typecheck && npm run lint && npm run test && npm run test:db && npm run build",
     "preview": "vite preview",

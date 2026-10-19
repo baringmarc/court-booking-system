@@ -8,6 +8,7 @@ import {
   fetchAvailability,
   fetchGuestBooking,
   fetchOwnBooking,
+  requestGuestLinkEmail,
   startPaymongoCheckout,
   submitPaymentProof,
   type BookingDetail,
@@ -35,6 +36,11 @@ export function useCreateBooking() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (input: NewBooking) => createBooking(input),
+    // A guest's booking email carries their private link, so only this page can ask for it (it has the token).
+    // Fire and forget: the booking already succeeded, and without this call the email still goes out, minus the link.
+    onSuccess: ({ referenceCode, guestToken }) => {
+      if (guestToken) requestGuestLinkEmail({ referenceCode, token: guestToken }).catch(() => {})
+    },
     // Success and "slot taken" both mean the grid is stale; a new booking also belongs in My bookings.
     onSettled: () => Promise.all([
       qc.invalidateQueries({ queryKey: bookingKeys.allAvailability }),

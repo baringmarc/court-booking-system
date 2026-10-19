@@ -1,6 +1,6 @@
 // Guest books, pays and uploads a proof; an admin rejects it (the guest re-uploads), then approves it.
 import { expect, test, type Page } from '@playwright/test'
-import { createAdmin, E2E_PREFIX, logInAdmin, pickFirstFreeSlot, uploadProof, venueDate } from './support/helpers.ts'
+import { createAdmin, E2E_PREFIX, emailText, logInAdmin, pickFirstFreeSlot, uploadProof, venueDate } from './support/helpers.ts'
 
 // Guest links keep the token in the fragment. Going to the same URL again would only be a same-document
 // hash navigation (no reload), so leave the page first, as opening the saved link from elsewhere does.
@@ -17,7 +17,8 @@ test.describe.serial('guest booking and admin review', () => {
     await pickFirstFreeSlot(page, { date: venueDate(8), sport: 'pickleball', court: 'Pickleball 1' })
 
     await page.getByLabel('Name').fill(`${E2E_PREFIX} Guest`)
-    await page.getByLabel('Email').fill(`e2e-guest-${Date.now()}@example.com`)
+    const guestEmail = `e2e-guest-${Date.now()}@example.com`
+    await page.getByLabel('Email').fill(guestEmail)
     await page.getByLabel('Phone').fill('0917 000 1234')
     await page.getByRole('button', { name: 'Confirm booking' }).click()
 
@@ -31,6 +32,10 @@ test.describe.serial('guest booking and admin review', () => {
 
     bookingUrl = page.url()
     reference = new URL(bookingUrl).pathname.split('/').pop()!
+
+    // The booking email (SPEC §8) arrives in the local Mailpit with the same private link.
+    const mail = await emailText(guestEmail, new RegExp(`^Booking ${reference}: please pay to confirm$`))
+    expect(mail).toContain(`/booking/${reference}${new URL(bookingUrl).hash}`)
     await uploadProof(page)
     await expect(page.getByText('Payment under review')).toBeVisible()
 

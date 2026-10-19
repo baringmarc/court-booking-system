@@ -247,8 +247,9 @@ select is(pg_temp.hint_of($$ select * from public.claim_guest_link_email((select
 -- ---------------------------------------------------------------------------
 reset role;
 -- Isolate the queue: everything from other tests in this transaction is parked far in the future.
+-- (only unsent rows: the local database may also hold real rows from smoke runs)
 update public.email_outbox set status = 'pending', locked_until = null, next_attempt_at = now() + interval '1 day'
-where booking_id not in (select id from b where label in ('player', 'reject'));
+where status in ('pending', 'sending') and booking_id not in (select id from b where label in ('player', 'reject'));
 update public.email_outbox set next_attempt_at = now() + interval '1 day'
 where booking_id = (select id from b where label = 'reject') and kind <> 'booking_created';
 update public.email_outbox set next_attempt_at = now() - interval '1 second'

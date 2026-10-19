@@ -7,9 +7,10 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
 > Update this section at the end of every session or task. Keep it short; it's the first thing the next session reads.
 
 - **Current milestone:** 8 (Polish). The breakdown was approved on 2026-10-18. M7 ✅ done on 2026-10-18.
-- **Next task:** T8.3 (transactional emails: `send-emails`, `email-guest-link`, templates, Mailpit smoke and e2e). It adds Edge Functions, so it needs a plan gate. The design is in RESEARCH M8 plan items 2, 3 and 5 and the T8.2 follow-up.
-- **State:** T8.2 done: `email_outbox`, its trigger, RPCs and cron jobs are live on the linked project. Without the Vault secrets, the cron job does nothing there. PayMongo test mode is live on the linked project.
+- **Next task:** T8.4 (error, loading and empty states pass, plus the settings spacing fix).
+- **State:** T8.3 done: booking emails work locally through Mailpit (`npm run smoke:emails`). T8.2: `email_outbox`, its trigger, RPCs and cron jobs are live on the linked project. Without the Vault secrets, the cron job does nothing there. PayMongo test mode is live on the linked project.
 - **Blockers / notes:**
+  - Emails locally: `supabase/functions/.env` must keep `EMAIL_TRANSPORT=mailpit`, `MAILPIT_URL` and `EMAIL_WORKER_SECRET` (see `.env.example`) for smoke and e2e. Restart the stack after changing it. Your PayMongo test key is commented out there; uncomment it only for real local test payments, and expect `pay-online` e2e and `smoke:paymongo` to fail while it's active.
   - Scope added on 2026-10-19 (SPEC §9, §10, §11): slot status colors are in T8.5, the settings spacing fix is in T8.4, and M9 is outlined at the end of this file. The README moved there. Booker names are **first name only** in public. A court can be deleted only if it was never booked.
   - The >500 kB main chunk warning is back (`index-*.js` 614 kB in the 2026-10-18 build, see H6). Check it during T8.5/T8.7.
   - M8 emails: no Resend for now (user decision, 2026-10-19). Build and test through Mailpit; production runs `EMAIL_TRANSPORT=disabled`. T8.6 needs a Vercel project from the user. Never commit the Vault worker secret (or a Resend key, if one is added later).
@@ -18,7 +19,6 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
   - Guest links use `#token=`. Going to the same URL again is a hash-only navigation (no reload), so e2e leaves the page first (`openGuestLink`).
   - Venue media: paths are stored, not URLs (`mediaUrl()`). Uploads are downscaled in the browser and named with a new uuid. `remove()` fails silently without SELECT, so the code checks what it returned. Orphan listing query: RESEARCH M6.
   - `e2e/banner.spec.ts` skips itself when a banner is already set on the local stack (the banner is venue-wide). Remove it in `/admin/settings` to get the coverage back.
-  - **Local PayMongo key trap:** the user's `sk_test_` key is now in the local `supabase/functions/.env`, and a test key always beats `PAYMONGO_MODE=stub`. The running edge runtime still has an empty key. After the next `supabase stop/start`, local runs would call the real PayMongo API, and `pay-online.spec.ts`, `smoke:paymongo` and the Stop hook would fail. Keep the local key **blank** for test runs (the key lives on the linked project). The user chose to manage that file themselves.
   - PayMongo on the linked project: secrets `PAYMONGO_SECRET_KEY`, `PAYMONGO_WEBHOOK_SECRET` and `PUBLIC_SITE_URL` (localhost only until T8.6). Webhook registered in the dashboard under Settings → Webhooks (Test Mode).
   - Local PayMongo setup: `supabase/functions/.env` (from `.env.example`) holds `PAYMONGO_MODE=stub`, `PUBLIC_SITE_URL` and the local webhook secret. Restart the stack (`supabase stop/start`) after adding a function or changing that file. `npm run smoke:paymongo` exercises both functions.
   - Open follow-ups:
@@ -695,10 +695,19 @@ Out of scope for M8: live PayMongo keys and real money, refunds, SMS, new featur
 - **Notes:** Migration `20261019143330_email_outbox.sql`. pgTAP `19_email_outbox.test.sql` (58 assertions) covers RLS and grants, every queueing rule (including that a queueing error never fails the booking change, and a webhook replay), the claim, lease, backoff and failure rules, the guest-link claim, the Vault-gated pg_net poke and the purge. 446 pgTAP assertions pass locally. `db:push` was run (the linked `cron.job` has send-emails and purge-email-outbox) and `db:types` too. `seed.sql` suppresses emails for demo bookings. SPEC §6, §8 and §10 are updated. The reviewer passed it, and both SPEC majors are fixed.
 - **Follow-ups:** T8.3: `email-guest-link` must re-read the booking's current status after `claim_guest_link_email` (which leases the row whatever the booking's state) and finish the row as `skipped` when a later event has overtaken it. That is the reviewer's major 2, done in the function rather than with a second migration.
 
-### [ ] T8.3 Transactional emails
+### [x] T8.3 Transactional emails
 - **Depends:** T8.2
 - **Do:** Send the four SPEC §8 emails as T8.1 decides, test them locally through Mailpit, and add a smoke script. The transport is `resend | mailpit | disabled`, and the hosted default `disabled` marks rows `skipped` (no Resend for now; the Resend adapter is written but switched off).
 - **Acceptance:** Vitest covers the templates (guest link present only in the guest's own email) and the transport choice (`disabled` → skipped). The smoke test covers each trigger, and e2e checks the booking-created email in Mailpit.
+- **Notes:**
+  - New functions `send-emails` (x-worker-secret) and `email-guest-link` (token in the body). They share `_shared/emailTemplates.ts` and `_shared/email.ts` (transport, `emailAction`, Resend and Mailpit senders). The client asks for the link email in `useCreateBooking`'s `onSuccess`, fire and forget.
+  - Tests:
+    - Vitest: `emailTemplates.test.ts`, `email.test.ts`, `hooks.test.tsx`
+    - `npm run smoke:emails`: every trigger, the fallback without the link, an overtaken email skipped by both the worker and the link call, and worker auth
+    - e2e: `guest-and-review` reads the booking email from Mailpit
+    - Results: verify passes, e2e is 24 passed with 2 known banner skips, and smoke:paymongo and smoke:proof still pass
+  - The local `supabase/functions/.env` gained the email lines, and the user's `PAYMONGO_SECRET_KEY` line is commented out (the user approved it) so local runs stay in stub mode.
+  - The functions are not deployed to the linked project yet; that happens in T8.6. The reviewer passed it, and its 3 majors and 1 minor are fixed (SPEC §6 and §10, `emailAction` tested in Vitest, the guest link skip covered by smoke, a 401 when the secret is missing).
 
 ### [ ] T8.4 Error, loading and empty states pass
 - **Do:** Go through every async view, and fix the carried follow-ups:

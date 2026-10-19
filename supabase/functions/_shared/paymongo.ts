@@ -127,7 +127,7 @@ async function hmacSha256Hex(secret: string, message: string) {
 }
 
 /** Compares in time that doesn't depend on where the strings differ. */
-function constantTimeEqual(a: string, b: string) {
+export function constantTimeEqual(a: string, b: string) {
   let diff = a.length ^ b.length
   for (let i = 0; i < Math.max(a.length, b.length); i++) diff |= (a.charCodeAt(i) || 0) ^ (b.charCodeAt(i) || 0)
   return diff === 0

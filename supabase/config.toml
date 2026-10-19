@@ -403,6 +403,16 @@ verify_jwt = false
 # PayMongo sends no JWT or API key; the function verifies the Paymongo-Signature header instead.
 verify_jwt = false
 
+[functions.send-emails]
+# Called by pg_cron through pg_net (and by local smoke tests) with no JWT; the function checks the x-worker-secret
+# header against EMAIL_WORKER_SECRET instead.
+verify_jwt = false
+
+[functions.email-guest-link]
+# Same auth model as submit-payment-proof: guests call with the publishable key (not a JWT); the token in the body
+# is checked against the booking's stored hash.
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327
