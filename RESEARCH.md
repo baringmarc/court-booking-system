@@ -706,7 +706,7 @@ Fetched on 2026-10-18. Local experiments ran against the running local stack.
 
 ### Email and deploy plan for T8.2–T8.3 and T8.6
 - **Status:** Approved by the user on 2026-10-18, including `db:push` of the T8.2 migration. The user will use a verified domain for Resend (booking emails and Auth SMTP), and chose Vercel.
-1. **Migration** (T8.2), applied with `db:push` to the linked project:
+1. **Migration** (T8.2), applied with `db:push` to the linked project. *(As built: one `bookings` trigger replaces the `payments` trigger, and `finish_email` takes a text outcome; see SPEC §10, 2026-10-19.)*
    - `create extension if not exists pg_net`
    - `payments (provider_checkout_id) where provider_checkout_id is not null` index
    - `email_outbox` table with the columns above. RLS: an admin SELECT policy only, and grants revoked from anon and authenticated except a `select` that the policy gates.

@@ -253,6 +253,72 @@ export type Database = {
         }
         Relationships: []
       }
+      email_outbox: {
+        Row: {
+          attempts: number
+          booking_id: string
+          created_at: string
+          data: Json
+          for_guest: boolean
+          id: string
+          kind: Database["public"]["Enums"]["email_kind"]
+          last_error: string | null
+          locked_until: string | null
+          next_attempt_at: string
+          payment_id: string | null
+          sent_at: string | null
+          status: Database["public"]["Enums"]["email_status"]
+          to_email: string
+        }
+        Insert: {
+          attempts?: number
+          booking_id: string
+          created_at?: string
+          data: Json
+          for_guest: boolean
+          id?: string
+          kind: Database["public"]["Enums"]["email_kind"]
+          last_error?: string | null
+          locked_until?: string | null
+          next_attempt_at?: string
+          payment_id?: string | null
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["email_status"]
+          to_email: string
+        }
+        Update: {
+          attempts?: number
+          booking_id?: string
+          created_at?: string
+          data?: Json
+          for_guest?: boolean
+          id?: string
+          kind?: Database["public"]["Enums"]["email_kind"]
+          last_error?: string | null
+          locked_until?: string | null
+          next_attempt_at?: string
+          payment_id?: string | null
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["email_status"]
+          to_email?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_outbox_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_outbox_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       operating_hours: {
         Row: {
           close_time: string
@@ -474,7 +540,31 @@ export type Database = {
         }
         Returns: Database["public"]["Enums"]["booking_status"]
       }
+      claim_email_outbox: {
+        Args: { p_limit?: number }
+        Returns: {
+          attempts: number
+          booking_id: string
+          booking_status: Database["public"]["Enums"]["booking_status"]
+          data: Json
+          for_guest: boolean
+          id: string
+          kind: Database["public"]["Enums"]["email_kind"]
+          to_email: string
+        }[]
+      }
       claim_guest_bookings: { Args: never; Returns: number }
+      claim_guest_link_email: {
+        Args: { p_reference_code: string; p_token: string }
+        Returns: {
+          attempts: number
+          booking_id: string
+          data: Json
+          id: string
+          reference_code: string
+          to_email: string
+        }[]
+      }
       create_booking: {
         Args: {
           p_court_id: string
@@ -505,6 +595,10 @@ export type Database = {
           id: string
           reference_code: string
         }[]
+      }
+      finish_email: {
+        Args: { p_error?: string; p_id: string; p_outcome: string }
+        Returns: Database["public"]["Enums"]["email_status"]
       }
       get_availability: {
         Args: { p_court_id?: string; p_date: string }
@@ -609,6 +703,12 @@ export type Database = {
         | "expired"
         | "rejected"
         | "cancelled"
+      email_kind:
+        | "booking_created"
+        | "payment_confirmed"
+        | "proof_rejected"
+        | "booking_cancelled"
+      email_status: "pending" | "sending" | "sent" | "skipped" | "failed"
       payment_method: "gcash" | "maya" | "bank_transfer" | "cash" | "paymongo"
       payment_review_status: "pending" | "approved" | "rejected"
       sport: "badminton" | "pickleball" | "basketball" | "tennis"
@@ -752,6 +852,13 @@ export const Constants = {
         "rejected",
         "cancelled",
       ],
+      email_kind: [
+        "booking_created",
+        "payment_confirmed",
+        "proof_rejected",
+        "booking_cancelled",
+      ],
+      email_status: ["pending", "sending", "sent", "skipped", "failed"],
       payment_method: ["gcash", "maya", "bank_transfer", "cash", "paymongo"],
       payment_review_status: ["pending", "approved", "rejected"],
       sport: ["badminton", "pickleball", "basketball", "tennis"],

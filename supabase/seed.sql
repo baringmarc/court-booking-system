@@ -2,6 +2,9 @@
 -- Local:  runs automatically on `supabase db reset`.
 -- Hosted: npx supabase db query --linked -f supabase/seed.sql
 
+-- Demo bookings must not queue booking emails (SPEC §8): the bookings_queue_email trigger checks this setting.
+select set_config('app.suppress_booking_emails', 'on', false);
+
 insert into public.courts (name, sport, description, default_hourly_rate, sort_order) values
   ('Badminton 1',       'badminton',  'Wooden floor, BWF-standard lighting.',      350,  1),
   ('Badminton 2',       'badminton',  'Wooden floor, BWF-standard lighting.',      350,  2),

@@ -7,8 +7,8 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
 > Update this section at the end of every session or task. Keep it short; it's the first thing the next session reads.
 
 - **Current milestone:** 8 (Polish). The breakdown was approved on 2026-10-18. M7 ✅ done on 2026-10-18.
-- **Next task:** T8.2 (migration: email outbox + payments index). Its plan is already approved (RESEARCH M8 "Email and deploy plan"), including `db:push`.
-- **State:** T8.1 done: the email and deploy plan is approved. M7 is complete, reviewer-passed and committed (7eb46be). PayMongo test mode is live on the linked project.
+- **Next task:** T8.3 (transactional emails: `send-emails`, `email-guest-link`, templates, Mailpit smoke and e2e). It adds Edge Functions, so it needs a plan gate. The design is in RESEARCH M8 plan items 2, 3 and 5 and the T8.2 follow-up.
+- **State:** T8.2 done: `email_outbox`, its trigger, RPCs and cron jobs are live on the linked project. Without the Vault secrets, the cron job does nothing there. PayMongo test mode is live on the linked project.
 - **Blockers / notes:**
   - The >500 kB main chunk warning is back (`index-*.js` 614 kB in the 2026-10-18 build, see H6). Check it during T8.5/T8.7.
   - M8 emails: no Resend for now (user decision, 2026-10-19). Build and test through Mailpit; production runs `EMAIL_TRANSPORT=disabled`. T8.6 needs a Vercel project from the user. Never commit the Vault worker secret (or a Resend key, if one is added later).
@@ -687,10 +687,12 @@ Out of scope for M8: live PayMongo keys and real money, refunds, SMS, new featur
 - **Notes:** RESEARCH M8 has 8 Decided entries plus the approved plan. SPEC §8 is rewritten, and §10 has a new row. The user approved it on 2026-10-18: Resend from a verified domain the user has or will get (API for booking emails, SMTP for Auth); the outbox with triggers, plus `send-emails` run by pg_cron and pg_net; the token-checked `email-guest-link`; Vercel. That approval includes `db:push` of the T8.2 migration. Local experiment: Mailpit's `POST /api/v1/send` works, and the edge runtime reaches `supabase_inbucket_court-booking-system:8025`. pg_net is available but not installed (local and linked).
 - **Follow-ups:** The reviewer passed it. Its 2 majors and 2 minors (triggers must never fail the RPC, the stale booking-created email, Resend 409 on a reused key, anon grants), plus the extra notes, are written into the plan as item 5 "Refinements from the T8.1 review" for T8.2 and T8.3.
 
-### [ ] T8.2 Migration: carried DB follow-ups and email outbox
+### [x] T8.2 Migration: carried DB follow-ups and email outbox
 - **Depends:** T8.1
 - **Do:** Add the `payments (provider_checkout_id) where provider_checkout_id is not null` index (M7 follow-up), plus whatever email storage T8.1 decides (e.g. an outbox table with RLS).
 - **Acceptance:** pgTAP covers the new table's RLS and rules. `db:push` and `db:types` have been run.
+- **Notes:** Migration `20261019143330_email_outbox.sql`. pgTAP `19_email_outbox.test.sql` (58 assertions) covers RLS and grants, every queueing rule (including that a queueing error never fails the booking change, and a webhook replay), the claim, lease, backoff and failure rules, the guest-link claim, the Vault-gated pg_net poke and the purge. 446 pgTAP assertions pass locally. `db:push` was run (the linked `cron.job` has send-emails and purge-email-outbox) and `db:types` too. `seed.sql` suppresses emails for demo bookings. SPEC §6, §8 and §10 are updated. The reviewer passed it, and both SPEC majors are fixed.
+- **Follow-ups:** T8.3: `email-guest-link` must re-read the booking's current status after `claim_guest_link_email` (which leases the row whatever the booking's state) and finish the row as `skipped` when a later event has overtaken it. That is the reviewer's major 2, done in the function rather than with a second migration.
 
 ### [ ] T8.3 Transactional emails
 - **Depends:** T8.2
