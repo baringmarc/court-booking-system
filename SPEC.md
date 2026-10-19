@@ -1,6 +1,6 @@
 # Court Booking System — Product Spec
 
-> Status: draft v0.10 (2026-10-18, M7 done; next: M8 polish). Portfolio project: one realistic venue, simplified operations.
+> Status: draft v0.11 (2026-10-19, M7 done; M8 polish in progress; M9 venue admin upgrades added). Portfolio project: one realistic venue, simplified operations.
 
 ## 1. Overview
 
@@ -114,6 +114,8 @@ Admins are promoted manually in the database (no self-signup as admin).
 
    There is no other limit on length. These checks live in the `create_booking` RPC.
 
+   *Planned for M9:* opening hours may run **past midnight or around the clock** (e.g. 6:00 AM to 5:00 AM, or 24 hours). The plan is an **operating day**: a slot belongs to the day whose opening it follows. A 1:00 AM slot after a 6:00 AM opening belongs to the previous date, and `/book` shows it under that date. "One day" in this rule then means one operating day. The details (pricing per hour, the booking window, blackouts, walk-in "today", the dashboard) are an open question (§11) for M9 research.
+
 3. **Booking window.** Bookings can be made from now up to `booking_window_days` ahead (default **30**). Slots that have already started can't be booked.
 4. **Pricing.** The price is calculated **on the server**:
    - Add up the price of each 1-hour slot in the booking.
@@ -197,7 +199,7 @@ A **public** bucket called `venue-media` holds court photos (`courts/{court_id}/
 
 - `courts`, `court_rates`, `operating_hours`, `venue_settings`, `blackouts`: anyone can read; only admins can write.
 - `bookings`: players read their own rows (`user_id = auth.uid()`); admins read and write all rows. **Nobody inserts directly.** Every write goes through RPCs.
-- Public availability comes from an RPC that returns busy ranges and prices only, with no personal data.
+- Public availability comes from an RPC that returns busy ranges and prices only, with no personal data. *Planned for M9 (the user's call):* a booked slot also shows the booker's **first name only** (the first word of the booking's contact name, shortened). No email, phone, surname or reference code is exposed. Admin views show the full name.
 - `payments` and the storage bucket: the booking owner and admins can read. Writes go through RPCs or an Edge Function.
 - `email_outbox` (M8): only admins can read (players can't, not even for their own bookings); anon has no access. Only the trigger and service-role RPCs write.
 - `venue-media` bucket (M6): anyone can read through public URLs (there's no anon or player SELECT policy, so files can't be listed); only admins (`private.is_admin()`) can select, insert, update or delete, and uploads must go under `courts/` or `banner/`. `courts.photo_path` and the banner columns are written through the existing admin-only RLS on `courts` and `venue_settings`.
@@ -270,7 +272,15 @@ Until emails ship, the confirmation page shows the private link with a "save thi
 5. ✅ **Admin shell and accounts**: separate admin layout and login; My bookings, cancellation, guest token flow hardened, `claim_guest_bookings`.
 6. ✅ **Venue media**: court photos and an optional site banner, uploaded by admins.
 7. ✅ **Online payments**: PayMongo (test mode) checkout with webhook auto-confirm, alongside manual proof.
-8. **Polish**: emails, empty, loading and error states, a11y pass, deploy (e.g. Vercel + Supabase), README screenshots and a demo video.
+8. **Polish**: emails, empty, loading and error states, an a11y pass (including distinct slot status colors and the settings page spacing), and deploy (Vercel + Supabase). Deploy happens here so later work ships automatically.
+9. **Venue admin upgrades** (added 2026-10-19):
+   - a new theme and colors (the palette is chosen from a preview)
+   - court and sport ordering
+   - deleting never-booked courts
+   - several photos per court
+   - booker first names on booked slots (public), with full names in an admin day view
+   - opening hours past midnight and 24 hours
+   - then the README, screenshots, a demo video and close-out (moved from M8)
 
 ## 10. Decisions log
 
@@ -304,6 +314,7 @@ Until emails ship, the confirmation page shows the private link with a "save thi
 | 2026-10-18 | Site banner (M6): shown on the home page only, just below the header, and it's just an image with alt text (no headline or link). Closes the §11 banner questions. |
 | 2026-10-18 | PayMongo (M7, T7.1): Hosted Checkout `/v2/checkout_sessions` in test mode only (the function refuses non-`sk_test_` keys), methods GCash, Maya, card, QR Ph, amount in centavos from the stored total, one reused session per booking. Webhook `checkout_session.payment.paid` verified with HMAC-SHA256 over `t.rawBody` (`te`), idempotent on the PayMongo payment id, 2xx once handled. No hold extension and no session expiry in M7. Late payments follow the four cases in §4, including re-confirming a lapsed hold whose slot is still free (the user's call). Stored as `method = 'paymongo'` with `provider_*` ids plus a `paymongo_checkouts` table. Locally, `PAYMONGO_MODE=stub` and webhook events signed locally. |
 | 2026-10-18 | PayMongo live in test mode on the linked project (M7, T7.7): both functions deployed. `PUBLIC_SITE_URL` is `http://localhost:5173,http://127.0.0.1:5173` until the app is deployed (M8 adds the real site). The test-mode webhook is registered for `checkout_session.payment.paid`. A real test payment (QR Ph) confirmed CB-6L7YXZ through the webhook. |
+| 2026-10-19 | New scope (M9, the user's call): theme, court and sport ordering, court deletion, several photos per court, booker names on slots, and overnight or 24-hour opening hours. **Booker names:** the public grid shows the first name only, and admins see full names. **Deleting a court** is allowed only when it has never had a booking (with its photos and rates); a booked court can only be archived, so booking history keeps its court. M8 keeps deploy (early, so later work ships automatically) and gains slot status colors and the settings spacing fix. The README, screenshots and video move to the end of M9. No extra features for now. |
 | 2026-10-19 | Email outbox as built (T8.2): **one** trigger on `bookings` instead of one on `bookings` plus one on `payments`, because `review_payment` updates the payment before the booking, so a payments trigger couldn't tell whether a rejection was final. `proof_rejected` = the booking moving from `payment_submitted` to `pending_payment` or `rejected`, for the latest admin-rejected payment (`reviewed_by` set) that has no email yet. `finish_email` takes a text outcome (`sent`, `skipped` or `failed`) instead of a boolean, because `skipped` needs a third value. Demo seed data sets `app.suppress_booking_emails`. |
 | 2026-10-19 | Emails without a provider for now (demo project, the user's call): the full pipeline is built and tested through Mailpit, but production runs `EMAIL_TRANSPORT=disabled` (rows marked `skipped`) and Auth stays on the default SMTP. Resend is a later switch-on with no code change. Email confirmation stays on (guest-booking claims trust it). |
 | 2026-10-18 | Emails and deploy (M8, T8.1): Resend from a verified domain (API for booking emails, SMTP for Supabase Auth; superseded on 2026-10-19, see the row above). A transactional outbox (`email_outbox`, filled by triggers) is drained by the `send-emails` Edge Function, run every minute by pg_cron + pg_net (URL and worker secret in Vault). Retries use backoff, at most 5 attempts, with the Resend idempotency key = outbox id. The guest link is only in the booking-created email, sent by the token-checked `email-guest-link` function, and the token is never stored. Deploy on Vercel (production from `master`, previews from branches, SPA rewrite), one Supabase project shared by previews and production, hosted Auth URLs set in the dashboard, and the production origin first in `PUBLIC_SITE_URL`. |
@@ -311,4 +322,14 @@ Until emails ship, the confirmation page shows the private link with a "save thi
 
 ## 11. Open questions
 
-None right now. The T7.1 questions (checkout API, data model, late payments, hold interplay, local webhook testing) were settled on 2026-10-18 (§4, §6, §10).
+For M9 (added 2026-10-19):
+
+1. **Theme:** which palette? It's chosen from a preview of 3–4 options on real screens (slot grid, buttons, badges), in light and dark mode, with contrast checked.
+2. **Overnight and 24-hour hours:**
+   - how to store them (for example a close time not after the open time means "next day", and open = close means 24 hours)
+   - which date and day of week an after-midnight slot is priced under
+   - how the booking window, blackouts, the walk-in form's "today" and the dashboard's "today" use the operating day
+3. **Sport order:** stored in `venue_settings` or in a small `sports` table.
+4. **Court photos:** the most per court (e.g. 6), and whether the first photo is the cover or the admin picks one.
+
+The T7.1 questions (checkout API, data model, late payments, hold interplay, local webhook testing) were settled on 2026-10-18 (§4, §6, §10).

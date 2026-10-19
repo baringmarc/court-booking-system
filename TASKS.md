@@ -10,6 +10,7 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
 - **Next task:** T8.3 (transactional emails: `send-emails`, `email-guest-link`, templates, Mailpit smoke and e2e). It adds Edge Functions, so it needs a plan gate. The design is in RESEARCH M8 plan items 2, 3 and 5 and the T8.2 follow-up.
 - **State:** T8.2 done: `email_outbox`, its trigger, RPCs and cron jobs are live on the linked project. Without the Vault secrets, the cron job does nothing there. PayMongo test mode is live on the linked project.
 - **Blockers / notes:**
+  - Scope added on 2026-10-19 (SPEC §9, §10, §11): slot status colors are in T8.5, the settings spacing fix is in T8.4, and M9 is outlined at the end of this file. The README moved there. Booker names are **first name only** in public. A court can be deleted only if it was never booked.
   - The >500 kB main chunk warning is back (`index-*.js` 614 kB in the 2026-10-18 build, see H6). Check it during T8.5/T8.7.
   - M8 emails: no Resend for now (user decision, 2026-10-19). Build and test through Mailpit; production runs `EMAIL_TRANSPORT=disabled`. T8.6 needs a Vercel project from the user. Never commit the Vault worker secret (or a Resend key, if one is added later).
   - Docker Desktop must be running for `npm run verify`. `npm run test:e2e` and `npm run smoke:proof` need the full local stack (`npx supabase start`).
@@ -660,7 +661,7 @@ Out of scope for M7: live keys and real money, refunds, PayMongo for walk-ins, e
 
 ## Milestone 8: Polish
 
-Goal (SPEC §9): emails; empty, loading and error states; an accessibility pass; deploy; README screenshots and a demo video. Playwright e2e for the main flows already exists (H5) and is extended where a task changes a journey.
+Goal (SPEC §9): emails; empty, loading and error states; an accessibility pass (including slot status colors and the settings spacing); deploy. The README, screenshots and demo video moved to the end of M9 (2026-10-19). Playwright e2e for the main flows already exists (H5) and is extended where a task changes a journey.
 
 > **Status: breakdown approved by the user (2026-10-18).** T8.1 ends with an email and deploy plan that needs approval before any migration, Edge Function or deploy.
 
@@ -705,21 +706,39 @@ Out of scope for M8: live PayMongo keys and real money, refunds, SMS, new featur
   - raw PostgREST errors in admin saves (T6.4)
   - a friendlier player label for a proof replaced by an online payment (T7.5)
   - the PayMongo return reading an older not-accepted payment as the current one (M7 review)
+  - `/admin/settings`: more space between the "Save settings" button and the site banner section below it (the user's report, 2026-10-19)
 - **Acceptance:** Testing Library tests cover each fixed state.
 
 ### [ ] T8.5 Accessibility pass
 - **Do:** Run axe on the main pages (home, book, checkout, booking, My bookings, admin dashboard and bookings) through Playwright. Fix keyboard and focus issues, labels and contrast. Check 360px and 200% zoom.
-- **Acceptance:** The e2e axe checks pass with no serious or critical violations, and the fixes are covered by tests.
+  - **Slot status colors** (the user's request, 2026-10-19). Give free, selected, booked, closed (blackout) and past slots clearly different styles using the current tokens, and add a legend above the grid. Color is never the only signal: each status keeps its text or pattern. M9's theme task re-tunes the values later.
+- **Acceptance:** The e2e axe checks pass with no serious or critical violations, and the fixes are covered by tests. A SlotGrid test checks that each status has its own class and label, and that the legend is shown.
 
 ### [ ] T8.6 Deploy
 - **Depends:** T8.1
 - **Do:** Deploy the SPA as T8.1 decides. Set the production env vars, the Supabase Auth URLs and the real origin in `PUBLIC_SITE_URL`. Deploy all Edge Functions with `EMAIL_TRANSPORT=disabled` and the Vault worker secrets (no Resend, no Auth custom SMTP for now). Add a short note on `/signup` that points visitors to Google sign-in or guest booking, because confirmation emails don't reach them yet. Run a smoke test against production (book, proof, pay online in test mode, admin review).
 - **Acceptance:** The production URL works end to end in PayMongo test mode, and the checklist is recorded in TASKS notes.
 
-### [ ] T8.7 README, screenshots, demo video and close out
+### [ ] T8.7 Close out M8
 - **Depends:** T8.3, T8.4, T8.5, T8.6
-- **Do:** Write a README (what it is, stack, architecture, how to run locally, tests and harness), add screenshots (phone and desktop), record a short demo video, mark M8 ✅, and run a final milestone review.
+- **Do:** Mark M8 ✅ in SPEC §9 and run the milestone review. *(The README, screenshots and demo video moved to the end of M9 on 2026-10-19, so they show the final product.)*
 - **Acceptance:** `npm run verify` and `npm run test:e2e` pass, and the reviewer signs off.
+
+## Milestone 9: Venue admin upgrades
+
+Goal (SPEC §9): the user's 2026-10-19 requests, then the portfolio close-out.
+
+> **Status: outline only (2026-10-19).** Per "How tasks work", it gets a full breakdown (Do, Files, Acceptance) when M8 is done, after the SPEC §11 questions are researched. The breakdown needs the user's approval. Order and rough size:
+
+1. Theme and colors: a palette preview page for the user to choose from (light and dark, contrast checked), then swap the tokens in `src/index.css`. *(small–medium)*
+2. Court and sport ordering: up/down controls on `/admin/courts` (`courts.sort_order` already exists), plus a sport order setting (a migration). *(small–medium)*
+3. Deleting a court: only if it has never had a booking. The court, its rates and photos go; otherwise the admin is pointed to archiving. Done through an admin RPC, with pgTAP. *(medium)*
+4. Several photos per court: a `court_photos` table (ordered, with a cover photo) replacing `courts.photo_path`, an admin gallery editor reusing the M6 upload and resize code, and a swipeable public gallery. *(medium)*
+5. Booker names: `get_availability` returns the booker's first name for booked slots (public), and an admin day view (courts by hours) shows full names. *(small–medium)*
+6. Research and plan: overnight and 24-hour hours (operating day model, SPEC §5.2 and §11). *(research, plan gate)*
+7. Overnight hours, DB: operating hours storage and checks, `get_availability`, `create_booking`, `create_walk_in`, pricing and the booking window, with pgTAP. *(large, risky)*
+8. Overnight hours, UI: the schedule editor (incl. "open 24 hours"), the `/book` date grid, walk-in "today", dashboard "today", with e2e. *(medium)*
+9. README, screenshots (phone and desktop), demo video, mark M9 ✅, and the final milestone review. *(moved from T8.7)*
 
 ---
 
