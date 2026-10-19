@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { authState } from '../../test/authState'
 import { AuthContext, type AuthState } from '../auth/AuthContext'
 import { AdminGuard } from './AdminGuard'
@@ -51,5 +51,17 @@ describe('AdminGuard', () => {
   it('renders the admin page for an admin', () => {
     renderAt('/admin/bookings', authState('admin'))
     expect(screen.getByText('Bookings page')).toBeInTheDocument()
+  })
+
+  it("doesn't call a real admin \"not an admin\" when their profile failed to load, and retries", async () => {
+    const refreshProfile = vi.fn(async () => {})
+    const profileError = new Error("We couldn't load your account. Check your connection and try again.")
+    renderAt('/admin/bookings', authState('player', { profile: null, isAdmin: false, profileError, refreshProfile }))
+    expect(screen.getByRole('heading', { name: "Couldn't load your account" })).toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent(profileError.message)
+    expect(screen.queryByText('Admins only')).not.toBeInTheDocument()
+    expect(screen.queryByText('Bookings page')).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    expect(refreshProfile).toHaveBeenCalledOnce()
   })
 })

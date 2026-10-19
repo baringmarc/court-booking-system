@@ -1,7 +1,14 @@
+import { unwrap } from '../../lib/queryClient'
 import { supabase } from '../../lib/supabase'
+import type { Profile } from './AuthContext'
 
 /** Email + password sign-in. Throws the Supabase AuthError (its message is readable). */
 export async function signInWithPassword(email: string, password: string): Promise<void> {
   const { error } = await supabase.auth.signInWithPassword({ email, password })
   if (error) throw error
+}
+
+/** The signed-in user's profile (role included). Throws if it can't be loaded. */
+export async function fetchProfile(id: string): Promise<Profile | null> {
+  return unwrap(await supabase.from('profiles').select('*').eq('id', id).maybeSingle())
 }

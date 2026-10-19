@@ -7,6 +7,7 @@ import type { BookingDetail } from './api'
 import { formatRemaining } from './countdown'
 import { PaymentHistory } from './PaymentHistory'
 import { displayStatus, STATUS_LABELS } from './status'
+import { isReplacedByOnlinePayment } from './paymentLabels'
 
 type Props = {
   booking: BookingDetail
@@ -30,7 +31,8 @@ export function BookingSummary({ booking, paymentInstructions, timeZone, currenc
   const hours = Math.round((Date.parse(booking.slot_end) - Date.parse(booking.slot_start)) / 3_600_000)
   const awaitingPayment = status === 'pending_payment'
   // Only proofs count as rejections: a PayMongo payment that wasn't accepted is a refund case, not a failed proof.
-  const lastRejection = [...booking.payments].reverse().find((p) => p.review_status === 'rejected' && p.method !== 'paymongo')
+  const lastRejection = [...booking.payments].reverse()
+    .find((p) => p.review_status === 'rejected' && p.method !== 'paymongo' && !isReplacedByOnlinePayment(p, booking.payments))
 
   return (
     <div className="stack">

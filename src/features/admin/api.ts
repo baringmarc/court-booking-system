@@ -111,7 +111,7 @@ export async function fetchAdminBookings(
 /** Short-lived link to a proof file; storage RLS allows admins (and the booking owner) to sign it. */
 export async function fetchProofUrl(path: string) {
   const { data, error } = await supabase.storage.from('payment-proofs').createSignedUrl(path, 60)
-  if (error) throw new Error(error.message)
+  if (error) throw new ApiError(storageErrorMessage(error))
   return data.signedUrl
 }
 

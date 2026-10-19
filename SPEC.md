@@ -250,7 +250,15 @@ The UI is mobile-first: most players will book from a phone.
 
 **Site banner (M6).** When the venue has a banner, the **home page** (`/`) shows it just below the header, before the page content. Other pages never show it. It's an image with alt text only (no headline or link). Without one (or while settings load or fail), the section isn't rendered at all.
 
-**Admin shell.** Every `/admin/*` route renders in its own `AdminLayout` (admin nav, no public header, footer or booking nav), not inside the public `Layout`. The public header has no Admin link; staff go to `/admin` directly, and unauthenticated visits redirect to `/admin/login` and return to the requested page after sign-in. The shell only controls what is shown: admin access itself is enforced in the database (`profiles.role` can't be changed by users, and every admin read and write checks `private.is_admin()`). It is still one Vite app, and admin code stays lazy-loaded out of the public bundle.
+**Admin shell.** Every `/admin/*` route renders in its own `AdminLayout` (admin nav, no public header, footer or booking nav), not inside the public `Layout`. The public header has no Admin link; staff go to `/admin` directly, and unauthenticated visits redirect to `/admin/login` and return to the requested page after sign-in. The shell only controls what is shown: admin access itself is enforced in the database (`profiles.role` can't be changed by users, and every admin read and write checks `private.is_admin()`). It is still one Vite app, and admin code stays lazy-loaded out of the public bundle. If a signed-in account's profile (and so its role) can't be loaded, the admin shell says "Couldn't load your account" with Try again and Log out, never "Admins only" (M8).
+
+**Error messages (M8).** Every async view has loading, empty and error states. Error text goes through `errorMessage()` (`src/lib/errors.ts`); booking and payment forms use `bookingErrorMessage()`, which shows our RPC and function messages and a generic line otherwise. `errorMessage()` works like this:
+- Our RPC messages (P0001) and Edge Function messages (an HTTP status plus our code) are shown as written.
+- Raw database errors from admin table writes are translated into plain sentences (permission, expired session, duplicate value, invalid or too-long value, still in use).
+- Unknown codes get a generic line, even when PostgREST adds a hint. A Storage error with an unmapped status also gets a generic line.
+- Network failures say the server couldn't be reached.
+
+On a player's booking, a proof that was closed because they paid online is labelled "Replaced by online payment", not "Not accepted". After a PayMongo return, only online payments made since this tab left for the checkout count, so an older not-accepted payment isn't reported as this attempt's outcome.
 
 ## 8. Notifications (M8)
 

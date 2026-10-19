@@ -76,6 +76,7 @@ img, svg { display: block; }
 .center { text-align: center; }
 .lead { font-size: 1.125rem; color: var(--muted); max-width: 40rem; }
 .stack { display: flex; flex-direction: column; gap: 14px; }
+.page-sections { display: flex; flex-direction: column; gap: 40px; }
 
 .hero { padding: 24px 0 32px; }
 .home-banner { display: block; width: 100%; height: auto; aspect-ratio: 2 / 1; object-fit: cover; object-position: center; border-radius: var(--radius); margin-top: 16px; background: var(--accent-soft); }

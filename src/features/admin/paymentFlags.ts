@@ -1,5 +1,6 @@
 // What staff need to follow up on after PayMongo (SPEC §4): payments the webhook couldn't accept (refund outside
 // the app), and proofs it closed because the customer also paid online (check for a duplicate payment).
+import { SUPERSEDED_PROOF_NOTE } from '../booking/paymentLabels'
 import type { AdminBooking, AdminPayment } from './api'
 
 const SOURCE_LABELS: Record<string, string> = { gcash: 'GCash', paymaya: 'Maya', card: 'Card', qrph: 'QR Ph', grab_pay: 'GrabPay' }
@@ -18,9 +19,6 @@ export function onlinePayments(booking: Pick<AdminBooking, 'payments'>) {
 export function isRefundDue(p: AdminPayment) {
   return p.method === 'paymongo' && p.review_status === 'rejected'
 }
-
-/** The note record_paymongo_payment writes when it closes a pending proof (SPEC §4 case 3). */
-export const SUPERSEDED_PROOF_NOTE = 'Paid online with PayMongo instead.'
 
 /**
  * A proof closed automatically because the customer paid online. Only the webhook RPC rejects without a reviewer, and

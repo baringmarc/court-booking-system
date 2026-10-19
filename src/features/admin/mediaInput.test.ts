@@ -64,9 +64,10 @@ describe('storageErrorMessage', () => {
       .toBe('Only JPG, PNG and WEBP images can be uploaded.')
   })
 
-  it('keeps the original message otherwise', () => {
+  it('never shows a raw message for an unmapped status, but keeps a network failure for errorMessage()', () => {
     expect(storageErrorMessage({ message: 'Failed to fetch' })).toBe('Failed to fetch')
-    expect(storageErrorMessage({ message: 'Internal error', statusCode: '500' })).toBe('Internal error')
+    expect(storageErrorMessage({ message: 'Internal error', statusCode: '500' })).toBe("The image couldn't be saved. Please try again.")
+    expect(storageErrorMessage({ message: 'invalid input syntax', status: 400 })).toBe("The image couldn't be saved. Please try again.")
   })
 })
 

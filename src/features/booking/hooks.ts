@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { accountKeys } from '../account/hooks'
 import { bookingErrorCode } from './errors'
-import { goToCheckout, rememberGuestToken } from './paymongoReturn'
+import { goToCheckout, rememberCheckoutStart, rememberGuestToken } from './paymongoReturn'
 import {
   cancelBooking,
   createBooking,
@@ -76,6 +76,7 @@ export function useStartPaymongoCheckout(ref: string, token: string | null) {
     mutationFn: () => startPaymongoCheckout({ referenceCode: ref, token }),
     onSuccess: (url) => {
       if (token) rememberGuestToken(ref, token)
+      rememberCheckoutStart(ref, Date.now())
       goToCheckout(url)
     },
     // A hold_expired or invalid_state error means the booking changed under us.

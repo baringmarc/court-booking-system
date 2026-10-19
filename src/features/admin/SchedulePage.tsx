@@ -14,6 +14,7 @@ import {
 import type { OperatingHours } from '../catalog/api'
 import { DAY_NAMES, DISPLAY_DAY_ORDER, formatHour, hourOf, hourToTime } from '../../lib/format'
 import { formatDateTimeInZone, zonedLocalToISO } from '../../lib/time'
+import { errorMessage } from '../../lib/errors'
 
 export function SchedulePage() {
   const hours = useOperatingHours()
@@ -185,7 +186,7 @@ function BlackoutsSection() {
         </div>
         <div className="form-actions">
           <button type="submit" className="btn" disabled={create.isPending}>{create.isPending ? 'Adding…' : 'Add blackout'}</button>
-          {create.error && <span className="form-error" role="alert">{create.error.message}</span>}
+          {create.error && <span className="form-error" role="alert">{errorMessage(create.error)}</span>}
         </div>
       </form>
 
@@ -213,7 +214,7 @@ function BlackoutsSection() {
           ))}
         </ul>
       )}
-      {remove.error && <p className="form-error" role="alert">{remove.error.message}</p>}
+      {remove.error && <p className="form-error" role="alert">{errorMessage(remove.error)}</p>}
     </section>
   )
 }

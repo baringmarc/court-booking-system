@@ -17,6 +17,7 @@ export function authState(who: Who, overrides: Partial<AuthState> = {}): AuthSta
     profile,
     isAdmin: who === 'admin',
     loading: false,
+    profileError: null,
     signOut: vi.fn(async () => {}),
     refreshProfile: vi.fn(async () => {}),
     ...overrides,

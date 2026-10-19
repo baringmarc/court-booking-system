@@ -7,8 +7,8 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
 > Update this section at the end of every session or task. Keep it short; it's the first thing the next session reads.
 
 - **Current milestone:** 8 (Polish). The breakdown was approved on 2026-10-18. M7 ✅ done on 2026-10-18.
-- **Next task:** T8.4 (error, loading and empty states pass, plus the settings spacing fix).
-- **State:** T8.3 done: booking emails work locally through Mailpit (`npm run smoke:emails`). T8.2: `email_outbox`, its trigger, RPCs and cron jobs are live on the linked project. Without the Vault secrets, the cron job does nothing there. PayMongo test mode is live on the linked project.
+- **Next task:** T8.5 (accessibility pass with axe, plus slot status colors and a legend).
+- **State:** T8.4 done: errors are readable, admins see a retry when their profile fails to load, and the settings spacing is fixed. T8.3 done: booking emails work locally through Mailpit (`npm run smoke:emails`). T8.2: `email_outbox`, its trigger, RPCs and cron jobs are live on the linked project. Without the Vault secrets, the cron job does nothing there. PayMongo test mode is live on the linked project.
 - **Blockers / notes:**
   - Emails locally: `supabase/functions/.env` must keep `EMAIL_TRANSPORT=mailpit`, `MAILPIT_URL` and `EMAIL_WORKER_SECRET` (see `.env.example`) for smoke and e2e. Restart the stack after changing it. Your PayMongo test key is commented out there; uncomment it only for real local test payments, and expect `pay-online` e2e and `smoke:paymongo` to fail while it's active.
   - Scope added on 2026-10-19 (SPEC §9, §10, §11): slot status colors are in T8.5, the settings spacing fix is in T8.4, and M9 is outlined at the end of this file. The README moved there. Booker names are **first name only** in public. A court can be deleted only if it was never booked.
@@ -24,8 +24,6 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
   - Open follow-ups:
     - a user decision on capping the fresh hold after a rejection at the start time (T4.6)
     - the Edge Function `index.ts` is checked only by smoke and e2e (no Deno type-check)
-    - if the profile fetch fails, a real admin sees "Admins only" (T5.1, for the M8 error pass)
-    - raw PostgREST errors in admin media saves (T6.4, for the M8 error pass)
     - the guest cancel path doesn't check the 30-day link expiry. That's harmless, since a cancel must be before the start (M7 added no token-authorized RPCs, so it's still fine).
     - M7 carry-overs: only QR Ph was paid for real (GCash, Maya and card are untested); the PHP 20 minimum is an assumption; a replay after a session is replaced returns `unknown_checkout`; the webhook stores an empty `provider_source` as `''`.
 
@@ -709,7 +707,7 @@ Out of scope for M8: live PayMongo keys and real money, refunds, SMS, new featur
   - The local `supabase/functions/.env` gained the email lines, and the user's `PAYMONGO_SECRET_KEY` line is commented out (the user approved it) so local runs stay in stub mode.
   - The functions are not deployed to the linked project yet; that happens in T8.6. The reviewer passed it, and its 3 majors and 1 minor are fixed (SPEC §6 and §10, `emailAction` tested in Vitest, the guest link skip covered by smoke, a 401 when the secret is missing).
 
-### [ ] T8.4 Error, loading and empty states pass
+### [x] T8.4 Error, loading and empty states pass
 - **Do:** Go through every async view, and fix the carried follow-ups:
   - a failed profile fetch shows "Admins only" to a real admin (T5.1)
   - raw PostgREST errors in admin saves (T6.4)
@@ -717,6 +715,14 @@ Out of scope for M8: live PayMongo keys and real money, refunds, SMS, new featur
   - the PayMongo return reading an older not-accepted payment as the current one (M7 review)
   - `/admin/settings`: more space between the "Save settings" button and the site banner section below it (the user's report, 2026-10-19)
 - **Acceptance:** Testing Library tests cover each fixed state.
+- **Notes:**
+  - **Profile fetch (T5.1).** `AuthState.profileError`. The profile fetch moved to `auth/api.ts`. The admin shell and `/admin/login` show "Couldn't load your account" with Try again and Log out. Tests: `AuthProvider.test.tsx`, `AdminGuard.test.tsx`, `AdminLoginPage.test.tsx`.
+  - **Errors (T6.4).** `src/lib/errors.ts` `errorMessage()` is used by `ErrorMessage`, `SaveStatus`, `SchedulePage` and `BookingPage`. Storage errors with an unmapped status are generic. Tests: `errors.test.ts`, `ErrorMessage.test.tsx`, `SaveStatus.test.tsx`, and `BannerSection` and `CourtPhotoSection` with realistic SQLSTATE codes.
+  - **"Replaced by online payment" (T7.5).** `booking/paymentLabels.ts`; the constant moved out of admin code. Test: `PaymentHistory.test.tsx`.
+  - **PayMongo return (M7 review).** The checkout start time is kept in `sessionStorage`. Test: `paymongoReturn.test.ts`.
+  - **Settings spacing.** `.page-sections`, 40px.
+  - **Sweep.** Every other async view already had its loading, empty and error states.
+  - **Checks.** verify passes (Vitest 363), and e2e is 24 passed with 2 known banner skips. The reviewer passed it, and its 2 majors and 3 minors are fixed.
 
 ### [ ] T8.5 Accessibility pass
 - **Do:** Run axe on the main pages (home, book, checkout, booking, My bookings, admin dashboard and bookings) through Playwright. Fix keyboard and focus issues, labels and contrast. Check 360px and 200% zoom.
