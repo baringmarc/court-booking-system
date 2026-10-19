@@ -7,6 +7,7 @@ import {
   fetchApprovedPayments,
   fetchProofQueueCount,
   fetchProofUrl,
+  fetchRefundsDue,
   removeBanner,
   removeCourtPhoto,
   saveBanner,
@@ -71,6 +72,11 @@ export function useProofQueueCount() {
 /** Approved payments in the venue-local day [fromIso, toIso). */
 export function useTakings(fromIso: string, toIso: string) {
   return useQuery({ queryKey: adminKeys.takings(fromIso), queryFn: () => fetchApprovedPayments(fromIso, toIso), staleTime: 30_000 })
+}
+
+/** PayMongo payments received in the venue-local day [fromIso, toIso) but not accepted (refund outside the app). */
+export function useRefundsDue(fromIso: string, toIso: string) {
+  return useQuery({ queryKey: adminKeys.refundsDue(fromIso), queryFn: () => fetchRefundsDue(fromIso, toIso), staleTime: 30_000 })
 }
 
 export function useCreateWalkIn() {

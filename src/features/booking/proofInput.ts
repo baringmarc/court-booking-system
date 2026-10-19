@@ -1,15 +1,17 @@
 // Client-side checks for the proof form. They mirror the Edge Function (supabase/functions/_shared/proof.ts),
 // which is imported for the shared limits; the server still re-checks everything, including the file bytes.
 import { MAX_PROOF_BYTES, PROOF_METHODS } from '../../../supabase/functions/_shared/proof.ts'
+import type { Enums } from '../../lib/database.types'
 
 export { MAX_PROOF_BYTES }
 export type ProofMethod = (typeof PROOF_METHODS)[number]
 
-export const METHOD_LABELS: Record<ProofMethod | 'cash', string> = {
+export const METHOD_LABELS: Record<Enums<'payment_method'>, string> = {
   gcash: 'GCash',
   maya: 'Maya',
   bank_transfer: 'Bank transfer',
   cash: 'Cash',
+  paymongo: 'PayMongo',
 }
 export const PROOF_METHOD_OPTIONS = PROOF_METHODS.map((value) => ({ value, label: METHOD_LABELS[value] }))
 export const ACCEPTED_PROOF_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf']

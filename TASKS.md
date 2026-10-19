@@ -6,22 +6,28 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
 
 > Update this section at the end of every session or task. Keep it short; it's the first thing the next session reads.
 
-- **Current milestone:** 7 (Online payments, PayMongo test mode). M6 ✅ done on 2026-10-18. Then M8 (Polish).
-- **Next task:** T7.2 (PayMongo migrations). The plan is approved, including `db:push` for both migrations, so build straight from RESEARCH "DB and Edge Function plan for T7.2–T7.4", including its locking notes and the hardening of the existing RPCs.
-- **State:** M7 in progress. T7.1 is done and reviewer-passed. M6 is committed (b07a975). T7.1 docs are uncommitted.
+- **Current milestone:** 8 (Polish). The breakdown was approved on 2026-10-18. M7 ✅ done on 2026-10-18.
+- **Next task:** T8.3 (transactional emails: `send-emails`, `email-guest-link`, templates, Mailpit smoke and e2e). It adds Edge Functions, so it needs a plan gate. The design is in RESEARCH M8 plan items 2, 3 and 5 and the T8.2 follow-up.
+- **State:** T8.2 done: `email_outbox`, its trigger, RPCs and cron jobs are live on the linked project. Without the Vault secrets, the cron job does nothing there. PayMongo test mode is live on the linked project.
 - **Blockers / notes:**
+  - Scope added on 2026-10-19 (SPEC §9, §10, §11): slot status colors are in T8.5, the settings spacing fix is in T8.4, and M9 is outlined at the end of this file. The README moved there. Booker names are **first name only** in public. A court can be deleted only if it was never booked.
+  - The >500 kB main chunk warning is back (`index-*.js` 614 kB in the 2026-10-18 build, see H6). Check it during T8.5/T8.7.
+  - M8 emails: no Resend for now (user decision, 2026-10-19). Build and test through Mailpit; production runs `EMAIL_TRANSPORT=disabled`. T8.6 needs a Vercel project from the user. Never commit the Vault worker secret (or a Resend key, if one is added later).
   - Docker Desktop must be running for `npm run verify`. `npm run test:e2e` and `npm run smoke:proof` need the full local stack (`npx supabase start`).
   - Email confirmation is on locally (`config.toml`, matching the hosted project). Sign-up emails land in Mailpit at http://127.0.0.1:54324. e2e reads them with `confirmationLink()`. Don't turn it off: claims trust `email_confirmed_at`.
   - Guest links use `#token=`. Going to the same URL again is a hash-only navigation (no reload), so e2e leaves the page first (`openGuestLink`).
   - Venue media: paths are stored, not URLs (`mediaUrl()`). Uploads are downscaled in the browser and named with a new uuid. `remove()` fails silently without SELECT, so the code checks what it returned. Orphan listing query: RESEARCH M6.
   - `e2e/banner.spec.ts` skips itself when a banner is already set on the local stack (the banner is venue-wide). Remove it in `/admin/settings` to get the coverage back.
-  - The user has **no PayMongo account yet**. One with test keys (and GCash, Maya, card and QR Ph enabled) is needed before T7.7. T7.2–T7.6 run against `PAYMONGO_MODE=stub`.
+  - **Local PayMongo key trap:** the user's `sk_test_` key is now in the local `supabase/functions/.env`, and a test key always beats `PAYMONGO_MODE=stub`. The running edge runtime still has an empty key. After the next `supabase stop/start`, local runs would call the real PayMongo API, and `pay-online.spec.ts`, `smoke:paymongo` and the Stop hook would fail. Keep the local key **blank** for test runs (the key lives on the linked project). The user chose to manage that file themselves.
+  - PayMongo on the linked project: secrets `PAYMONGO_SECRET_KEY`, `PAYMONGO_WEBHOOK_SECRET` and `PUBLIC_SITE_URL` (localhost only until T8.6). Webhook registered in the dashboard under Settings → Webhooks (Test Mode).
+  - Local PayMongo setup: `supabase/functions/.env` (from `.env.example`) holds `PAYMONGO_MODE=stub`, `PUBLIC_SITE_URL` and the local webhook secret. Restart the stack (`supabase stop/start`) after adding a function or changing that file. `npm run smoke:paymongo` exercises both functions.
   - Open follow-ups:
     - a user decision on capping the fresh hold after a rejection at the start time (T4.6)
     - the Edge Function `index.ts` is checked only by smoke and e2e (no Deno type-check)
     - if the profile fetch fails, a real admin sees "Admins only" (T5.1, for the M8 error pass)
     - raw PostgREST errors in admin media saves (T6.4, for the M8 error pass)
-    - the guest cancel path doesn't check the 30-day link expiry. That's harmless, since a cancel must be before the start, but recheck it if M7 adds token-authorized RPCs.
+    - the guest cancel path doesn't check the 30-day link expiry. That's harmless, since a cancel must be before the start (M7 added no token-authorized RPCs, so it's still fine).
+    - M7 carry-overs: only QR Ph was paid for real (GCash, Maya and card are untested); the PHP 20 minimum is an assumption; a replay after a session is replaced returns `unknown_checkout`; the webhook stores an empty `provider_source` as `''`.
 
 ## How tasks work
 
@@ -535,7 +541,7 @@ Out of scope for M6: several photos per court (galleries), several or rotating b
 
 Goal (SPEC §9): PayMongo test-mode checkout next to the manual proof flow, with a verified webhook confirming bookings automatically. Postponed from M5 on 2026-10-17 because manual payment and confirmation already work.
 
-> **Status: breakdown confirmed by the user (2026-10-18).** Kept from the earlier plan so the research questions aren't lost. T7.1 ends with a DB and Edge Function plan that needs approval before any migration.
+> **Status: ✅ done (2026-10-18).** A real test-mode payment confirmed a booking on the linked project, and the milestone review passed.
 
 Out of scope for M7: live keys and real money, refunds, PayMongo for walk-ins, emails (M8).
 
@@ -556,38 +562,183 @@ Out of scope for M7: live keys and real money, refunds, PayMongo for walk-ins, e
   - Reviewer: PASS. Its 4 majors are folded into the plan as tightening (no scope change): revival also requires an active court and no blackout; the guest token goes in `sessionStorage`, never in `success_url`; UI items for PayMongo rows in T7.5/T7.6; existing RPCs reject `'paymongo'` readably. The minors are folded in too (bigint centavos, zero total refused, dead session replaced, SPEC API table in T7.2).
   - verify passes (vitest 223, pgTAP 327).
 
-### [ ] T7.2 Migration: PayMongo payments
+### [x] T7.2 Migration: PayMongo payments
 - **Depends:** T7.1
 - **Do:** The schema change T7.1 decides, plus the service-role-only RPCs that record a PayMongo payment and confirm the booking under a row lock (same pattern as `record_payment_proof`).
 - **Acceptance:** pgTAP covers the RLS (anon, player, admin, service_role), idempotency for a replayed event, the amount check, each late-payment case and the constraint interactions. `db:push` and `db:types` have been run.
+- **Notes:** Migrations `20261018123351_paymongo_method.sql` (the enum value on its own) and `20261018123355_paymongo_payments.sql`:
+  - `provider_*` columns and CHECKs on `payments`
+  - the `paymongo_checkouts` table (admins read)
+  - three service-role-only RPCs; `record_paymongo_payment` implements the four §4 cases under a booking lock and is idempotent on the PayMongo payment id
+  - deviation: the existing RPCs reject `'paymongo'` through a guard trigger (`private.payments_paymongo_guard`, readable P0001) instead of `create or replace`, recorded in RESEARCH
+  
+  Tests: `18_paymongo.test.sql` (61 assertions: grants, RLS, the guard via both RPCs and an update, checkout race, reuse and dead-session replacement, every outcome including replay, amount and currency mismatch, revival vs taken, blackout, archived or started slot, superseded proof without a rejection count).
 
-### [ ] T7.3 Edge Function `create-paymongo-checkout`
+  Both migrations were pushed to the linked project and checked by query. `db:types` was regenerated. The `paymongo` label and takings order were added so approved PayMongo money isn't dropped (`dashboard.test.ts`).
+
+  verify passes (vitest 224, pgTAP 388), and e2e passes 22/22. The reviewer passed it; minor 3 (tests) is fixed.
+- **Follow-ups** (each needs a migration, so do it in T7.3's or T7.4's):
+  - Index `payments (provider_checkout_id) where provider_checkout_id is not null`.
+  - After a dead session is replaced, a replay of the old event returns `unknown_checkout` rather than `duplicate`. It's harmless (nothing written, 2xx); check `provider_payment_id` first or expect it in T7.4.
+  - A non-PHP payment's amount is stored as if in PHP. It's unreachable with PHP-only sessions; note the currency in the review note if touched.
+  - `record_paymongo_checkout` says `invalid_state` for an `expired` booking and `hold_expired` for a lapsed hold. Map both in T7.3.
+
+### [x] T7.3 Edge Function `create-paymongo-checkout`
 - **Depends:** T7.2
 - **Do:** Authorize the owner session or the guest ref + token, check the booking is payable, create a test-mode checkout session for the stored `total_amount` with success and cancel URLs back to `/booking/:ref`, and return the checkout URL. Share the auth and payable checks with `submit-payment-proof` (`_shared`).
 - **Acceptance:** A smoke test (`npm run smoke:paymongo` or an extension of `smoke:proof`) covers owner, guest, wrong token, an unpayable booking and the amount coming from the database. PayMongo is stubbed locally unless a test key is present.
+- **Notes:** `create-paymongo-checkout` (POST `{ reference_code, token? }` → `{ checkout_url }`, `verify_jwt = false`, auth `['user', 'publishable']`).
+  - Shared code: `_shared/payable.ts` (caller id, RPC error mapping, ref check), now also used by `submit-payment-proof`, and `_shared/paymongo.ts` (centavos, test-key check, mode selection, return-URL allow-list, request body, response parsing, stub session).
+  - A real `sk_test_` key always wins. `PAYMONGO_MODE=stub` is honoured only on the local http stack. A live key or no key gives 503.
+  - `PUBLIC_SITE_URL` is an allow-list matched against `Origin` (no open redirect). The guest token never goes to PayMongo.
+  - Local env: `supabase/functions/.env` (gitignored), copied from the new committed `.env.example`. The local stack needs a restart to pick up new functions or env.
+  - Tests: Vitest `paymongo.test.ts` and `payable.test.ts`. `npm run smoke:paymongo` passes 11/11 (owner, guest, wrong or missing token, anon on a player's booking, amount from the DB with a client amount ignored, session reuse, cancelled 409, lapsed hold 409, malformed ref). `smoke:proof` is unchanged.
+  - The `18_paymongo` checkout counts are now scoped to the test's own fixtures (the smoke runs add local rows).
+  - verify passes (vitest 246, pgTAP 388), and e2e passes 22/22. The reviewer passed it, and both minors are fixed (key precedence, stub only on the local stack).
+- **Follow-ups:**
+  - The T7.2 index follow-up is still open (do it in T7.4 if it adds a migration).
+  - If the hold lapses between `proof_target` and `record_paymongo_checkout`, a PayMongo session is created but never stored (harmless in test mode).
+  - After T7.7 switches to a real key, local bookings with a stored `cs_stub_…` session keep returning it. Test with fresh bookings or `db:reset:local`.
 
-### [ ] T7.4 Edge Function `paymongo-webhook`
+### [x] T7.4 Edge Function `paymongo-webhook`
 - **Depends:** T7.2
 - **Do:** Verify the signature, ignore events we don't handle, and record the payment through the T7.2 RPC. Idempotent, always 2xx once an event has been handled, and the function never trusts amounts or ids that aren't in the signed payload.
 - **Acceptance:** The smoke test covers a valid paid event (booking confirmed), a bad signature (401, nothing changes), a replay (no duplicate payment) and a late payment (handled as T7.1 decided).
+- **Notes:** `paymongo-webhook` (`verify_jwt = false`, `withSupabase({ auth: 'none' })`, which still gives `ctx.supabaseAdmin`; checked locally).
+  - Order: raw body, then a constant-time `te` HMAC check (401 if it fails; `li` is never accepted), then parse, then ignore anything that isn't a test-mode `checkout_session.payment.paid` (200), then `record_paymongo_payment` with signed-payload values only.
+  - Responses: 200 with the outcome once handled; 200 ignored for invalid input, Postgres 22P02, or a metadata booking id that isn't a uuid; 500 on other DB errors so PayMongo retries; 503 if the secret is missing.
+  - The committed local secret `whsk_local_dev_only` is refused unless `SUPABASE_URL` is http.
+  - Helpers live in `_shared/paymongo.ts`. Tests: `paymongo-webhook.test.ts` (node env, HMAC computed independently).
+  - `npm run smoke:paymongo` passes 23/23. The webhook checks are: valid → confirmed with one approved payment; replay → duplicate, no second payment; bad, missing or tampered signature → 401 with nothing changed; payment after cancel → late, refund note, booking stays cancelled; other event type and live mode → ignored; unknown session → `unknown_checkout`.
+  - verify passes (vitest 257, pgTAP 388). e2e passes 21 with 1 skipped (the walk-in phone run has no start times left late in the day, which is time-dependent and not related). The reviewer passed it, and both minors are fixed.
+- **Follow-ups:**
+  - The T7.2 index on `payments (provider_checkout_id)` still needs a migration and approval. Fold it into the next migration (T7.6, if it needs one, or M8).
+  - A replay of an old event after its dead session was replaced returns `unknown_checkout` (200, nothing written). It's harmless and not exercised by the smoke test.
 
-### [ ] T7.5 Booking page: "Pay online"
+### [x] T7.5 Booking page: "Pay online"
 - **Depends:** T7.3
 - **Do:** On `/booking/:ref`, offer "Pay online with PayMongo" next to "Upload proof" while the booking is payable. Redirect to checkout. On return, show a "confirming payment…" state that refetches until the webhook has confirmed the booking (with a timeout message). Also handle the cancel return. For guests, save the token in `sessionStorage` before redirecting and restore it on the `?paid=` return; never put it in `success_url`. In `BookingSummary` and `PaymentHistory`, PayMongo rows don't count as proof rejections, and late PayMongo rows show "payment received after the booking closed; the venue will arrange a refund" (RESEARCH M7 plan, item 4).
 - **Acceptance:** Testing Library tests cover the button states, the return polling, the guest token surviving the redirect, late PayMongo rows not shown as failed proofs, and errors. An e2e flow covers pay online → (signed fake webhook) → confirmed on desktop and at 360px.
+- **Notes:** "Pay online with PayMongo" sits above "Or pay manually" in the pay card (`PayOnline.tsx`, `useStartPaymongoCheckout` → `startPaymongoCheckout`).
+  - Return handling is in `paymongoReturn.ts`:
+    - On `?paid=1`/`?paid=0` the guest token comes back from `sessionStorage` and `?paid` moves into history state, so copied links don't replay the return.
+    - The booking polls every 3 s while confirming. After 90 s it shows a timeout message and polls every 30 s. It stops once confirmed or not accepted.
+  - The button is hidden while confirming and for staff without the link. It resets on a back/forward-cache restore.
+  - PayMongo rows don't count as proof rejections; they show "Paid online" or "Refund due" with the player-safe note.
+  - Tests: `paymongoReturn.test.ts`, `PayOnline.test.tsx`, 4 new in `BookingSummary.test.tsx`, and the new e2e `pay-online.spec.ts` (success path with a signed webhook, plus the cancel return; desktop and 360px).
+  - verify passes (vitest 282, pgTAP 388). e2e passes 25 with 1 skipped (the time-dependent walk-in phone run). The reviewer passed it; both majors (polling after the timeout, `?paid` kept in links) and minors 3 and 5 are fixed.
+  - Fixed afterwards: the staff rule also hid the button on an admin's **own** booking (found while testing on the linked project). `BookingDetail` now carries `user_id` (owner fetch; null on the guest path), and the button is hidden only when an admin views someone else's booking without its link. Covered by two `BookingPage.test.tsx` cases.
+  - Added afterwards (the follow-up): `BookingPage.test.tsx` (11 tests) covers the page wiring with only `api.ts` and `goToCheckout` mocked: token restore with `?paid` dropped, no saved token, polling until confirmed (fake timers), the 90 s timeout with continued checking, cancel return, refund note, starting a checkout (token saved, redirect, button disabled), a checkout error, a normal visit, owner by session, and staff without a link. A mutation check reintroduced the stop-after-timeout and button-while-confirming bugs; both made tests fail.
+- **Follow-ups:**
+  - A superseded proof shows "Not accepted · Reason: Paid online with PayMongo instead." Consider a friendlier label in T7.6 or M8.
 
-### [ ] T7.6 Admin: PayMongo payments
+### [x] T7.6 Admin: PayMongo payments
 - **Depends:** T7.4
 - **Do:** Show PayMongo payments (method, source, PayMongo id, paid time) in the `/admin/bookings` list and detail panel with no review actions. Flag late payments (case 4) and superseded proofs (case 3, "check for a duplicate") that need manual follow-up. Count approved ones in the dashboard's takings by method, and show money received but not accepted separately. Add `paymongo` to the takings order and the method labels.
 - **Acceptance:** Testing Library tests cover the PayMongo row, the late-payment flag and the takings breakdown.
+- **Notes:**
+  - Data and flags: `AdminPayment` now carries `reviewed_at`, `reviewed_by` and the PayMongo ids. `paymentFlags.ts`:
+    - refund due = a rejected PayMongo row
+    - superseded proof = a rejected proof with no reviewer **and** the webhook's fixed note
+  - Panel: an "Online payments" section (source, PayMongo id, paid time, Accepted/Refund due) with no actions, plus the refund-due and duplicate-check warnings.
+  - List rows: "Paid online", "Refund due" and "Check duplicate" badges.
+  - Dashboard: `TakingsCard` shows takings by method with PayMongo as its own line, and money received but not accepted apart from the total (`fetchRefundsDue`, with an error and retry if that query fails).
+  - Tests: `paymentFlags.test.ts`, `ReviewPanel.test.tsx` (+4), `BookingRow.test.tsx`, `TakingsCard.test.tsx` and `dashboard.test.ts`. `pay-online.spec.ts` now also checks the admin row badge and panel.
+  - verify passes (vitest 313, pgTAP 388). e2e passes 24 with 2 skipped (walk-in skips itself on both projects late at night, when no start times are left today; time-dependent). The reviewer passed it, and both minors are fixed.
+- **Follow-ups:** the T7.2 index on `payments (provider_checkout_id)` moves to M8 (still needs a migration and approval).
 
-### [ ] T7.7 Close out M7
+### [x] T7.7 Close out M7
 - **Depends:** T7.5, T7.6
 - **Do:** Set the PayMongo secrets on the linked project, deploy both functions, register the test-mode webhook, and do one real test-mode payment end to end. Mark M7 ✅ in SPEC §9, run a milestone review, and propose the M8 breakdown.
 - **Acceptance:** `npm run verify` and `npm run test:e2e` pass, a real test-mode payment confirms a booking on the linked project, and the reviewer signs off.
+- **Notes:**
+  - With the user's approval: `PUBLIC_SITE_URL=http://localhost:5173,http://127.0.0.1:5173` set on the linked project, and both functions deployed (ACTIVE, `verify_jwt` off).
+  - The user set `PAYMONGO_SECRET_KEY`, registered the test webhook (Settings → Webhooks, Test Mode) and set `PAYMONGO_WEBHOOK_SECRET` themselves.
+  - Real test payment **CB-6L7YXZ** (₱350, QR Ph): booking `confirmed` with one approved `paymongo` payment equal to the total, a real `cs_`/`pay_`, recorded by the webhook (checked with a linked query).
+  - SPEC §9 marks M7 ✅ (v0.10).
+  - Final gates: verify (vitest 313, pgTAP 388, build); e2e 24 passed, 2 skipped (walk-in skips itself at night when no start times are left today, which is time-dependent); `smoke:paymongo` 23/23 (stub).
+  - Milestone review: PASS. Minors 2 and 3 are fixed (SPEC method lists, Handoff). Major 1 is left to the user (their local key; see Handoff). Minor 4 and the notes are carried into M8.
 
 ## Milestone 8: Polish
-Emails, empty, loading and error states, a11y pass, deploy, README screenshots and a demo video, Playwright e2e for the main flows. *(Break down at the end of M7.)*
+
+Goal (SPEC §9): emails; empty, loading and error states; an accessibility pass (including slot status colors and the settings spacing); deploy. The README, screenshots and demo video moved to the end of M9 (2026-10-19). Playwright e2e for the main flows already exists (H5) and is extended where a task changes a journey.
+
+> **Status: breakdown approved by the user (2026-10-18).** T8.1 ends with an email and deploy plan that needs approval before any migration, Edge Function or deploy.
+
+Out of scope for M8: live PayMongo keys and real money, refunds, SMS, new features.
+
+### [x] T8.1 Research: emails and deploy
+- **Do:** Answer in RESEARCH.md, with sources:
+  - Emails (SPEC §8: booking created with the guest link, payment confirmed, proof rejected, cancelled):
+    - provider (e.g. Resend or Supabase's SMTP)
+    - where they're sent from: database trigger plus queue vs the RPCs/webhook calling an Edge Function
+    - retries and an outbox table
+    - templates
+    - never putting the guest token anywhere but the link itself
+    - local testing through Mailpit
+  - Deploy:
+    - host for the SPA (e.g. Vercel), with rewrites for client routes
+    - env vars
+    - Supabase Auth site URL and redirect URLs
+    - adding the real origin to `PUBLIC_SITE_URL`, and the PayMongo return links
+    - Google OAuth redirect
+    - preview vs production
+- **Files:** `RESEARCH.md`, `SPEC.md`
+- **Acceptance:** Every entry is Decided. The email and deploy plan (migrations, functions, secrets) is written up and approved.
+- **Notes:** RESEARCH M8 has 8 Decided entries plus the approved plan. SPEC §8 is rewritten, and §10 has a new row. The user approved it on 2026-10-18: Resend from a verified domain the user has or will get (API for booking emails, SMTP for Auth); the outbox with triggers, plus `send-emails` run by pg_cron and pg_net; the token-checked `email-guest-link`; Vercel. That approval includes `db:push` of the T8.2 migration. Local experiment: Mailpit's `POST /api/v1/send` works, and the edge runtime reaches `supabase_inbucket_court-booking-system:8025`. pg_net is available but not installed (local and linked).
+- **Follow-ups:** The reviewer passed it. Its 2 majors and 2 minors (triggers must never fail the RPC, the stale booking-created email, Resend 409 on a reused key, anon grants), plus the extra notes, are written into the plan as item 5 "Refinements from the T8.1 review" for T8.2 and T8.3.
+
+### [x] T8.2 Migration: carried DB follow-ups and email outbox
+- **Depends:** T8.1
+- **Do:** Add the `payments (provider_checkout_id) where provider_checkout_id is not null` index (M7 follow-up), plus whatever email storage T8.1 decides (e.g. an outbox table with RLS).
+- **Acceptance:** pgTAP covers the new table's RLS and rules. `db:push` and `db:types` have been run.
+- **Notes:** Migration `20261019143330_email_outbox.sql`. pgTAP `19_email_outbox.test.sql` (58 assertions) covers RLS and grants, every queueing rule (including that a queueing error never fails the booking change, and a webhook replay), the claim, lease, backoff and failure rules, the guest-link claim, the Vault-gated pg_net poke and the purge. 446 pgTAP assertions pass locally. `db:push` was run (the linked `cron.job` has send-emails and purge-email-outbox) and `db:types` too. `seed.sql` suppresses emails for demo bookings. SPEC §6, §8 and §10 are updated. The reviewer passed it, and both SPEC majors are fixed.
+- **Follow-ups:** T8.3: `email-guest-link` must re-read the booking's current status after `claim_guest_link_email` (which leases the row whatever the booking's state) and finish the row as `skipped` when a later event has overtaken it. That is the reviewer's major 2, done in the function rather than with a second migration.
+
+### [ ] T8.3 Transactional emails
+- **Depends:** T8.2
+- **Do:** Send the four SPEC §8 emails as T8.1 decides, test them locally through Mailpit, and add a smoke script. The transport is `resend | mailpit | disabled`, and the hosted default `disabled` marks rows `skipped` (no Resend for now; the Resend adapter is written but switched off).
+- **Acceptance:** Vitest covers the templates (guest link present only in the guest's own email) and the transport choice (`disabled` → skipped). The smoke test covers each trigger, and e2e checks the booking-created email in Mailpit.
+
+### [ ] T8.4 Error, loading and empty states pass
+- **Do:** Go through every async view, and fix the carried follow-ups:
+  - a failed profile fetch shows "Admins only" to a real admin (T5.1)
+  - raw PostgREST errors in admin saves (T6.4)
+  - a friendlier player label for a proof replaced by an online payment (T7.5)
+  - the PayMongo return reading an older not-accepted payment as the current one (M7 review)
+  - `/admin/settings`: more space between the "Save settings" button and the site banner section below it (the user's report, 2026-10-19)
+- **Acceptance:** Testing Library tests cover each fixed state.
+
+### [ ] T8.5 Accessibility pass
+- **Do:** Run axe on the main pages (home, book, checkout, booking, My bookings, admin dashboard and bookings) through Playwright. Fix keyboard and focus issues, labels and contrast. Check 360px and 200% zoom.
+  - **Slot status colors** (the user's request, 2026-10-19). Give free, selected, booked, closed (blackout) and past slots clearly different styles using the current tokens, and add a legend above the grid. Color is never the only signal: each status keeps its text or pattern. M9's theme task re-tunes the values later.
+- **Acceptance:** The e2e axe checks pass with no serious or critical violations, and the fixes are covered by tests. A SlotGrid test checks that each status has its own class and label, and that the legend is shown.
+
+### [ ] T8.6 Deploy
+- **Depends:** T8.1
+- **Do:** Deploy the SPA as T8.1 decides. Set the production env vars, the Supabase Auth URLs and the real origin in `PUBLIC_SITE_URL`. Deploy all Edge Functions with `EMAIL_TRANSPORT=disabled` and the Vault worker secrets (no Resend, no Auth custom SMTP for now). Add a short note on `/signup` that points visitors to Google sign-in or guest booking, because confirmation emails don't reach them yet. Run a smoke test against production (book, proof, pay online in test mode, admin review).
+- **Acceptance:** The production URL works end to end in PayMongo test mode, and the checklist is recorded in TASKS notes.
+
+### [ ] T8.7 Close out M8
+- **Depends:** T8.3, T8.4, T8.5, T8.6
+- **Do:** Mark M8 ✅ in SPEC §9 and run the milestone review. *(The README, screenshots and demo video moved to the end of M9 on 2026-10-19, so they show the final product.)*
+- **Acceptance:** `npm run verify` and `npm run test:e2e` pass, and the reviewer signs off.
+
+## Milestone 9: Venue admin upgrades
+
+Goal (SPEC §9): the user's 2026-10-19 requests, then the portfolio close-out.
+
+> **Status: outline only (2026-10-19).** Per "How tasks work", it gets a full breakdown (Do, Files, Acceptance) when M8 is done, after the SPEC §11 questions are researched. The breakdown needs the user's approval. Order and rough size:
+
+1. Theme and colors: a palette preview page for the user to choose from (light and dark, contrast checked), then swap the tokens in `src/index.css`. *(small–medium)*
+2. Court and sport ordering: up/down controls on `/admin/courts` (`courts.sort_order` already exists), plus a sport order setting (a migration). *(small–medium)*
+3. Deleting a court: only if it has never had a booking. The court, its rates and photos go; otherwise the admin is pointed to archiving. Done through an admin RPC, with pgTAP. *(medium)*
+4. Several photos per court: a `court_photos` table (ordered, with a cover photo) replacing `courts.photo_path`, an admin gallery editor reusing the M6 upload and resize code, and a swipeable public gallery. *(medium)*
+5. Booker names: `get_availability` returns the booker's first name for booked slots (public), and an admin day view (courts by hours) shows full names. *(small–medium)*
+6. Research and plan: overnight and 24-hour hours (operating day model, SPEC §5.2 and §11). *(research, plan gate)*
+7. Overnight hours, DB: operating hours storage and checks, `get_availability`, `create_booking`, `create_walk_in`, pricing and the booking window, with pgTAP. *(large, risky)*
+8. Overnight hours, UI: the schedule editor (incl. "open 24 hours"), the `/book` date grid, walk-in "today", dashboard "today", with e2e. *(medium)*
+9. README, screenshots (phone and desktop), demo video, mark M9 ✅, and the final milestone review. *(moved from T8.7)*
 
 ---
 

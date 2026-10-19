@@ -1,13 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { accountKeys } from '../account/hooks'
 import { bookingErrorCode } from './errors'
+import { goToCheckout, rememberGuestToken } from './paymongoReturn'
 import {
   cancelBooking,
   createBooking,
   fetchAvailability,
   fetchGuestBooking,
   fetchOwnBooking,
+  startPaymongoCheckout,
   submitPaymentProof,
+  type BookingDetail,
   type Cancellation,
   type NewBooking,
   type ProofSubmission,
@@ -40,15 +43,37 @@ export function useCreateBooking() {
   })
 }
 
-/** With a token (even an empty one from a cut-off link), read as a guest; without one, as the logged-in owner through RLS. */
-export function useBooking(ref: string | undefined, token: string | null) {
+/**
+ * With a token (even an empty one from a cut-off link), read as a guest; without one, as the logged-in owner through
+ * RLS. `pollMs` can ask, for the booking as last fetched, for polling (e.g. while waiting for PayMongo's webhook).
+ */
+export function useBooking(ref: string | undefined, token: string | null, { pollMs }: { pollMs?: (booking: BookingDetail) => number | null } = {}) {
   return useQuery({
     queryKey: bookingKeys.detail(ref ?? '', token),
     queryFn: () => (token !== null ? fetchGuestBooking(ref!, token) : fetchOwnBooking(ref!)),
     enabled: !!ref,
     retry: (count, error) => bookingErrorCode(error) !== 'not_found' && count < 1,
     // While staff review a proof, poll so a confirmation or rejection (and the re-upload prompt) appears on its own.
-    refetchInterval: (query) => (query.state.data?.status === 'payment_submitted' ? 30_000 : false),
+    refetchInterval: (query) => {
+      const data = query.state.data
+      const requested = data ? pollMs?.(data) : null
+      if (requested) return requested
+      return data?.status === 'payment_submitted' ? 30_000 : false
+    },
+  })
+}
+
+/** Starts the PayMongo checkout and leaves for it; a guest's token is kept in this tab for the way back. */
+export function useStartPaymongoCheckout(ref: string, token: string | null) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => startPaymongoCheckout({ referenceCode: ref, token }),
+    onSuccess: (url) => {
+      if (token) rememberGuestToken(ref, token)
+      goToCheckout(url)
+    },
+    // A hold_expired or invalid_state error means the booking changed under us.
+    onError: () => qc.invalidateQueries({ queryKey: bookingKeys.detail(ref, token) }),
   })
 }
 

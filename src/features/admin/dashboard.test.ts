@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Slot } from '../booking/selection'
-import { isWalkInStartable, maxWalkInSlots, takingsByMethod } from './dashboard'
+import { isWalkInStartable, maxWalkInSlots, refundsDueSummary, takingsByMethod } from './dashboard'
 
 const now = new Date('2030-01-07T02:30:00.000Z') // 10:30 Manila
 const at = (h: number) => new Date(Date.UTC(2030, 0, 7, h - 8)).toISOString()
@@ -36,7 +36,21 @@ describe('takingsByMethod', () => {
     ])).toEqual({ rows: [{ method: 'cash', total: 350 }, { method: 'gcash', total: 1350.5 }], total: 1700.5 })
   })
 
+  it('counts approved PayMongo payments as their own line', () => {
+    expect(takingsByMethod([
+      { method: 'paymongo', amount: 500 },
+      { method: 'cash', amount: 350 },
+    ])).toEqual({ rows: [{ method: 'cash', total: 350 }, { method: 'paymongo', total: 500 }], total: 850 })
+  })
+
   it('is empty with no payments', () => {
     expect(takingsByMethod([])).toEqual({ rows: [], total: 0 })
+  })
+})
+
+describe('refundsDueSummary', () => {
+  it('counts and totals PayMongo money that was received but not accepted', () => {
+    expect(refundsDueSummary([450, 900.5])).toEqual({ count: 2, total: 1350.5 })
+    expect(refundsDueSummary([])).toEqual({ count: 0, total: 0 })
   })
 })
