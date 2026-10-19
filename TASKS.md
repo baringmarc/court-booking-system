@@ -11,7 +11,7 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
 - **State:** T8.1 done: the email and deploy plan is approved. M7 is complete, reviewer-passed and committed (7eb46be). PayMongo test mode is live on the linked project.
 - **Blockers / notes:**
   - The >500 kB main chunk warning is back (`index-*.js` 614 kB in the 2026-10-18 build, see H6). Check it during T8.5/T8.7.
-  - M8 emails need from the user: a verified Resend domain and API key (before T8.6; local work uses Mailpit), and the Vercel project (T8.6). Never commit `RESEND_API_KEY` or the Vault worker secret.
+  - M8 emails: no Resend for now (user decision, 2026-10-19). Build and test through Mailpit; production runs `EMAIL_TRANSPORT=disabled`. T8.6 needs a Vercel project from the user. Never commit the Vault worker secret (or a Resend key, if one is added later).
   - Docker Desktop must be running for `npm run verify`. `npm run test:e2e` and `npm run smoke:proof` need the full local stack (`npx supabase start`).
   - Email confirmation is on locally (`config.toml`, matching the hosted project). Sign-up emails land in Mailpit at http://127.0.0.1:54324. e2e reads them with `confirmationLink()`. Don't turn it off: claims trust `email_confirmed_at`.
   - Guest links use `#token=`. Going to the same URL again is a hash-only navigation (no reload), so e2e leaves the page first (`openGuestLink`).
@@ -694,8 +694,8 @@ Out of scope for M8: live PayMongo keys and real money, refunds, SMS, new featur
 
 ### [ ] T8.3 Transactional emails
 - **Depends:** T8.2
-- **Do:** Send the four SPEC §8 emails as T8.1 decides, test them locally through Mailpit, and add a smoke script.
-- **Acceptance:** Vitest covers the templates (guest link present only in the guest's own email). The smoke test covers each trigger, and e2e checks the booking-created email in Mailpit.
+- **Do:** Send the four SPEC §8 emails as T8.1 decides, test them locally through Mailpit, and add a smoke script. The transport is `resend | mailpit | disabled`, and the hosted default `disabled` marks rows `skipped` (no Resend for now; the Resend adapter is written but switched off).
+- **Acceptance:** Vitest covers the templates (guest link present only in the guest's own email) and the transport choice (`disabled` → skipped). The smoke test covers each trigger, and e2e checks the booking-created email in Mailpit.
 
 ### [ ] T8.4 Error, loading and empty states pass
 - **Do:** Go through every async view, and fix the carried follow-ups:
@@ -711,7 +711,7 @@ Out of scope for M8: live PayMongo keys and real money, refunds, SMS, new featur
 
 ### [ ] T8.6 Deploy
 - **Depends:** T8.1
-- **Do:** Deploy the SPA as T8.1 decides. Set the production env vars, the Supabase Auth URLs and the real origin in `PUBLIC_SITE_URL`. Deploy all Edge Functions. Run a smoke test against production (book, proof, pay online in test mode, admin review).
+- **Do:** Deploy the SPA as T8.1 decides. Set the production env vars, the Supabase Auth URLs and the real origin in `PUBLIC_SITE_URL`. Deploy all Edge Functions with `EMAIL_TRANSPORT=disabled` and the Vault worker secrets (no Resend, no Auth custom SMTP for now). Add a short note on `/signup` that points visitors to Google sign-in or guest booking, because confirmation emails don't reach them yet. Run a smoke test against production (book, proof, pay online in test mode, admin review).
 - **Acceptance:** The production URL works end to end in PayMongo test mode, and the checklist is recorded in TASKS notes.
 
 ### [ ] T8.7 README, screenshots, demo video and close out

@@ -611,7 +611,7 @@ Fetched on 2026-10-18. Local experiments ran against the running local stack.
   - Resend's `Idempotency-Key` header dedupes a send for 24 h ([idempotency keys](https://resend.com/docs/dashboard/emails/idempotency-keys)).
   - Edge Functions: "Outgoing connections to ports `25` and `587` are not allowed" ([limits](https://supabase.com/docs/guides/functions/limits)). So we send over Resend's HTTPS API, not SMTP.
 - **Gotchas:** Without a domain the deployed app can only email the Resend account owner, and Auth emails only team members. That's fine for a recorded demo, but real visitors wouldn't receive anything.
-- **Recommendation:** Resend over its HTTPS API for booking emails, plus Resend SMTP for Supabase Auth, both from a verified domain. *(User decision, 2026-10-18: the user has or will get a domain.)*
+- **Recommendation:** Resend over its HTTPS API for booking emails, plus Resend SMTP for Supabase Auth, both from a verified domain. *(User decision, 2026-10-18: the user has or will get a domain.)* **Superseded on 2026-10-19:** the user chose to build the pipeline without Resend for now (demo project). Production email is `disabled`; Resend is a later switch-on (API key + domain + Auth SMTP), with no code change.
 
 ### Where emails are sent from: transactional outbox
 - **Status:** Decided (SPEC §10, 2026-10-18)
@@ -671,7 +671,7 @@ Fetched on 2026-10-18. Local experiments ran against the running local stack.
   - The edge runtime container resolves `supabase_inbucket_court-booking-system` (`getent hosts` → 172.18.0.7), and port 8025 answers on the Docker network.
 - **Recommendation:**
   - `EMAIL_TRANSPORT=mailpit` plus `MAILPIT_URL=http://supabase_inbucket_court-booking-system:8025` in `supabase/functions/.env`. Like `PAYMONGO_MODE=stub`, they're honoured only when `SUPABASE_URL` is the local http stack.
-  - On the hosted project, a missing `RESEND_API_KEY` gives 503 `email_unavailable` and leaves rows pending.
+  - `EMAIL_TRANSPORT` is `resend | mailpit | disabled`. On the hosted project it defaults to `disabled`: the worker marks claimed rows `skipped` and `email-guest-link` doesn't send, so rows don't pile up unsent. *(User decision, 2026-10-19.)* `resend` requires `RESEND_API_KEY` (503 `email_unavailable` without it).
   - Smoke and e2e call `send-emails` directly with the local worker secret instead of waiting for cron, then read Mailpit's API.
 
 ### Deploy: SPA host, env vars, preview vs production
@@ -723,8 +723,8 @@ Fetched on 2026-10-18. Local experiments ran against the running local stack.
    - `_shared/email.ts` (transport: Resend or local Mailpit) and `_shared/emailTemplates.ts` (Vitest)
    - Client: `create_booking` success calls `email-guest-link` for guests (fire-and-forget, errors ignored).
    - `npm run smoke:emails`, and an e2e check that the guest booking-created email in Mailpit has the `#token=` link.
-3. **Secrets:** `RESEND_API_KEY`, `EMAIL_FROM`, `EMAIL_WORKER_SECRET`, local `EMAIL_TRANSPORT` and `MAILPIT_URL` in `supabase/functions/.env.example`. Vault holds `email_worker_url` and `email_worker_secret` on the linked project only (set by hand in T8.6, never committed).
-4. **Deploy** (T8.6), as above, plus Supabase Auth custom SMTP through Resend.
+3. **Secrets:** `EMAIL_TRANSPORT`, `EMAIL_FROM`, `EMAIL_WORKER_SECRET`, local `MAILPIT_URL`, and `RESEND_API_KEY` (unused until Resend is switched on) in `supabase/functions/.env.example`. Vault holds `email_worker_url` and `email_worker_secret` on the linked project only (set by hand in T8.6, never committed).
+4. **Deploy** (T8.6), as above. **No Resend and no Auth custom SMTP for now** (user decision, 2026-10-19): `EMAIL_TRANSPORT=disabled` on the hosted project, and Auth stays on Supabase's default SMTP (team members only). Email and password sign-up therefore can't confirm for visitors, so `/signup` points them to Google or guest booking. Confirmation stays on: turning it off would let anyone claim another email's guest bookings.
 5. **Refinements from the T8.1 review.** These are binding for T8.2 and T8.3. They don't change the approved design.
    - **Email triggers must never fail the business transaction.**
      - Use `insert … on conflict do nothing` with the partial-unique predicate.
@@ -737,6 +737,6 @@ Fetched on 2026-10-18. Local experiments ran against the running local stack.
    - `proof_rejected` is queued only for admin rejections (`reviewed_by is not null`), not for a proof auto-closed by the webhook. Its data says whether this was the final rejection (booking `rejected`, slot freed).
    - `email-guest-link` takes the recipient only from the outbox row, and gives one uniform response whatever went wrong (`not_found` convention, SPEC §6).
    - The cron `net.http_post` sets `timeout_milliseconds` explicitly. The lease covers a worker that's cut off.
-   - A daily cron purges `sent` and `failed` rows older than 30 days (PII retention). Note it in SPEC §6.
+   - The outbox `status` also has `skipped` (transport disabled). A daily cron purges `sent`, `skipped` and `failed` rows older than 30 days (PII retention). Note it in SPEC §6.
    - The worker secret sits in pg_net's queue for a short time. That's the documented pattern; rotate the secret if it leaks.
    - In T8.2, SPEC §6 gains the `email_outbox` model, its RLS summary and the Server API rows for the three RPCs and two functions.
