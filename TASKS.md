@@ -7,12 +7,12 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
 > Update this section at the end of every session or task. Keep it short; it's the first thing the next session reads.
 
 - **Current milestone:** 8 (Polish). The breakdown was approved on 2026-10-18. M7 ✅ done on 2026-10-18.
-- **Next task:** T8.5 (accessibility pass with axe, plus slot status colors and a legend).
-- **State:** T8.4 done: errors are readable, admins see a retry when their profile fails to load, and the settings spacing is fixed. T8.3 done: booking emails work locally through Mailpit (`npm run smoke:emails`). T8.2: `email_outbox`, its trigger, RPCs and cron jobs are live on the linked project. Without the Vault secrets, the cron job does nothing there. PayMongo test mode is live on the linked project.
+- **Next task:** T8.6 (deploy). It needs a Vercel project from the user.
+- **State:** T8.5 done: axe e2e (`e2e/a11y.spec.ts`) passes with no serious or critical violations, the slot grid has distinct statuses with a legend, and there's a skip link with focus-on-navigate. T8.4 done: errors are readable, admins see a retry when their profile fails to load, and the settings spacing is fixed. T8.3 done: booking emails work locally through Mailpit (`npm run smoke:emails`). T8.2: `email_outbox`, its trigger, RPCs and cron jobs are live on the linked project. Without the Vault secrets, the cron job does nothing there. PayMongo test mode is live on the linked project.
 - **Blockers / notes:**
   - Emails locally: `supabase/functions/.env` must keep `EMAIL_TRANSPORT=mailpit`, `MAILPIT_URL` and `EMAIL_WORKER_SECRET` (see `.env.example`) for smoke and e2e. Restart the stack after changing it. Your PayMongo test key is commented out there; uncomment it only for real local test payments, and expect `pay-online` e2e and `smoke:paymongo` to fail while it's active.
   - Scope added on 2026-10-19 (SPEC §9, §10, §11): slot status colors are in T8.5, the settings spacing fix is in T8.4, and M9 is outlined at the end of this file. The README moved there. Booker names are **first name only** in public. A court can be deleted only if it was never booked.
-  - The >500 kB main chunk warning is back (`index-*.js` 614 kB in the 2026-10-18 build, see H6). Check it during T8.5/T8.7.
+  - The >500 kB main chunk warning is back (`index-*.js` 618 kB on 2026-10-20, see H6). T8.5 checked it: it's vendor code (react-dom, `@supabase/auth-js`, react-router), not app code. Fix it in T8.7 with a `manualChunks` vendor split or lazy public routes.
   - M8 emails: no Resend for now (user decision, 2026-10-19). Build and test through Mailpit; production runs `EMAIL_TRANSPORT=disabled`. T8.6 needs a Vercel project from the user. Never commit the Vault worker secret (or a Resend key, if one is added later).
   - Docker Desktop must be running for `npm run verify`. `npm run test:e2e` and `npm run smoke:proof` need the full local stack (`npx supabase start`).
   - Email confirmation is on locally (`config.toml`, matching the hosted project). Sign-up emails land in Mailpit at http://127.0.0.1:54324. e2e reads them with `confirmationLink()`. Don't turn it off: claims trust `email_confirmed_at`.
@@ -724,10 +724,18 @@ Out of scope for M8: live PayMongo keys and real money, refunds, SMS, new featur
   - **Sweep.** Every other async view already had its loading, empty and error states.
   - **Checks.** verify passes (Vitest 363), and e2e is 24 passed with 2 known banner skips. The reviewer passed it, and its 2 majors and 3 minors are fixed.
 
-### [ ] T8.5 Accessibility pass
+### [x] T8.5 Accessibility pass
 - **Do:** Run axe on the main pages (home, book, checkout, booking, My bookings, admin dashboard and bookings) through Playwright. Fix keyboard and focus issues, labels and contrast. Check 360px and 200% zoom.
   - **Slot status colors** (the user's request, 2026-10-19). Give free, selected, booked, closed (blackout) and past slots clearly different styles using the current tokens, and add a legend above the grid. Color is never the only signal: each status keeps its text or pattern. M9's theme task re-tunes the values later.
 - **Acceptance:** The e2e axe checks pass with no serious or critical violations, and the fixes are covered by tests. A SlotGrid test checks that each status has its own class and label, and that the legend is shown.
+- **Notes:**
+  - **axe.** `e2e/a11y.spec.ts` uses `@axe-core/playwright`, pinned at 4.13.0 because 4.14.0 was only 5 days old. It fails on serious or critical WCAG 2.1 A/AA violations, in light and dark mode, with no sideways page scroll. Pages covered: home, login, book (with and without a selection), checkout, the player and guest booking pages, My bookings, admin login, the admin dashboard and admin bookings. It runs at desktop width and 360px, and home and book also run at 640px (200% zoom). A sanity page proved the gate catches injected violations. The app had no serious violations before the fixes.
+  - **Fixes.**
+    - Native date inputs (`/book`, `/admin/bookings`) had no visible focus, found by a keyboard tab walk. Chromium focuses the inner field, so `input[type='date']:focus` now carries the outline.
+    - Added a "Skip to main content" link, and focus now moves to `<main>` after a page change (`components/useMainFocus.ts`, used by both layouts). The skip link focuses in script so a guest link's `#token=` survives.
+    - Slot statuses: each look has its own class and words (available outlined, selected filled with ✓, booked grey, closed hatched, past dashed). A "Slot key" legend sits above the grid. The `--slot-*` tokens are derived from the palette for M9's theme task. Measured text contrast is at least 5.2:1 for every status in both themes, and the available slot's outline is 3.16:1 (light).
+  - **Tests.** `SlotGrid.test.tsx` (each status's class and label, the legend), `Layout.test.tsx` and `AdminLayout.test.tsx` (focus and the skip link), and the a11y e2e spec.
+  - **Checks.** verify passes and e2e passes. The reviewer passed it, and its 3 minors are fixed: an AdminLayout test, dead CSS, and narrower SPEC wording (focus moves only within a layout).
 
 ### [ ] T8.6 Deploy
 - **Depends:** T8.1

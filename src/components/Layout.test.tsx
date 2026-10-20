@@ -1,9 +1,34 @@
 import { render, screen } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import userEvent from '@testing-library/user-event'
+import { createMemoryRouter, Link, MemoryRouter, RouterProvider, useLocation } from 'react-router-dom'
 import { describe, expect, it } from 'vitest'
 import { authState } from '../test/authState'
 import { AuthContext } from '../features/auth/AuthContext'
 import { Layout } from './Layout'
+
+function Hash() {
+  return <p>hash:{useLocation().hash}</p>
+}
+
+/** The public layout over two pages, so tests can navigate between them. */
+function renderLayout(initialEntry = '/') {
+  const router = createMemoryRouter(
+    [{
+      element: <Layout />,
+      children: [
+        { path: '/', element: <><h1>Home</h1><Link to="/next">Go next</Link></> },
+        { path: '/next', element: <><h1>Next page</h1><Hash /></> },
+        { path: '/book', element: <h1>Book page</h1> },
+      ],
+    }],
+    { initialEntries: [initialEntry] },
+  )
+  render(
+    <AuthContext.Provider value={authState('anon')}>
+      <RouterProvider router={router} />
+    </AuthContext.Provider>,
+  )
+}
 
 describe('Layout (public header)', () => {
   it('has no Admin link, even for an admin', () => {
@@ -15,5 +40,35 @@ describe('Layout (public header)', () => {
     const nav = screen.getByRole('navigation', { name: 'Main' })
     expect(nav).toHaveTextContent('Book')
     expect(screen.queryByRole('link', { name: 'Admin' })).not.toBeInTheDocument()
+  })
+})
+
+describe('Layout focus', () => {
+  it('leaves focus alone on the first page', () => {
+    renderLayout()
+    expect(document.body).toHaveFocus()
+  })
+
+  it('moves focus to <main> after a page change', async () => {
+    renderLayout()
+    await userEvent.click(screen.getByRole('link', { name: 'Book' }))
+    expect(screen.getByRole('main')).toHaveFocus()
+  })
+
+  it('moves focus to <main> when the link that was used goes away', async () => {
+    renderLayout()
+    await userEvent.click(screen.getByRole('link', { name: 'Go next' }))
+    expect(await screen.findByRole('heading', { name: 'Next page' })).toBeInTheDocument()
+    expect(screen.getByRole('main')).toHaveFocus()
+  })
+
+  it('has a skip link as the first stop that focuses <main> without changing the hash', async () => {
+    renderLayout('/next#token=secret')
+    await userEvent.tab()
+    const skip = screen.getByRole('link', { name: 'Skip to main content' })
+    expect(skip).toHaveFocus()
+    await userEvent.keyboard('{Enter}')
+    expect(screen.getByRole('main')).toHaveFocus()
+    expect(screen.getByText('hash:#token=secret')).toBeInTheDocument()
   })
 })

@@ -1,4 +1,5 @@
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { useMainFocus } from '../../components/useMainFocus'
 import { useAuth } from '../auth/useAuth'
 
 const LINKS = [
@@ -14,6 +15,7 @@ export function AdminLayout() {
   const { user, profile, isAdmin, loading, signOut } = useAuth()
   const navigate = useNavigate()
   const displayName = profile?.full_name || user?.email
+  const { mainRef, skipToMain } = useMainFocus()
 
   async function handleSignOut() {
     await signOut()
@@ -22,6 +24,7 @@ export function AdminLayout() {
 
   return (
     <div className="app admin">
+      <a href="#main" className="skip-link" onClick={skipToMain}>Skip to main content</a>
       <header className="site-header admin-header">
         <div className="container header-inner">
           <Link to="/admin" className="brand">
@@ -50,7 +53,7 @@ export function AdminLayout() {
         </div>
       </header>
 
-      <main className="container main">
+      <main id="main" className="container main" tabIndex={-1} ref={mainRef}>
         <Outlet />
       </main>
     </div>
