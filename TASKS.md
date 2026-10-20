@@ -7,7 +7,7 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
 > Update this section at the end of every session or task. Keep it short; it's the first thing the next session reads.
 
 - **Current milestone:** 9 (Venue admin upgrades), outline only. M8 ✅ done on 2026-10-20.
-- **Next task:** the M9 breakdown. Research the SPEC §11 questions, propose the full M9 tasks in the TASKS.md format, and get the user's approval before building.
+- **Next task:** T9.1 (palette preview).
 - **State:** M8 done (2026-10-20): emails (Mailpit locally, `disabled` in production), error states, the a11y pass, deploy at https://court-booking-system-ashen.vercel.app, and vendor chunks under the 500 kB warning. The vendor split reaches production when `develop` is merged into `master`. Run `npm run smoke:prod -- --links-only` after that merge.
 - **Blockers / notes:**
   - Emails locally: `supabase/functions/.env` must keep `EMAIL_TRANSPORT=mailpit`, `MAILPIT_URL` and `EMAIL_WORKER_SECRET` (see `.env.example`) for smoke and e2e. Restart the stack after changing it. Your PayMongo test key is commented out there; uncomment it only for real local test payments, and expect `pay-online` e2e and `smoke:paymongo` to fail while it's active.
@@ -781,17 +781,113 @@ Out of scope for M8: live PayMongo keys and real money, refunds, SMS, new featur
 
 Goal (SPEC §9): the user's 2026-10-19 requests, then the portfolio close-out.
 
-> **Status: outline only (2026-10-19).** Per "How tasks work", it gets a full breakdown (Do, Files, Acceptance) when M8 is done, after the SPEC §11 questions are researched. The breakdown needs the user's approval. Order and rough size:
+> **Status: breakdown approved by the user (2026-10-20), with every RESEARCH M9 recommendation.** Research: RESEARCH M9. Every DB task still stops at its own plan gate before `db:push`. **Production is live:** every migration must keep the deployed frontend working (expand → deploy → contract, RESEARCH M9 "Shipping DB changes while production is live").
 
-1. Theme and colors: a palette preview page for the user to choose from (light and dark, contrast checked), then swap the tokens in `src/index.css`. *(small–medium)*
-2. Court and sport ordering: up/down controls on `/admin/courts` (`courts.sort_order` already exists), plus a sport order setting (a migration). *(small–medium)*
-3. Deleting a court: only if it has never had a booking. The court, its rates and photos go; otherwise the admin is pointed to archiving. Done through an admin RPC, with pgTAP. *(medium)*
-4. Several photos per court: a `court_photos` table (ordered, with a cover photo) replacing `courts.photo_path`, an admin gallery editor reusing the M6 upload and resize code, and a swipeable public gallery. *(medium)*
-5. Booker names: `get_availability` returns the booker's first name for booked slots (public), and an admin day view (courts by hours) shows full names. *(small–medium)*
-6. Research and plan: overnight and 24-hour hours (operating day model, SPEC §5.2 and §11). *(research, plan gate)*
-7. Overnight hours, DB: operating hours storage and checks, `get_availability`, `create_booking`, `create_walk_in`, pricing and the booking window, with pgTAP. *(large, risky)*
-8. Overnight hours, UI: the schedule editor (incl. "open 24 hours"), the `/book` date grid, walk-in "today", dashboard "today", with e2e. *(medium)*
-9. README, screenshots (phone and desktop), demo video, mark M9 ✅, and the final milestone review. *(moved from T8.7)* The README says previews share the production database (RESEARCH M8 "Deploy: SPA host"). Decide on seed demo photos for the screenshots (skipped in T6.7).
+Out of scope for M9: new sports, live payments, Resend, refunds, SMS.
+
+### [ ] T9.1 Palette preview
+- **Do:**
+  - A dev-only route (`import.meta.env.DEV`, never in the production bundle) shows 4 palettes on the real slot grid, buttons, badges, alerts and the booking card, in light and dark mode.
+  - Each palette shows a WCAG contrast table from a new `contrast()` helper.
+  - The user picks one.
+- **Files:** `src/lib/contrast.ts`, `src/dev/PalettePreview.tsx`, `src/routes/router.tsx`
+- **Acceptance:**
+  - Vitest covers `contrast()` against known ratios.
+  - The build shows no preview code in `dist/`.
+  - The user has chosen a palette (recorded in SPEC §10).
+
+### [ ] T9.2 Apply the theme
+- **Depends:** T9.1
+- **Do:** Swap the light and dark tokens in `src/index.css` for the chosen palette. Check that the `--slot-*` tokens, badges and focus rings still read well, then remove the preview route.
+- **Acceptance:** The a11y e2e passes (no serious or critical violations, light and dark). Text contrast is at least 4.5:1 and the free-slot outline at least 3:1, measured as in T8.5.
+
+### [ ] T9.3 Migration: sport order and court order
+- **Do:**
+  - `venue_settings.sport_order public.sport[]`: every sport exactly once, defaulting to the enum order.
+  - The admin RPC `move_court(p_court_id, p_direction)` swaps a court with its neighbour in the same sport and renumbers that sport's courts.
+  - `get_availability` orders by `array_position(sport_order, sport)`. Same result columns, so `create or replace` works.
+- **Acceptance:**
+  - pgTAP covers the check (a missing or duplicate sport is rejected), `move_court` (admin only, edges are no-ops, renumbering is contiguous) and the availability order.
+  - `db:push` and `db:types` have been run.
+
+### [ ] T9.4 Ordering UI
+- **Depends:** T9.3
+- **Do:**
+  - Up and down buttons per court on `/admin/courts`, grouped by sport, and a sport order editor in `/admin/settings`. The raw sort-order number field is removed from the court form.
+  - The home page, the `/book` sport picker and the court lists follow `sport_order`.
+- **Acceptance:** Testing Library covers the move buttons (disabled at the edges) and the sport order editor. e2e: an admin moves a court, and `/book` shows the new order.
+
+### [ ] T9.5 Delete a court
+- **Do:**
+  - The admin RPC `delete_court(p_court_id) returns text[]` refuses with hint `court_has_bookings` if the court ever had a booking. Otherwise it deletes the court (rates and photos cascade) and returns the photo paths.
+  - The client then removes those files through the Storage API.
+  - A Delete button on the court page, with a confirmation. A refusal points the admin to archiving.
+- **Acceptance:**
+  - pgTAP: admin only, refused when a booking exists (any status), and rates are removed.
+  - Testing Library covers the confirm and refusal states.
+  - e2e: an `E2E` court is created and deleted.
+
+### [ ] T9.6 Migration: several photos per court
+- **Do:**
+  - `court_photos` table (id, court_id with cascade, path unique under `courts/{court_id}/`, sort_order, created_at). Public read, admin write. At most 6 per court (hint `too_many_photos`).
+  - The first photo is the cover.
+  - The admin RPC `reorder_court_photos(p_court_id, p_ids uuid[])`.
+  - Copy the existing `courts.photo_path` values in as photo 0. Keep the column until T9.12 (expand → contract).
+- **Acceptance:** pgTAP covers RLS (anon, player, admin), the limit, the path check, reorder (admin only, must list exactly that court's photos) and the backfill. `db:push` and `db:types` have been run.
+
+### [ ] T9.7 Photo gallery UI
+- **Depends:** T9.6
+- **Do:**
+  - An admin gallery editor on the court page: upload up to 6, remove, and reorder with "make cover" and arrows. It reuses the M6 resize, upload and delete code.
+  - Players see the cover on the tiles, and a swipeable gallery in "About the courts" (CSS scroll-snap, previous and next buttons, alt text, no library). A missing photo shows the sport placeholder.
+- **Acceptance:** Testing Library covers the editor (the limit, reordering, the cover) and the gallery (buttons, alt text, the placeholder). e2e: an admin uploads two photos and players see both.
+
+### [ ] T9.8 Booker names
+- **Do:**
+  - Drop and recreate `get_availability` with a new `booker_first_name` column (the first word of `guest_name` for active bookings, walk-ins included), and re-grant it in the same migration.
+  - `/book` booked cells show "Booked · Ana", and their accessible name includes it.
+  - An admin day view (courts × hours with full names and references, linking to the booking) on the dashboard.
+- **Acceptance:**
+  - pgTAP: anon gets only the first name (no email, phone or full name), and expired, cancelled and rejected bookings show none.
+  - Testing Library covers the grid cell and the day view.
+  - The a11y e2e still passes.
+
+### [ ] T9.9 Migration: overnight and 24-hour hours
+- **Do:** RESEARCH M9 "Overnight and 24-hour opening hours":
+  - Drop the `open < close` check.
+  - `private.operating_day_range`, `private.operating_day_of` and `private.operating_today`.
+  - The admin RPC `set_operating_hours(p_hours jsonb)`: all seven days at once, atomic, hint `hours_overlap`.
+  - `validate_booking_slot` checks against one operating day (the `multi_day` hint is kept), and the window counts operating days.
+  - `get_availability(p_date)` covers the whole operating day.
+  - `slot_price` uses the operating day's rate row.
+  - The walk-in "today" uses `operating_today`.
+- **Acceptance:**
+  - pgTAP: an overnight 06–05 day lists and books a 1 AM slot under the previous date, priced from that day's rates. A booking across midnight inside one operating day works, and one across an operating-day boundary is rejected. A 24-hour day works. Overlapping days are rejected by `set_operating_hours`. The window edges and a walk-in at 1 AM are covered.
+  - Every existing pgTAP file still passes unchanged.
+  - `db:push` and `db:types` have been run.
+
+### [ ] T9.10 Overnight hours UI
+- **Depends:** T9.9
+- **Do:**
+  - The schedule editor saves through `set_operating_hours`. It shows "closes next day" when close ≤ open, and has an "Open 24 hours" checkbox.
+  - `summarizeHours` says "6 AM – 5 AM (next day)" and "Open 24 hours".
+  - The `/book` grid marks after-midnight rows.
+  - The walk-in form and the dashboard use the operating day for "today" (`src/lib/time.ts` helper, mirroring the SQL).
+- **Acceptance:** Vitest covers the time helper and `summarizeHours`. Testing Library covers the editor and the grid marker. e2e: an admin sets overnight hours, a guest books a 1 AM slot, and the hours are restored in teardown.
+
+### [ ] T9.11 Contract migration
+- **Depends:** T9.7 on production (`master`)
+- **Do:** Drop `courts.photo_path` and its check, and anything else M9 left behind for the old frontend.
+- **Acceptance:** pgTAP is updated. `db:push` runs only after the user confirms that the T9.7 frontend is live.
+
+### [ ] T9.12 Close out M9 and the project
+- **Depends:** T9.1–T9.11
+- **Do:**
+  - README: what the project is, its stack and architecture, and how to run it locally. Note that previews share the production database (RESEARCH M8).
+  - Screenshots (phone and desktop), and decide on seed demo photos for them (skipped in T6.7).
+  - A demo video script.
+  - Mark M9 ✅ in SPEC §9 and run the final milestone review.
+- **Acceptance:** `npm run verify` and `npm run test:e2e` pass, and the reviewer signs off.
 
 ---
 
