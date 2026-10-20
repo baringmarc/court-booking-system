@@ -7,7 +7,7 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
 > Update this section at the end of every session or task. Keep it short; it's the first thing the next session reads.
 
 - **Current milestone:** 9 (Venue admin upgrades). The breakdown was approved on 2026-10-20 (T9.1–T9.12). M8 ✅ done on 2026-10-20.
-- **Next task:** T9.7 (photo gallery UI).
+- **Next task:** T9.8 (booker names). Risky, so it stops at its plan gate.
 - **State:** T9.1–T9.6 done (2026-10-21): sport and court ordering, deleting never-booked courts, and `court_photos` (with the hardening) are live on production; the gallery UI is next. T9.1 and T9.2 (2026-10-20): Court Green was kept, the dark-mode danger button contrast is fixed, and `theme.test.ts` guards the real tokens. M8 done (2026-10-20): emails (Mailpit locally, `disabled` in production), error states, the a11y pass, deploy at https://court-booking-system-ashen.vercel.app, and vendor chunks under the 500 kB warning. The vendor split reaches production when `develop` is merged into `master`. Run `npm run smoke:prod -- --links-only` after that merge.
 - **Blockers / notes:**
   - Emails locally: `supabase/functions/.env` must keep `EMAIL_TRANSPORT=mailpit`, `MAILPIT_URL` and `EMAIL_WORKER_SECRET` (see `.env.example`) for smoke and e2e. Restart the stack after changing it. Your PayMongo test key is commented out there; uncomment it only for real local test payments, and expect `pay-online` e2e and `smoke:paymongo` to fail while it's active.
@@ -906,7 +906,7 @@ Out of scope for M9: new sports, live payments, Resend, refunds, SMS.
     - The other major, syncing photos while the old frontend is live, is handled in T9.7 and T9.11 (see their Do lines).
     - A re-review passed. Its one minor is fixed: each privilege is checked on its own, because a comma list means "any of".
 
-### [ ] T9.7 Photo gallery UI
+### [x] T9.7 Photo gallery UI
 - **Depends:** T9.6
 - **Do:**
   - An admin gallery editor on the court page: upload up to 6, remove, and reorder with "make cover" and arrows. It reuses the M6 resize, upload and delete code.
@@ -914,6 +914,23 @@ Out of scope for M9: new sports, live payments, Resend, refunds, SMS.
   - Inserts pass `sort_order` (max + 1). The generated Insert type requires it; the trigger only fills it in for SQL inserts.
   - The old single-photo UI and `courts.photo_path` writes go away, and nothing new writes `photo_path`. **Until this is live, don't edit court photos in the old admin UI** (the T9.6 review): the old UI would replace or delete a file the gallery row still points at. T9.11 reconciles anything that slipped through.
 - **Acceptance:** Testing Library covers the editor (the limit, reordering, the cover) and the gallery (buttons, alt text, the placeholder). e2e: an admin uploads two photos and players see both.
+- **Notes:**
+  - **Data.** `fetchCourts` and `fetchCourt` embed `court_photos(id, path, sort_order)` sorted with the cover first (`CourtWithPhotos`). `useSaveCourt` merges the saved row into the cached court (the row has no photos).
+  - **Public.** `CourtPhoto` takes a path. `CourtTiles` shows the cover, or `CourtGallery` in the `/book` info panel (`detailed`). The gallery is a CSS scroll-snap strip with previous and next buttons, a live "N of M", per-photo alt text, a placeholder for failed images, and reduced-motion respected.
+  - **Admin.** `CourtPhotosSection` replaces `CourtPhotoSection`. It adds several at once (one at a time, `sort_order` max + 1, only as many as fit, skipped files explained), removes (row first, then the file), and reorders with `MoveButtons` or "Make cover" (`reorder_court_photos`, immediate and saved in order, like T9.4). Buttons use `aria-label`s that start with the visible text. A hidden span's leading space was being dropped from the computed name ("Removephoto 2"), which a test caught.
+  - **API.** `addCourtPhoto` removes the uploaded file if the row insert fails. `setCourtPhoto`, `removeCourtPhoto` (old) and `updateCourtPhotoPath` are gone, and nothing writes `photo_path`.
+  - **Tests:**
+    - `CourtGallery.test.tsx`: order and alt text, buttons and edges, swipe position, single and none, a failed image
+    - `CourtTiles.test.tsx` (rewritten): cover only, placeholder, failure and retry, the detailed gallery
+    - `CourtPhotosSection.test.tsx`: empty state, cover badge, multi-upload order, skip message, full, bad type, over 2 MB, server error, remove, make cover, arrows
+    - `e2e/court-photo.spec.ts` (rewritten): bad file, two at once, make cover, the home cover and the `/book` gallery with Next, remove (row and file), `photo_path` stays null
+  - **Review.** The reviewer passed it, and its major and 3 minors are fixed:
+    - **Reorders and add/remove no longer overlap.** Reorder controls wait for an add or remove, and add/remove wait for a reorder (each tested).
+    - **The gallery counter is clamped** when the list shrinks.
+    - **The strip is focusable**, with a focus ring and a label. The gallery e2e now runs axe on an open multi-photo gallery.
+    - **The `scrollTo` spy is restored** after each test.
+  - **Checks.** verify passes (Vitest 415). e2e: all passing, 1 skipped (zoom runs on desktop only).
+  - **Ship note.** This frontend has to reach production (merge to `master`) before T9.11's contract migration. Until then, don't edit court photos in the old admin UI.
 
 ### [ ] T9.8 Booker names
 - **Do:**
@@ -954,6 +971,7 @@ Out of scope for M9: new sports, live payments, Resend, refunds, SMS.
   - **Reconcile first:** delete `court_photos` rows whose file is gone from Storage (`storage.objects`).
   - Then run `private.backfill_court_photos()` only for `photo_path` files that still exist and aren't in the gallery already. Skip a court that already has 6 photos (the backfill would raise `too_many_photos` and abort the migration). Without these checks, a cover deleted in the new gallery would come back (T9.6 review).
   - Then drop `courts.photo_path` and its check, and anything else M9 left behind for the old frontend.
+  - Update what still mentions the column: `e2e/court-photo.spec.ts` (its last check reads `photo_path`) and the `photo_path: null` in the `CourtEditPage.test.tsx` fixture.
 - **Acceptance:** pgTAP is updated. `db:push` runs only after the user confirms that the T9.7 frontend is live.
 
 ### [ ] T9.12 Close out M9 and the project

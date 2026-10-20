@@ -6,7 +6,7 @@ import { SaveStatus } from '../../components/SaveStatus'
 import { useCourt, useCourts, useSaveCourt } from '../catalog/hooks'
 import { SPORT_LABELS, SPORTS, type Court, type Sport } from '../catalog/api'
 import { nextSortOrder } from '../catalog/sportOrder'
-import { CourtPhotoSection } from './CourtPhotoSection'
+import { CourtPhotosSection } from './CourtPhotosSection'
 import { CourtRatesSection } from './CourtRatesSection'
 import { DeleteCourtSection } from './DeleteCourtSection'
 
@@ -31,7 +31,7 @@ export function CourtEditPage() {
         <>
           <h1>{court.data.name}</h1>
           <CourtForm key={court.data.id} court={court.data} />
-          <CourtPhotoSection court={court.data} />
+          <CourtPhotosSection court={court.data} />
           <CourtRatesSection court={court.data} />
           <DeleteCourtSection key={court.data.id} court={court.data} />
         </>

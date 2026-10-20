@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { PageLoader } from '../components/PageLoader'
 import { ErrorMessage } from '../components/ErrorMessage'
 import { useCourts, useOperatingHours, useVenueSettings } from '../features/catalog/hooks'
-import { SPORT_LABELS, type Court } from '../features/catalog/api'
+import { SPORT_LABELS, type CourtWithPhotos } from '../features/catalog/api'
 import { sportsOf } from '../features/catalog/sportOrder'
 import { summarizeHours } from '../features/catalog/hours'
 import { CourtTiles } from '../features/catalog/CourtTiles'
@@ -54,7 +54,7 @@ export function HomePage() {
   )
 }
 
-function SportGroup({ title, courts, currency }: { title: string; courts: Court[]; currency: string }) {
+function SportGroup({ title, courts, currency }: { title: string; courts: CourtWithPhotos[]; currency: string }) {
   const minRate = Math.min(...courts.map((c) => c.default_hourly_rate))
   return (
     <section className="card">

@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ErrorMessage } from '../../components/ErrorMessage'
 import { PageLoader } from '../../components/PageLoader'
 import { addDays, formatDateLabel, todayInZone } from '../../lib/time'
-import { SPORT_LABELS, type Court, type Sport, type VenueSettings } from '../catalog/api'
+import { SPORT_LABELS, type CourtWithPhotos, type Sport, type VenueSettings } from '../catalog/api'
 import { sportsOf } from '../catalog/sportOrder'
 import { useCourts, useVenueSettings } from '../catalog/hooks'
 import { CourtTiles } from '../catalog/CourtTiles'
@@ -40,7 +40,7 @@ function clampDate(value: string | null, min: string, max: string) {
   return value < min ? min : value > max ? max : value
 }
 
-function BookingBoard({ settings, courts }: { settings: VenueSettings; courts: Court[] }) {
+function BookingBoard({ settings, courts }: { settings: VenueSettings; courts: CourtWithPhotos[] }) {
   const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
   const [selection, setSelection] = useState<Selection>(null)
@@ -116,7 +116,7 @@ function BookingBoard({ settings, courts }: { settings: VenueSettings; courts: C
 
       <details className="court-info">
         <summary>About the {SPORT_LABELS[sport].toLowerCase()} courts</summary>
-        <CourtTiles courts={sportCourts} showDescription />
+        <CourtTiles courts={sportCourts} detailed />
       </details>
 
       <p className="muted small">

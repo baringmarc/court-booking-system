@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../../lib/queryClient'
-import { fetchCourts, fetchVenueSettings, type Court, type VenueSettings } from '../catalog/api'
+import { fetchCourts, fetchVenueSettings, type Court, type CourtWithPhotos, type VenueSettings } from '../catalog/api'
 import { moveCourt } from './api'
 import { CourtsPage } from './CourtsPage'
 
@@ -16,7 +16,7 @@ vi.mock('../catalog/api', async (importOriginal) => ({
 vi.mock('./api', () => ({ moveCourt: vi.fn() }))
 
 const court = (id: string, name: string, sport: Court['sport'], sort_order: number, is_active = true) =>
-  ({ id, name, sport, sort_order, is_active, default_hourly_rate: 350 }) as Court
+  ({ id, name, sport, sort_order, is_active, default_hourly_rate: 350, court_photos: [] as CourtWithPhotos['court_photos'] }) as CourtWithPhotos
 // Already in display order, as fetchCourts returns them (tennis first in this venue).
 const courts = [
   court('t1', 'Tennis Court', 'tennis', 0),
