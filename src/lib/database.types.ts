@@ -491,6 +491,7 @@ export type Database = {
           payment_hold_minutes: number
           payment_instructions: string
           slot_minutes: number
+          sport_order: Database["public"]["Enums"]["sport"][]
           timezone: string
           updated_at: string
         }
@@ -506,6 +507,7 @@ export type Database = {
           payment_hold_minutes?: number
           payment_instructions?: string
           slot_minutes?: number
+          sport_order?: Database["public"]["Enums"]["sport"][]
           timezone?: string
           updated_at?: string
         }
@@ -521,6 +523,7 @@ export type Database = {
           payment_hold_minutes?: number
           payment_instructions?: string
           slot_minutes?: number
+          sport_order?: Database["public"]["Enums"]["sport"][]
           timezone?: string
           updated_at?: string
         }
@@ -633,6 +636,10 @@ export type Database = {
           status: Database["public"]["Enums"]["booking_status"]
           total_amount: number
         }[]
+      }
+      move_court: {
+        Args: { p_court_id: string; p_direction: number }
+        Returns: undefined
       }
       paymongo_checkout_for: {
         Args: { p_booking_id: string }

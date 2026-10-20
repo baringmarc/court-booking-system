@@ -7,7 +7,7 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
 > Update this section at the end of every session or task. Keep it short; it's the first thing the next session reads.
 
 - **Current milestone:** 9 (Venue admin upgrades). The breakdown was approved on 2026-10-20 (T9.1–T9.12). M8 ✅ done on 2026-10-20.
-- **Next task:** T9.3 (migration: sport order and court order). Risky, so it stops at its plan gate.
+- **Next task:** T9.4 (ordering UI).
 - **State:** T9.1 and T9.2 done (2026-10-20): Court Green was kept, the dark-mode danger button contrast is fixed, and `theme.test.ts` guards the real tokens. M8 done (2026-10-20): emails (Mailpit locally, `disabled` in production), error states, the a11y pass, deploy at https://court-booking-system-ashen.vercel.app, and vendor chunks under the 500 kB warning. The vendor split reaches production when `develop` is merged into `master`. Run `npm run smoke:prod -- --links-only` after that merge.
 - **Blockers / notes:**
   - Emails locally: `supabase/functions/.env` must keep `EMAIL_TRANSPORT=mailpit`, `MAILPIT_URL` and `EMAIL_WORKER_SECRET` (see `.env.example`) for smoke and e2e. Restart the stack after changing it. Your PayMongo test key is commented out there; uncomment it only for real local test payments, and expect `pay-online` e2e and `smoke:paymongo` to fail while it's active.
@@ -817,7 +817,7 @@ Out of scope for M9: new sports, live payments, Resend, refunds, SMS.
   - **Checks.** verify passes. e2e: 31 passed, with 3 expected skips.
   - **Review.** The reviewer passed it, and its 3 minors are fixed. The test reads `index.css?raw` (`vitest.config.ts` lets that file through Vite) instead of pulling Node types into the app tsconfig. It also asserts that the copied `color-mix` formulas still exist. The Handoff is updated.
 
-### [ ] T9.3 Migration: sport order and court order
+### [x] T9.3 Migration: sport order and court order
 - **Do:**
   - `venue_settings.sport_order public.sport[]`: every sport exactly once, defaulting to the enum order.
   - The admin RPC `move_court(p_court_id, p_direction)` swaps a court with its neighbour in the same sport and renumbers that sport's courts.
@@ -825,6 +825,14 @@ Out of scope for M9: new sports, live payments, Resend, refunds, SMS.
 - **Acceptance:**
   - pgTAP covers the check (a missing or duplicate sport is rejected), `move_court` (admin only, edges are no-ops, renumbering is contiguous) and the availability order.
   - `db:push` and `db:types` have been run.
+- **Notes:**
+  - Migration `20261020152306_sport_and_court_order.sql`. It's additive only.
+  - `move_court` locks the sport's courts, ranks them by `(sort_order, name, id)`, swaps, then renumbers 0..n-1. Archived courts are included.
+  - pgTAP `20_ordering.test.sql` covers the default, the 3 check violations, RLS (anon reads, a player's update is filtered, an admin updates), `move_court` (refused for anon and players, a bad direction or unknown court is rejected, swapping with a name tie-break, both edges are no-ops, contiguous numbering, other sports untouched) and `get_availability` in sport order.
+  - Every pgTAP file passes locally. `db:push` was run (dry run first) and `db:types` too.
+  - Production after the push: all deep links work, `sport_order` is `{badminton,pickleball,basketball,tennis}`, and `get_availability` returns slots.
+  - **Review.** The reviewer passed it. The test now includes an archived court and asserts court order within a sport (23 assertions).
+- **Follow-ups (next DB migration, T9.5):** the `sport_order` check accepts a two-dimensional array (cardinality 4, containing every sport), and `array_position` would then throw for every visitor. Only an admin can write it. Re-add the check with `array_ndims(sport_order) = 1` in a new migration, with a pgTAP case. Also: T9.4 must order the client lists by `sport_order`.
 
 ### [ ] T9.4 Ordering UI
 - **Depends:** T9.3
@@ -838,6 +846,7 @@ Out of scope for M9: new sports, live payments, Resend, refunds, SMS.
   - The admin RPC `delete_court(p_court_id) returns text[]` refuses with hint `court_has_bookings` if the court ever had a booking. Otherwise it deletes the court (rates and photos cascade) and returns the photo paths.
   - The client then removes those files through the Storage API.
   - A Delete button on the court page, with a confirmation. A refusal points the admin to archiving.
+  - In the same migration, re-add the `sport_order` check with `array_ndims(sport_order) = 1` (T9.3 follow-up).
 - **Acceptance:**
   - pgTAP: admin only, refused when a booking exists (any status), and rates are removed.
   - Testing Library covers the confirm and refusal states.
