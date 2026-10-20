@@ -6,9 +6,9 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
 
 > Update this section at the end of every session or task. Keep it short; it's the first thing the next session reads.
 
-- **Current milestone:** 9 (Venue admin upgrades), outline only. M8 ✅ done on 2026-10-20.
-- **Next task:** T9.2 (apply the theme). Court Green was kept, so this means fixing the dark-mode danger button contrast, adding a lasting contrast guard for the real tokens, and removing the preview.
-- **State:** M8 done (2026-10-20): emails (Mailpit locally, `disabled` in production), error states, the a11y pass, deploy at https://court-booking-system-ashen.vercel.app, and vendor chunks under the 500 kB warning. The vendor split reaches production when `develop` is merged into `master`. Run `npm run smoke:prod -- --links-only` after that merge.
+- **Current milestone:** 9 (Venue admin upgrades). The breakdown was approved on 2026-10-20 (T9.1–T9.12). M8 ✅ done on 2026-10-20.
+- **Next task:** T9.3 (migration: sport order and court order). Risky, so it stops at its plan gate.
+- **State:** T9.1 and T9.2 done (2026-10-20): Court Green was kept, the dark-mode danger button contrast is fixed, and `theme.test.ts` guards the real tokens. M8 done (2026-10-20): emails (Mailpit locally, `disabled` in production), error states, the a11y pass, deploy at https://court-booking-system-ashen.vercel.app, and vendor chunks under the 500 kB warning. The vendor split reaches production when `develop` is merged into `master`. Run `npm run smoke:prod -- --links-only` after that merge.
 - **Blockers / notes:**
   - Emails locally: `supabase/functions/.env` must keep `EMAIL_TRANSPORT=mailpit`, `MAILPIT_URL` and `EMAIL_WORKER_SECRET` (see `.env.example`) for smoke and e2e. Restart the stack after changing it. Your PayMongo test key is commented out there; uncomment it only for real local test payments, and expect `pay-online` e2e and `smoke:paymongo` to fail while it's active.
   - Scope added on 2026-10-19 (SPEC §9, §10, §11): slot status colors are in T8.5, the settings spacing fix is in T8.4, and M9 is outlined at the end of this file. The README moved there. Booker names are **first name only** in public. A court can be deleted only if it was never booked.
@@ -804,10 +804,18 @@ Out of scope for M9: new sports, live payments, Resend, refunds, SMS.
   - **Review.** The reviewer passed it. Its outline-background and Handoff minors are fixed.
 - **Follow-ups (T9.2):** `.btn-danger` hard-codes `#fff` on `--danger`, which is about 2.8:1 in dark mode (pre-existing, and no a11y e2e page shows it). Add a danger-button pair to the checks and fix it. Also check the cancelled and pending badges.
 
-### [ ] T9.2 Apply the theme
+### [x] T9.2 Apply the theme
 - **Depends:** T9.1
 - **Do:** Swap the light and dark tokens in `src/index.css` for the chosen palette. Check that the `--slot-*` tokens, badges and focus rings still read well, then remove the preview route.
 - **Acceptance:** The a11y e2e passes (no serious or critical violations, light and dark). Text contrast is at least 4.5:1 and the free-slot outline at least 3:1, measured as in T8.5.
+- **Notes:**
+  - Court Green was kept, so the palette tokens are unchanged.
+  - **Fixed** the T9.1 follow-up: `--danger-contrast` (dark `#1f0a08`) replaces the hard-coded white on `.btn-danger`. It was 2.79:1, and 3.77:1 on hover.
+  - **Guard.** `src/lib/themeChecks.ts` (17 AA pairs, including the danger button and hover, the cancelled and pending badges, and the free-slot outline on the page and on cards) is run on the real `index.css` tokens by `src/lib/theme.test.ts`. Mutation check: putting white back fails it.
+  - **e2e.** `e2e/a11y.spec.ts` now opens the cancel confirmation, so axe sees `.btn-danger`. Mutation check: with white text, axe fails "cancel confirmation (dark)" on `color-contrast`.
+  - The preview (`src/dev/`, the router spread) is removed. `contrast.ts` stays for the guard.
+  - **Checks.** verify passes. e2e: 31 passed, with 3 expected skips.
+  - **Review.** The reviewer passed it, and its 3 minors are fixed. The test reads `index.css?raw` (`vitest.config.ts` lets that file through Vite) instead of pulling Node types into the app tsconfig. It also asserts that the copied `color-mix` formulas still exist. The Handoff is updated.
 
 ### [ ] T9.3 Migration: sport order and court order
 - **Do:**

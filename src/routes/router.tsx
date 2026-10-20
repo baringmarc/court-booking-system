@@ -14,13 +14,6 @@ import { NotFoundPage } from './NotFoundPage'
 // Routes follow SPEC.md §7.
 // Admin pages are lazy-loaded so players never download them.
 export const router = createBrowserRouter([
-  // Dev-only palette preview (T9.1). import.meta.env.DEV is false in builds, so the import is dropped there.
-  ...(import.meta.env.DEV
-    ? [{
-        path: '/dev/palettes',
-        lazy: () => import('../dev/PalettePreview').then((m) => ({ Component: m.PalettePreview })),
-      }]
-    : []),
   {
     element: <Layout />,
     hydrateFallbackElement: <PageLoader />,

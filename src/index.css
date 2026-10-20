@@ -9,6 +9,7 @@
   --accent-contrast: #ffffff;
   --accent-soft: rgba(15, 122, 85, 0.1);
   --danger: #b42318;
+  --danger-contrast: #ffffff;
   --radius: 10px;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.05), 0 4px 12px rgba(0, 0, 0, 0.04);
   --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
@@ -36,6 +37,7 @@
     --accent-contrast: #08140f;
     --accent-soft: rgba(52, 196, 139, 0.12);
     --danger: #f97066;
+    --danger-contrast: #1f0a08; /* white on this light red is ~2.8:1 (T9.2) */
     --shadow: none;
   }
 }
@@ -106,7 +108,7 @@ img, svg { display: block; }
 }
 .btn:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
 .btn:disabled { opacity: 0.6; cursor: not-allowed; }
-.btn-danger { background: var(--danger); border-color: var(--danger); color: #fff; }
+.btn-danger { background: var(--danger); border-color: var(--danger); color: var(--danger-contrast); }
 .btn-danger:hover { background: color-mix(in srgb, var(--danger) 85%, black); border-color: transparent; }
 .btn-outline { background: transparent; color: var(--text); border-color: var(--border); }
 .btn-outline:hover { background: var(--accent-soft); border-color: var(--border); }
