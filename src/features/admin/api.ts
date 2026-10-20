@@ -227,6 +227,24 @@ async function removeVenueMedia(path: string) {
   if (!data?.length) throw new ApiError(`The file ${path} was not deleted.`)
 }
 
+/**
+ * Deletes a court that was never booked (delete_court refuses otherwise, hint `court_has_bookings`), then removes
+ * every file under its media folder. The file cleanup is best effort: a leftover file is an orphan the RESEARCH M6
+ * query lists, never a broken link, so it doesn't fail the delete.
+ */
+export async function deleteCourt(courtId: string) {
+  unwrap(await supabase.rpc('delete_court', { p_court_id: courtId }))
+  await removeMediaFolder(`courts/${courtId}`).catch(() => {})
+}
+
+async function removeMediaFolder(folder: string) {
+  const { data: files, error } = await supabase.storage.from(VENUE_MEDIA_BUCKET).list(folder, { limit: 100 })
+  if (error) throw new ApiError(storageErrorMessage(error))
+  if (!files?.length) return
+  const { error: removeError } = await supabase.storage.from(VENUE_MEDIA_BUCKET).remove(files.map((f) => `${folder}/${f.name}`))
+  if (removeError) throw new ApiError(storageErrorMessage(removeError))
+}
+
 async function updateCourtPhotoPath(courtId: string, photoPath: string | null) {
   return unwrap(await supabase.from('courts').update({ photo_path: photoPath }).eq('id', courtId).select().single())
 }

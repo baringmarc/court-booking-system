@@ -7,6 +7,7 @@ import {
   fetchApprovedPayments,
   fetchProofQueueCount,
   fetchProofUrl,
+  deleteCourt,
   fetchRefundsDue,
   moveCourt,
   removeBanner,
@@ -161,6 +162,21 @@ export function useSaveSportOrder() {
         qc.invalidateQueries({ queryKey: catalogKeys.allCourts }),
         qc.invalidateQueries({ queryKey: bookingKeys.allAvailability }),
       ])
+    },
+  })
+}
+
+/** Deletes a court that was never booked (T9.5). Its page and the lists drop it; the /book grid refetches. */
+export function useDeleteCourt(courtId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => deleteCourt(courtId),
+    onSuccess: () => {
+      // Not awaited, so the page can navigate away straight after; the deleted court's own query is dropped.
+      qc.removeQueries({ queryKey: catalogKeys.court(courtId) })
+      void qc.invalidateQueries({ queryKey: catalogKeys.allCourts })
+      void qc.invalidateQueries({ queryKey: catalogKeys.blackouts }) // its court blackouts went with it
+      void qc.invalidateQueries({ queryKey: bookingKeys.allAvailability })
     },
   })
 }

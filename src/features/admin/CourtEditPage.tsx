@@ -8,6 +8,7 @@ import { SPORT_LABELS, SPORTS, type Court, type Sport } from '../catalog/api'
 import { nextSortOrder } from '../catalog/sportOrder'
 import { CourtPhotoSection } from './CourtPhotoSection'
 import { CourtRatesSection } from './CourtRatesSection'
+import { DeleteCourtSection } from './DeleteCourtSection'
 
 export function CourtEditPage() {
   const { id } = useParams()
@@ -32,6 +33,7 @@ export function CourtEditPage() {
           <CourtForm key={court.data.id} court={court.data} />
           <CourtPhotoSection court={court.data} />
           <CourtRatesSection court={court.data} />
+          <DeleteCourtSection key={court.data.id} court={court.data} />
         </>
       )}
     </section>

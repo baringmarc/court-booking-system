@@ -599,6 +599,7 @@ export type Database = {
           reference_code: string
         }[]
       }
+      delete_court: { Args: { p_court_id: string }; Returns: undefined }
       finish_email: {
         Args: { p_error?: string; p_id: string; p_outcome: string }
         Returns: Database["public"]["Enums"]["email_status"]

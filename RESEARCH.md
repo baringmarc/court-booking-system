@@ -800,6 +800,7 @@ Researched on 2026-10-20 from the current migrations and client code, with local
 - **Recommendation:**
   - `move_court(p_court_id uuid, p_direction smallint)`, admin only: swaps the court with its neighbour within its sport and renumbers that sport's courts 0..n atomically.
   - `delete_court(p_court_id uuid) returns text[]`, admin only: refuses with hint `court_has_bookings` if any booking in any status ever used the court. Otherwise it deletes the court (rates and photo rows cascade) and returns the photo paths, so the client removes the files through the Storage API.
+    *(As built, T9.5: it returns nothing, and the client removes every file under `courts/{id}/`. See SPEC §10, 2026-10-20.)*
 
 ### Court photos (SPEC §11 Q4)
 - **Status:** Decided (SPEC §10, 2026-10-20)

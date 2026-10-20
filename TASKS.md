@@ -7,7 +7,7 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
 > Update this section at the end of every session or task. Keep it short; it's the first thing the next session reads.
 
 - **Current milestone:** 9 (Venue admin upgrades). The breakdown was approved on 2026-10-20 (T9.1–T9.12). M8 ✅ done on 2026-10-20.
-- **Next task:** T9.5 (delete a court). Risky, so it stops at its plan gate.
+- **Next task:** T9.6 (migration: several photos per court). Risky, so it stops at its plan gate.
 - **State:** T9.1 and T9.2 done (2026-10-20): Court Green was kept, the dark-mode danger button contrast is fixed, and `theme.test.ts` guards the real tokens. M8 done (2026-10-20): emails (Mailpit locally, `disabled` in production), error states, the a11y pass, deploy at https://court-booking-system-ashen.vercel.app, and vendor chunks under the 500 kB warning. The vendor split reaches production when `develop` is merged into `master`. Run `npm run smoke:prod -- --links-only` after that merge.
 - **Blockers / notes:**
   - Emails locally: `supabase/functions/.env` must keep `EMAIL_TRANSPORT=mailpit`, `MAILPIT_URL` and `EMAIL_WORKER_SECRET` (see `.env.example`) for smoke and e2e. Restart the stack after changing it. Your PayMongo test key is commented out there; uncomment it only for real local test payments, and expect `pay-online` e2e and `smoke:paymongo` to fail while it's active.
@@ -859,16 +859,28 @@ Out of scope for M9: new sports, live payments, Resend, refunds, SMS.
     - **Import cycle.** `catalog/sports.ts` is a leaf module (re-exported by `api.ts`), which breaks the cycle between `api.ts` and `sportOrder.ts`.
   - **Checks.** verify passes (Vitest 403). e2e: 33 passed, with 3 expected skips.
 
-### [ ] T9.5 Delete a court
+### [x] T9.5 Delete a court
 - **Do:**
-  - The admin RPC `delete_court(p_court_id) returns text[]` refuses with hint `court_has_bookings` if the court ever had a booking. Otherwise it deletes the court (rates and photos cascade) and returns the photo paths.
-  - The client then removes those files through the Storage API.
+  - The admin RPC `delete_court(p_court_id)` refuses with hint `court_has_bookings` if the court ever had a booking. Otherwise it deletes the court (rates and photos cascade).
+  - The client then removes every file under the court's media folder through the Storage API. *(Changed from "returns the photo paths" at the plan gate, SPEC §10.)*
   - A Delete button on the court page, with a confirmation. A refusal points the admin to archiving.
   - In the same migration, re-add the `sport_order` check with `array_ndims(sport_order) = 1` (T9.3 follow-up).
 - **Acceptance:**
   - pgTAP: admin only, refused when a booking exists (any status), and rates are removed.
   - Testing Library covers the confirm and refusal states.
   - e2e: an `E2E` court is created and deleted.
+- **Notes:**
+  - Migration `20261020154357_delete_court.sql`. `delete_court` returns nothing; the client then clears `courts/{id}/` (an approved change from "returns the photo paths", SPEC §10).
+    - It locks the court row, refuses if the court ever had a booking (hint `court_has_bookings`), and maps the bookings foreign-key error to the same message.
+    - The same migration re-adds the `sport_order` check as one-dimensional.
+    - `db:push` (dry run first) and `db:types` were run. Production's check is confirmed.
+  - **Tests:**
+    - pgTAP `21_delete_court.test.sql` (18 assertions): anon and players refused, null or unknown courts rejected, refused for a confirmed and for a cancelled-only booking (court kept, hints checked), cascades (rates and the court's own blackout gone, venue-wide blackout kept), a second delete says the court doesn't exist, and 2-D and empty `sport_order` rejected.
+    - `DeleteCourtSection.test.tsx`: confirm and back out, delete then navigate, the refusal with the archive tip, no tip when already archived.
+    - `e2e/delete-court.spec.ts`: deletes an `E2E` court along with its media file, and is refused on the seeded Badminton 1. Mutation check: without the folder cleanup, the e2e fails.
+  - **Found while debugging:** an expression-bodied `beforeEach` returns the mock, and Vitest runs a returned function as cleanup, so the mock got called again. Fixed here and in `MyBookingsPage.test.tsx`.
+  - **Checks.** verify passes (Vitest 407). e2e: 35 passed, with 3 expected skips. The reviewer passed it. Its blackouts-cache minor is fixed (blackouts are refetched after a delete).
+- **Follow-ups (T9.9):** if a court is deleted while someone books it, `create_booking` or `create_walk_in` would surface the raw foreign-key error (23503) to the player. That's very unlikely. Map it to a readable "court unavailable" error when T9.9 rewrites those functions.
 
 ### [ ] T9.6 Migration: several photos per court
 - **Do:**

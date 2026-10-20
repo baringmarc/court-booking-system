@@ -90,7 +90,10 @@ describe('MyBookingsPage', () => {
 })
 
 describe('GuestBookingClaimer', () => {
-  beforeEach(() => vi.mocked(claimGuestBookings).mockReset().mockResolvedValue(0))
+  // A block body: a function returned from beforeEach is run as cleanup (it would call the mock again).
+  beforeEach(() => {
+    vi.mocked(claimGuestBookings).mockReset().mockResolvedValue(0)
+  })
 
   it('claims once for a signed-in player with a confirmed email', async () => {
     renderPage(<><GuestBookingClaimer /><GuestBookingClaimer /></>)
