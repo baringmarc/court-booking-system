@@ -185,6 +185,38 @@ export type Database = {
           },
         ]
       }
+      court_photos: {
+        Row: {
+          court_id: string
+          created_at: string
+          id: string
+          path: string
+          sort_order: number
+        }
+        Insert: {
+          court_id: string
+          created_at?: string
+          id?: string
+          path: string
+          sort_order: number
+        }
+        Update: {
+          court_id?: string
+          created_at?: string
+          id?: string
+          path?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "court_photos_court_id_fkey"
+            columns: ["court_id"]
+            isOneToOne: false
+            referencedRelation: "courts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       court_rates: {
         Row: {
           court_id: string
@@ -694,6 +726,10 @@ export type Database = {
           outcome: string
           payment_id: string
         }[]
+      }
+      reorder_court_photos: {
+        Args: { p_court_id: string; p_ids: string[] }
+        Returns: undefined
       }
       review_payment: {
         Args: { p_approve: boolean; p_booking_id: string; p_note?: string }

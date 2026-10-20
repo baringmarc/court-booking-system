@@ -7,8 +7,8 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
 > Update this section at the end of every session or task. Keep it short; it's the first thing the next session reads.
 
 - **Current milestone:** 9 (Venue admin upgrades). The breakdown was approved on 2026-10-20 (T9.1–T9.12). M8 ✅ done on 2026-10-20.
-- **Next task:** T9.6 (migration: several photos per court). Risky, so it stops at its plan gate.
-- **State:** T9.1 and T9.2 done (2026-10-20): Court Green was kept, the dark-mode danger button contrast is fixed, and `theme.test.ts` guards the real tokens. M8 done (2026-10-20): emails (Mailpit locally, `disabled` in production), error states, the a11y pass, deploy at https://court-booking-system-ashen.vercel.app, and vendor chunks under the 500 kB warning. The vendor split reaches production when `develop` is merged into `master`. Run `npm run smoke:prod -- --links-only` after that merge.
+- **Next task:** T9.7 (photo gallery UI).
+- **State:** T9.1–T9.6 done (2026-10-21): sport and court ordering, deleting never-booked courts, and `court_photos` (with the hardening) are live on production; the gallery UI is next. T9.1 and T9.2 (2026-10-20): Court Green was kept, the dark-mode danger button contrast is fixed, and `theme.test.ts` guards the real tokens. M8 done (2026-10-20): emails (Mailpit locally, `disabled` in production), error states, the a11y pass, deploy at https://court-booking-system-ashen.vercel.app, and vendor chunks under the 500 kB warning. The vendor split reaches production when `develop` is merged into `master`. Run `npm run smoke:prod -- --links-only` after that merge.
 - **Blockers / notes:**
   - Emails locally: `supabase/functions/.env` must keep `EMAIL_TRANSPORT=mailpit`, `MAILPIT_URL` and `EMAIL_WORKER_SECRET` (see `.env.example`) for smoke and e2e. Restart the stack after changing it. Your PayMongo test key is commented out there; uncomment it only for real local test payments, and expect `pay-online` e2e and `smoke:paymongo` to fail while it's active.
   - Scope added on 2026-10-19 (SPEC §9, §10, §11): slot status colors are in T8.5, the settings spacing fix is in T8.4, and M9 is outlined at the end of this file. The README moved there. Booker names are **first name only** in public. A court can be deleted only if it was never booked.
@@ -882,19 +882,37 @@ Out of scope for M9: new sports, live payments, Resend, refunds, SMS.
   - **Checks.** verify passes (Vitest 407). e2e: 35 passed, with 3 expected skips. The reviewer passed it. Its blackouts-cache minor is fixed (blackouts are refetched after a delete).
 - **Follow-ups (T9.9):** if a court is deleted while someone books it, `create_booking` or `create_walk_in` would surface the raw foreign-key error (23503) to the player. That's very unlikely. Map it to a readable "court unavailable" error when T9.9 rewrites those functions.
 
-### [ ] T9.6 Migration: several photos per court
+### [x] T9.6 Migration: several photos per court
 - **Do:**
   - `court_photos` table (id, court_id with cascade, path unique under `courts/{court_id}/`, sort_order, created_at). Public read, admin write. At most 6 per court (hint `too_many_photos`).
   - The first photo is the cover.
   - The admin RPC `reorder_court_photos(p_court_id, p_ids uuid[])`.
-  - Copy the existing `courts.photo_path` values in as photo 0. Keep the column until T9.12 (expand → contract).
+  - Copy the existing `courts.photo_path` values in as photo 0. Keep the column until T9.11 (expand → contract).
 - **Acceptance:** pgTAP covers RLS (anon, player, admin), the limit, the path check, reorder (admin only, must list exactly that court's photos) and the backfill. `db:push` and `db:types` have been run.
+- **Notes:**
+  - Migration `20261020233215_court_photos.sql`, expand only (`courts.photo_path` stays).
+    - RLS reads through the `courts` policy (`exists` on courts), so archived courts' photos stay hidden from the public.
+    - The limit trigger `private.check_court_photo_limit` locks the court row and raises `too_many_photos`.
+    - `reorder_court_photos` locks the photos and requires the exact set, each once.
+    - The idempotent `private.backfill_court_photos()` puts a legacy photo before any existing ones. T9.11 runs it again before dropping `photo_path`.
+  - pgTAP `22_court_photos.test.sql` (27 assertions) covers RLS for anon, player and admin, the 3 path rules, the limit, 4 reorder cases plus the stored order, the backfill and its idempotence, the cover position and the cascade. `00_rls_coverage` passes.
+  - `db:push` (dry run first) and `db:types` were run. Production was backfilled (6 legacy photos became 6 rows), and all deep links work.
+  - **Review.** The reviewer passed it with 2 majors and 2 minors. The user approved a second migration, `20261020234024_court_photos_hardening.sql`, for these:
+    - **Least-privilege grants.** Everything is revoked, then `select` is granted to anon and authenticated, and `insert`/`update`/`delete` to authenticated.
+    - **The limit also applies to moves** (`before insert or update of court_id`).
+    - **A lighter court lock** (`for no key update`, which no longer blocks booking inserts), also taken in `reorder_court_photos`.
+    - **A new photo goes last.** `sort_order` has no default; the trigger fills in the max + 1.
+    - pgTAP `22_court_photos` is extended to 41 assertions: privileges, a player update filtered, an admin update, the appended order, and a move onto a full court rejected. Pushed, and production checked: anon can select but not insert.
+    - The other major, syncing photos while the old frontend is live, is handled in T9.7 and T9.11 (see their Do lines).
+    - A re-review passed. Its one minor is fixed: each privilege is checked on its own, because a comma list means "any of".
 
 ### [ ] T9.7 Photo gallery UI
 - **Depends:** T9.6
 - **Do:**
   - An admin gallery editor on the court page: upload up to 6, remove, and reorder with "make cover" and arrows. It reuses the M6 resize, upload and delete code.
   - Players see the cover on the tiles, and a swipeable gallery in "About the courts" (CSS scroll-snap, previous and next buttons, alt text, no library). A missing photo shows the sport placeholder.
+  - Inserts pass `sort_order` (max + 1). The generated Insert type requires it; the trigger only fills it in for SQL inserts.
+  - The old single-photo UI and `courts.photo_path` writes go away, and nothing new writes `photo_path`. **Until this is live, don't edit court photos in the old admin UI** (the T9.6 review): the old UI would replace or delete a file the gallery row still points at. T9.11 reconciles anything that slipped through.
 - **Acceptance:** Testing Library covers the editor (the limit, reordering, the cover) and the gallery (buttons, alt text, the placeholder). e2e: an admin uploads two photos and players see both.
 
 ### [ ] T9.8 Booker names
@@ -932,7 +950,10 @@ Out of scope for M9: new sports, live payments, Resend, refunds, SMS.
 
 ### [ ] T9.11 Contract migration
 - **Depends:** T9.7 on production (`master`)
-- **Do:** Drop `courts.photo_path` and its check, and anything else M9 left behind for the old frontend.
+- **Do:**
+  - **Reconcile first:** delete `court_photos` rows whose file is gone from Storage (`storage.objects`).
+  - Then run `private.backfill_court_photos()` only for `photo_path` files that still exist and aren't in the gallery already. Skip a court that already has 6 photos (the backfill would raise `too_many_photos` and abort the migration). Without these checks, a cover deleted in the new gallery would come back (T9.6 review).
+  - Then drop `courts.photo_path` and its check, and anything else M9 left behind for the old frontend.
 - **Acceptance:** pgTAP is updated. `db:push` runs only after the user confirms that the T9.7 frontend is live.
 
 ### [ ] T9.12 Close out M9 and the project

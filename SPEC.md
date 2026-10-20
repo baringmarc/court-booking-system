@@ -151,6 +151,12 @@ venue_settings    id (singleton), name, timezone, currency, slot_minutes (60), b
                   sport_order sport[] (M9: every sport exactly once; defaults to the enum order)
 courts            id, name, sport, description, default_hourly_rate numeric, is_active, sort_order,
                   photo_path (nullable; M6; CHECK under 'courts/{id}/'), created_at
+court_photos (M9) id, court_id (on delete cascade), path unique (CHECK under 'courts/{court_id}/'), sort_order,
+                  created_at. The lowest sort_order is the cover; a photo inserted without one goes last. At most 6 per
+                  court, also when a photo moves court (trigger, P0001 too_many_photos). Grants: select for anon and
+                  authenticated, writes for authenticated only (RLS limits them to admins).
+                  courts.photo_path stays until the M9 contract migration (T9.11). That migration reconciles first: it
+                  backfills only photo_path files that still exist in Storage, and deletes rows whose file is gone.
 court_rates       court_id, day_of_week (0–6), start_hour (0–23), price numeric
                   PK (court_id, day_of_week, start_hour)
 operating_hours   day_of_week (0–6) PK, open_time, close_time, is_closed
@@ -199,6 +205,7 @@ A **public** bucket called `venue-media` holds court photos (`courts/{court_id}/
 ### Access (RLS summary)
 
 - `courts`, `court_rates`, `operating_hours`, `venue_settings`, `blackouts`: anyone can read; only admins can write.
+- `court_photos` (M9): readable when the court is (archived courts' photos are hidden from the public through the `courts` policy); only admins can write.
 - `bookings`: players read their own rows (`user_id = auth.uid()`); admins read and write all rows. **Nobody inserts directly.** Every write goes through RPCs.
 - Public availability comes from an RPC that returns busy ranges and prices only, with no personal data. *Planned for M9 (the user's call):* a booked slot also shows the booker's **first name only** (the first word of the booking's contact name, shortened). No email, phone, surname or reference code is exposed. Admin views show the full name.
 - `payments` and the storage bucket: the booking owner and admins can read. Writes go through RPCs or an Edge Function.
@@ -227,6 +234,7 @@ A **public** bucket called `venue-media` holds court photos (`courts/{court_id}/
 | `email-guest-link` (Edge Function, M8, T8.3)                                       | guest       | `verify_jwt = false`, publishable key. POST `{ reference_code, token }`, called by the checkout page (the create-booking hook) right after a guest booking, fire and forget. Claims the row through `claim_guest_link_email`, then reads the booking's current status. If the booking was cancelled, expired or rejected meanwhile (or email is disabled), the email is finished as `skipped`; otherwise `booking_created` is written for the current status and sent with the `#token=` link to the outbox row's recipient only. A bad reference, a wrong token, an unknown booking or an email already claimed all get the same 404 `not_found`. 503 `email_unavailable` (misconfigured transport, nothing claimed) and 500 don't depend on the booking. |
 | `move_court(court_id, direction)` (M9, T9.3)                                       | admin       | Swaps a court with its upper (-1) or lower (1) neighbour within its sport, archived courts included, and renumbers that sport's `sort_order` 0..n-1. The first court moving up, or the last moving down, does nothing. |
 | `delete_court(court_id)` (M9, T9.5)                                                | admin       | Deletes a court that never had a booking, in any status. Its rates and court-specific blackouts cascade. Otherwise P0001 `court_has_bookings` ("…Archive it instead."); the bookings FK (on delete restrict) backs this up. Locks the court row, so a booking being created at the same time waits for it. The client then removes every file under `courts/{id}/` (best effort). |
+| `reorder_court_photos(court_id, ids[])` (M9, T9.6)                                 | admin       | Stores the court's photos in the given order (`sort_order` 0..n-1; the first is the cover). The list must be exactly that court's photos, each once; otherwise P0001 `invalid_input` ("…out of date. Reload…"). |
 | `claim_guest_bookings()`                                                           | player      | Links matching guest bookings to the signed-in, email-verified user (§5.7).                                                                                                                                   |
 
 Guest access uses a random token. It is shown once (in the confirmation page link and email) and stored only as a hash. The link carries it in the URL **fragment** (`/booking/:ref#token=…`), which browsers never send to servers. Old `?token=` links are rewritten to the fragment. A guest link stops working 30 days after the booking ends (same "not found" response). If the link is lost, the guest can sign up or log in with the booking's email to see the booking in My bookings. "Email me a new link" is out of scope (decided in M8): emails can't re-issue a token, because only its hash is stored. There is no lookup throttle, because a 256-bit token can't be guessed (RESEARCH M5).
