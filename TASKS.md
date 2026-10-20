@@ -7,7 +7,7 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
 > Update this section at the end of every session or task. Keep it short; it's the first thing the next session reads.
 
 - **Current milestone:** 9 (Venue admin upgrades), outline only. M8 ✅ done on 2026-10-20.
-- **Next task:** T9.1 (palette preview).
+- **Next task:** T9.2 (apply the theme). Court Green was kept, so this means fixing the dark-mode danger button contrast, adding a lasting contrast guard for the real tokens, and removing the preview.
 - **State:** M8 done (2026-10-20): emails (Mailpit locally, `disabled` in production), error states, the a11y pass, deploy at https://court-booking-system-ashen.vercel.app, and vendor chunks under the 500 kB warning. The vendor split reaches production when `develop` is merged into `master`. Run `npm run smoke:prod -- --links-only` after that merge.
 - **Blockers / notes:**
   - Emails locally: `supabase/functions/.env` must keep `EMAIL_TRANSPORT=mailpit`, `MAILPIT_URL` and `EMAIL_WORKER_SECRET` (see `.env.example`) for smoke and e2e. Restart the stack after changing it. Your PayMongo test key is commented out there; uncomment it only for real local test payments, and expect `pay-online` e2e and `smoke:paymongo` to fail while it's active.
@@ -785,7 +785,7 @@ Goal (SPEC §9): the user's 2026-10-19 requests, then the portfolio close-out.
 
 Out of scope for M9: new sports, live payments, Resend, refunds, SMS.
 
-### [ ] T9.1 Palette preview
+### [x] T9.1 Palette preview
 - **Do:**
   - A dev-only route (`import.meta.env.DEV`, never in the production bundle) shows 4 palettes on the real slot grid, buttons, badges, alerts and the booking card, in light and dark mode.
   - Each palette shows a WCAG contrast table from a new `contrast()` helper.
@@ -795,6 +795,14 @@ Out of scope for M9: new sports, live payments, Resend, refunds, SMS.
   - Vitest covers `contrast()` against known ratios.
   - The build shows no preview code in `dist/`.
   - The user has chosen a palette (recorded in SPEC §10).
+- **Notes:**
+  - `src/lib/contrast.ts` (`parseColor`, `mix` like `color-mix(in srgb)`, `over`, `relativeLuminance`, `contrast`) is tested in `contrast.test.ts` against the WCAG reference values and the T8.5 measurements.
+  - Four palettes are defined in `src/dev/palettes.ts`. `palettes.test.ts` holds each, light and dark, to 12 AA pairs, including booked-slot text and the free-slot outline on the page and on cards.
+  - The dev-only `/dev/palettes` route (`import.meta.env.DEV`) is absent from `dist/` (checked).
+  - **Preview bug found and fixed:** the `--slot-*` tokens are computed on `:root`, so `palettes.css` re-declares them per frame.
+  - **The user chose Court Green (the current theme)**, recorded in SPEC §10. verify passes (Vitest 385).
+  - **Review.** The reviewer passed it. Its outline-background and Handoff minors are fixed.
+- **Follow-ups (T9.2):** `.btn-danger` hard-codes `#fff` on `--danger`, which is about 2.8:1 in dark mode (pre-existing, and no a11y e2e page shows it). Add a danger-button pair to the checks and fix it. Also check the cancelled and pending badges.
 
 ### [ ] T9.2 Apply the theme
 - **Depends:** T9.1
