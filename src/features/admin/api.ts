@@ -120,6 +120,11 @@ export async function reviewPayment(bookingId: string, approve: boolean, note: s
   return rows[0]?.status
 }
 
+/** Swaps a court with its neighbour in its sport (-1 up, 1 down) and renumbers that sport (move_court, SPEC §6). */
+export async function moveCourt(courtId: string, direction: -1 | 1) {
+  unwrap(await supabase.rpc('move_court', { p_court_id: courtId, p_direction: direction }))
+}
+
 /** Staff cancel by booking id (the session path, so cancel_booking checks is_admin) with a required reason. */
 export async function adminCancelBooking(bookingId: string, reason: string) {
   return unwrap(await supabase.rpc('cancel_booking', { p_booking_id: bookingId, p_reason: reason }))

@@ -1,21 +1,14 @@
 import { supabase } from '../../lib/supabase'
 import { unwrap } from '../../lib/queryClient'
-import type { Enums, Tables, TablesInsert, TablesUpdate } from '../../lib/database.types'
+import type { Tables, TablesInsert, TablesUpdate } from '../../lib/database.types'
+import { sortCourts } from './sportOrder'
 
 export type VenueSettings = Tables<'venue_settings'>
 export type Court = Tables<'courts'>
 export type CourtRate = Tables<'court_rates'>
 export type OperatingHours = Tables<'operating_hours'>
 export type Blackout = Tables<'blackouts'>
-export type Sport = Enums<'sport'>
-
-export const SPORTS: Sport[] = ['badminton', 'pickleball', 'basketball', 'tennis']
-export const SPORT_LABELS: Record<Sport, string> = {
-  badminton: 'Badminton',
-  pickleball: 'Pickleball',
-  basketball: 'Basketball',
-  tennis: 'Tennis',
-}
+export { SPORTS, SPORT_LABELS, type Sport } from './sports'
 
 export const catalogKeys = {
   settings: ['venue-settings'] as const,
@@ -33,10 +26,15 @@ export async function fetchVenueSettings() {
   return unwrap(await supabase.from('venue_settings').select('*').single())
 }
 
+/** Courts in display order: sports in the venue's sport_order, then sort_order and name (as get_availability). */
 export async function fetchCourts(includeInactive: boolean) {
-  let query = supabase.from('courts').select('*').order('sport').order('sort_order').order('name')
+  let query = supabase.from('courts').select('*')
   if (!includeInactive) query = query.eq('is_active', true)
-  return unwrap(await query)
+  const [courts, settings] = await Promise.all([
+    query,
+    supabase.from('venue_settings').select('sport_order').single(),
+  ])
+  return sortCourts(unwrap(courts), unwrap(settings).sport_order)
 }
 
 export async function fetchCourt(id: string) {

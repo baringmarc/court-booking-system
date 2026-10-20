@@ -2,7 +2,8 @@ import { Link } from 'react-router-dom'
 import { PageLoader } from '../components/PageLoader'
 import { ErrorMessage } from '../components/ErrorMessage'
 import { useCourts, useOperatingHours, useVenueSettings } from '../features/catalog/hooks'
-import { SPORT_LABELS, SPORTS, type Court } from '../features/catalog/api'
+import { SPORT_LABELS, type Court } from '../features/catalog/api'
+import { sportsOf } from '../features/catalog/sportOrder'
 import { summarizeHours } from '../features/catalog/hours'
 import { CourtTiles } from '../features/catalog/CourtTiles'
 import { HomeBanner } from '../features/catalog/HomeBanner'
@@ -43,11 +44,10 @@ export function HomePage() {
         <p className="muted">No courts are open for booking right now.</p>
       ) : (
         <div className="stack">
-          {SPORTS.map((sport) => {
-            const list = courts.data.filter((c) => c.sport === sport)
-            if (list.length === 0) return null
-            return <SportGroup key={sport} title={SPORT_LABELS[sport]} courts={list} currency={currency} />
-          })}
+          {/* Courts arrive in the venue's sport order (fetchCourts), so group them in that order. */}
+          {sportsOf(courts.data).map((sport) => (
+            <SportGroup key={sport} title={SPORT_LABELS[sport]} courts={courts.data.filter((c) => c.sport === sport)} currency={currency} />
+          ))}
         </div>
       )}
     </section>

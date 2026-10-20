@@ -7,7 +7,7 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
 > Update this section at the end of every session or task. Keep it short; it's the first thing the next session reads.
 
 - **Current milestone:** 9 (Venue admin upgrades). The breakdown was approved on 2026-10-20 (T9.1–T9.12). M8 ✅ done on 2026-10-20.
-- **Next task:** T9.4 (ordering UI).
+- **Next task:** T9.5 (delete a court). Risky, so it stops at its plan gate.
 - **State:** T9.1 and T9.2 done (2026-10-20): Court Green was kept, the dark-mode danger button contrast is fixed, and `theme.test.ts` guards the real tokens. M8 done (2026-10-20): emails (Mailpit locally, `disabled` in production), error states, the a11y pass, deploy at https://court-booking-system-ashen.vercel.app, and vendor chunks under the 500 kB warning. The vendor split reaches production when `develop` is merged into `master`. Run `npm run smoke:prod -- --links-only` after that merge.
 - **Blockers / notes:**
   - Emails locally: `supabase/functions/.env` must keep `EMAIL_TRANSPORT=mailpit`, `MAILPIT_URL` and `EMAIL_WORKER_SECRET` (see `.env.example`) for smoke and e2e. Restart the stack after changing it. Your PayMongo test key is commented out there; uncomment it only for real local test payments, and expect `pay-online` e2e and `smoke:paymongo` to fail while it's active.
@@ -834,12 +834,30 @@ Out of scope for M9: new sports, live payments, Resend, refunds, SMS.
   - **Review.** The reviewer passed it. The test now includes an archived court and asserts court order within a sport (23 assertions).
 - **Follow-ups (next DB migration, T9.5):** the `sport_order` check accepts a two-dimensional array (cardinality 4, containing every sport), and `array_position` would then throw for every visitor. Only an admin can write it. Re-add the check with `array_ndims(sport_order) = 1` in a new migration, with a pgTAP case. Also: T9.4 must order the client lists by `sport_order`.
 
-### [ ] T9.4 Ordering UI
+### [x] T9.4 Ordering UI
 - **Depends:** T9.3
 - **Do:**
   - Up and down buttons per court on `/admin/courts`, grouped by sport, and a sport order editor in `/admin/settings`. The raw sort-order number field is removed from the court form.
   - The home page, the `/book` sport picker and the court lists follow `sport_order`.
 - **Acceptance:** Testing Library covers the move buttons (disabled at the edges) and the sport order editor. e2e: an admin moves a court, and `/book` shows the new order.
+- **Notes:**
+  - **One source of order.** `fetchCourts` reads `sport_order` and returns the courts sorted with `catalog/sportOrder.ts`'s `sortCourts`. So the home page, the `/book` sport picker, the walk-in form and the admin lists all follow it.
+  - `sportOrder.test.ts` covers the fallback, sorting, `sportsOf`, `moveCourtInList` (it renumbers like `move_court`), `nextSortOrder` and `moveItem`.
+  - **Move buttons.** `MoveButtons` (44 px, "Move X up"/"down", disabled at the edges) restores focus after a reorder.
+  - `useMoveCourt` and `useSaveSportOrder` update the list or settings at once, roll back on error, then refetch the courts and the availability.
+  - **Court form.** The order field is gone. A new court gets `nextSortOrder`, and editing a court doesn't send `sort_order`.
+  - **Tests:**
+    - `CourtsPage.test.tsx`: grouping, edges, immediate move and focus, rollback with an error
+    - `SportOrderSection.test.tsx`: edges, immediate save, focus, rollback
+    - `CourtEditPage.test.tsx`: no order field, a new court goes last, an edit keeps its order
+    - `e2e/ordering.spec.ts`: a move, a reload, and the `/book` column order, with the seed order restored afterwards
+  - **Review.** The reviewer passed it, and its major and 2 minors are fixed:
+    - **Quick repeated presses.** Reorders now run through a `scope`, so they're saved in order, and only the last pending one refetches or rolls back.
+      - `onMutate` is synchronous (TanStack calls it inside `mutate()`), so the next press sees the new order. An in-flight refetch is cancelled with `revert: false`.
+      - The new "two quick moves" tests in `CourtsPage.test.tsx` and `SportOrderSection.test.tsx` first caught a real race in the earlier async `onMutate`.
+    - **Court form.** Create waits for the courts list, and the list's error is shown. A court moved to another sport goes last in it.
+    - **Import cycle.** `catalog/sports.ts` is a leaf module (re-exported by `api.ts`), which breaks the cycle between `api.ts` and `sportOrder.ts`.
+  - **Checks.** verify passes (Vitest 403). e2e: 33 passed, with 3 expected skips.
 
 ### [ ] T9.5 Delete a court
 - **Do:**

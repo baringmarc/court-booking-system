@@ -5,6 +5,7 @@ import { SaveStatus } from '../../components/SaveStatus'
 import { useUpdateVenueSettings, useVenueSettings } from '../catalog/hooks'
 import type { VenueSettings } from '../catalog/api'
 import { BannerSection } from './BannerSection'
+import { SportOrderSection } from './SportOrderSection'
 
 export function SettingsPage() {
   const settings = useVenueSettings()
@@ -20,6 +21,7 @@ export function SettingsPage() {
         // Separate forms with their own Save buttons: keep clear space between them.
         <div className="page-sections">
           <SettingsForm initial={settings.data} />
+          <SportOrderSection settings={settings.data} />
           <BannerSection settings={settings.data} />
         </div>
       )}

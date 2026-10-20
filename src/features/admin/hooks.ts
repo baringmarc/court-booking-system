@@ -8,6 +8,7 @@ import {
   fetchProofQueueCount,
   fetchProofUrl,
   fetchRefundsDue,
+  moveCourt,
   removeBanner,
   removeCourtPhoto,
   saveBanner,
@@ -16,7 +17,8 @@ import {
   type BannerInput,
   type WalkInInput,
 } from './api'
-import { catalogKeys, type Court, type VenueSettings } from '../catalog/api'
+import { catalogKeys, updateVenueSettings, type Court, type Sport, type VenueSettings } from '../catalog/api'
+import { moveCourtInList } from '../catalog/sportOrder'
 import { bookingKeys } from '../booking/hooks'
 import type { BookingFilters } from './bookingFilters'
 
@@ -88,6 +90,78 @@ export function useCreateWalkIn() {
       qc.invalidateQueries({ queryKey: adminKeys.allTakings }),
       qc.invalidateQueries({ queryKey: bookingKeys.allAvailability }),
     ]),
+  })
+}
+
+// --- ordering (T9.4) --------------------------------------------------------------
+
+// Reorders update the screen at once but are saved one at a time (`scope`), so quick repeated presses reach the
+// server in order. onMutate is synchronous on purpose: TanStack calls it inside mutate(), so the next press already
+// sees the new order. An in-flight refetch is then cancelled without reverting, so it can't overwrite it. Only the last pending reorder refreshes from the server or rolls
+// back: an earlier one finishing would otherwise overwrite the newer order on screen, move the row back and
+// drop keyboard focus (T9.4 review). The current mutation is still counted by isMutating while it settles.
+const MOVE_COURT_KEY = ['move-court'] as const
+const SPORT_ORDER_KEY = ['save-sport-order'] as const
+
+/**
+ * Moves a court up or down within its sport. The admin list (all courts) is reordered at once, then refetched;
+ * public lists and the /book grid refetch too.
+ */
+export function useMoveCourt() {
+  const qc = useQueryClient()
+  const key = catalogKeys.courts(true)
+  const isLast = () => qc.isMutating({ mutationKey: MOVE_COURT_KEY }) <= 1
+  return useMutation({
+    mutationKey: MOVE_COURT_KEY,
+    scope: { id: 'move-court' },
+    mutationFn: ({ id, direction }: { id: string; direction: -1 | 1 }) => moveCourt(id, direction),
+    onMutate: ({ id, direction }) => {
+      const previous = qc.getQueryData<Court[]>(key)
+      if (previous) qc.setQueryData(key, moveCourtInList(previous, id, direction))
+      void qc.cancelQueries({ queryKey: key }, { revert: false })
+      return { previous }
+    },
+    onError: (_error, _vars, context) => {
+      if (isLast() && context?.previous) qc.setQueryData(key, context.previous)
+    },
+    onSettled: () => {
+      if (!isLast()) return
+      return Promise.all([
+        qc.invalidateQueries({ queryKey: catalogKeys.allCourts }),
+        qc.invalidateQueries({ queryKey: bookingKeys.allAvailability }),
+      ])
+    },
+  })
+}
+
+/** Saves the sport order. Settings update at once; court lists and the /book grid refetch in the new order. */
+export function useSaveSportOrder() {
+  const qc = useQueryClient()
+  const isLast = () => qc.isMutating({ mutationKey: SPORT_ORDER_KEY }) <= 1
+  return useMutation({
+    mutationKey: SPORT_ORDER_KEY,
+    scope: { id: 'save-sport-order' },
+    mutationFn: (order: Sport[]) => updateVenueSettings({ sport_order: order }),
+    onMutate: (order) => {
+      const previous = qc.getQueryData<VenueSettings>(catalogKeys.settings)
+      if (previous) qc.setQueryData(catalogKeys.settings, { ...previous, sport_order: order })
+      void qc.cancelQueries({ queryKey: catalogKeys.settings }, { revert: false })
+      return { previous }
+    },
+    onSuccess: (saved) => {
+      if (isLast()) qc.setQueryData(catalogKeys.settings, saved)
+    },
+    onError: (_error, _order, context) => {
+      if (isLast() && context?.previous) qc.setQueryData(catalogKeys.settings, context.previous)
+    },
+    onSettled: () => {
+      if (!isLast()) return
+      // Settings come from the last save's response (onSuccess); courts and the grid refetch in the new order.
+      return Promise.all([
+        qc.invalidateQueries({ queryKey: catalogKeys.allCourts }),
+        qc.invalidateQueries({ queryKey: bookingKeys.allAvailability }),
+      ])
+    },
   })
 }
 

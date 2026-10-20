@@ -3,11 +3,15 @@ import { PageLoader } from '../../components/PageLoader'
 import { ErrorMessage } from '../../components/ErrorMessage'
 import { useCourts, useVenueSettings } from '../catalog/hooks'
 import { SPORT_LABELS } from '../catalog/api'
+import { sportsOf } from '../catalog/sportOrder'
 import { formatMoney } from '../../lib/format'
+import { useMoveCourt } from './hooks'
+import { MoveButtons } from './MoveButtons'
 
 export function CourtsPage() {
   const courts = useCourts({ includeInactive: true })
   const currency = useVenueSettings().data?.currency
+  const move = useMoveCourt()
 
   return (
     <section className="page">
@@ -23,22 +27,41 @@ export function CourtsPage() {
       ) : courts.data.length === 0 ? (
         <p className="muted">No courts yet. Add your first court to start taking bookings.</p>
       ) : (
-        <ul className="list card flush">
-          {courts.data.map((court) => (
-            <li key={court.id}>
-              <Link to={`/admin/courts/${court.id}`} className="list-row">
-                <span>
-                  <strong>{court.name}</strong>
-                  <span className="muted small block">{SPORT_LABELS[court.sport]}</span>
-                </span>
-                <span className="list-row-end">
-                  <span>{formatMoney(court.default_hourly_rate, currency)}/hr</span>
-                  {!court.is_active && <span className="badge">Archived</span>}
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <div className="stack">
+          <p className="muted small">
+            Courts are listed in the order players see them. Change the order of sports in{' '}
+            <Link to="/admin/settings">Settings</Link>.
+          </p>
+          {move.isError && <ErrorMessage error={move.error} />}
+          {sportsOf(courts.data).map((sport) => {
+            const group = courts.data.filter((c) => c.sport === sport)
+            return (
+              <section key={sport} aria-labelledby={`sport-${sport}`}>
+                <h2 id={`sport-${sport}`} className="list-group-title">{SPORT_LABELS[sport]}</h2>
+                <ul className="list card flush">
+                  {group.map((court, i) => (
+                    <li key={court.id} className="order-row">
+                      <Link to={`/admin/courts/${court.id}`} className="list-row">
+                        <strong>{court.name}</strong>
+                        <span className="list-row-end">
+                          <span>{formatMoney(court.default_hourly_rate, currency)}/hr</span>
+                          {!court.is_active && <span className="badge">Archived</span>}
+                        </span>
+                      </Link>
+                      <MoveButtons
+                        label={court.name}
+                        position={i}
+                        canMoveUp={i > 0}
+                        canMoveDown={i < group.length - 1}
+                        onMove={(direction) => move.mutate({ id: court.id, direction })}
+                      />
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )
+          })}
+        </div>
       )}
     </section>
   )

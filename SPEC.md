@@ -234,7 +234,7 @@ Guest access uses a random token. It is shown once (in the confirmation page lin
 
 | Route               | Access             | Content                                                                                                                                  |
 | ------------------- | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `/`                 | public             | Site banner when set (M6), venue info, courts grouped by sport (with each court's photo, or a sport placeholder; M6), "Book now".       |
+| `/`                 | public             | Site banner when set (M6), venue info, courts grouped by sport in the venue's sport order (M9), each with its photo or a sport placeholder (M6), "Book now".       |
 | `/book`             | public             | Date picker and sport filter, a collapsed "About the … courts" panel with each court's photo (or sport placeholder) and description (M6), then a legend and a court × time slot grid with the price per slot, then select consecutive slots. |
 | `/book/checkout`    | public             | Summary and total price. Guest form (name, email, phone) or prefilled for a logged-in player. Confirm.                                   |
 | `/booking/:ref`     | owner or `#token=` | Status, payment instructions, countdown to expiry, "Pay online with PayMongo" (M7) next to proof upload, rejection reason and re-upload, cancel button. After PayMongo: `?paid=1` polls every 3 s until the webhook confirms (then "Payment received"; a refund note if the payment wasn't accepted). After 90 s it says so and keeps checking every 30 s. `?paid=0` says it was cancelled. The return moves from the URL into history state, so copied links don't replay it. A guest's token is kept in `sessionStorage` across the redirect and restored to the fragment. Staff viewing a booking without its link get no Pay online button. |
@@ -243,10 +243,10 @@ Guest access uses a random token. It is shown once (in the confirmation page lin
 | `/admin/login`      | public             | Admin sign-in in the admin shell: email + password only, with no Google sign-in and no sign-up (admins are promoted in the database, §2). A signed-in non-admin is refused ("Admins only", with Log out). |
 | `/admin`            | admin              | Dashboard: today's schedule, proofs waiting for review, a "+ Walk-in" quick action, and today's takings by method (PayMongo as its own line, M7). PayMongo money received but not accepted is shown apart from the total, for a refund outside the app. |
 | `/admin/bookings`   | admin              | Filterable list (status, source, date). Review a proof (image or PDF preview, amount-mismatch warning), approve or reject with a reason. PayMongo payments (M7) show in the panel with source, PayMongo id and paid time, and have no review actions. Rows and the panel flag "Refund due" (paid online but not accepted) and "Check duplicate" (a proof closed because the customer also paid online). |
-| `/admin/courts` | admin | Court list with an "Add court" button. |
-| `/admin/courts/:id` | admin | Edit or archive a court (`new` creates one). Weekly rate grid editor (day × hour) with a "fill a range" helper. Court photo upload, replace and remove (M6). |
+| `/admin/courts` | admin | Courts grouped by sport in the venue's sport order, archived ones included, with an "Add court" button. Up and down buttons per court reorder it within its sport (`move_court`, M9). The list updates at once, and focus stays on the pressed button (or its partner at an edge). |
+| `/admin/courts/:id` | admin | Edit or archive a court (`new` creates one, last in its sport). There's no order field; order is set on the list (M9). Weekly rate grid editor (day × hour) with a "fill a range" helper. Court photo upload, replace and remove (M6). |
 | `/admin/schedule`   | admin              | Operating hours and blackouts.                                                                                                           |
-| `/admin/settings`   | admin              | Venue settings and payment instructions. Site banner upload with alt text, and remove (M6).                                              |
+| `/admin/settings`   | admin              | Venue settings and payment instructions. Sport order, with up and down buttons that save at once (M9). Site banner upload with alt text, and remove (M6). |
 
 The UI is mobile-first: most players will book from a phone.
 
