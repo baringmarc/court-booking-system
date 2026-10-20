@@ -7,19 +7,20 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
 > Update this section at the end of every session or task. Keep it short; it's the first thing the next session reads.
 
 - **Current milestone:** 8 (Polish). The breakdown was approved on 2026-10-18. M7 ✅ done on 2026-10-18.
-- **Next task:** T8.6 (deploy). It needs a Vercel project from the user.
-- **State:** T8.5 done: axe e2e (`e2e/a11y.spec.ts`) passes with no serious or critical violations, the slot grid has distinct statuses with a legend, and there's a skip link with focus-on-navigate. T8.4 done: errors are readable, admins see a retry when their profile fails to load, and the settings spacing is fixed. T8.3 done: booking emails work locally through Mailpit (`npm run smoke:emails`). T8.2: `email_outbox`, its trigger, RPCs and cron jobs are live on the linked project. Without the Vault secrets, the cron job does nothing there. PayMongo test mode is live on the linked project.
+- **Next task:** T8.6 part 2: production smoke after the user merges `develop` to `master` (steps in the T8.6 notes).
+- **State:** T8.6 part 1 done (2026-10-20): the site is on Vercel, all 5 functions are deployed, and the hosted email secrets and Vault are set. The rewrite isn't live until `master` is merged. T8.5 done: axe e2e (`e2e/a11y.spec.ts`) passes with no serious or critical violations, the slot grid has distinct statuses with a legend, and there's a skip link with focus-on-navigate. T8.4 done: errors are readable, admins see a retry when their profile fails to load, and the settings spacing is fixed. T8.3 done: booking emails work locally through Mailpit (`npm run smoke:emails`). T8.2: `email_outbox`, its trigger, RPCs and cron jobs are live on the linked project. The Vault secrets were set in T8.6, so the cron job now calls `send-emails` whenever an email is due. PayMongo test mode is live on the linked project.
 - **Blockers / notes:**
   - Emails locally: `supabase/functions/.env` must keep `EMAIL_TRANSPORT=mailpit`, `MAILPIT_URL` and `EMAIL_WORKER_SECRET` (see `.env.example`) for smoke and e2e. Restart the stack after changing it. Your PayMongo test key is commented out there; uncomment it only for real local test payments, and expect `pay-online` e2e and `smoke:paymongo` to fail while it's active.
   - Scope added on 2026-10-19 (SPEC §9, §10, §11): slot status colors are in T8.5, the settings spacing fix is in T8.4, and M9 is outlined at the end of this file. The README moved there. Booker names are **first name only** in public. A court can be deleted only if it was never booked.
   - The >500 kB main chunk warning is back (`index-*.js` 618 kB on 2026-10-20, see H6). T8.5 checked it: it's vendor code (react-dom, `@supabase/auth-js`, react-router), not app code. Fix it in T8.7 with a `manualChunks` vendor split or lazy public routes.
-  - M8 emails: no Resend for now (user decision, 2026-10-19). Build and test through Mailpit; production runs `EMAIL_TRANSPORT=disabled`. T8.6 needs a Vercel project from the user. Never commit the Vault worker secret (or a Resend key, if one is added later).
+  - **Production (2026-10-20):** https://court-booking-system-ashen.vercel.app (Vercel Hobby, project `court-booking-system`, team slug `marc-projects5`, production branch `master`). The user set the Supabase Auth Site URL and redirect URLs and the Google JS origin by hand.
+  - M8 emails: no Resend for now (user decision, 2026-10-19). Build and test through Mailpit; production runs `EMAIL_TRANSPORT=disabled`. Never commit the Vault worker secret (or a Resend key, if one is added later).
   - Docker Desktop must be running for `npm run verify`. `npm run test:e2e` and `npm run smoke:proof` need the full local stack (`npx supabase start`).
   - Email confirmation is on locally (`config.toml`, matching the hosted project). Sign-up emails land in Mailpit at http://127.0.0.1:54324. e2e reads them with `confirmationLink()`. Don't turn it off: claims trust `email_confirmed_at`.
   - Guest links use `#token=`. Going to the same URL again is a hash-only navigation (no reload), so e2e leaves the page first (`openGuestLink`).
   - Venue media: paths are stored, not URLs (`mediaUrl()`). Uploads are downscaled in the browser and named with a new uuid. `remove()` fails silently without SELECT, so the code checks what it returned. Orphan listing query: RESEARCH M6.
   - `e2e/banner.spec.ts` skips itself when a banner is already set on the local stack (the banner is venue-wide). Remove it in `/admin/settings` to get the coverage back.
-  - PayMongo on the linked project: secrets `PAYMONGO_SECRET_KEY`, `PAYMONGO_WEBHOOK_SECRET` and `PUBLIC_SITE_URL` (localhost only until T8.6). Webhook registered in the dashboard under Settings → Webhooks (Test Mode).
+  - PayMongo on the linked project: secrets `PAYMONGO_SECRET_KEY`, `PAYMONGO_WEBHOOK_SECRET` and `PUBLIC_SITE_URL` (production first since T8.6, then the two localhost origins). Webhook registered in the dashboard under Settings → Webhooks (Test Mode).
   - Local PayMongo setup: `supabase/functions/.env` (from `.env.example`) holds `PAYMONGO_MODE=stub`, `PUBLIC_SITE_URL` and the local webhook secret. Restart the stack (`supabase stop/start`) after adding a function or changing that file. `npm run smoke:paymongo` exercises both functions.
   - Open follow-ups:
     - a user decision on capping the fresh hold after a rejection at the start time (T4.6)
@@ -737,10 +738,34 @@ Out of scope for M8: live PayMongo keys and real money, refunds, SMS, new featur
   - **Tests.** `SlotGrid.test.tsx` (each status's class and label, the legend), `Layout.test.tsx` and `AdminLayout.test.tsx` (focus and the skip link), and the a11y e2e spec.
   - **Checks.** verify passes and e2e passes. The reviewer passed it, and its 3 minors are fixed: an AdminLayout test, dead CSS, and narrower SPEC wording (focus moves only within a layout).
 
-### [ ] T8.6 Deploy
+### [~] T8.6 Deploy
 - **Depends:** T8.1
 - **Do:** Deploy the SPA as T8.1 decides. Set the production env vars, the Supabase Auth URLs and the real origin in `PUBLIC_SITE_URL`. Deploy all Edge Functions with `EMAIL_TRANSPORT=disabled` and the Vault worker secrets (no Resend, no Auth custom SMTP for now). Add a short note on `/signup` that points visitors to Google sign-in or guest booking, because confirmation emails don't reach them yet. Run a smoke test against production (book, proof, pay online in test mode, admin review).
 - **Acceptance:** The production URL works end to end in PayMongo test mode, and the checklist is recorded in TASKS notes.
+- **Notes (part 1, 2026-10-20):**
+  - **Vercel.** Hobby plan (fine for a non-commercial portfolio). The project builds `master` and sets `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` for Production and Preview, with no Supabase integration. `vercel.json` rewrites every path except `/assets/` to `index.html`. A missing old chunk then gets a real 404 instead of HTML.
+  - **Set by the user by hand:**
+    - Supabase Auth Site URL: the production origin.
+    - Redirect URLs: `https://court-booking-system-ashen.vercel.app/**`, `https://*-marc-projects5.vercel.app/**` and `http://localhost:5173/**`.
+    - Google OAuth JavaScript origin: the production origin.
+    - Never `supabase config push`.
+  - **Linked project:**
+    - `functions deploy` of all 5 functions.
+    - `secrets set`:
+      - `EMAIL_TRANSPORT=disabled`
+      - `EMAIL_WORKER_SECRET`, from `openssl rand -hex 32` and never printed
+      - `PUBLIC_SITE_URL`, with production first
+    - Vault `email_worker_secret` (the same value) and `email_worker_url` (the `send-emails` URL).
+  - **`/signup` note.** It says confirmation emails aren't sent yet (`SignupPage.test.tsx`). Remove it when Resend and Auth SMTP are switched on.
+  - **Smoke so far.** `npm run smoke:prod` booked `CB-ZR53ZA` (`E2E Smoke`, Badminton 1, 2026-11-09 6 AM) and uploaded a proof through the production UI. In the DB, the booking is `payment_submitted`, the GCash payment is pending, and the `booking_created` outbox row is `skipped`. The `send-emails` cron runs succeed every minute. The deep links returned 404 because `vercel.json` wasn't on `master` yet.
+  - **Checks.** verify passes (Vitest 372). e2e: 31 passed, with 3 expected skips (walk-in late at night, and zoom on desktop only). The reviewer passed part 1, and its major and 2 minors are fixed.
+- **Part 2 (to do):**
+  1. The user merges `develop` into `master`.
+  2. `npm run smoke:prod -- --links-only` passes.
+  3. An admin approves `CB-ZR53ZA` at `/admin/bookings`. Check that the `payment_confirmed` outbox row goes `skipped` within a minute; that proves the cron, Vault and worker-secret path.
+  4. The user makes one PayMongo test payment on a new guest booking and comes back to a confirmed booking.
+  5. Google sign-in works on production.
+  6. Cancel the smoke bookings, since they hold real slots. Then tick T8.6.
 
 ### [ ] T8.7 Close out M8
 - **Depends:** T8.3, T8.4, T8.5, T8.6

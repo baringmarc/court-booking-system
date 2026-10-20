@@ -21,7 +21,8 @@
     "db:push": "supabase db push",
     "db:start": "sh scripts/with-docker.sh supabase db start",
     "db:stop": "sh scripts/with-docker.sh supabase stop",
-    "db:reset:local": "sh scripts/with-docker.sh supabase db reset --local"
+    "db:reset:local": "sh scripts/with-docker.sh supabase db reset --local",
+    "smoke:prod": "node scripts/smoke-production.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",
