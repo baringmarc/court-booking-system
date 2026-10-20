@@ -6,13 +6,13 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
 
 > Update this section at the end of every session or task. Keep it short; it's the first thing the next session reads.
 
-- **Current milestone:** 8 (Polish). The breakdown was approved on 2026-10-18. M7 ✅ done on 2026-10-18.
-- **Next task:** T8.7 (close out M8: the milestone review, M8 ✅ in SPEC §9, and the >500 kB main chunk).
-- **State:** T8.6 done (2026-10-20): production at https://court-booking-system-ashen.vercel.app works end to end (deep links, guest booking and proof, admin review, PayMongo QR Ph test payment, Google sign-in), with emails skipped by design. T8.5 done: axe e2e (`e2e/a11y.spec.ts`) passes with no serious or critical violations, the slot grid has distinct statuses with a legend, and there's a skip link with focus-on-navigate. T8.4 done: errors are readable, admins see a retry when their profile fails to load, and the settings spacing is fixed. T8.3 done: booking emails work locally through Mailpit (`npm run smoke:emails`). T8.2: `email_outbox`, its trigger, RPCs and cron jobs are live on the linked project. The Vault secrets were set in T8.6, so the cron job now calls `send-emails` whenever an email is due. PayMongo test mode is live on the linked project.
+- **Current milestone:** 9 (Venue admin upgrades), outline only. M8 ✅ done on 2026-10-20.
+- **Next task:** the M9 breakdown. Research the SPEC §11 questions, propose the full M9 tasks in the TASKS.md format, and get the user's approval before building.
+- **State:** M8 done (2026-10-20): emails (Mailpit locally, `disabled` in production), error states, the a11y pass, deploy at https://court-booking-system-ashen.vercel.app, and vendor chunks under the 500 kB warning. The vendor split reaches production when `develop` is merged into `master`. Run `npm run smoke:prod -- --links-only` after that merge.
 - **Blockers / notes:**
   - Emails locally: `supabase/functions/.env` must keep `EMAIL_TRANSPORT=mailpit`, `MAILPIT_URL` and `EMAIL_WORKER_SECRET` (see `.env.example`) for smoke and e2e. Restart the stack after changing it. Your PayMongo test key is commented out there; uncomment it only for real local test payments, and expect `pay-online` e2e and `smoke:paymongo` to fail while it's active.
   - Scope added on 2026-10-19 (SPEC §9, §10, §11): slot status colors are in T8.5, the settings spacing fix is in T8.4, and M9 is outlined at the end of this file. The README moved there. Booker names are **first name only** in public. A court can be deleted only if it was never booked.
-  - The >500 kB main chunk warning is back (`index-*.js` 618 kB on 2026-10-20, see H6). T8.5 checked it: it's vendor code (react-dom, `@supabase/auth-js`, react-router), not app code. Fix it in T8.7 with a `manualChunks` vendor split or lazy public routes.
+  - Bundle size: always measure with `.env` present. Without it, `lib/supabase.ts` throws at load time and the build drops supabase-js, which makes the bundle look about 330 kB smaller (SPEC §10, 2026-10-20).
   - **Production (2026-10-20):** https://court-booking-system-ashen.vercel.app (Vercel Hobby, project `court-booking-system`, team slug `marc-projects5`, production branch `master`). The user set the Supabase Auth Site URL and redirect URLs and the Google JS origin by hand. `npm run smoke:prod` books a real `E2E Smoke` booking on production. Cancel it afterwards (T8.6 notes), or use `-- --links-only`. The admin account is the user's Google login (no email and password admin on production).
   - M8 emails: no Resend for now (user decision, 2026-10-19). Build and test through Mailpit; production runs `EMAIL_TRANSPORT=disabled`. Never commit the Vault worker secret (or a Resend key, if one is added later).
   - Docker Desktop must be running for `npm run verify`. `npm run test:e2e` and `npm run smoke:proof` need the full local stack (`npx supabase start`).
@@ -26,6 +26,7 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
     - a user decision on capping the fresh hold after a rejection at the start time (T4.6)
     - the Edge Function `index.ts` is checked only by smoke and e2e (no Deno type-check)
     - the guest cancel path doesn't check the 30-day link expiry. That's harmless, since a cancel must be before the start (M7 added no token-authorized RPCs, so it's still fine).
+    - A PayMongo case 4 payment (refund due) sends no email yet (RESEARCH M8 "Retries and the outbox table").
     - M7 carry-overs: only QR Ph was paid for real (GCash, Maya and card are untested); the PHP 20 minimum is an assumption; a replay after a session is replaced returns `unknown_checkout`; the webhook stores an empty `provider_source` as `''`.
 
 ## How tasks work
@@ -766,10 +767,15 @@ Out of scope for M8: live PayMongo keys and real money, refunds, SMS, new featur
   4. PayMongo test mode: the guest booking `CB-V5288A` was paid with QR Ph (₱350). The webhook confirmed it (`provider_event_id` set, payment `approved`), and the user landed back on a confirmed booking.
   5. Cleanup: both smoke bookings were cancelled with `cancel_booking` as the admin (reason "T8.6 production smoke test…"), and their `booking_cancelled` emails were queued for skipping.
 
-### [ ] T8.7 Close out M8
+### [x] T8.7 Close out M8
 - **Depends:** T8.3, T8.4, T8.5, T8.6
-- **Do:** Bring the main chunk under Vite's 500 kB warning (618 kB of vendor code, see the Handoff), mark M8 ✅ in SPEC §9 and run the milestone review. *(The README, screenshots and demo video moved to the end of M9 on 2026-10-19, so they show the final product.)*
+- **Do:** Bring the main chunk under Vite's 500 kB warning (604 kB measured with `.env`; the 618 kB figure came from an earlier build), mark M8 ✅ in SPEC §9 and run the milestone review. *(The README, screenshots and demo video moved to the end of M9 on 2026-10-19, so they show the final product.)*
 - **Acceptance:** `npm run verify` and `npm run test:e2e` pass, and the reviewer signs off.
+- **Notes:**
+  - **Bundle.** With `.env` present the main chunk was 604 kB, and it has been that size since Supabase was added. Clean checkouts without `.env` built at 270 kB because `lib/supabase.ts` throws at load time and the build drops supabase-js, which is also where the old H6 "347 kB" came from. Aliasing react-router to its production build saved only about 2 kB, so it wasn't kept.
+  - **Fix.** `vite.config.ts` puts vendor code in `codeSplitting` groups. Chunks are now app 62 kB, `vendor-react` 348 kB and `vendor-supabase` 214 kB, about 624 kB in total. All of them are modulepreloaded, and admin code stays in lazy chunks (checked in `dist/`).
+  - **Milestone.** SPEC §9 marks M8 ✅ (v0.12). verify passes (Vitest 372, pgTAP 446, no chunk warning). e2e: 31 passed, with 3 expected skips (walk-in late at night, and zoom on desktop only).
+  - **Review.** The milestone reviewer passed it. Its major (the Handoff) and 3 minors (a stale SPEC cross-reference, §1 "Planned for M7", and untracked loose ends) are fixed. The loose ends now live in the Handoff follow-ups and M9 item 9.
 
 ## Milestone 9: Venue admin upgrades
 
@@ -785,7 +791,7 @@ Goal (SPEC §9): the user's 2026-10-19 requests, then the portfolio close-out.
 6. Research and plan: overnight and 24-hour hours (operating day model, SPEC §5.2 and §11). *(research, plan gate)*
 7. Overnight hours, DB: operating hours storage and checks, `get_availability`, `create_booking`, `create_walk_in`, pricing and the booking window, with pgTAP. *(large, risky)*
 8. Overnight hours, UI: the schedule editor (incl. "open 24 hours"), the `/book` date grid, walk-in "today", dashboard "today", with e2e. *(medium)*
-9. README, screenshots (phone and desktop), demo video, mark M9 ✅, and the final milestone review. *(moved from T8.7)*
+9. README, screenshots (phone and desktop), demo video, mark M9 ✅, and the final milestone review. *(moved from T8.7)* The README says previews share the production database (RESEARCH M8 "Deploy: SPA host"). Decide on seed demo photos for the screenshots (skipped in T6.7).
 
 ---
 
@@ -796,5 +802,5 @@ Goal (SPEC §9): the user's 2026-10-19 requests, then the portfolio close-out.
 - [x] H3 `reviewer` agent (`.claude/agents/reviewer.md`)
 - [x] H4 `/implement` command (`.claude/skills/implement/SKILL.md`)
 - [x] H5 Playwright e2e: `npm run test:e2e` (Chromium desktop + 360px phone, local stack, serial). Flows: guest booking and proof upload, admin reject → re-upload → approve, signed-in player, walk-in. Tagged test data is removed in global teardown. The Stop hook runs it when UI-facing files change (blocking if the local stack is down).
-- [x] H6 >500 kB main chunk warning: gone since the admin pages became lazy chunks (2026-10-17 build: largest chunk 347 kB). Watch it as the app grows.
+- [x] H6 >500 kB main chunk warning: fixed in T8.7 with vendor chunks (`vendor-react` 348 kB, `vendor-supabase` 214 kB, app 62 kB). The earlier "347 kB" was measured without `.env`, which drops supabase-js (SPEC §10, 2026-10-20). Watch it as the app grows, and always measure with `.env` present.
 - [x] H7 Phone layouts (360px) checked by hand in a real browser by the user (2026-10-17). The e2e phone project now runs every flow at 360px.
