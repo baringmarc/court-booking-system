@@ -1,6 +1,7 @@
 import { formatMoney } from '../../lib/format'
 import { formatDateTimeInZone } from '../../lib/time'
 import type { PaymentAttempt } from './api'
+import { isReplacedByOnlinePayment } from './paymentLabels'
 import { METHOD_LABELS } from './proofInput'
 
 const REVIEW_LABELS = { pending: 'Under review', approved: 'Accepted', rejected: 'Not accepted' } as const
@@ -13,22 +14,30 @@ export function PaymentHistory({ payments, timeZone, currency }: { payments: Pay
     <section className="card" aria-labelledby="payments-heading">
       <h2 id="payments-heading">Payments</h2>
       <ul className="list">
-        {payments.map((p) => (
+        {payments.map((p) => {
+          const replaced = isReplacedByOnlinePayment(p, payments)
+          return (
           <li key={p.id} className="list-row">
             <div>
               <div>{METHOD_LABELS[p.method]} · {formatMoney(p.amount, currency)}</div>
               <div className="muted small">
                 {formatDateTimeInZone(p.submitted_at, timeZone)}{p.reference_number ? ` · Ref ${p.reference_number}` : ''}
               </div>
-              {p.review_status === 'rejected' && p.review_note && (
+              {replaced && <div className="small">You paid online instead, so this proof wasn't needed.</div>}
+              {!replaced && p.review_status === 'rejected' && p.review_note && (
                 <div className="small">{p.method === 'paymongo' ? p.review_note : `Reason: ${p.review_note}`}</div>
               )}
             </div>
-            <span className={`badge review-${p.review_status}`}>
-              {(p.method === 'paymongo' ? ONLINE_LABELS : REVIEW_LABELS)[p.review_status]}
-            </span>
+            {replaced ? (
+              <span className="badge">Replaced by online payment</span>
+            ) : (
+              <span className={`badge review-${p.review_status}`}>
+                {(p.method === 'paymongo' ? ONLINE_LABELS : REVIEW_LABELS)[p.review_status]}
+              </span>
+            )}
           </li>
-        ))}
+          )
+        })}
       </ul>
     </section>
   )

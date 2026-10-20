@@ -7,25 +7,23 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
 > Update this section at the end of every session or task. Keep it short; it's the first thing the next session reads.
 
 - **Current milestone:** 8 (Polish). The breakdown was approved on 2026-10-18. M7 ✅ done on 2026-10-18.
-- **Next task:** T8.3 (transactional emails: `send-emails`, `email-guest-link`, templates, Mailpit smoke and e2e). It adds Edge Functions, so it needs a plan gate. The design is in RESEARCH M8 plan items 2, 3 and 5 and the T8.2 follow-up.
-- **State:** T8.2 done: `email_outbox`, its trigger, RPCs and cron jobs are live on the linked project. Without the Vault secrets, the cron job does nothing there. PayMongo test mode is live on the linked project.
+- **Next task:** T8.6 (deploy). It needs a Vercel project from the user.
+- **State:** T8.5 done: axe e2e (`e2e/a11y.spec.ts`) passes with no serious or critical violations, the slot grid has distinct statuses with a legend, and there's a skip link with focus-on-navigate. T8.4 done: errors are readable, admins see a retry when their profile fails to load, and the settings spacing is fixed. T8.3 done: booking emails work locally through Mailpit (`npm run smoke:emails`). T8.2: `email_outbox`, its trigger, RPCs and cron jobs are live on the linked project. Without the Vault secrets, the cron job does nothing there. PayMongo test mode is live on the linked project.
 - **Blockers / notes:**
+  - Emails locally: `supabase/functions/.env` must keep `EMAIL_TRANSPORT=mailpit`, `MAILPIT_URL` and `EMAIL_WORKER_SECRET` (see `.env.example`) for smoke and e2e. Restart the stack after changing it. Your PayMongo test key is commented out there; uncomment it only for real local test payments, and expect `pay-online` e2e and `smoke:paymongo` to fail while it's active.
   - Scope added on 2026-10-19 (SPEC §9, §10, §11): slot status colors are in T8.5, the settings spacing fix is in T8.4, and M9 is outlined at the end of this file. The README moved there. Booker names are **first name only** in public. A court can be deleted only if it was never booked.
-  - The >500 kB main chunk warning is back (`index-*.js` 614 kB in the 2026-10-18 build, see H6). Check it during T8.5/T8.7.
+  - The >500 kB main chunk warning is back (`index-*.js` 618 kB on 2026-10-20, see H6). T8.5 checked it: it's vendor code (react-dom, `@supabase/auth-js`, react-router), not app code. Fix it in T8.7 with a `manualChunks` vendor split or lazy public routes.
   - M8 emails: no Resend for now (user decision, 2026-10-19). Build and test through Mailpit; production runs `EMAIL_TRANSPORT=disabled`. T8.6 needs a Vercel project from the user. Never commit the Vault worker secret (or a Resend key, if one is added later).
   - Docker Desktop must be running for `npm run verify`. `npm run test:e2e` and `npm run smoke:proof` need the full local stack (`npx supabase start`).
   - Email confirmation is on locally (`config.toml`, matching the hosted project). Sign-up emails land in Mailpit at http://127.0.0.1:54324. e2e reads them with `confirmationLink()`. Don't turn it off: claims trust `email_confirmed_at`.
   - Guest links use `#token=`. Going to the same URL again is a hash-only navigation (no reload), so e2e leaves the page first (`openGuestLink`).
   - Venue media: paths are stored, not URLs (`mediaUrl()`). Uploads are downscaled in the browser and named with a new uuid. `remove()` fails silently without SELECT, so the code checks what it returned. Orphan listing query: RESEARCH M6.
   - `e2e/banner.spec.ts` skips itself when a banner is already set on the local stack (the banner is venue-wide). Remove it in `/admin/settings` to get the coverage back.
-  - **Local PayMongo key trap:** the user's `sk_test_` key is now in the local `supabase/functions/.env`, and a test key always beats `PAYMONGO_MODE=stub`. The running edge runtime still has an empty key. After the next `supabase stop/start`, local runs would call the real PayMongo API, and `pay-online.spec.ts`, `smoke:paymongo` and the Stop hook would fail. Keep the local key **blank** for test runs (the key lives on the linked project). The user chose to manage that file themselves.
   - PayMongo on the linked project: secrets `PAYMONGO_SECRET_KEY`, `PAYMONGO_WEBHOOK_SECRET` and `PUBLIC_SITE_URL` (localhost only until T8.6). Webhook registered in the dashboard under Settings → Webhooks (Test Mode).
   - Local PayMongo setup: `supabase/functions/.env` (from `.env.example`) holds `PAYMONGO_MODE=stub`, `PUBLIC_SITE_URL` and the local webhook secret. Restart the stack (`supabase stop/start`) after adding a function or changing that file. `npm run smoke:paymongo` exercises both functions.
   - Open follow-ups:
     - a user decision on capping the fresh hold after a rejection at the start time (T4.6)
     - the Edge Function `index.ts` is checked only by smoke and e2e (no Deno type-check)
-    - if the profile fetch fails, a real admin sees "Admins only" (T5.1, for the M8 error pass)
-    - raw PostgREST errors in admin media saves (T6.4, for the M8 error pass)
     - the guest cancel path doesn't check the 30-day link expiry. That's harmless, since a cancel must be before the start (M7 added no token-authorized RPCs, so it's still fine).
     - M7 carry-overs: only QR Ph was paid for real (GCash, Maya and card are untested); the PHP 20 minimum is an assumption; a replay after a session is replaced returns `unknown_checkout`; the webhook stores an empty `provider_source` as `''`.
 
@@ -695,12 +693,21 @@ Out of scope for M8: live PayMongo keys and real money, refunds, SMS, new featur
 - **Notes:** Migration `20261019143330_email_outbox.sql`. pgTAP `19_email_outbox.test.sql` (58 assertions) covers RLS and grants, every queueing rule (including that a queueing error never fails the booking change, and a webhook replay), the claim, lease, backoff and failure rules, the guest-link claim, the Vault-gated pg_net poke and the purge. 446 pgTAP assertions pass locally. `db:push` was run (the linked `cron.job` has send-emails and purge-email-outbox) and `db:types` too. `seed.sql` suppresses emails for demo bookings. SPEC §6, §8 and §10 are updated. The reviewer passed it, and both SPEC majors are fixed.
 - **Follow-ups:** T8.3: `email-guest-link` must re-read the booking's current status after `claim_guest_link_email` (which leases the row whatever the booking's state) and finish the row as `skipped` when a later event has overtaken it. That is the reviewer's major 2, done in the function rather than with a second migration.
 
-### [ ] T8.3 Transactional emails
+### [x] T8.3 Transactional emails
 - **Depends:** T8.2
 - **Do:** Send the four SPEC §8 emails as T8.1 decides, test them locally through Mailpit, and add a smoke script. The transport is `resend | mailpit | disabled`, and the hosted default `disabled` marks rows `skipped` (no Resend for now; the Resend adapter is written but switched off).
 - **Acceptance:** Vitest covers the templates (guest link present only in the guest's own email) and the transport choice (`disabled` → skipped). The smoke test covers each trigger, and e2e checks the booking-created email in Mailpit.
+- **Notes:**
+  - New functions `send-emails` (x-worker-secret) and `email-guest-link` (token in the body). They share `_shared/emailTemplates.ts` and `_shared/email.ts` (transport, `emailAction`, Resend and Mailpit senders). The client asks for the link email in `useCreateBooking`'s `onSuccess`, fire and forget.
+  - Tests:
+    - Vitest: `emailTemplates.test.ts`, `email.test.ts`, `hooks.test.tsx`
+    - `npm run smoke:emails`: every trigger, the fallback without the link, an overtaken email skipped by both the worker and the link call, and worker auth
+    - e2e: `guest-and-review` reads the booking email from Mailpit
+    - Results: verify passes, e2e is 24 passed with 2 known banner skips, and smoke:paymongo and smoke:proof still pass
+  - The local `supabase/functions/.env` gained the email lines, and the user's `PAYMONGO_SECRET_KEY` line is commented out (the user approved it) so local runs stay in stub mode.
+  - The functions are not deployed to the linked project yet; that happens in T8.6. The reviewer passed it, and its 3 majors and 1 minor are fixed (SPEC §6 and §10, `emailAction` tested in Vitest, the guest link skip covered by smoke, a 401 when the secret is missing).
 
-### [ ] T8.4 Error, loading and empty states pass
+### [x] T8.4 Error, loading and empty states pass
 - **Do:** Go through every async view, and fix the carried follow-ups:
   - a failed profile fetch shows "Admins only" to a real admin (T5.1)
   - raw PostgREST errors in admin saves (T6.4)
@@ -708,11 +715,27 @@ Out of scope for M8: live PayMongo keys and real money, refunds, SMS, new featur
   - the PayMongo return reading an older not-accepted payment as the current one (M7 review)
   - `/admin/settings`: more space between the "Save settings" button and the site banner section below it (the user's report, 2026-10-19)
 - **Acceptance:** Testing Library tests cover each fixed state.
+- **Notes:**
+  - **Profile fetch (T5.1).** `AuthState.profileError`. The profile fetch moved to `auth/api.ts`. The admin shell and `/admin/login` show "Couldn't load your account" with Try again and Log out. Tests: `AuthProvider.test.tsx`, `AdminGuard.test.tsx`, `AdminLoginPage.test.tsx`.
+  - **Errors (T6.4).** `src/lib/errors.ts` `errorMessage()` is used by `ErrorMessage`, `SaveStatus`, `SchedulePage` and `BookingPage`. Storage errors with an unmapped status are generic. Tests: `errors.test.ts`, `ErrorMessage.test.tsx`, `SaveStatus.test.tsx`, and `BannerSection` and `CourtPhotoSection` with realistic SQLSTATE codes.
+  - **"Replaced by online payment" (T7.5).** `booking/paymentLabels.ts`; the constant moved out of admin code. Test: `PaymentHistory.test.tsx`.
+  - **PayMongo return (M7 review).** The checkout start time is kept in `sessionStorage`. Test: `paymongoReturn.test.ts`.
+  - **Settings spacing.** `.page-sections`, 40px.
+  - **Sweep.** Every other async view already had its loading, empty and error states.
+  - **Checks.** verify passes (Vitest 363), and e2e is 24 passed with 2 known banner skips. The reviewer passed it, and its 2 majors and 3 minors are fixed.
 
-### [ ] T8.5 Accessibility pass
+### [x] T8.5 Accessibility pass
 - **Do:** Run axe on the main pages (home, book, checkout, booking, My bookings, admin dashboard and bookings) through Playwright. Fix keyboard and focus issues, labels and contrast. Check 360px and 200% zoom.
   - **Slot status colors** (the user's request, 2026-10-19). Give free, selected, booked, closed (blackout) and past slots clearly different styles using the current tokens, and add a legend above the grid. Color is never the only signal: each status keeps its text or pattern. M9's theme task re-tunes the values later.
 - **Acceptance:** The e2e axe checks pass with no serious or critical violations, and the fixes are covered by tests. A SlotGrid test checks that each status has its own class and label, and that the legend is shown.
+- **Notes:**
+  - **axe.** `e2e/a11y.spec.ts` uses `@axe-core/playwright`, pinned at 4.13.0 because 4.14.0 was only 5 days old. It fails on serious or critical WCAG 2.1 A/AA violations, in light and dark mode, with no sideways page scroll. Pages covered: home, login, book (with and without a selection), checkout, the player and guest booking pages, My bookings, admin login, the admin dashboard and admin bookings. It runs at desktop width and 360px, and home and book also run at 640px (200% zoom). A sanity page proved the gate catches injected violations. The app had no serious violations before the fixes.
+  - **Fixes.**
+    - Native date inputs (`/book`, `/admin/bookings`) had no visible focus, found by a keyboard tab walk. Chromium focuses the inner field, so `input[type='date']:focus` now carries the outline.
+    - Added a "Skip to main content" link, and focus now moves to `<main>` after a page change (`components/useMainFocus.ts`, used by both layouts). The skip link focuses in script so a guest link's `#token=` survives.
+    - Slot statuses: each look has its own class and words (available outlined, selected filled with ✓, booked grey, closed hatched, past dashed). A "Slot key" legend sits above the grid. The `--slot-*` tokens are derived from the palette for M9's theme task. Measured text contrast is at least 5.2:1 for every status in both themes, and the available slot's outline is 3.16:1 (light).
+  - **Tests.** `SlotGrid.test.tsx` (each status's class and label, the legend), `Layout.test.tsx` and `AdminLayout.test.tsx` (focus and the skip link), and the a11y e2e spec.
+  - **Checks.** verify passes and e2e passes. The reviewer passed it, and its 3 minors are fixed: an AdminLayout test, dead CSS, and narrower SPEC wording (focus moves only within a layout).
 
 ### [ ] T8.6 Deploy
 - **Depends:** T8.1

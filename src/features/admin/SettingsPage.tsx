@@ -17,10 +17,11 @@ export function SettingsPage() {
       ) : settings.isError ? (
         <ErrorMessage error={settings.error} onRetry={() => settings.refetch()} />
       ) : (
-        <>
+        // Separate forms with their own Save buttons: keep clear space between them.
+        <div className="page-sections">
           <SettingsForm initial={settings.data} />
           <BannerSection settings={settings.data} />
-        </>
+        </div>
       )}
     </section>
   )

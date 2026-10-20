@@ -29,6 +29,29 @@ export function recallGuestToken(ref: string): string | null {
   }
 }
 
+const startKey = (ref: string) => `paymongo-checkout-started:${ref.toUpperCase()}`
+
+/** When this tab left for PayMongo, so an older not-accepted online payment isn't read as this one's outcome. */
+export function rememberCheckoutStart(ref: string, at: number) {
+  try {
+    sessionStorage.setItem(startKey(ref), String(at))
+  } catch {
+    // ignore: without it, every online payment on the booking counts
+  }
+}
+
+export function recallCheckoutStart(ref: string): number | null {
+  try {
+    const at = Number(sessionStorage.getItem(startKey(ref)))
+    return Number.isFinite(at) && at > 0 ? at : null
+  } catch {
+    return null
+  }
+}
+
+/** Server and browser clocks can differ; a payment this much older than the departure still counts. */
+export const CLOCK_SKEW_MS = 2 * 60_000
+
 /**
  * The token to put back in the fragment after a PayMongo return, or null when there's nothing to restore
  * (not a return, the URL already has a token, or this tab never saved one).
@@ -42,17 +65,22 @@ export const CONFIRM_TIMEOUT_MS = 90_000
 
 export type ReturnState = 'confirming' | 'confirmed' | 'not_accepted' | 'timeout' | 'cancelled' | null
 
-/** What to tell a player who just came back from PayMongo, given the booking as last fetched. */
+/**
+ * What to tell a player who just came back from PayMongo, given the booking as last fetched. `startedAt` is when this
+ * tab left for the checkout (if known): a not-accepted online payment from before then belongs to an earlier attempt.
+ */
 export function paymongoReturnState(
   paid: PaidParam,
   booking: Pick<BookingDetail, 'status' | 'payments'>,
   elapsedMs: number,
+  startedAt: number | null = null,
 ): ReturnState {
   if (paid === null) return null
   const online = booking.payments.filter((p) => p.method === 'paymongo')
-  if (paid === 'cancel') return booking.status === 'pending_payment' && online.length === 0 ? 'cancelled' : null
+  const thisAttempt = startedAt === null ? online : online.filter((p) => Date.parse(p.submitted_at) >= startedAt - CLOCK_SKEW_MS)
+  if (paid === 'cancel') return booking.status === 'pending_payment' && thisAttempt.length === 0 ? 'cancelled' : null
   if (online.some((p) => p.review_status === 'approved')) return 'confirmed'
-  if (online.some((p) => p.review_status === 'rejected')) return 'not_accepted'
+  if (thisAttempt.some((p) => p.review_status === 'rejected')) return 'not_accepted'
   return elapsedMs >= CONFIRM_TIMEOUT_MS ? 'timeout' : 'confirming'
 }
 

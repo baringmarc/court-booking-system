@@ -157,12 +157,15 @@ describe('BannerSection', () => {
 
   it('shows save and remove errors from the server', async () => {
     vi.mocked(saveBanner).mockRejectedValue(new ApiError("You don't have permission to change venue media."))
-    vi.mocked(removeBanner).mockRejectedValue(new ApiError('permission denied for table venue_settings'))
+    // As unwrap() throws it: the raw PostgREST text plus its SQLSTATE, which the UI translates.
+    vi.mocked(removeBanner).mockRejectedValue(new ApiError('permission denied for table venue_settings', '42501'))
     renderSection(settings(OLD, 'Courts at dusk'))
     await save()
     expect(await screen.findByRole('alert')).toHaveTextContent("You don't have permission")
     await userEvent.click(screen.getByRole('button', { name: 'Remove banner' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent('permission denied for table venue_settings')
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent("You don't have permission to do that. Try logging in again.")
+    expect(alert).not.toHaveTextContent('venue_settings')
   })
 
   it('disables the form while saving', async () => {

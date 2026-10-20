@@ -3,11 +3,11 @@ import { Navigate, useLocation } from 'react-router-dom'
 import { PageLoader } from '../../components/PageLoader'
 import { signInWithPassword } from '../auth/api'
 import { useAuth } from '../auth/useAuth'
-import { AdminsOnly } from './AdminGuard'
+import { AccountLoadError, AdminsOnly } from './AdminGuard'
 
 /** Staff sign-in: email + password only. There is no admin sign-up; admins are promoted in the database (SPEC §2). */
 export function AdminLoginPage() {
-  const { user, isAdmin, loading } = useAuth()
+  const { user, isAdmin, loading, profileError } = useAuth()
   const location = useLocation()
   const from = (location.state as { from?: string } | null)?.from ?? '/admin'
 
@@ -32,6 +32,7 @@ export function AdminLoginPage() {
 
   if (loading) return <PageLoader />
   if (user && isAdmin) return <Navigate to={from} replace />
+  if (user && profileError) return <AccountLoadError />
   if (user) return <AdminsOnly />
 
   return (

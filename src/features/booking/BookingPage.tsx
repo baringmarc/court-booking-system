@@ -12,9 +12,10 @@ import type { BookingDetail } from './api'
 import { readGuestToken, tokenHash } from './guestLink'
 import { useBooking, useCancelBooking, useStartPaymongoCheckout, useSubmitPaymentProof } from './hooks'
 import { PaymongoReturnNotice, PayOnline } from './PayOnline'
-import { paymongoReturnState, readPaidParam, readReturnState, returnPollMs, tokenToRestore } from './paymongoReturn'
+import { paymongoReturnState, readPaidParam, readReturnState, recallCheckoutStart, returnPollMs, tokenToRestore } from './paymongoReturn'
 import { ProofForm } from './ProofForm'
 import { useNow } from './useNow'
+import { errorMessage } from '../../lib/errors'
 
 export function BookingPage() {
   const { ref = '' } = useParams()
@@ -27,6 +28,7 @@ export function BookingPage() {
   const paid = paidInUrl ?? readReturnState(location.state)
   const restoredToken = tokenToRestore(ref, token, paidInUrl)
   const [returnedAt] = useState(() => Date.now())
+  const [checkoutStartedAt] = useState(() => recallCheckoutStart(ref))
   const { user, isAdmin, loading: authLoading } = useAuth()
   const settings = useVenueSettings()
   // Without a token, only a logged-in owner (or admin) can read the booking.
@@ -34,7 +36,7 @@ export function BookingPage() {
   const now = useNow()
   const elapsed = now.getTime() - returnedAt
   const booking = useBooking(canLoad ? ref : undefined, token, {
-    pollMs: (b) => returnPollMs(paymongoReturnState(paid, b, elapsed)),
+    pollMs: (b) => returnPollMs(paymongoReturnState(paid, b, elapsed, checkoutStartedAt)),
   })
 
   // Old ?token= links: move the token into the fragment (no server ever sees it) and keep the page state.
@@ -44,7 +46,7 @@ export function BookingPage() {
     const state = { ...(location.state as object | null), paymongoReturn: paidInUrl }
     return <Navigate replace to={{ pathname: location.pathname, hash }} state={state} />
   }
-  const returnState = booking.data ? paymongoReturnState(paid, booking.data, elapsed) : null
+  const returnState = booking.data ? paymongoReturnState(paid, booking.data, elapsed, checkoutStartedAt) : null
 
   return (
     <section className="page narrow">
@@ -61,7 +63,7 @@ export function BookingPage() {
       ) : booking.isError ? (
         bookingErrorCode(booking.error) === 'not_found' ? (
           <div className="card stack">
-            <p>{booking.error.message}</p>
+            <p>{errorMessage(booking.error)}</p>
             {token !== null && !user && (
               <p className="small">
                 Lost your link? <Link to="/signup">Sign up</Link> or <Link to="/login">log in</Link> with the email you

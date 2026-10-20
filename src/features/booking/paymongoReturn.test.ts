@@ -5,7 +5,9 @@ import {
   paymongoReturnState,
   readPaidParam,
   readReturnState,
+  recallCheckoutStart,
   recallGuestToken,
+  rememberCheckoutStart,
   returnPollMs,
   rememberGuestToken,
   tokenToRestore,
@@ -102,5 +104,39 @@ describe('readReturnState', () => {
     expect(readReturnState({ paymongoReturn: 'cancel', justBooked: true })).toBe('cancel')
     expect(readReturnState({ paymongoReturn: 'other' })).toBeNull()
     expect(readReturnState(null)).toBeNull()
+  })
+})
+
+describe('the return is about this checkout attempt (M7 review follow-up)', () => {
+  const at = (iso: string, review_status: PaymentAttempt['review_status']): PaymentAttempt => ({ ...payment('paymongo', review_status), id: iso, submitted_at: iso })
+  const startedAt = Date.parse('2030-01-07T03:00:00.000Z')
+  const olderLate = at('2030-01-07T02:00:00.000Z', 'rejected')
+
+  it('ignores a not-accepted online payment from an earlier attempt while this one is processing', () => {
+    const booking = { status: 'pending_payment' as const, payments: [olderLate] }
+    expect(paymongoReturnState('success', booking, 1000, startedAt)).toBe('confirming')
+    expect(paymongoReturnState('cancel', booking, 1000, startedAt)).toBe('cancelled')
+  })
+
+  it('still reports this attempt being refused, allowing for clock skew', () => {
+    const booking = { status: 'pending_payment' as const, payments: [olderLate, at('2030-01-07T02:59:00.000Z', 'rejected')] }
+    expect(paymongoReturnState('success', booking, 1000, startedAt)).toBe('not_accepted')
+  })
+
+  it('an accepted payment always means confirmed', () => {
+    expect(paymongoReturnState('success', { status: 'confirmed', payments: [olderLate, at('2030-01-07T02:30:00.000Z', 'approved')] }, 1000, startedAt)).toBe('confirmed')
+  })
+
+  it('without a recorded start (another tab), every online payment counts, as before', () => {
+    expect(paymongoReturnState('success', { status: 'pending_payment', payments: [olderLate] }, 1000, null)).toBe('not_accepted')
+  })
+
+  it('remembers the start per booking in this tab, and survives storage being unavailable', () => {
+    rememberCheckoutStart('cb-7kq2xd', startedAt)
+    expect(recallCheckoutStart('CB-7KQ2XD')).toBe(startedAt)
+    expect(recallCheckoutStart('CB-OTHER2')).toBeNull()
+    vi.stubGlobal('sessionStorage', { getItem: () => { throw new Error('denied') }, setItem: () => { throw new Error('denied') } })
+    expect(() => rememberCheckoutStart('CB-7KQ2XD', startedAt)).not.toThrow()
+    expect(recallCheckoutStart('CB-7KQ2XD')).toBeNull()
   })
 })

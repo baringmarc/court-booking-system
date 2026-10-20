@@ -73,4 +73,11 @@ describe('AdminLoginPage', () => {
     expect(screen.getByRole('heading', { name: 'Admins only' })).toBeInTheDocument()
     expect(screen.queryByLabelText('Email')).not.toBeInTheDocument()
   })
+
+  it('shows a retryable error, not "Admins only", when the profile failed to load', () => {
+    renderLogin(authState('player', { profile: null, isAdmin: false, profileError: new Error("We couldn't load your account.") }))
+    expect(screen.getByRole('heading', { name: "Couldn't load your account" })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Admins only' })).not.toBeInTheDocument()
+  })
 })

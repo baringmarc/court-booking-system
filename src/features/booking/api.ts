@@ -216,6 +216,17 @@ export async function submitPaymentProof(input: ProofSubmission): Promise<void> 
   if (error) throw await functionError(error, 'The proof could not be submitted.')
 }
 
+/**
+ * Asks for the guest's booking email with their private link (SPEC §8). The token goes in the request body, like proof
+ * uploads, never in a URL. A failure is harmless: the email is still sent later, without the link.
+ */
+export async function requestGuestLinkEmail(input: { referenceCode: string; token: string }): Promise<void> {
+  const { error } = await supabase.functions.invoke('email-guest-link', {
+    body: { reference_code: input.referenceCode, token: input.token },
+  })
+  if (error) throw await functionError(error, "We couldn't send the booking email.")
+}
+
 /** Edge Function errors come back as `{ code, message }`; turn them into ApiError with the code as hint. */
 async function functionError(error: unknown, fallback: string) {
   if (error instanceof FunctionsHttpError) {

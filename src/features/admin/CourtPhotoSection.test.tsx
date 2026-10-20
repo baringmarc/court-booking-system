@@ -117,17 +117,21 @@ describe('CourtPhotoSection', () => {
   })
 
   it('shows upload errors from the server', async () => {
-    vi.mocked(setCourtPhoto).mockRejectedValue(new ApiError('new row violates row-level security policy'))
+    // A Storage 403, as uploadVenueMedia maps it.
+    vi.mocked(setCourtPhoto).mockRejectedValue(new ApiError("You don't have permission to change venue media."))
     renderSection(court())
     await userEvent.upload(screen.getByLabelText('Upload a photo'), image())
-    expect(await screen.findByRole('alert')).toHaveTextContent('row-level security')
+    expect(await screen.findByRole('alert')).toHaveTextContent("You don't have permission to change venue media.")
   })
 
   it('shows remove errors from the server', async () => {
-    vi.mocked(removeCourtPhoto).mockRejectedValue(new ApiError('permission denied for table courts'))
+    // As unwrap() throws it from the courts update: raw text plus SQLSTATE, translated for the admin.
+    vi.mocked(removeCourtPhoto).mockRejectedValue(new ApiError('permission denied for table courts', '42501'))
     renderSection(court(OLD))
     await userEvent.click(screen.getByRole('button', { name: 'Remove photo' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent('permission denied')
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent("You don't have permission to do that. Try logging in again.")
+    expect(alert).not.toHaveTextContent('table courts')
   })
 
   it('disables the controls while uploading', async () => {

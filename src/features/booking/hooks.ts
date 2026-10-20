@@ -1,13 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { accountKeys } from '../account/hooks'
 import { bookingErrorCode } from './errors'
-import { goToCheckout, rememberGuestToken } from './paymongoReturn'
+import { goToCheckout, rememberCheckoutStart, rememberGuestToken } from './paymongoReturn'
 import {
   cancelBooking,
   createBooking,
   fetchAvailability,
   fetchGuestBooking,
   fetchOwnBooking,
+  requestGuestLinkEmail,
   startPaymongoCheckout,
   submitPaymentProof,
   type BookingDetail,
@@ -35,6 +36,11 @@ export function useCreateBooking() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (input: NewBooking) => createBooking(input),
+    // A guest's booking email carries their private link, so only this page can ask for it (it has the token).
+    // Fire and forget: the booking already succeeded, and without this call the email still goes out, minus the link.
+    onSuccess: ({ referenceCode, guestToken }) => {
+      if (guestToken) requestGuestLinkEmail({ referenceCode, token: guestToken }).catch(() => {})
+    },
     // Success and "slot taken" both mean the grid is stale; a new booking also belongs in My bookings.
     onSettled: () => Promise.all([
       qc.invalidateQueries({ queryKey: bookingKeys.allAvailability }),
@@ -70,6 +76,7 @@ export function useStartPaymongoCheckout(ref: string, token: string | null) {
     mutationFn: () => startPaymongoCheckout({ referenceCode: ref, token }),
     onSuccess: (url) => {
       if (token) rememberGuestToken(ref, token)
+      rememberCheckoutStart(ref, Date.now())
       goToCheckout(url)
     },
     // A hold_expired or invalid_state error means the booking changed under us.

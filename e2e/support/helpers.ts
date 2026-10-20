@@ -72,6 +72,20 @@ export async function confirmationLink(email: string): Promise<string> {
   return link
 }
 
+/** Waits for an email to `to` whose subject matches, in the local Mailpit, and returns its plain text. */
+export async function emailText(to: string, subject: RegExp): Promise<string> {
+  const { mailpitUrl } = localSupabase()
+  let id: string | undefined
+  await expect.poll(async () => {
+    const res = await fetch(`${mailpitUrl}/api/v1/search?query=${encodeURIComponent(`to:${to}`)}`)
+    const body = (await res.json()) as { messages: { ID: string; Subject: string }[] }
+    id = body.messages.find((m) => subject.test(m.Subject))?.ID
+    return id
+  }, { message: `email "${subject}" to ${to}` }).toBeTruthy()
+  const res = await fetch(`${mailpitUrl}/api/v1/message/${id}`)
+  return ((await res.json()) as { Text: string }).Text
+}
+
 /** A venue-local date (Asia/Manila) `days` from today, as YYYY-MM-DD. */
 export function venueDate(days: number) {
   return new Date(Date.now() + days * 86_400_000).toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' })

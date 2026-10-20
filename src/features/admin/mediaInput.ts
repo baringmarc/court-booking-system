@@ -39,10 +39,17 @@ const STORAGE_MESSAGES: Record<string, string> = {
   '415': 'Only JPG, PNG and WEBP images can be uploaded.',
 }
 
-/** A readable message for a Storage API error, keyed by its HTTP status. */
+export const STORAGE_GENERIC_MESSAGE = "The image couldn't be saved. Please try again."
+
+/**
+ * A readable message for a Storage API error, keyed by its HTTP status. An unmapped status gets a generic line; with no
+ * status at all (the request never got an answer) the original message is kept, so errorMessage() can report the
+ * network failure.
+ */
 export function storageErrorMessage(error: { message: string; statusCode?: string | number; status?: number }) {
   const code = String(error.statusCode ?? error.status ?? '')
-  return STORAGE_MESSAGES[code] ?? error.message
+  if (!code) return error.message
+  return STORAGE_MESSAGES[code] ?? STORAGE_GENERIC_MESSAGE
 }
 
 export const BANNER_ALT_MAX = 200

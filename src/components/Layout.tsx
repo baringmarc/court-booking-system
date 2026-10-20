@@ -1,12 +1,15 @@
 import { Link, NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../features/auth/useAuth'
+import { useMainFocus } from './useMainFocus'
 
 export function Layout() {
   const { user, profile, loading, signOut } = useAuth()
   const displayName = profile?.full_name || user?.email
+  const { mainRef, skipToMain } = useMainFocus()
 
   return (
     <div className="app">
+      <a href="#main" className="skip-link" onClick={skipToMain}>Skip to main content</a>
       <header className="site-header">
         <div className="container header-inner">
           <Link to="/" className="brand">
@@ -33,7 +36,7 @@ export function Layout() {
         </div>
       </header>
 
-      <main className="container main">
+      <main id="main" className="container main" tabIndex={-1} ref={mainRef}>
         <Outlet />
       </main>
 

@@ -1,5 +1,7 @@
+import { errorMessage } from '../lib/errors'
+
 export function ErrorMessage({ error, onRetry }: { error: unknown; onRetry?: () => void }) {
-  const message = error instanceof Error ? error.message : 'Something went wrong.'
+  const message = errorMessage(error)
   return (
     <div className="alert alert-error" role="alert">
       <p>{message}</p>

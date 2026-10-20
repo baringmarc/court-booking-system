@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import type { Court } from '../catalog/api'
@@ -52,5 +52,32 @@ describe('SlotGrid', () => {
     renderGrid(vi.fn(), { courtId: 'A', starts: [times[0]] })
     expect(screen.getByRole('button', { name: 'Badminton 1, 10 AM, ₱350' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('button', { name: 'Badminton 1, 12 PM, ₱350' })).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('gives each status its own class and label', () => {
+    renderGrid(vi.fn(), { courtId: 'A', starts: [times[0]] })
+    const cases: [string, string, string][] = [
+      ['Badminton 1, 10 AM, ₱350', 'slot-selected', '✓ ₱350'],
+      ['Badminton 1, 12 PM, ₱350', 'slot-free', '₱350'],
+      ['Badminton 1, 11 AM, Booked', 'slot-booked', 'Booked'],
+      ['Badminton 2, 11 AM, Closed', 'slot-blackout', 'Closed'],
+      ['Badminton 2, 10 AM, Past', 'slot-past', '—'],
+    ]
+    for (const [name, className, text] of cases) {
+      const slot = screen.getByRole('button', { name })
+      expect(slot.className).toBe(`slot ${className}`)
+      expect(slot).toHaveTextContent(text)
+    }
+  })
+
+  it('shows a legend with every status above the grid', () => {
+    renderGrid()
+    const legend = screen.getByRole('list', { name: 'Slot key' })
+    const items = within(legend).getAllByRole('listitem')
+    expect(items.map((li) => li.textContent?.replace('✓', ''))).toEqual(['Available', 'Selected', 'Booked', 'Closed', 'Past'])
+    expect(items.map((li) => li.querySelector('.slot-swatch')?.className)).toEqual([
+      'slot-swatch slot-free', 'slot-swatch slot-selected', 'slot-swatch slot-booked', 'slot-swatch slot-blackout', 'slot-swatch slot-past',
+    ])
+    expect(legend.compareDocumentPosition(screen.getByRole('table'))).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
   })
 })
