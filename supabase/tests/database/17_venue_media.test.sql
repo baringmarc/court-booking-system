@@ -1,7 +1,8 @@
--- T6.2: venue-media bucket, its storage.objects policies, and the media columns on courts and venue_settings.
+-- T6.2: venue-media bucket, its storage.objects policies, and the banner columns on venue_settings.
+-- The court photo rules moved to court_photos (22_court_photos) when T9.11 dropped courts.photo_path.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(35);
+select plan(29);
 
 insert into auth.users (id, email) values
   ('11111111-1111-1111-1111-111111111111', 'player@test.local'),
@@ -73,12 +74,6 @@ select is_empty(
 select is((select count(*)::int from storage.objects where bucket_id = 'venue-media'), 0,
   'players see no venue-media rows through RLS');
 select is_empty(
-  $$ update public.courts
-     set photo_path = 'courts/c0000000-0000-0000-0000-000000000001/cccccccc-cccc-cccc-cccc-cccccccccccc.webp'
-     where id = 'c0000000-0000-0000-0000-000000000001' returning id $$,
-  'players cannot set a court photo'
-);
-select is_empty(
   $$ update public.venue_settings
      set banner_path = 'banner/cccccccc-cccc-cccc-cccc-cccccccccccc.webp', banner_alt = 'Courts'
      returning id $$,
@@ -132,11 +127,6 @@ select throws_ok(
 -- ---------------------------------------------------------------------------
 -- admin: columns, through the existing admin RLS
 -- ---------------------------------------------------------------------------
-with u as (
-     update public.courts
-     set photo_path = 'courts/c0000000-0000-0000-0000-000000000001/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa.webp'
-     where id = 'c0000000-0000-0000-0000-000000000001' returning id)
-select is(count(*)::int, 1, 'admins can set a court photo') from u;
 select lives_ok(
   $$ update public.venue_settings
      set banner_path = 'banner/ffffffff-ffff-ffff-ffff-ffffffffffff.webp', banner_alt = 'Night games on the tennis courts' $$,
@@ -151,31 +141,10 @@ select lives_ok(
   $$ update public.venue_settings set banner_path = null, banner_alt = null $$,
   'admins can remove the banner'
 );
-select lives_ok(
-  $$ update public.courts set photo_path = null where id = 'c0000000-0000-0000-0000-000000000001' $$,
-  'admins can remove a court photo'
-);
 
 -- ---------------------------------------------------------------------------
 -- CHECKs (as admin)
 -- ---------------------------------------------------------------------------
-select throws_ok(
-  $$ update public.courts
-     set photo_path = 'courts/c0000000-0000-0000-0000-000000000002/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa.webp'
-     where id = 'c0000000-0000-0000-0000-000000000001' $$,
-  '23514', null, 'a court photo must be under its own court''s folder'
-);
-select throws_ok(
-  $$ update public.courts set photo_path = 'banner/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa.webp'
-     where id = 'c0000000-0000-0000-0000-000000000001' $$,
-  '23514', null, 'a court photo cannot point at the banner folder'
-);
-select throws_ok(
-  $$ update public.courts
-     set photo_path = 'courts/c0000000-0000-0000-0000-000000000001/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa.gif'
-     where id = 'c0000000-0000-0000-0000-000000000001' $$,
-  '23514', null, 'a court photo must be webp, jpg, jpeg or png'
-);
 select throws_ok(
   $$ update public.venue_settings set banner_path = 'courts/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa.webp', banner_alt = 'Courts' $$,
   '23514', null, 'the banner must be under banner/'

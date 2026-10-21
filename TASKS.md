@@ -7,8 +7,8 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
 > Update this section at the end of every session or task. Keep it short; it's the first thing the next session reads.
 
 - **Current milestone:** 9 (Venue admin upgrades). The breakdown was approved on 2026-10-20 (T9.1–T9.12). M8 ✅ done on 2026-10-20.
-- **Next task:** T9.11 (contract migration). It needs the T9.7+ frontend on `master` first: check `origin/master` and stop if it isn't merged. Plan gates are pre-approved through T9.11 (2026-10-21).
-- **State:** T9.1–T9.10 done (2026-10-21). **Don't set overnight hours on production until T9.10 is on `master`:** the live schedule editor, rate grid and "today" don't understand them yet. Their migrations (sport order, `move_court`, `delete_court`, `court_photos` with its hardening, booker names, and overnight hours) are live on the linked database. The UI for T9.3–T9.8 reaches production only when `develop` is merged into `master` (production is still at PR #7, pre-M9 UI). Until that merge, don't edit court photos in the live admin. M8 done (2026-10-20): deploy at https://court-booking-system-ashen.vercel.app. Run `npm run smoke:prod -- --links-only` after each merge.
+- **Next task:** T9.12 (close out M9 and the project: README, screenshots, demo video script, the final review). It's **not** covered by the pre-approval, so it goes back to the normal plan gate.
+- **State:** T9.1–T9.11 done (2026-10-21). Every M9 migration is live, and the contract step dropped `courts.photo_path`. Production's frontend is at PR #9 (through T9.8); T9.9–T9.11 reach it when `develop` is merged into `master`. **Until then, don't set overnight hours on production:** the live schedule editor, rate grid and "today" don't understand them yet. M8 done (2026-10-20): deploy at https://court-booking-system-ashen.vercel.app. Run `npm run smoke:prod -- --links-only` after each merge.
 - **Blockers / notes:**
   - Emails locally: `supabase/functions/.env` must keep `EMAIL_TRANSPORT=mailpit`, `MAILPIT_URL` and `EMAIL_WORKER_SECRET` (see `.env.example`) for smoke and e2e. Restart the stack after changing it. Your PayMongo test key is commented out there; uncomment it only for real local test payments, and expect `pay-online` e2e and `smoke:paymongo` to fail while it's active.
   - Scope added on 2026-10-19 (SPEC §9, §10, §11): slot status colors are in T8.5, the settings spacing fix is in T8.4, and M9 is outlined at the end of this file. The README moved there. Booker names are **first name only** in public. A court can be deleted only if it was never booked.
@@ -1029,7 +1029,7 @@ Out of scope for M9: new sports, live payments, Resend, refunds, SMS.
   - **Checks.** verify passes (Vitest 443, pgTAP, build). e2e: 39 passed, 1 skipped (zoom runs on desktop only).
 
 
-### [ ] T9.11 Contract migration
+### [x] T9.11 Contract migration
 - **Depends:** T9.7 on production (`master`)
 - **Do:**
   - **Reconcile first:** delete `court_photos` rows whose file is gone from Storage (`storage.objects`).
@@ -1037,6 +1037,27 @@ Out of scope for M9: new sports, live payments, Resend, refunds, SMS.
   - Then drop `courts.photo_path` and its check, and anything else M9 left behind for the old frontend.
   - Update what still mentions the column: `e2e/court-photo.spec.ts` (its last check reads `photo_path`) and the `photo_path: null` in the `CourtEditPage.test.tsx` fixture.
 - **Acceptance:** pgTAP is updated. `db:push` runs only after the user confirms that the T9.7 frontend is live.
+- **Notes:**
+  - Migration `20261021120928_contract_court_photo_path.sql`. The precondition was checked: `origin/master` (PR #9) contains T9.7.
+    - `private.prune_missing_court_photos()` removes rows without a `storage.objects` file. It ran here and is kept for later maintenance.
+    - The last legacy copy is an inline insert, limited to files that exist, aren't in the gallery and fit (fewer than 6).
+    - It drops `private.backfill_court_photos`, `courts_photo_path_check` and `courts.photo_path`.
+  - **T9.9 follow-ups done:**
+    - `set_operating_hours` validates each element (day 0–6, open 00–23, close 00–24, `is_closed` boolean, seven distinct days), each with its own message.
+    - `check_operating_hours` takes `pg_advisory_xact_lock`, so concurrent checks are serialized (write skew).
+    - Direct UPDATE on `operating_hours` isn't revoked: production's frontend (PR #9, up to T9.8) still saves hours row by row. Once T9.10 is on `master`, revoking it is optional, because the lock already closes the gap.
+  - **Before `db:push`, production was checked:** 7 photos, 0 with a missing file, 0 legacy photos outside the gallery. After the push: 7 photos, no `photo_path` column, and all deep links work.
+  - **Tests:**
+    - `17_venue_media`: its 6 `photo_path` assertions are gone, because the column is gone. Their rules are covered in `22_court_photos`, which also gains the file-extension rule.
+    - `22_court_photos`: the backfill assertions became prune assertions, plus `hasnt_column`.
+    - `24_overnight_hours` (39 assertions): the per-field messages, a 24:00 open, close > 24, day 7, a non-boolean `is_closed`, a repeated day.
+    - `e2e/court-photo.spec.ts`: dropped its `photo_path` check. The `CourtEditPage.test.tsx` fixture was updated. `db:types` was regenerated.
+  - **Review.** The reviewer passed it, and its major and 3 minors are fixed:
+    - **Advisory lock tested:** `24_overnight_hours` asserts the lock is taken.
+    - **24:00 opening:** the follow-up migration `20261021121625_operating_hours_open_before_midnight.sql` adds a table check, so direct writes are held to the rule too (pushed; production opens at 06:00).
+    - **Docs:** the Handoff State and the SPEC §7 `set_operating_hours` row are updated.
+  - **Checks.** verify passes (Vitest 443, pgTAP incl. `24_overnight_hours` with 41 assertions, build). e2e: 39 passed, 1 skipped (zoom runs on desktop only).
+
 
 ### [ ] T9.12 Close out M9 and the project
 - **Depends:** T9.1–T9.11

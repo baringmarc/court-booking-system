@@ -254,7 +254,6 @@ export type Database = {
           id: string
           is_active: boolean
           name: string
-          photo_path: string | null
           sort_order: number
           sport: Database["public"]["Enums"]["sport"]
           updated_at: string
@@ -266,7 +265,6 @@ export type Database = {
           id?: string
           is_active?: boolean
           name: string
-          photo_path?: string | null
           sort_order?: number
           sport: Database["public"]["Enums"]["sport"]
           updated_at?: string
@@ -278,7 +276,6 @@ export type Database = {
           id?: string
           is_active?: boolean
           name?: string
-          photo_path?: string | null
           sort_order?: number
           sport?: Database["public"]["Enums"]["sport"]
           updated_at?: string

@@ -1,8 +1,9 @@
--- T9.6: court_photos (grants, RLS, path rule, 6-photo limit), reorder_court_photos, the photo_path backfill and cascades.
+-- T9.6: court_photos (grants, RLS, path rule, 6-photo limit), reorder_court_photos and cascades; T9.11: pruning rows whose
+-- file is gone, and courts.photo_path dropped.
 -- The hardening migration (T9.6 review): least-privilege grants, the limit on moves, appended sort_order.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(41);
+select plan(42);
 
 insert into auth.users (id, email) values
   ('11111111-1111-1111-1111-111111111111', 'player@test.local'),
@@ -117,6 +118,11 @@ select throws_ok(
   $$ insert into public.court_photos (court_id, path) values ('c0000000-0000-0000-0000-000000000001', pg_temp.p(1, 1)) $$,
   '23505', null, 'a duplicate path is rejected'
 );
+select throws_ok(
+  $$ insert into public.court_photos (court_id, path)
+     values ('c0000000-0000-0000-0000-000000000001', 'courts/c0000000-0000-0000-0000-000000000001/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa.gif') $$,
+  '23514', null, 'a photo must be webp, jpg, jpeg or png'
+);
 
 -- The 6-photo limit
 select lives_ok(
@@ -185,26 +191,21 @@ select results_eq(
 );
 
 -- ---------------------------------------------------------------------------
--- Backfill from courts.photo_path, and the cascade
+-- Pruning rows whose file is gone (T9.11), and the cascade
 -- ---------------------------------------------------------------------------
 reset role;
-update public.courts set photo_path = pg_temp.p(3, 5) where id = 'c0000000-0000-0000-0000-000000000003';
-select is(private.backfill_court_photos(), 1, 'the backfill copies a court''s photo_path');
+insert into storage.objects (bucket_id, name) values ('venue-media', pg_temp.p(1, 1)), ('venue-media', pg_temp.p(1, 3));
+select is(private.prune_missing_court_photos(), 2, 'rows whose file is missing from Storage are removed');
 select results_eq(
-  $$ select path, sort_order from public.court_photos where court_id = 'c0000000-0000-0000-0000-000000000003' $$,
-  $$ select pg_temp.p(3, 5), 0 $$,
-  'the copied photo is the court''s cover'
+  $$ select path from public.court_photos where court_id = 'c0000000-0000-0000-0000-000000000001' order by sort_order $$,
+  $$ values (pg_temp.p(1, 3)), (pg_temp.p(1, 1)) $$,
+  'photos whose file exists are kept, in order'
 );
-select is(private.backfill_court_photos(), 0, 'running the backfill again adds nothing');
+select is(private.prune_missing_court_photos(), 0, 'running it again removes nothing');
+select hasnt_column('public', 'courts', 'photo_path', 'courts.photo_path is gone (T9.11 contract)');
 
--- A legacy photo next to newer gallery photos still becomes the cover.
-update public.courts set photo_path = pg_temp.p(1, 8) where id = 'c0000000-0000-0000-0000-000000000001';
-select private.backfill_court_photos();
-select is(
-  (select path from public.court_photos where court_id = 'c0000000-0000-0000-0000-000000000001' order by sort_order limit 1),
-  pg_temp.p(1, 8), 'a backfilled photo goes before existing ones'
-);
-
+insert into public.court_photos (court_id, path, sort_order)
+values ('c0000000-0000-0000-0000-000000000003', pg_temp.p(3, 5), 0);
 delete from public.courts where id = 'c0000000-0000-0000-0000-000000000003';
 select is(
   (select count(*)::int from public.court_photos where court_id = 'c0000000-0000-0000-0000-000000000003'), 0,

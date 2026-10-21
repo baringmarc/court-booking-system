@@ -21,7 +21,7 @@ vi.mock('../catalog/api', async (importOriginal) => ({
 vi.mock('../catalog/media', () => ({ mediaUrl: (path: string) => `https://cdn.test/${path}` }))
 
 const court = (id: string, name: string, sport: Court['sport'], sort_order: number) =>
-  ({ id, name, sport, sort_order, is_active: true, default_hourly_rate: 350, description: '', photo_path: null, court_photos: [] as CourtWithPhotos['court_photos'] }) as CourtWithPhotos
+  ({ id, name, sport, sort_order, is_active: true, default_hourly_rate: 350, description: '', court_photos: [] as CourtWithPhotos['court_photos'] }) as CourtWithPhotos
 const courts = [court('b1', 'Badminton 1', 'badminton', 0), court('b2', 'Badminton 2', 'badminton', 4), court('t1', 'Tennis Court', 'tennis', 0)]
 
 function renderAt(path: string) {

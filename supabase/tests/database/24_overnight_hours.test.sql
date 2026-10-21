@@ -2,7 +2,7 @@
 -- validated under it. Plus set_operating_hours and the no-overlap rule, and the T9.5/T9.8 follow-ups.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(34);
+select plan(41);
 
 create function pg_temp.hint_of(p_sql text) returns text language plpgsql as $$
 declare h text;
@@ -185,7 +185,17 @@ select set_config('request.jwt.claims', '{"sub": "22222222-2222-2222-2222-222222
 select throws_ok($$ select public.set_operating_hours((pg_temp.week('22:00')) - 0) $$, 'P0001',
   'Send the hours for all seven days.', 'all seven days are required');
 select throws_ok($$ select public.set_operating_hours(jsonb_set(pg_temp.week('22:00'), '{2,open_time}', '"06:30"')) $$, 'P0001',
-  'Opening and closing times must be whole hours.', 'times must be whole hours');
+  'Opening times must be whole hours from 00:00 to 23:00.', 'times must be whole hours');
+select throws_ok($$ select public.set_operating_hours(jsonb_set(pg_temp.week('22:00'), '{2,open_time}', '"24:00"')) $$, 'P0001',
+  'Opening times must be whole hours from 00:00 to 23:00.', 'a 24:00 opening is refused (it would start the day on the next date)');
+select throws_ok($$ select public.set_operating_hours(jsonb_set(pg_temp.week('22:00'), '{2,close_time}', '"25:00"')) $$, 'P0001',
+  'Closing times must be whole hours from 00:00 to 24:00.', 'closing times stop at 24:00');
+select throws_ok($$ select public.set_operating_hours(jsonb_set(pg_temp.week('22:00'), '{2,day_of_week}', '"7"')) $$, 'P0001',
+  'Each day needs a day of the week from 0 (Sunday) to 6 (Saturday).', 'the day of the week must be 0–6');
+select throws_ok($$ select public.set_operating_hours(jsonb_set(pg_temp.week('22:00'), '{2,is_closed}', '"yes"')) $$, 'P0001',
+  'Closed must be true or false.', 'closed must be a boolean');
+select throws_ok($$ select public.set_operating_hours(jsonb_set(pg_temp.week('22:00'), '{2,day_of_week}', '3')) $$, 'P0001',
+  'Send the hours for all seven days.', 'a repeated day (so one is missing) is refused');
 select throws_ok($$ select public.set_operating_hours(pg_temp.week('07:00')) $$, 'P0001',
   'Monday runs past Tuesday''s opening time. Close earlier, or open Tuesday later.',
   'Monday closing at 07:00 the next day overlaps Tuesday''s 06:00 opening');
@@ -201,6 +211,15 @@ set constraints public.operating_hours_no_overlap immediate;
 select throws_ok(
   $$ update public.operating_hours set open_time = '04:00' where day_of_week = 2 $$,
   'P0001', null, 'a direct write that makes days overlap is refused too'
+);
+-- The check serialises on an advisory lock (T9.11), so concurrent single-day updates can't both pass into an overlap.
+select ok(
+  exists (select 1 from pg_locks where locktype = 'advisory' and pid = pg_backend_pid() and granted),
+  'the overlap check took its advisory lock'
+);
+select throws_ok(
+  $$ update public.operating_hours set open_time = '24:00' where day_of_week = 3 $$,
+  '23514', null, 'a direct write can''t open a day at 24:00 either'
 );
 
 select * from finish();

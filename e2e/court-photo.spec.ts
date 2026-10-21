@@ -82,8 +82,4 @@ test('an admin builds a court gallery that players see on the home page and /boo
   await expect(page.getByRole('img', { name: `Photo 2 of ${name}` })).toHaveCount(0)
   await expect.poll(() => galleryRows(court.id)).toEqual([one])
   await expect.poll(() => storedPhotos(court.id)).toEqual([one])
-
-  // Nothing writes the old single-photo column any more.
-  const { data: row } = await service.from('courts').select('photo_path').eq('id', court.id).single()
-  expect(row?.photo_path).toBeNull()
 })
