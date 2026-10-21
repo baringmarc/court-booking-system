@@ -245,7 +245,7 @@ async function removeMediaFolder(folder: string) {
   if (removeError) throw new ApiError(storageErrorMessage(removeError))
 }
 
-// --- court photos (T9.7). Nothing writes courts.photo_path any more; it's dropped in T9.11. ----------------
+// --- court photos (T9.7; the old courts.photo_path column was dropped in T9.11) ------------------------------
 
 /**
  * Uploads an already downscaled image and adds it to the court's gallery at `sortOrder` (the caller passes

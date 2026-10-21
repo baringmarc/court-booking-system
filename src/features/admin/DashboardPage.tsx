@@ -3,14 +3,15 @@ import { Link } from 'react-router-dom'
 import { ErrorMessage } from '../../components/ErrorMessage'
 import { PageLoader } from '../../components/PageLoader'
 import { formatHour } from '../../lib/format'
-import { addDays, formatDateLabel, hourInZone, todayInZone, zonedLocalToISO } from '../../lib/time'
+import { addDays, formatDateLabel, hourInZone, zonedLocalToISO } from '../../lib/time'
 import { useAvailability } from '../booking/hooks'
 import type { Slot } from '../booking/selection'
 import { displayStatus, STATUS_LABELS } from '../booking/status'
 import { useNow } from '../booking/useNow'
-import type { Court, VenueSettings } from '../catalog/api'
-import { useCourts, useVenueSettings } from '../catalog/hooks'
-import { refundsDueSummary, takingsByMethod } from './dashboard'
+import type { Court, OperatingHours, VenueSettings } from '../catalog/api'
+import { useCourts, useOperatingHours, useVenueSettings } from '../catalog/hooks'
+import { isAfterMidnight, operatingDayRange, operatingToday } from '../catalog/hours'
+import { operatingDayBookings, refundsDueSummary, takingsByMethod } from './dashboard'
 import { useAdminBookings, useCreateWalkIn, useProofQueueCount, useRefundsDue, useTakings } from './hooks'
 import { DayView } from './DayView'
 import { TakingsCard } from './TakingsCard'
@@ -19,18 +20,21 @@ import { WalkInForm } from './WalkInForm'
 export function DashboardPage() {
   const settings = useVenueSettings()
   const courts = useCourts()
+  const hours = useOperatingHours()
 
   return (
     <section className="page">
       <h1>Dashboard</h1>
-      {settings.isPending || courts.isPending ? (
+      {settings.isPending || courts.isPending || hours.isPending ? (
         <PageLoader />
       ) : settings.isError ? (
         <ErrorMessage error={settings.error} onRetry={() => settings.refetch()} />
       ) : courts.isError ? (
         <ErrorMessage error={courts.error} onRetry={() => courts.refetch()} />
+      ) : hours.isError ? (
+        <ErrorMessage error={hours.error} onRetry={() => hours.refetch()} />
       ) : (
-        <Dashboard settings={settings.data} courts={courts.data} />
+        <Dashboard settings={settings.data} courts={courts.data} hours={hours.data} />
       )}
     </section>
   )
@@ -38,15 +42,21 @@ export function DashboardPage() {
 
 const ACTIVE = new Set(['pending_payment', 'payment_submitted', 'confirmed', 'completed'])
 
-function Dashboard({ settings, courts }: { settings: VenueSettings; courts: Court[] }) {
+function Dashboard({ settings, courts, hours }: { settings: VenueSettings; courts: Court[]; hours: OperatingHours[] }) {
   const tz = settings.timezone
   const currency = settings.currency
-  const today = todayInZone(tz)
+  const now = useNow(30_000)
+  // "Today" is the operating day running now (T9.10): at 1 AM after a 6 AM–5 AM day, still yesterday's date.
+  // Takings stay on that calendar date (money is counted by day).
+  const today = operatingToday(hours, tz, now)
   const dayStart = zonedLocalToISO(`${today}T00:00`, tz)
   const dayEnd = zonedLocalToISO(`${addDays(today, 1)}T00:00`, tz)
-  const now = useNow(30_000)
+  const open = operatingDayRange(hours, today, tz)
+  const pastMidnight = !!open && open.end > dayEnd
 
   const schedule = useAdminBookings({ status: 'all', source: 'all', date: today }, tz)
+  // An overnight day also has bookings on the next calendar date.
+  const scheduleNext = useAdminBookings({ status: 'all', source: 'all', date: addDays(today, 1) }, pastMidnight ? tz : undefined)
   const availability = useAvailability(today)
   const queue = useProofQueueCount()
   const takings = useTakings(dayStart, dayEnd)
@@ -54,7 +64,13 @@ function Dashboard({ settings, courts }: { settings: VenueSettings; courts: Cour
   const [showWalkIn, setShowWalkIn] = useState(false)
   const [lastWalkIn, setLastWalkIn] = useState<string | null>(null)
 
-  const todays = (schedule.data?.bookings ?? []).filter((b) => ACTIVE.has(displayStatus(b, now)))
+  const schedulePending = schedule.isPending || (pastMidnight && scheduleNext.isPending)
+  const scheduleError = schedule.error ?? (pastMidnight ? scheduleNext.error : null)
+  const retrySchedule = () => { schedule.refetch(); if (pastMidnight) scheduleNext.refetch() }
+  // The operating day's bookings, each once (one crossing midnight is in both lists), within its open hours.
+  const todays = operatingDayBookings(
+    [schedule.data?.bookings ?? [], pastMidnight ? scheduleNext.data?.bookings ?? [] : []], open,
+  ).filter((b) => ACTIVE.has(displayStatus(b, now)))
   const summary = takings.data ? takingsByMethod(takings.data) : null
 
   return (
@@ -98,10 +114,10 @@ function Dashboard({ settings, courts }: { settings: VenueSettings; courts: Cour
 
       <section className="card stack" aria-labelledby="day-view-heading">
         <h2 id="day-view-heading">Today's courts</h2>
-        {availability.isPending || schedule.isPending ? <PageLoader /> : availability.isError ? (
+        {availability.isPending || schedulePending ? <PageLoader /> : availability.isError ? (
           <ErrorMessage error={availability.error} onRetry={() => availability.refetch()} />
-        ) : schedule.isError ? (
-          <ErrorMessage error={schedule.error} onRetry={() => schedule.refetch()} />
+        ) : scheduleError ? (
+          <ErrorMessage error={scheduleError} onRetry={retrySchedule} />
         ) : (
           <DayView date={today} courts={courts} slots={availability.data} bookings={todays} timeZone={tz} />
         )}
@@ -109,8 +125,8 @@ function Dashboard({ settings, courts }: { settings: VenueSettings; courts: Cour
 
       <section className="card">
         <h2>Today's schedule · {formatDateLabel(today, tz)}</h2>
-        {schedule.isPending ? <PageLoader /> : schedule.isError ? (
-          <ErrorMessage error={schedule.error} onRetry={() => schedule.refetch()} />
+        {schedulePending ? <PageLoader /> : scheduleError ? (
+          <ErrorMessage error={scheduleError} onRetry={retrySchedule} />
         ) : todays.length === 0 ? (
           <p className="muted">No bookings today.</p>
         ) : (
@@ -120,7 +136,7 @@ function Dashboard({ settings, courts }: { settings: VenueSettings; courts: Cour
               return (
                 <li key={b.id} className="list-row">
                   <span>
-                    <strong>{formatHour(hourInZone(b.slot_start, tz))}–{formatHour(hourInZone(b.slot_end, tz))}</strong> · {b.court_name}
+                    <strong>{formatHour(hourInZone(b.slot_start, tz))}–{formatHour(hourInZone(b.slot_end, tz))}{isAfterMidnight(b.slot_start, today, tz) ? ' (next day)' : ''}</strong> · {b.court_name}
                     <span className="muted small block">{b.guest_name} · {b.reference_code}{b.source === 'walk_in' ? ' · Walk-in' : ''}</span>
                   </span>
                   <span className={`badge status-${status}`}>{STATUS_LABELS[status]}</span>
@@ -156,7 +172,7 @@ function WalkInPanel({ today, courts, now, timeZone, currency, onRecorded }: Wal
   if (availability.isError) return <ErrorMessage error={availability.error} onRetry={() => availability.refetch()} />
   if (courts.length === 0 || availability.data.length === 0) return <p className="muted">The venue is closed today.</p>
   return (
-    <WalkInForm courts={courts} slotsByCourt={slotsByCourt} now={now} timeZone={timeZone} currency={currency}
+    <WalkInForm courts={courts} slotsByCourt={slotsByCourt} now={now} timeZone={timeZone} currency={currency} date={today}
       pending={create.isPending} error={create.isError ? create.error : null}
       onSubmit={(input) => create.mutate(input, { onSuccess: (r) => onRecorded(r.referenceCode) })} />
   )

@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { formatHour, formatMoney } from '../../lib/format'
 import { hourInZone } from '../../lib/time'
+import { isAfterMidnight } from '../catalog/hours'
 import { bookingErrorMessage } from '../booking/errors'
 import { METHOD_LABELS } from '../booking/proofInput'
 import type { Slot } from '../booking/selection'
@@ -16,6 +17,8 @@ type Props = {
   slotsByCourt: Map<string, Slot[]>
   now: Date
   timeZone: string
+  /** The operating date the form books on; after-midnight start times are marked (T9.10). */
+  date?: string
   currency: string
   pending: boolean
   error: unknown
@@ -23,7 +26,7 @@ type Props = {
 }
 
 /** Counter walk-ins for today (SPEC §5.8). The server re-checks every rule and computes the booking total. */
-export function WalkInForm({ courts, slotsByCourt, now, timeZone, currency, pending, error, onSubmit }: Props) {
+export function WalkInForm({ courts, slotsByCourt, now, timeZone, currency, pending, error, onSubmit, date }: Props) {
   const [courtId, setCourtId] = useState(courts[0]?.id ?? '')
   const [start, setStart] = useState('')
   const [slots, setSlots] = useState(1)
@@ -74,7 +77,7 @@ export function WalkInForm({ courts, slotsByCourt, now, timeZone, currency, pend
             <option value="">{startable.length ? 'Choose…' : 'No free times today'}</option>
             {startable.map((s) => (
               <option key={s.slot_start} value={s.slot_start}>
-                {formatHour(hourInZone(s.slot_start, timeZone))}{s.status === 'past' ? ' (now)' : ''}
+                {formatHour(hourInZone(s.slot_start, timeZone))}{date && isAfterMidnight(s.slot_start, date, timeZone) ? ' (next day)' : ''}{s.status === 'past' ? ' (now)' : ''}
               </option>
             ))}
           </select>

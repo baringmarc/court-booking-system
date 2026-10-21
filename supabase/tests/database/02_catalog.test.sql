@@ -20,10 +20,15 @@ select throws_ok(
   $$ update public.operating_hours set open_time = '06:30' where day_of_week = 1 $$,
   '23514', null, 'operating hours must be whole hours'
 );
+-- Since M9 (T9.9) a close at or before the open means the next day, so 22:00–06:00 is a valid overnight day;
+-- what's refused is running into the next day's opening (checked at commit; made immediate here to see it).
+set constraints public.operating_hours_no_overlap immediate;
 select throws_ok(
-  $$ update public.operating_hours set open_time = '22:00', close_time = '06:00' where day_of_week = 1 $$,
-  '23514', null, 'open_time must be before close_time'
+  $$ update public.operating_hours set open_time = '22:00', close_time = '07:00' where day_of_week = 1 $$,
+  'P0001', 'Monday runs past Tuesday''s opening time. Close earlier, or open Tuesday later.',
+  'hours may not run into the next day''s opening (the old open < close rule became this in T9.9)'
 );
+set constraints public.operating_hours_no_overlap deferred;
 select throws_ok(
   $$ insert into public.court_rates (court_id, day_of_week, start_hour, price)
      select id, 7, 10, 100 from public.courts limit 1 $$,

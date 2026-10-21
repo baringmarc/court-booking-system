@@ -65,6 +65,17 @@ describe('SlotGrid', () => {
     expect(slot).toHaveClass('slot-booked')
   })
 
+  it('marks after-midnight rows of an overnight day as the next day', () => {
+    // Operating date 2030-01-07; a 1 AM slot on the 8th (Manila) belongs to it.
+    const late = '2030-01-07T17:00:00.000Z' // 2030-01-08 01:00 Manila
+    const lateSlots = new Map<string, Slot[]>([['A', [{ ...row('A', 0, 'free'), slot_start: late, slot_end: end(late) }]], ['B', []]])
+    render(<SlotGrid courts={courts} times={[times[0], late]} slotsByCourt={lateSlots} selection={null} date="2030-01-07"
+      onToggle={vi.fn()} timeZone="Asia/Manila" currency="PHP" />)
+    expect(screen.getByRole('rowheader', { name: '10 AM' })).toBeInTheDocument()
+    expect(screen.getByRole('rowheader', { name: '1 AM (next day)' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Badminton 1, 1 AM (next day), ₱350' })).toBeEnabled()
+  })
+
   it('gives each status its own class and label', () => {
     renderGrid(vi.fn(), { courtId: 'A', starts: [times[0]] })
     const cases: [string, string, string][] = [
