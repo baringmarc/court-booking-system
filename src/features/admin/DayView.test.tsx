@@ -49,6 +49,19 @@ describe('DayView', () => {
     expect(screen.getAllByText('Ana Maria Santos')).toHaveLength(2)
   })
 
+  it('links an after-midnight booking to its own calendar date and marks the hour as the next day', () => {
+    // An overnight day: slots at 11 PM and 1 AM, a booking at 1 AM on the 8th.
+    const night = [slot('A', 23, 'free'), slot('A', 25, 'booked', 'Ben')]
+    const late = { id: 'b2', reference_code: 'CB-NIGHTA', court_name: 'Badminton 1', slot_start: at(25), slot_end: at(26), guest_name: 'Ben Cruz' }
+    render(
+      <MemoryRouter>
+        <DayView date="2030-01-07" courts={courts} slots={night} bookings={[late]} timeZone="Asia/Manila" />
+      </MemoryRouter>,
+    )
+    expect(screen.getAllByRole('rowheader').map((h) => h.textContent)).toEqual(['11 PM', '1 AM (next day)'])
+    expect(screen.getByRole('link', { name: 'CB-NIGHTA' })).toHaveAttribute('href', '/admin/bookings?status=all&date=2030-01-08&booking=b2')
+  })
+
   it('lets keyboard users scroll the grid on a small screen', () => {
     renderDay()
     expect(screen.getByRole('region', { name: 'Courts by hour' })).toHaveAttribute('tabindex', '0')

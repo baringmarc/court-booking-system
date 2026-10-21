@@ -4,7 +4,8 @@ import { ErrorMessage } from '../../components/ErrorMessage'
 import { SaveStatus } from '../../components/SaveStatus'
 import { useCourtRates, useOperatingHours, useSaveCourtRates, useVenueSettings } from '../catalog/hooks'
 import type { Court, CourtRate, OperatingHours, RateChanges } from '../catalog/api'
-import { DAY_NAMES, DAY_SHORT, DISPLAY_DAY_ORDER, formatHour, formatMoney, hourOf } from '../../lib/format'
+import { DAY_NAMES, DAY_SHORT, DISPLAY_DAY_ORDER, formatHour, formatMoney } from '../../lib/format'
+import { daySpan } from '../catalog/hours'
 
 /** Loads rates + hours, owns the save mutation, and remounts the editor whenever fresh rates arrive. */
 export function CourtRatesSection({ court }: { court: Court }) {
@@ -49,7 +50,10 @@ export function CourtRatesSection({ court }: { court: Court }) {
   )
 }
 
-const cellKey = (day: number, hour: number) => `${day}:${hour}`
+// Grid hours are counted from each day's own midnight, so an overnight day's after-midnight hours are 24+
+// (T9.10). They're stored under that operating day's row at hour % 24, which is how pricing reads them (T9.9).
+const cellKey = (day: number, hour: number) => `${day}:${hour % 24}`
+const hourLabel = (hour: number) => `${formatHour(hour)}${hour >= 24 ? ' (next day)' : ''}`
 
 type EditorProps = {
   courtId: string
@@ -72,10 +76,13 @@ function RateGridEditor({ courtId, defaultRate, rates, hours, saving, status, on
   )
   const [error, setError] = useState<string | null>(null)
 
-  // Which hours each day is open; the grid spans the earliest open to the latest close.
+  // Which hours each day is open, in hours past its midnight; the grid spans the earliest open to the latest close.
   const openByDay = useMemo(() => {
     const map = new Map<number, [number, number]>()
-    for (const h of hours) if (!h.is_closed) map.set(h.day_of_week, [hourOf(h.open_time), hourOf(h.close_time)])
+    for (const h of hours) {
+      const span = daySpan(h)
+      if (span) map.set(h.day_of_week, [span.open, span.end])
+    }
     return map
   }, [hours])
   const spans = [...openByDay.values()]
@@ -149,7 +156,7 @@ function RateGridEditor({ courtId, defaultRate, rates, hours, saving, status, on
           <tbody>
             {gridHours.map((hour) => (
               <tr key={hour}>
-                <th scope="row">{formatHour(hour)}</th>
+                <th scope="row">{hourLabel(hour)}</th>
                 {DISPLAY_DAY_ORDER.map((day) => {
                   const key = cellKey(day, hour)
                   if (!isOpen(day, hour)) return <td key={day} className="cell-closed" aria-label="Closed">—</td>
@@ -161,7 +168,7 @@ function RateGridEditor({ courtId, defaultRate, rates, hours, saving, status, on
                         step="0.01"
                         inputMode="decimal"
                         placeholder={String(defaultRate)}
-                        aria-label={`${DAY_NAMES[day]} ${formatHour(hour)}`}
+                        aria-label={`${DAY_NAMES[day]} ${hourLabel(hour)}`}
                         value={values[key] ?? ''}
                         onChange={(e) => setCell(key, e.target.value)}
                       />
@@ -224,13 +231,13 @@ function FillTool({
           <label className="field">
             <span>From</span>
             <select value={from} onChange={(e) => setFrom(Number(e.target.value))}>
-              {hourOptions.slice(0, -1).map((h) => <option key={h} value={h}>{formatHour(h)}</option>)}
+              {hourOptions.slice(0, -1).map((h) => <option key={h} value={h}>{hourLabel(h)}</option>)}
             </select>
           </label>
           <label className="field">
             <span>Until</span>
             <select value={to} onChange={(e) => setTo(Number(e.target.value))}>
-              {hourOptions.slice(1).map((h) => <option key={h} value={h}>{formatHour(h)}</option>)}
+              {hourOptions.slice(1).map((h) => <option key={h} value={h}>{hourLabel(h)}</option>)}
             </select>
           </label>
           <label className="field">

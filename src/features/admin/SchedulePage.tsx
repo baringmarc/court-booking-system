@@ -13,6 +13,7 @@ import {
 } from '../catalog/hooks'
 import type { OperatingHours } from '../catalog/api'
 import { DAY_NAMES, DISPLAY_DAY_ORDER, formatHour, hourOf, hourToTime } from '../../lib/format'
+import { findOverlap, isAllDay, isOvernight, overlapMessage } from '../catalog/hours'
 import { formatDateTimeInZone, zonedLocalToISO } from '../../lib/time'
 import { errorMessage } from '../../lib/errors'
 
@@ -64,11 +65,12 @@ function HoursForm({
   const update = (day: number, patch: Partial<OperatingHours>) =>
     setRows((rs) => rs.map((r) => (r.day_of_week === day ? { ...r, ...patch } : r)))
 
-  const invalid = rows.find((r) => !r.is_closed && hourOf(r.open_time) >= hourOf(r.close_time))
+  // A close at or before the open means the next day (T9.9); what can't happen is running into the next day.
+  const overlap = findOverlap(rows)
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
-    if (!invalid) onSave(rows)
+    if (!overlap) onSave(rows)
   }
 
   return (
@@ -95,21 +97,34 @@ function HoursForm({
               <span className="muted">to</span>
               <select
                 aria-label={`${DAY_NAMES[day]} closes`}
-                disabled={row.is_closed}
+                disabled={row.is_closed || isAllDay(row)}
                 value={hourOf(row.close_time)}
                 onChange={(e) => update(day, { close_time: hourToTime(Number(e.target.value)) })}
               >
                 {CLOSE_HOURS.map((h) => <option key={h} value={h}>{h === 24 ? 'Midnight' : formatHour(h)}</option>)}
               </select>
+              <label className="check">
+                <input type="checkbox" checked={isAllDay(row)} disabled={row.is_closed} aria-label={`${DAY_NAMES[day]} open 24 hours`}
+                  onChange={(e) => {
+                    const open = hourOf(row.open_time)
+                    // 24 hours: close at the opening time (from midnight, at midnight: 24:00, one of the close options).
+                    // Unticked: a normal day closing at 10 PM (or midnight).
+                    const closeAt = e.target.checked ? (open === 0 ? 24 : open) : open < 22 ? 22 : 24
+                    update(day, { close_time: hourToTime(closeAt) })
+                  }} />
+                <span>24 hours</span>
+              </label>
+              {!row.is_closed && isOvernight(row) && !isAllDay(row) && (
+                <span className="muted small">closes next day</span>
+              )}
             </div>
           )
         })}
       </div>
-      {invalid && (
-        <p className="form-error" role="alert">{DAY_NAMES[invalid.day_of_week]}: closing time must be after opening time.</p>
-      )}
+      <p className="muted small">A closing time at or before the opening time means the venue closes the next morning.</p>
+      {overlap && <p className="form-error" role="alert">{overlapMessage(overlap)}</p>}
       <div className="form-actions">
-        <button type="submit" className="btn" disabled={saving || !!invalid}>{saving ? 'Saving…' : 'Save hours'}</button>
+        <button type="submit" className="btn" disabled={saving || !!overlap}>{saving ? 'Saving…' : 'Save hours'}</button>
         {status}
       </div>
     </form>

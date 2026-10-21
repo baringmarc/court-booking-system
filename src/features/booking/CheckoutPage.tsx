@@ -4,8 +4,9 @@ import { PageLoader } from '../../components/PageLoader'
 import { formatHour, formatMoney } from '../../lib/format'
 import { formatDateLabel, hourInZone, todayInZone } from '../../lib/time'
 import { useAuth } from '../auth/useAuth'
-import { SPORT_LABELS, type Court, type VenueSettings } from '../catalog/api'
-import { useCourts, useVenueSettings } from '../catalog/hooks'
+import { SPORT_LABELS, type Court, type OperatingHours, type VenueSettings } from '../catalog/api'
+import { useCourts, useOperatingHours, useVenueSettings } from '../catalog/hooks'
+import { operatingDateOf } from '../catalog/hours'
 import { CheckoutForm } from './CheckoutForm'
 import { guestBookingPath } from './guestLink'
 import { parseCheckoutSearch, type CheckoutParams } from './checkoutParams'
@@ -23,32 +24,36 @@ export function CheckoutPage() {
 function CheckoutLoader({ choice }: { choice: CheckoutParams }) {
   const settings = useVenueSettings()
   const courts = useCourts()
+  const hours = useOperatingHours()
   const { loading: authLoading } = useAuth()
 
   return (
     <section className="page narrow">
       <h1>Checkout</h1>
-      {settings.isPending || courts.isPending || authLoading ? (
+      {settings.isPending || courts.isPending || hours.isPending || authLoading ? (
         <PageLoader />
       ) : settings.isError ? (
         <ErrorMessage error={settings.error} onRetry={() => settings.refetch()} />
       ) : courts.isError ? (
         <ErrorMessage error={courts.error} onRetry={() => courts.refetch()} />
+      ) : hours.isError ? (
+        <ErrorMessage error={hours.error} onRetry={() => hours.refetch()} />
       ) : (
-        <Checkout choice={choice} settings={settings.data} court={courts.data.find((c) => c.id === choice.courtId)} />
+        <Checkout choice={choice} settings={settings.data} court={courts.data.find((c) => c.id === choice.courtId)} hours={hours.data} />
       )}
     </section>
   )
 }
 
-function Checkout({ choice, settings, court }: { choice: CheckoutParams; settings: VenueSettings; court: Court | undefined }) {
+function Checkout({ choice, settings, court, hours }: { choice: CheckoutParams; settings: VenueSettings; court: Court | undefined; hours: OperatingHours[] }) {
   const navigate = useNavigate()
   const location = useLocation()
   const { user, profile } = useAuth()
   const create = useCreateBooking()
 
   const tz = settings.timezone
-  const date = todayInZone(tz, new Date(choice.start))
+  // The operating date the run belongs to: a 1 AM slot after a 6 AM–5 AM day is listed under the previous date.
+  const date = operatingDateOf(hours, tz, new Date(choice.start))
   const availability = useAvailability(date)
   const gridLink = `/book?date=${date}${court ? `&sport=${court.sport}` : ''}`
 
@@ -101,7 +106,8 @@ function Checkout({ choice, settings, court }: { choice: CheckoutParams; setting
         <h2>{court?.name}</h2>
         <dl className="facts">
           <div><dt>Sport</dt><dd>{court ? SPORT_LABELS[court.sport] : ''}</dd></div>
-          <div><dt>Date</dt><dd>{formatDateLabel(date, tz)}</dd></div>
+          {/* The real calendar date: a 1 AM slot is on the next date, though it's listed under the operating day. */}
+          <div><dt>Date</dt><dd>{formatDateLabel(todayInZone(tz, new Date(choice.start)), tz)}</dd></div>
           <div>
             <dt>Time</dt>
             <dd>{formatHour(hourInZone(choice.start, tz))}–{formatHour(hourInZone(end, tz))} ({choice.slots} {choice.slots === 1 ? 'hour' : 'hours'})</dd>

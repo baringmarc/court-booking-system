@@ -7,8 +7,8 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
 > Update this section at the end of every session or task. Keep it short; it's the first thing the next session reads.
 
 - **Current milestone:** 9 (Venue admin upgrades). The breakdown was approved on 2026-10-20 (T9.1–T9.12). M8 ✅ done on 2026-10-20.
-- **Next task:** T9.10 (overnight hours UI). Plan gates are pre-approved through T9.11 (2026-10-21).
-- **State:** T9.1–T9.9 done (2026-10-21). **Don't set overnight hours on production until T9.10 is on `master`:** the live schedule editor, rate grid and "today" don't understand them yet. Their migrations (sport order, `move_court`, `delete_court`, `court_photos` with its hardening, booker names, and overnight hours) are live on the linked database. The UI for T9.3–T9.8 reaches production only when `develop` is merged into `master` (production is still at PR #7, pre-M9 UI). Until that merge, don't edit court photos in the live admin. M8 done (2026-10-20): deploy at https://court-booking-system-ashen.vercel.app. Run `npm run smoke:prod -- --links-only` after each merge.
+- **Next task:** T9.11 (contract migration). It needs the T9.7+ frontend on `master` first: check `origin/master` and stop if it isn't merged. Plan gates are pre-approved through T9.11 (2026-10-21).
+- **State:** T9.1–T9.10 done (2026-10-21). **Don't set overnight hours on production until T9.10 is on `master`:** the live schedule editor, rate grid and "today" don't understand them yet. Their migrations (sport order, `move_court`, `delete_court`, `court_photos` with its hardening, booker names, and overnight hours) are live on the linked database. The UI for T9.3–T9.8 reaches production only when `develop` is merged into `master` (production is still at PR #7, pre-M9 UI). Until that merge, don't edit court photos in the live admin. M8 done (2026-10-20): deploy at https://court-booking-system-ashen.vercel.app. Run `npm run smoke:prod -- --links-only` after each merge.
 - **Blockers / notes:**
   - Emails locally: `supabase/functions/.env` must keep `EMAIL_TRANSPORT=mailpit`, `MAILPIT_URL` and `EMAIL_WORKER_SECRET` (see `.env.example`) for smoke and e2e. Restart the stack after changing it. Your PayMongo test key is commented out there; uncomment it only for real local test payments, and expect `pay-online` e2e and `smoke:paymongo` to fail while it's active.
   - Scope added on 2026-10-19 (SPEC §9, §10, §11): slot status colors are in T8.5, the settings spacing fix is in T8.4, and M9 is outlined at the end of this file. The README moved there. Booker names are **first name only** in public. A court can be deleted only if it was never booked.
@@ -20,6 +20,7 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
   - Email confirmation is on locally (`config.toml`, matching the hosted project). Sign-up emails land in Mailpit at http://127.0.0.1:54324. e2e reads them with `confirmationLink()`. Don't turn it off: claims trust `email_confirmed_at`.
   - Guest links use `#token=`. Going to the same URL again is a hash-only navigation (no reload), so e2e leaves the page first (`openGuestLink`).
   - Venue media: paths are stored, not URLs (`mediaUrl()`). Uploads are downscaled in the browser and named with a new uuid. `remove()` fails silently without SELECT, so the code checks what it returned. Orphan listing query: RESEARCH M6.
+  - `e2e/overnight.spec.ts` changes venue-wide hours and restores them in `afterEach` with service-role updates. It skips itself unless the chosen day is 06:00–22:00, so a local stack with edited hours loses that coverage. If T9.11 revokes direct UPDATE on `operating_hours` from `authenticated`, the service role still works.
   - `e2e/banner.spec.ts` skips itself when a banner is already set on the local stack (the banner is venue-wide). Remove it in `/admin/settings` to get the coverage back.
   - PayMongo on the linked project: secrets `PAYMONGO_SECRET_KEY`, `PAYMONGO_WEBHOOK_SECRET` and `PUBLIC_SITE_URL` (production first since T8.6, then the two localhost origins). Webhook registered in the dashboard under Settings → Webhooks (Test Mode).
   - Local PayMongo setup: `supabase/functions/.env` (from `.env.example`) holds `PAYMONGO_MODE=stub`, `PUBLIC_SITE_URL` and the local webhook secret. Restart the stack (`supabase stop/start`) after adding a function or changing that file. `npm run smoke:paymongo` exercises both functions.
@@ -995,7 +996,7 @@ Out of scope for M9: new sports, live payments, Resend, refunds, SMS.
   - **Write skew.** The deferred no-overlap trigger reads the other days under READ COMMITTED, so two hand-made concurrent per-row updates could pass together. Lock the table in the trigger, or revoke direct UPDATE on `operating_hours` once T9.10 (which uses the RPC) is live.
 
 
-### [ ] T9.10 Overnight hours UI
+### [x] T9.10 Overnight hours UI
 - **Depends:** T9.9
 - **Do:**
   - The schedule editor saves through `set_operating_hours`. It shows "closes next day" when close ≤ open, and has an "Open 24 hours" checkbox.
@@ -1004,6 +1005,29 @@ Out of scope for M9: new sports, live payments, Resend, refunds, SMS.
   - The walk-in form and the dashboard use the operating day for "today" (`src/lib/time.ts` helper, mirroring the SQL).
   - The court rate grid (`CourtRatesSection`) shows each day's hours from open to close in operating order, after-midnight hours included under the operating day's row (pricing uses that row since T9.9). Today it builds `[open, close)`, which goes negative for an overnight day (T9.9 review).
 - **Acceptance:** Vitest covers the time helper and `summarizeHours`. Testing Library covers the editor, the grid marker and the rate grid with overnight hours. e2e: an admin sets overnight hours, a guest books a 1 AM slot, and the hours are restored in teardown.
+- **Notes:**
+  - **Helpers.** `catalog/hours.ts` mirrors the SQL: `daySpan`, `isOvernight`, `isAllDay`, `findOverlap`/`overlapMessage` (the trigger's rule and message), `dowOf`, `operatingDayRange`, `operatingDateOf` (`operating_day_of` with the local-date fallback), `operatingToday` and `isAfterMidnight`. `summarizeHours` says "… (next day)" and "Open 24 hours".
+  - **Schedule editor.** It saves through `set_operating_hours` (`saveOperatingHours`). It shows "closes next day", has a "24 hours" switch per day, and replaces the old close-after-open rule with the overlap check, which flags clashes before saving.
+  - **`/book`.** The first date is the operating day running now, and after-midnight rows (and their slot labels) say "(next day)".
+  - **Checkout (bug found by the e2e).** It looked the run up on the slot's calendar date, so an after-midnight slot read as "no longer available". It now uses `operatingDateOf`. Booking pages still show the real calendar date and time, by design.
+  - **Dashboard.** "Today" is the operating day. When that day runs past midnight it also loads the next calendar date's bookings and keeps those within the operating day. Takings stay on the calendar date.
+  - **Rate grid.** Columns count hours from each day's midnight (after-midnight hours are 24+, labelled "(next day)") and are stored at `hour % 24` under the operating day's row. A week where every day wraps no longer breaks it.
+  - **Tests:**
+    - `hours.test.ts`: 14 tests, covering spans, overlap, operating today and date, ranges, after-midnight and the summaries
+    - `SchedulePage.test.tsx` (new): next-day hint and save, the 24-hour switch, overlap blocking save, the server error
+    - `SlotGrid.test.tsx`: the "(next day)" marker
+    - `CourtRatesSection.test.tsx` (new): after-midnight rows, saving under the operating day, an all-overnight week
+    - `e2e/overnight.spec.ts` (new): an admin sets a 2 AM close, and a guest in their own context books an after-midnight slot that then shows as booked under that date. Checkout shows the real next calendar date. The hours are restored afterwards.
+  - **Review.** The reviewer passed it, and its 3 majors and the cheap minors are fixed:
+    - **Checkout and the selection bar** show the slot's real calendar date.
+    - **Dashboard merge.** `operatingDayBookings` dedupes a booking crossing midnight, with a test.
+    - **Day-view links** use the booking's own calendar date (`/admin/bookings` filters by calendar day), with a test.
+    - **Accessible names.** The 24-hour checkboxes are labelled per day. From midnight, 24 hours closes at 24:00.
+    - **"(next day)"** now also appears in the day view, the schedule list and the walk-in form.
+    - **Zone conversion** moved into `lib/time.ts` (`localHoursInZone`).
+    - **Left as is:** the rate grid's invalid-price message says the hour without "(next day)".
+  - **Checks.** verify passes (Vitest 443, pgTAP, build). e2e: 39 passed, 1 skipped (zoom runs on desktop only).
+
 
 ### [ ] T9.11 Contract migration
 - **Depends:** T9.7 on production (`master`)

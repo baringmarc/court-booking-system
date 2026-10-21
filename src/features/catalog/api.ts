@@ -116,12 +116,10 @@ export async function saveCourtRates(courtId: string, { upserts, deletes }: Rate
   )
 }
 
+/** Saves the whole week in one step (set_operating_hours: atomic, checks that days don't overlap). */
 export async function saveOperatingHours(rows: OperatingHours[]) {
-  await Promise.all(
-    rows.map(async ({ day_of_week, ...values }) =>
-      unwrap(await supabase.from('operating_hours').update(values).eq('day_of_week', day_of_week)),
-    ),
-  )
+  const p_hours = rows.map(({ day_of_week, open_time, close_time, is_closed }) => ({ day_of_week, open_time, close_time, is_closed }))
+  unwrap(await supabase.rpc('set_operating_hours', { p_hours }))
 }
 
 export async function createBlackout(input: TablesInsert<'blackouts'>) {

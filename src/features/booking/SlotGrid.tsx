@@ -1,6 +1,7 @@
 import type { Court } from '../catalog/api'
 import { formatHour, formatMoney } from '../../lib/format'
 import { hourInZone } from '../../lib/time'
+import { isAfterMidnight } from '../catalog/hours'
 import type { Selection, Slot, SlotStatus } from './selection'
 
 /** What a slot looks like: its availability, or `selected` for a free slot in the current pick. */
@@ -24,11 +25,13 @@ type Props = {
   selection: Selection
   onToggle: (slot: Slot) => void
   timeZone: string
+  /** The operating date shown; slots on the next calendar day (after midnight) are marked (T9.10). */
+  date?: string
   currency: string
 }
 
 /** Times down the side, courts across the top. Only free slots are buttons you can press. */
-export function SlotGrid({ courts, times, slotsByCourt, selection, onToggle, timeZone, currency }: Props) {
+export function SlotGrid({ courts, times, slotsByCourt, selection, onToggle, timeZone, currency, date }: Props) {
   return (
     <div>
       <ul className="slot-legend" aria-label="Slot key">
@@ -49,7 +52,8 @@ export function SlotGrid({ courts, times, slotsByCourt, selection, onToggle, tim
           </thead>
           <tbody>
             {times.map((time) => {
-              const hourLabel = formatHour(hourInZone(time, timeZone))
+              const nextDay = !!date && isAfterMidnight(time, date, timeZone)
+              const hourLabel = `${formatHour(hourInZone(time, timeZone))}${nextDay ? ' (next day)' : ''}`
               return (
                 <tr key={time}>
                   <th scope="row">{hourLabel}</th>

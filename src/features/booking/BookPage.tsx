@@ -3,9 +3,10 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ErrorMessage } from '../../components/ErrorMessage'
 import { PageLoader } from '../../components/PageLoader'
 import { addDays, formatDateLabel, todayInZone } from '../../lib/time'
-import { SPORT_LABELS, type CourtWithPhotos, type Sport, type VenueSettings } from '../catalog/api'
+import { SPORT_LABELS, type CourtWithPhotos, type OperatingHours, type Sport, type VenueSettings } from '../catalog/api'
+import { operatingToday } from '../catalog/hours'
 import { sportsOf } from '../catalog/sportOrder'
-import { useCourts, useVenueSettings } from '../catalog/hooks'
+import { useCourts, useOperatingHours, useVenueSettings } from '../catalog/hooks'
 import { CourtTiles } from '../catalog/CourtTiles'
 import { toCheckoutSearch } from './checkoutParams'
 import { useAvailability } from './hooks'
@@ -16,11 +17,12 @@ import { SlotGrid } from './SlotGrid'
 export function BookPage() {
   const settings = useVenueSettings()
   const courts = useCourts()
+  const hours = useOperatingHours()
 
   return (
     <section className="page">
       <h1>Book a court</h1>
-      {settings.isPending || courts.isPending ? (
+      {settings.isPending || courts.isPending || hours.isPending ? (
         <PageLoader />
       ) : settings.isError ? (
         <ErrorMessage error={settings.error} onRetry={() => settings.refetch()} />
@@ -28,8 +30,10 @@ export function BookPage() {
         <ErrorMessage error={courts.error} onRetry={() => courts.refetch()} />
       ) : courts.data.length === 0 ? (
         <p className="muted">No courts are open for booking right now.</p>
+      ) : hours.isError ? (
+        <ErrorMessage error={hours.error} onRetry={() => hours.refetch()} />
       ) : (
-        <BookingBoard settings={settings.data} courts={courts.data} />
+        <BookingBoard settings={settings.data} courts={courts.data} hours={hours.data} />
       )}
     </section>
   )
@@ -40,13 +44,14 @@ function clampDate(value: string | null, min: string, max: string) {
   return value < min ? min : value > max ? max : value
 }
 
-function BookingBoard({ settings, courts }: { settings: VenueSettings; courts: CourtWithPhotos[] }) {
+function BookingBoard({ settings, courts, hours }: { settings: VenueSettings; courts: CourtWithPhotos[]; hours: OperatingHours[] }) {
   const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
   const [selection, setSelection] = useState<Selection>(null)
 
   const tz = settings.timezone
-  const today = todayInZone(tz)
+  // The operating day running now: at 1 AM after a 6 AM–5 AM day, that's still yesterday (T9.10).
+  const today = operatingToday(hours, tz)
   const lastDay = addDays(today, settings.booking_window_days)
   const date = clampDate(params.get('date'), today, lastDay)
   const sports = sportsOf(courts) // in the venue's sport order (fetchCourts sorts by it)
@@ -144,6 +149,7 @@ function BookingBoard({ settings, courts }: { settings: VenueSettings; courts: C
           onToggle={handleToggle}
           timeZone={tz}
           currency={settings.currency}
+          date={date}
         />
       )}
 
@@ -151,7 +157,7 @@ function BookingBoard({ settings, courts }: { settings: VenueSettings; courts: C
         <SelectionBar
           summary={summary}
           courtName={selectedCourt.name}
-          date={date}
+          date={todayInZone(tz, new Date(summary.start))}
           timeZone={tz}
           currency={settings.currency}
           onClear={() => setSelection(null)}

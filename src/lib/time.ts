@@ -69,6 +69,14 @@ export function parseTstzRange(value: unknown): { start: string; end: string } {
   return { start: pgTimestampToISO(match[1]), end: pgTimestampToISO(match[2]) }
 }
 
+/** Hours past local midnight of an instant in `timeZone`, with minutes as a fraction (01:30 → 1.5). */
+export function localHoursInZone(date: Date, timeZone: string) {
+  const parts = new Intl.DateTimeFormat('en-US', { timeZone, hourCycle: 'h23', hour: '2-digit', minute: '2-digit' })
+    .formatToParts(date)
+  const get = (type: Intl.DateTimeFormatPartTypes) => Number(parts.find((p) => p.type === type)?.value)
+  return (get('hour') % 24) + get('minute') / 60
+}
+
 /** Hour of day (0–23) of an instant in `timeZone`. */
 export function hourInZone(iso: string, timeZone: string) {
   return Number(formatInZone(iso, timeZone, { hour: '2-digit', hourCycle: 'h23' })) % 24

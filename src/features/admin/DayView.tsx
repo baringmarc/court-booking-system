@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { formatHour } from '../../lib/format'
-import { hourInZone } from '../../lib/time'
+import { hourInZone, todayInZone } from '../../lib/time'
+import { isAfterMidnight } from '../catalog/hours'
 import type { Slot } from '../booking/selection'
 import type { Court } from '../catalog/api'
 import type { AdminBooking } from './api'
@@ -21,9 +22,10 @@ export function DayView({ date, courts, slots, bookings, timeZone }: Props) {
   const times = [...new Set(slots.map((s) => s.slot_start))].sort()
   if (times.length === 0) return <p className="muted">The venue is closed on this day.</p>
 
-  // Each reference opens that booking: the day's list, with the booking preselected.
-  const linkTo = (id: string) => {
-    const params = filtersToParams({ status: 'all', source: 'all', date })
+  // Each reference opens that booking: its own calendar date's list (an after-midnight booking is on the next
+  // date, which is how /admin/bookings filters), with the booking preselected.
+  const linkTo = (id: string, start: string) => {
+    const params = filtersToParams({ status: 'all', source: 'all', date: todayInZone(timeZone, new Date(start)) })
     params.set('booking', id)
     return `/admin/bookings?${params}`
   }
@@ -47,7 +49,7 @@ export function DayView({ date, courts, slots, bookings, timeZone }: Props) {
         <tbody>
           {times.map((time) => (
             <tr key={time}>
-              <th scope="row">{formatHour(hourInZone(time, timeZone))}</th>
+              <th scope="row">{formatHour(hourInZone(time, timeZone))}{isAfterMidnight(time, date, timeZone) ? ' (next day)' : ''}</th>
               {courts.map((court) => {
                 const booking = bookingAt(court.name, time)
                 const slot = slots.find((s) => s.court_id === court.id && s.slot_start === time)
@@ -55,7 +57,7 @@ export function DayView({ date, courts, slots, bookings, timeZone }: Props) {
                   return (
                     <td key={court.id} className="day-cell day-booked">
                       <span className="day-name">{booking.guest_name}</span>
-                      <Link to={linkTo(booking.id)} className="small">{booking.reference_code}</Link>
+                      <Link to={linkTo(booking.id, booking.slot_start)} className="small">{booking.reference_code}</Link>
                     </td>
                   )
                 }

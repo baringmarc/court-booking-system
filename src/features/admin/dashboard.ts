@@ -3,6 +3,19 @@ import type { Enums } from '../../lib/database.types'
 import type { Slot } from '../booking/selection'
 
 /**
+ * One operating day's bookings from the calendar-date lists fetched for it (T9.10): each booking once (one that
+ * crosses midnight comes back in both lists), only those starting within the day's open hours, by start time.
+ */
+export function operatingDayBookings<T extends { id: string; slot_start: string }>(
+  lists: T[][], open: { start: string; end: string } | null,
+): T[] {
+  const byId = new Map<string, T>()
+  for (const list of lists) for (const b of list) byId.set(b.id, b)
+  const inDay = (start: string) => !open || (Date.parse(start) >= Date.parse(open.start) && Date.parse(start) < Date.parse(open.end))
+  return [...byId.values()].filter((b) => inDay(b.slot_start)).sort((a, b) => Date.parse(a.slot_start) - Date.parse(b.slot_start))
+}
+
+/**
  * Walk-ins may start in the slot that is in progress (SPEC §5.8). Availability reports a started slot as `past`
  * only when it is free (booked/blackout win once a slot has started), so `past` + not ended = free right now.
  */

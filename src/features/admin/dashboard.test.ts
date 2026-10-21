@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Slot } from '../booking/selection'
-import { isWalkInStartable, maxWalkInSlots, refundsDueSummary, takingsByMethod } from './dashboard'
+import { isWalkInStartable, maxWalkInSlots, refundsDueSummary, takingsByMethod, operatingDayBookings } from './dashboard'
 
 const now = new Date('2030-01-07T02:30:00.000Z') // 10:30 Manila
 const at = (h: number) => new Date(Date.UTC(2030, 0, 7, h - 8)).toISOString()
@@ -52,5 +52,30 @@ describe('refundsDueSummary', () => {
   it('counts and totals PayMongo money that was received but not accepted', () => {
     expect(refundsDueSummary([450, 900.5])).toEqual({ count: 2, total: 1350.5 })
     expect(refundsDueSummary([])).toEqual({ count: 0, total: 0 })
+  })
+})
+
+describe('operatingDayBookings', () => {
+  // An overnight operating day: 2030-01-07 18:00 to 2030-01-08 02:00 (UTC instants for brevity).
+  const open = { start: '2030-01-07T18:00:00.000Z', end: '2030-01-08T02:00:00.000Z' }
+  const b = (id: string, slot_start: string) => ({ id, slot_start })
+
+  it('lists a booking that crosses midnight once, though both calendar dates return it', () => {
+    const crossing = b('x', '2030-01-07T23:00:00.000Z')
+    const day1 = [b('a', '2030-01-07T19:00:00.000Z'), crossing]
+    const day2 = [crossing, b('c', '2030-01-08T01:00:00.000Z')]
+    expect(operatingDayBookings([day1, day2], open).map((x) => x.id)).toEqual(['a', 'x', 'c'])
+  })
+
+  it('keeps only bookings that start within the operating day, in start order', () => {
+    const early = b('early', '2030-01-07T05:00:00.000Z') // the previous operating day's after-midnight slot
+    const nextDay = b('next', '2030-01-08T06:00:00.000Z') // the next operating day
+    const late = b('late', '2030-01-08T01:00:00.000Z')
+    const first = b('first', '2030-01-07T18:00:00.000Z')
+    expect(operatingDayBookings([[late, early, first], [nextDay]], open).map((x) => x.id)).toEqual(['first', 'late'])
+  })
+
+  it('keeps everything when the day is closed (no range)', () => {
+    expect(operatingDayBookings([[b('a', '2030-01-07T05:00:00.000Z')]], null)).toHaveLength(1)
   })
 })
