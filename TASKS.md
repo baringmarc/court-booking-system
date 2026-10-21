@@ -8,7 +8,7 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
 
 - **Current milestone:** 9 (Venue admin upgrades). The breakdown was approved on 2026-10-20 (T9.1–T9.12). M8 ✅ done on 2026-10-20.
 - **Next task:** T9.12 (close out M9 and the project: README, screenshots, demo video script, the final review). It's **not** covered by the pre-approval, so it goes back to the normal plan gate.
-- **State:** T9.1–T9.11 done (2026-10-21). Every M9 migration is live, and the contract step dropped `courts.photo_path`. Production's frontend is at PR #9 (through T9.8); T9.9–T9.11 reach it when `develop` is merged into `master`. **Until then, don't set overnight hours on production:** the live schedule editor, rate grid and "today" don't understand them yet. M8 done (2026-10-20): deploy at https://court-booking-system-ashen.vercel.app. Run `npm run smoke:prod -- --links-only` after each merge.
+- **State:** T9.1–T9.11 and T9.11a done (2026-10-21). T9.11a (the user's review of T9.10): the editor's 24-hour checkbox is gone, and 24 hours is only 12 AM → midnight; an open day can't close at its opening time. Its migration is pushed, and production's Saturday moved from 06:00 → 06:00 to 00:00 → 24:00 (the user's choice). Every M9 migration is live, and the contract step dropped `courts.photo_path`. Production's frontend is at PR #9 (through T9.8); T9.9–T9.11 reach it when `develop` is merged into `master`. **Until then, don't set overnight hours on production:** the live schedule editor, rate grid and "today" don't understand them yet. M8 done (2026-10-20): deploy at https://court-booking-system-ashen.vercel.app. Run `npm run smoke:prod -- --links-only` after each merge.
 - **Blockers / notes:**
   - Emails locally: `supabase/functions/.env` must keep `EMAIL_TRANSPORT=mailpit`, `MAILPIT_URL` and `EMAIL_WORKER_SECRET` (see `.env.example`) for smoke and e2e. Restart the stack after changing it. Your PayMongo test key is commented out there; uncomment it only for real local test payments, and expect `pay-online` e2e and `smoke:paymongo` to fail while it's active.
   - Scope added on 2026-10-19 (SPEC §9, §10, §11): slot status colors are in T8.5, the settings spacing fix is in T8.4, and M9 is outlined at the end of this file. The README moved there. Booker names are **first name only** in public. A court can be deleted only if it was never booked.
@@ -1057,6 +1057,21 @@ Out of scope for M9: new sports, live payments, Resend, refunds, SMS.
     - **24:00 opening:** the follow-up migration `20261021121625_operating_hours_open_before_midnight.sql` adds a table check, so direct writes are held to the rule too (pushed; production opens at 06:00).
     - **Docs:** the Handoff State and the SPEC §7 `set_operating_hours` row are updated.
   - **Checks.** verify passes (Vitest 443, pgTAP incl. `24_overnight_hours` with 41 assertions, build). e2e: 39 passed, 1 skipped (zoom runs on desktop only).
+
+
+### [x] T9.11a 24 hours only as 12 AM → midnight
+- **Depends:** T9.10, T9.11
+- **Do (the user's review of T9.10, 2026-10-21):** remove the editor's "24 hours" checkbox, which was confusing. 24 hours is set only as 12 AM → midnight; an open day closing at its opening time (6 AM → 6 AM) is refused in the database, the RPC and the editor. Production's Saturday (06:00 → 06:00) becomes 00:00 → 24:00 (the user's choice).
+- **Acceptance:**
+  - pgTAP: `set_operating_hours` refuses 06:00 → 06:00 and 00:00 → 00:00 with a readable message, allows 00:00 → 24:00, overnight closes and a closed day with equal times; a direct write is held to the rule; no open row has open = close.
+  - The editor has no 24-hour checkbox, shows "open 24 hours" for 12 AM → midnight and blocks saving a same-time day.
+  - `db:push` and `db:types` have been run.
+- **Notes:**
+  - Migration `20261021124431_hours_24h_midnight_only.sql` (pushed; dry run first; `db:types` unchanged): reconciles open = close rows to 00:00 → 24:00 (the no-overlap check runs right away, so a clash would fail the migration), adds `operating_hours_open_differs_from_close` (`is_closed or close_time <> open_time`), and `set_operating_hours` names the day in its message. The reconcile was dry-run locally against a production-like week (Fri 06–24, Sat 06–06) in a rolled-back transaction.
+  - pgTAP `25_hours_24h.test.sql` (9; the constraint is checked by name). `24_overnight_hours`: its 24-hour day is now 00:00 → 24:00, so the "5 AM slot of a 24-hour day" and "into a day that opens right then" cases became the 11 PM slot and a booking past midnight into the next date (`multi_day`). Touching days stay covered by "exact fit allowed".
+  - UI: `findSameTime`/`sameTimeMessage` in `catalog/hours.ts` mirror the RPC message. `isAllDay` is now only 00:00 → 24:00. Tests in `hours.test.ts` and `SchedulePage.test.tsx`.
+  - **Checks.** verify passes (Vitest 445, pgTAP 589). The reviewer passed it; its major (Handoff) and minors (tick only after the push, check the constraint by name) are fixed.
+  - **Not checked:** production bookings on Sunday 00:00–06:00 made under the old Saturday 06 → 06 (a read-only production query was blocked by the permission classifier). They stay valid but now sit outside opening hours.
 
 
 ### [ ] T9.12 Close out M9 and the project

@@ -44,15 +44,28 @@ describe('SchedulePage operating hours', () => {
     expect(saved.find((r) => r.day_of_week === 1)).toMatchObject({ open_time: '06:00:00', close_time: '05:00' })
   })
 
-  it('has an "Open 24 hours" switch per day that closes at the opening time', async () => {
+  it('sets 24 hours as 12 AM to midnight, with no separate switch', async () => {
     renderPage()
-    const allDay = await screen.findByLabelText('Monday open 24 hours')
-    await userEvent.click(allDay)
-    expect(screen.getByLabelText('Monday closes')).toBeDisabled()
-    expect(screen.getByLabelText('Monday closes')).toHaveValue('6')
+    await userEvent.selectOptions(await screen.findByLabelText('Monday opens'), '0')
+    await userEvent.selectOptions(screen.getByLabelText('Monday closes'), '24')
+    expect(screen.getByText('open 24 hours')).toBeInTheDocument()
     expect(screen.queryByText('closes next day')).not.toBeInTheDocument()
-    await userEvent.click(allDay)
-    expect(screen.getByLabelText('Monday closes')).toHaveValue('22')
+    expect(screen.queryByRole('checkbox', { name: /24 hours/ })).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Save hours' }))
+    const saved = vi.mocked(saveOperatingHours).mock.calls[0][0]
+    expect(saved.find((r) => r.day_of_week === 1)).toMatchObject({ open_time: '00:00', close_time: '24:00' })
+  })
+
+  it('stops a day closing at its opening time before saving', async () => {
+    renderPage()
+    await userEvent.selectOptions(await screen.findByLabelText('Monday closes'), '6')
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Monday opens and closes at the same time. For 24 hours, open at 12 AM and close at midnight.',
+    )
+    expect(screen.queryByText('open 24 hours')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Save hours' })).toBeDisabled()
+    await userEvent.click(screen.getAllByRole('checkbox', { name: 'Closed' })[0])
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
   it('stops a day running into the next day\'s opening before saving', async () => {

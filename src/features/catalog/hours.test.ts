@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { OperatingHours } from './api'
-import { daySpan, dowOf, findOverlap, isAfterMidnight, isAllDay, isOvernight, operatingDateOf, operatingDayRange, operatingToday, overlapMessage, summarizeHours } from './hours'
+import { daySpan, dowOf, findOverlap, findSameTime, isAfterMidnight, isAllDay, isOvernight, operatingDateOf, operatingDayRange, operatingToday, overlapMessage, sameTimeMessage, summarizeHours } from './hours'
 
 function day(day_of_week: number, open = '06:00:00', close = '22:00:00', is_closed = false): OperatingHours {
   return { day_of_week, open_time: open, close_time: close, is_closed }
@@ -38,9 +38,9 @@ describe('summarizeHours with overnight and 24-hour days', () => {
     expect(summarizeHours(week((d) => day(d, '06:00:00', '05:00:00')))).toEqual(['Open daily, 6 AM – 5 AM (next day)'])
   })
 
-  it('says open 24 hours for open = close', () => {
-    expect(summarizeHours(week((d) => day(d, '06:00:00', '06:00:00')))).toEqual(['Open 24 hours, every day'])
-    const hours = week((d) => (d === 5 || d === 6 ? day(d, '06:00:00', '06:00:00') : day(d)))
+  it('says open 24 hours for 12 AM to midnight', () => {
+    expect(summarizeHours(week((d) => day(d, '00:00:00', '24:00:00')))).toEqual(['Open 24 hours, every day'])
+    const hours = week((d) => (d === 5 || d === 6 ? day(d, '00:00:00', '24:00:00') : day(d)))
     expect(summarizeHours(hours)).toEqual(['Mon–Thu: 6 AM – 10 PM', 'Fri–Sat: Open 24 hours', 'Sun: 6 AM – 10 PM'])
   })
 
@@ -58,8 +58,20 @@ describe('operating day helpers', () => {
     expect(daySpan(day(1, undefined, undefined, true))).toBeNull()
     expect(isOvernight(day(1, '06:00:00', '05:00:00'))).toBe(true)
     expect(isOvernight(day(1, '18:00:00', '24:00:00'))).toBe(false)
-    expect(isAllDay(day(1, '06:00:00', '06:00:00'))).toBe(true)
+    expect(isAllDay(day(1, '06:00:00', '06:00:00'))).toBe(false)
     expect(isAllDay(day(1, '00:00:00', '24:00:00'))).toBe(true)
+    expect(isAllDay(day(1, '00:00:00', '24:00:00', true))).toBe(false)
+  })
+
+  it('finds a day that closes at its opening time (24 hours is 12 AM to midnight only)', () => {
+    expect(findSameTime(week((d) => day(d)))).toBeNull()
+    expect(findSameTime(week((d) => day(d, '00:00:00', '24:00:00')))).toBeNull()
+    expect(findSameTime(week((d) => (d === 3 ? day(d, '06:00:00', '06:00:00') : day(d))))).toBe(3)
+    expect(findSameTime(week((d) => (d === 3 ? day(d, '00:00:00', '00:00:00') : day(d))))).toBe(3)
+    expect(findSameTime(week((d) => (d === 3 ? day(d, '06:00:00', '06:00:00', true) : day(d))))).toBeNull()
+    expect(sameTimeMessage(3)).toBe(
+      'Wednesday opens and closes at the same time. For 24 hours, open at 12 AM and close at midnight.',
+    )
   })
 
   it('finds a day that runs into the next day\'s opening, like the database', () => {
