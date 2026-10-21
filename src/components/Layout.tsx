@@ -1,19 +1,24 @@
-import { Link, NavLink, Outlet } from 'react-router-dom'
-import { useAuth } from '../features/auth/useAuth'
-import { useMainFocus } from './useMainFocus'
+import { Link, NavLink, Outlet } from "react-router-dom";
+import { useAuth } from "../features/auth/useAuth";
+import { useMainFocus } from "./useMainFocus";
 
 export function Layout() {
-  const { user, profile, loading, signOut } = useAuth()
-  const displayName = profile?.full_name || user?.email
-  const { mainRef, skipToMain } = useMainFocus()
+  const { user, profile, loading, signOut } = useAuth();
+  const displayName = profile?.full_name || user?.email;
+  const { mainRef, skipToMain } = useMainFocus();
 
   return (
     <div className="app">
-      <a href="#main" className="skip-link" onClick={skipToMain}>Skip to main content</a>
+      <a href="#main" className="skip-link" onClick={skipToMain}>
+        Skip to main content
+      </a>
       <header className="site-header">
         <div className="container header-inner">
           <Link to="/" className="brand">
-            <span className="brand-mark" aria-hidden="true">◆</span> Claudex Courts
+            <span className="brand-mark" aria-hidden="true">
+              ◆
+            </span>{" "}
+            Claudex Courts
           </Link>
 
           <nav className="nav" aria-label="Main">
@@ -24,13 +29,21 @@ export function Layout() {
           <div className="auth-area">
             {loading ? null : user ? (
               <>
-                <span className="user-name" title={user.email}>{displayName}</span>
-                <button type="button" className="btn btn-small btn-ghost" onClick={signOut}>
+                <span className="user-name" title={user.email}>
+                  {displayName}
+                </span>
+                <button
+                  type="button"
+                  className="btn btn-small btn-ghost"
+                  onClick={signOut}
+                >
                   Log out
                 </button>
               </>
             ) : (
-              <Link to="/login" className="btn btn-small">Log in</Link>
+              <Link to="/login" className="btn btn-small">
+                Log in
+              </Link>
             )}
           </div>
         </div>
@@ -41,8 +54,10 @@ export function Layout() {
       </main>
 
       <footer className="site-footer">
-        <div className="container muted">© {new Date().getFullYear()} Claudex Courts · Portfolio project</div>
+        <div className="container muted">
+          © {new Date().getFullYear()} Claudex Courts
+        </div>
       </footer>
     </div>
-  )
+  );
 }
