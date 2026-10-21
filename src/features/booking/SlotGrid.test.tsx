@@ -11,7 +11,7 @@ const courts = [court('A', 'Badminton 1'), court('B', 'Badminton 2')]
 const times = ['2030-01-07T02:00:00.000Z', '2030-01-07T03:00:00.000Z', '2030-01-07T04:00:00.000Z']
 const end = (t: string) => new Date(Date.parse(t) + 3_600_000).toISOString()
 const row = (court_id: string, i: number, status: Slot['status']): Slot =>
-  ({ court_id, slot_start: times[i], slot_end: end(times[i]), price: 350, status })
+  ({ court_id, slot_start: times[i], slot_end: end(times[i]), price: 350, status, booker_first_name: null })
 
 const slotsByCourt = new Map<string, Slot[]>([
   ['A', [row('A', 0, 'free'), row('A', 1, 'booked'), row('A', 2, 'free')]],
@@ -52,6 +52,17 @@ describe('SlotGrid', () => {
     renderGrid(vi.fn(), { courtId: 'A', starts: [times[0]] })
     expect(screen.getByRole('button', { name: 'Badminton 1, 10 AM, ₱350' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('button', { name: 'Badminton 1, 12 PM, ₱350' })).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('names the booker of a booked slot by first name, in the label and on screen', () => {
+    const named = new Map(slotsByCourt)
+    named.set('A', [row('A', 0, 'free'), { ...row('A', 1, 'booked'), booker_first_name: 'Ana' }, row('A', 2, 'free')])
+    render(<SlotGrid courts={courts} times={times} slotsByCourt={named} selection={null}
+      onToggle={vi.fn()} timeZone="Asia/Manila" currency="PHP" />)
+    const slot = screen.getByRole('button', { name: 'Badminton 1, 11 AM, Booked by Ana' })
+    expect(slot).toBeDisabled()
+    expect(slot).toHaveTextContent('BookedAna')
+    expect(slot).toHaveClass('slot-booked')
   })
 
   it('gives each status its own class and label', () => {

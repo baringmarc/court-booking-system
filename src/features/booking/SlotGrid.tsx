@@ -59,7 +59,11 @@ export function SlotGrid({ courts, times, slotsByCourt, selection, onToggle, tim
                     const free = slot.status === 'free'
                     const selected = free && selection?.courtId === court.id && selection.starts.includes(time)
                     const look: SlotLook = selected ? 'selected' : slot.status
-                    const label = free ? formatMoney(slot.price, currency) : SLOT_LOOK_LABEL[slot.status]
+                    // Booked slots name the booker by first name only (T9.8; the server never sends more).
+                    const booker = slot.status === 'booked' ? slot.booker_first_name : null
+                    const label = free
+                      ? formatMoney(slot.price, currency)
+                      : booker ? `Booked by ${booker}` : SLOT_LOOK_LABEL[slot.status]
                     return (
                       <td key={court.id}>
                         <button
@@ -71,7 +75,11 @@ export function SlotGrid({ courts, times, slotsByCourt, selection, onToggle, tim
                           onClick={() => onToggle(slot)}
                         >
                           {selected && <span aria-hidden="true">✓ </span>}
-                          {VISIBLE_LABEL[look] ?? label}
+                          {booker ? (
+                            <>Booked<span className="slot-name">{booker}</span></>
+                          ) : (
+                            VISIBLE_LABEL[look] ?? label
+                          )}
                         </button>
                       </td>
                     )

@@ -7,8 +7,8 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
 > Update this section at the end of every session or task. Keep it short; it's the first thing the next session reads.
 
 - **Current milestone:** 9 (Venue admin upgrades). The breakdown was approved on 2026-10-20 (T9.1–T9.12). M8 ✅ done on 2026-10-20.
-- **Next task:** T9.8 (booker names). Risky, so it stops at its plan gate.
-- **State:** T9.1–T9.6 done (2026-10-21): sport and court ordering, deleting never-booked courts, and `court_photos` (with the hardening) are live on production; the gallery UI is next. T9.1 and T9.2 (2026-10-20): Court Green was kept, the dark-mode danger button contrast is fixed, and `theme.test.ts` guards the real tokens. M8 done (2026-10-20): emails (Mailpit locally, `disabled` in production), error states, the a11y pass, deploy at https://court-booking-system-ashen.vercel.app, and vendor chunks under the 500 kB warning. The vendor split reaches production when `develop` is merged into `master`. Run `npm run smoke:prod -- --links-only` after that merge.
+- **Next task:** T9.9 (migration: overnight and 24-hour hours). The user pre-approved plan gates for T9.8–T9.11 on 2026-10-21, so state the plan and build.
+- **State:** T9.1–T9.8 done (2026-10-21). Their migrations (sport order, `move_court`, `delete_court`, `court_photos` with its hardening, and booker names) are live on the linked database. The UI for T9.3–T9.8 reaches production only when `develop` is merged into `master` (production is still at PR #7, pre-M9 UI). Until that merge, don't edit court photos in the live admin. M8 done (2026-10-20): deploy at https://court-booking-system-ashen.vercel.app. Run `npm run smoke:prod -- --links-only` after each merge.
 - **Blockers / notes:**
   - Emails locally: `supabase/functions/.env` must keep `EMAIL_TRANSPORT=mailpit`, `MAILPIT_URL` and `EMAIL_WORKER_SECRET` (see `.env.example`) for smoke and e2e. Restart the stack after changing it. Your PayMongo test key is commented out there; uncomment it only for real local test payments, and expect `pay-online` e2e and `smoke:paymongo` to fail while it's active.
   - Scope added on 2026-10-19 (SPEC §9, §10, §11): slot status colors are in T8.5, the settings spacing fix is in T8.4, and M9 is outlined at the end of this file. The README moved there. Booker names are **first name only** in public. A court can be deleted only if it was never booked.
@@ -932,7 +932,7 @@ Out of scope for M9: new sports, live payments, Resend, refunds, SMS.
   - **Checks.** verify passes (Vitest 415). e2e: all passing, 1 skipped (zoom runs on desktop only).
   - **Ship note.** This frontend has to reach production (merge to `master`) before T9.11's contract migration. Until then, don't edit court photos in the old admin UI.
 
-### [ ] T9.8 Booker names
+### [x] T9.8 Booker names
 - **Do:**
   - Drop and recreate `get_availability` with a new `booker_first_name` column (the first word of `guest_name` for active bookings, walk-ins included), and re-grant it in the same migration.
   - `/book` booked cells show "Booked · Ana", and their accessible name includes it.
@@ -941,6 +941,22 @@ Out of scope for M9: new sports, live payments, Resend, refunds, SMS.
   - pgTAP: anon gets only the first name (no email, phone or full name), and expired, cancelled and rejected bookings show none.
   - Testing Library covers the grid cell and the day view.
   - The a11y e2e still passes.
+- **Notes:**
+  - **Migration** `20261021000004_booker_names.sql` drops and recreates `get_availability` in one transaction and re-grants it.
+    - A lateral lookup finds the slot's active booking. `booker_first_name` = `nullif(left(split_part(btrim(guest_name), ' ', 1), 20), '')` on booked slots only.
+    - It was run through `db:push` and `db:types`; production returns slots.
+    - The generated type says `string`, so `fetchAvailability` maps a missing name to null, and the `Slot` type has `booker_first_name: string | null`.
+  - **pgTAP** `23_booker_names.test.sql` (16 assertions) covers the exact result signature (no other personal fields), the grants, the confirmed, pending, walk-in and submitted names, expired, cancelled and rejected bookings showing none, blackout and free slots showing null, the 20-character cap, and no email, surname, phone or reference.
+    - Two existing tests changed with the approved new column: `05_availability`'s column list, and `20_ordering`'s positional alias list. The old aliases made `n` name `booker_first_name`, which scrambled the order check.
+  - **UI:**
+    - The `/book` booked cell shows "Booked" plus the name (ellipsis at 7em) and is labelled "…, Booked by Ana".
+    - `DayView` on the dashboard ("Today's courts") shows full names and references linking to that day's bookings. Its scroll region is focusable.
+  - **Bugs found and fixed:**
+    - **DayView compared timestamps as strings.** Slots arrive as "+00:00", bookings as ".000Z". The desktop walk-in e2e caught it; it now compares instants, with a mixed-format test (mutation-checked).
+    - **The accent link on the booked grey was 4.39:1.** Links there now use the text colour.
+  - **Review.** The reviewer passed it, and its major is fixed: each day-view reference opens that booking (`/admin/bookings?…&booking=<id>` preselects the row; the e2e clicks it). The CSS comments and indentation are tidied.
+  - **Tests.** `SlotGrid.test.tsx` (the name), `DayView.test.tsx` (layout, names and links, mixed formats, focusable region, closed and past, the closed day), and `e2e/walk-in.spec.ts` (full name on the dashboard, "Booked by E2E" on `/book`). verify passes (Vitest 422). e2e: 37 passed, 1 skipped.
+- **Follow-ups (T9.9 migration):** `create_booking` falls back to the email's local part for `guest_name` when a signed-in player has no profile name and sends none (only possible through a direct RPC call; checkout always sends a name). Since T9.8 that name is public. Drop the fallback, using `split_part` of the profile name or a plain "Player", when T9.9 rewrites the booking functions.
 
 ### [ ] T9.9 Migration: overnight and 24-hour hours
 - **Do:** RESEARCH M9 "Overnight and 24-hour opening hours":
