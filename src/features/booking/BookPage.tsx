@@ -3,7 +3,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ErrorMessage } from '../../components/ErrorMessage'
 import { PageLoader } from '../../components/PageLoader'
 import { addDays, formatDateLabel, todayInZone } from '../../lib/time'
-import { SPORT_LABELS, SPORTS, type Court, type Sport, type VenueSettings } from '../catalog/api'
+import { SPORT_LABELS, type CourtWithPhotos, type Sport, type VenueSettings } from '../catalog/api'
+import { sportsOf } from '../catalog/sportOrder'
 import { useCourts, useVenueSettings } from '../catalog/hooks'
 import { CourtTiles } from '../catalog/CourtTiles'
 import { toCheckoutSearch } from './checkoutParams'
@@ -39,7 +40,7 @@ function clampDate(value: string | null, min: string, max: string) {
   return value < min ? min : value > max ? max : value
 }
 
-function BookingBoard({ settings, courts }: { settings: VenueSettings; courts: Court[] }) {
+function BookingBoard({ settings, courts }: { settings: VenueSettings; courts: CourtWithPhotos[] }) {
   const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
   const [selection, setSelection] = useState<Selection>(null)
@@ -48,7 +49,7 @@ function BookingBoard({ settings, courts }: { settings: VenueSettings; courts: C
   const today = todayInZone(tz)
   const lastDay = addDays(today, settings.booking_window_days)
   const date = clampDate(params.get('date'), today, lastDay)
-  const sports = SPORTS.filter((s) => courts.some((c) => c.sport === s))
+  const sports = sportsOf(courts) // in the venue's sport order (fetchCourts sorts by it)
   const sportParam = params.get('sport')
   const sport: Sport = sports.find((s) => s === sportParam) ?? sports[0]
   const sportCourts = courts.filter((c) => c.sport === sport)
@@ -115,7 +116,7 @@ function BookingBoard({ settings, courts }: { settings: VenueSettings; courts: C
 
       <details className="court-info">
         <summary>About the {SPORT_LABELS[sport].toLowerCase()} courts</summary>
-        <CourtTiles courts={sportCourts} showDescription />
+        <CourtTiles courts={sportCourts} detailed />
       </details>
 
       <p className="muted small">

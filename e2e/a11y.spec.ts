@@ -72,6 +72,11 @@ test('the guest booking page (with its private link) has no serious accessibilit
   await page.getByRole('button', { name: 'Confirm booking' }).click()
   await expect(page.getByRole('heading', { name: 'Save this link' })).toBeVisible()
   await checkPage(page, 'guest booking')
+
+  // The cancel confirmation shows the danger button (T9.2: its text failed contrast in dark mode).
+  await page.getByRole('button', { name: 'Cancel booking' }).click()
+  await expect(page.getByRole('button', { name: 'Yes, cancel booking' })).toBeVisible()
+  await checkPage(page, 'cancel confirmation')
 })
 
 test('admin pages have no serious accessibility violations', async ({ page }) => {

@@ -740,3 +740,85 @@ Fetched on 2026-10-18. Local experiments ran against the running local stack.
    - The outbox `status` also has `skipped` (transport disabled). A daily cron purges `sent`, `skipped` and `failed` rows older than 30 days (PII retention). Note it in SPEC §6.
    - The worker secret sits in pg_net's queue for a short time. That's the documented pattern; rotate the secret if it leaks.
    - In T8.2, SPEC §6 gains the `email_outbox` model, its RLS summary and the Server API rows for the three RPCs and two functions.
+
+## Milestone 9: Venue admin upgrades
+
+Researched on 2026-10-20 from the current migrations and client code, with local experiments against the running local stack. The user approved the breakdown and every recommendation on 2026-10-20.
+
+### Shipping DB changes while production is live
+- **Status:** Decided (SPEC §10, 2026-10-20)
+- **Question:** Since T8.6, production runs `master` against the one linked database. What happens when `db:push` lands before the matching frontend is merged?
+- **Findings:**
+  - `db:push` changes the live database at once, but the deployed frontend only changes when `develop` is merged into `master`. In between, the live site runs the old frontend against the new schema.
+  - `create or replace function` can't change a function's result columns. Local experiment: `create or replace function pg_temp.f() returns table (a int, b text)` over `returns table (a int)` fails with `cannot change return type of existing function` and the hint "Use DROP FUNCTION … first". So `get_availability` must be dropped and recreated, which briefly removes it and loses its grants ([CREATE FUNCTION](https://www.postgresql.org/docs/current/sql-createfunction.html)).
+- **Recommendation:** Expand, then deploy, then contract.
+  - A migration only adds things or changes them compatibly. Columns stay, and a function only gains result columns. An old client reading `get_availability` ignores a new column.
+  - Drop and recreate a function in the same migration (one transaction), and re-grant it.
+  - Columns the new frontend no longer reads, such as `courts.photo_path`, are dropped in a later "contract" migration after that frontend is on `master`.
+
+### Overnight and 24-hour opening hours (SPEC §5.2, §11 Q2)
+- **Status:** Decided (SPEC §10, 2026-10-20)
+- **Findings (current code):**
+  - The rules are built on calendar days:
+    - `operating_hours` has a `check (is_closed or open_time < close_time)`.
+    - `private.validate_booking_slot` (create_walk_in migration) rejects a range whose local end date differs from its start date (`multi_day`) and checks `v_day + open_time … v_day + close_time`.
+    - `get_availability` generates slots from `p_date + open_time` to `p_date + close_time`.
+    - `private.local_today()` and `in_booking_window()` use the local calendar date.
+    - `slot_price` uses the slot's own local day of week and hour.
+  - The admin schedule page saves the seven `operating_hours` rows as seven separate updates (`catalog/api.ts`), which isn't atomic.
+  - Experiment (local psql, Asia/Manila, opening day 2026-10-23), with the range `[d + open, d + (close <= open ? 1 : 0) + close)`:
+    - 06–22 gives 16 h on the same day.
+    - 06–05 gives 23 h, ending at 05:00 the next day.
+    - 06–06 gives exactly 1 day (24 h).
+    - 18–00 gives 6 h, ending at midnight.
+  - Manila has no DST, but converting through `timestamp at time zone` stays correct even if the timezone setting changes.
+- **Recommendation:**
+  - **Storage:** keep `operating_hours` as it is and drop the `open < close` check. A close at or before the open means it closes the next day, and open = close means 24 hours. `is_closed` stays as it is. No new columns are needed, so the old frontend keeps working.
+  - **One source of truth:**
+    - `private.operating_day_range(p_day date) returns tstzrange`, null when closed.
+    - `private.operating_day_of(p_ts timestamptz) returns date`: the local date `d` if `p_ts` is inside `d`'s range, else `d - 1` if it's inside that day's range, else null.
+    - `private.operating_today()`: the operating day containing now, or else the local date.
+  - **No overlaps between days:**
+    - Day `d`'s range must end at or before day `d + 1` opens; a closed day never conflicts.
+    - Checked by a new admin RPC `set_operating_hours(p_hours jsonb)`. It writes all seven rows in one transaction, validates them together, and raises a P0001 hint `hours_overlap`.
+    - The client switches to it from the seven updates.
+  - **Booking rules:**
+    - A booking must fit inside one operating day's range. That replaces the calendar-day `multi_day` check, and the same hint is kept.
+    - The booking window and "today" (walk-in form, dashboard) count operating days.
+    - Blackouts are already instant ranges and don't change.
+  - **Pricing:** an after-midnight slot is priced from its **operating day's** rate row at the slot's local hour. A 1 AM slot after a Friday opening uses Friday's row, hour 1, which matches how `/book` groups it under Friday. *(Alternative: the slot's calendar day, Saturday's row. That's simpler SQL, but the rate grid row then doesn't match the day the player picked.)* Existing rates don't change, because today no slot falls after midnight.
+  - **Display:** `/book` keeps one operating date per grid, and after-midnight rows carry a "next day" marker. Booking pages show the real calendar date and time of the booking.
+
+### Sport order (SPEC §11 Q3)
+- **Status:** Decided (SPEC §10, 2026-10-20)
+- **Findings:** `sport` is a Postgres enum, and `get_availability` and `listCourts` order by the enum's declaration order (`order by c.sport`). There are no per-sport attributes anywhere else, and the four sports are fixed (adding a sport is out of scope).
+- **Recommendation:** `venue_settings.sport_order public.sport[]`. A check makes it hold every enum value exactly once, and it defaults to the current enum order. Readers order by `array_position(sport_order, sport)`. A `sports` table would be heavier (a new table, RLS and a join) for no new capability.
+
+### Court order and deletion
+- **Status:** Decided (SPEC §10, 2026-10-20)
+- **Findings:** `courts.sort_order` exists but is a raw number field on `CourtEditPage`. `court_rates` has `on delete cascade` from courts. `bookings.court_id` would block deleting a court that has bookings. RESEARCH M6 says Storage objects must be removed through the Storage API, not by deleting their rows in SQL.
+- **Recommendation:**
+  - `move_court(p_court_id uuid, p_direction smallint)`, admin only: swaps the court with its neighbour within its sport and renumbers that sport's courts 0..n atomically.
+  - `delete_court(p_court_id uuid) returns text[]`, admin only: refuses with hint `court_has_bookings` if any booking in any status ever used the court. Otherwise it deletes the court (rates and photo rows cascade) and returns the photo paths, so the client removes the files through the Storage API.
+    *(As built, T9.5: it returns nothing, and the client removes every file under `courts/{id}/`. See SPEC §10, 2026-10-20.)*
+
+### Court photos (SPEC §11 Q4)
+- **Status:** Decided (SPEC §10, 2026-10-20)
+- **Recommendation:**
+  - A `court_photos` table (`id`, `court_id` with on delete cascade, `path` unique with a check under `courts/{court_id}/`, `sort_order`, `created_at`). Public read, admin write. **At most 6 per court** (trigger, hint `too_many_photos`).
+  - **The first photo is the cover**, so the admin changes the cover by reordering. There's no separate cover flag that could disagree with the order.
+  - `reorder_court_photos(p_court_id, p_ids uuid[])` reorders atomically.
+  - Existing `courts.photo_path` values are copied in as photo 0. The column is dropped in the M9 contract migration after the new frontend ships.
+  - The public gallery is a CSS scroll-snap strip with previous and next buttons and alt text. No library.
+
+### Booker names on slots
+- **Status:** Decided (SPEC §10, 2026-10-20; the first-name rule on 2026-10-19)
+- **Recommendation:**
+  - `get_availability` gains `booker_first_name text`: the first word of `bookings.guest_name` for any active booking (pending, submitted or confirmed, walk-ins included), and null otherwise. It never returns email, phone or the full name.
+  - The admin day view reads `bookings` directly. Admins already have SELECT through RLS, so no new RPC is needed.
+
+### Theme (SPEC §11 Q1)
+- **Status:** Decided (SPEC §10, 2026-10-20)
+- **Recommendation:**
+  - A **dev-only** palette preview route (`import.meta.env.DEV`, so it's never in the production bundle) shows 4 palettes on the real slot grid, buttons, badges and alerts, in light and dark mode. Each palette gets a computed WCAG contrast table (a `contrast()` helper with Vitest).
+  - The user picks one. The tokens in `src/index.css` are swapped (the `--slot-*` tokens follow automatically), and the axe e2e confirms contrast.

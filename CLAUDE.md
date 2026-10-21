@@ -5,7 +5,7 @@ Court booking web app for a single venue (portfolio project).
 ## Guide docs
 - **[SPEC.md](SPEC.md)**: what the product does (requirements, data model, booking lifecycle, decisions log). Update it whenever behavior changes.
 - **[TASKS.md](TASKS.md)**: what to build next. Read its **Handoff** section first and update it before you stop. A task is done only when its acceptance criteria hold, `npm run verify` passes and the `reviewer` agent has no blocking issues.
-- **Workflow:** run `/implement` to work on the next task (`/implement T3.4` for a specific task, `/implement milestone` for the whole milestone). It goes orient → research → plan gate (risky DB or security work waits for approval) → build → verify → `reviewer` agent → tick the task and update the handoff. It never commits.
+- **Workflow:** run `/implement` to work on the next task (`/implement T3.4` for a specific task, `/implement milestone` for the whole milestone). It goes orient → research → plan gate (risky DB or security work waits for approval) → build → verify → `reviewer` agent → tick the task and update the handoff → commit (never push) once verify passes and the reviewer signs off.
 - **[RESEARCH.md](RESEARCH.md)**: technical findings, with sources, gathered before a milestone is built. Research first, then implement. Accepted recommendations go into SPEC §10.
 
 ## Stack

@@ -15,6 +15,7 @@ import {
   saveOperatingHours,
   updateVenueSettings,
   type CourtInput,
+  type CourtWithPhotos,
   type OperatingHours,
   type RateChanges,
 } from './api'
@@ -61,7 +62,8 @@ export function useSaveCourt(id: string | null) {
   return useMutation({
     mutationFn: (input: CourtInput) => saveCourt(id, input),
     onSuccess: (court) => {
-      qc.setQueryData(catalogKeys.court(court.id), court)
+      // The saved row has no photos: merge it into the cached court rather than replacing it.
+      qc.setQueryData<CourtWithPhotos>(catalogKeys.court(court.id), (old) => (old ? { ...old, ...court } : old))
       return qc.invalidateQueries({ queryKey: catalogKeys.allCourts })
     },
   })

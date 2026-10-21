@@ -3,10 +3,12 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { PageLoader } from '../../components/PageLoader'
 import { ErrorMessage } from '../../components/ErrorMessage'
 import { SaveStatus } from '../../components/SaveStatus'
-import { useCourt, useSaveCourt } from '../catalog/hooks'
+import { useCourt, useCourts, useSaveCourt } from '../catalog/hooks'
 import { SPORT_LABELS, SPORTS, type Court, type Sport } from '../catalog/api'
-import { CourtPhotoSection } from './CourtPhotoSection'
+import { nextSortOrder } from '../catalog/sportOrder'
+import { CourtPhotosSection } from './CourtPhotosSection'
 import { CourtRatesSection } from './CourtRatesSection'
+import { DeleteCourtSection } from './DeleteCourtSection'
 
 export function CourtEditPage() {
   const { id } = useParams()
@@ -29,8 +31,9 @@ export function CourtEditPage() {
         <>
           <h1>{court.data.name}</h1>
           <CourtForm key={court.data.id} court={court.data} />
-          <CourtPhotoSection court={court.data} />
+          <CourtPhotosSection court={court.data} />
           <CourtRatesSection court={court.data} />
+          <DeleteCourtSection key={court.data.id} court={court.data} />
         </>
       )}
     </section>
@@ -40,12 +43,12 @@ export function CourtEditPage() {
 function CourtForm({ court }: { court: Court | null }) {
   const navigate = useNavigate()
   const save = useSaveCourt(court?.id ?? null)
+  const allCourts = useCourts({ includeInactive: true })
 
   const [name, setName] = useState(court?.name ?? '')
   const [sport, setSport] = useState<Sport>(court?.sport ?? 'badminton')
   const [description, setDescription] = useState(court?.description ?? '')
   const [rate, setRate] = useState(court ? String(court.default_hourly_rate) : '')
-  const [sortOrder, setSortOrder] = useState(String(court?.sort_order ?? 0))
   const [isActive, setIsActive] = useState(court?.is_active ?? true)
 
   function handleSubmit(e: FormEvent) {
@@ -56,7 +59,9 @@ function CourtForm({ court }: { court: Court | null }) {
         sport,
         description: description.trim(),
         default_hourly_rate: Number(rate),
-        sort_order: Number(sortOrder) || 0,
+        // Order is changed with the arrows on the courts list (move_court). A new court, or one moved to another
+        // sport, goes last in that sport; otherwise its place is kept.
+        ...(court?.sport === sport ? {} : { sort_order: nextSortOrder(allCourts.data ?? [], sport) }),
         is_active: isActive,
       },
       {
@@ -86,10 +91,6 @@ function CourtForm({ court }: { court: Court | null }) {
           <span>Default hourly rate</span>
           <input type="number" min={0} step="0.01" required inputMode="decimal" value={rate} onChange={(e) => setRate(e.target.value)} />
         </label>
-        <label className="field">
-          <span>Display order</span>
-          <input type="number" step={1} value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} />
-        </label>
       </div>
       <label className="field">
         <span>Description</span>
@@ -100,11 +101,13 @@ function CourtForm({ court }: { court: Court | null }) {
         <span>Active (bookable and shown to the public). Uncheck to archive.</span>
       </label>
       <div className="form-actions">
-        <button type="submit" className="btn" disabled={save.isPending}>
+        {/* The order of a new or re-sported court needs the courts list. */}
+        <button type="submit" className="btn" disabled={save.isPending || (court?.sport !== sport && !allCourts.isSuccess)}>
           {save.isPending ? 'Saving…' : court ? 'Save changes' : 'Create court'}
         </button>
         <SaveStatus isSuccess={save.isSuccess && !!court} error={save.error} />
       </div>
+      {allCourts.isError && <ErrorMessage error={allCourts.error} onRetry={() => allCourts.refetch()} />}
     </form>
   )
 }

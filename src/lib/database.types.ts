@@ -185,6 +185,38 @@ export type Database = {
           },
         ]
       }
+      court_photos: {
+        Row: {
+          court_id: string
+          created_at: string
+          id: string
+          path: string
+          sort_order: number
+        }
+        Insert: {
+          court_id: string
+          created_at?: string
+          id?: string
+          path: string
+          sort_order: number
+        }
+        Update: {
+          court_id?: string
+          created_at?: string
+          id?: string
+          path?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "court_photos_court_id_fkey"
+            columns: ["court_id"]
+            isOneToOne: false
+            referencedRelation: "courts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       court_rates: {
         Row: {
           court_id: string
@@ -491,6 +523,7 @@ export type Database = {
           payment_hold_minutes: number
           payment_instructions: string
           slot_minutes: number
+          sport_order: Database["public"]["Enums"]["sport"][]
           timezone: string
           updated_at: string
         }
@@ -506,6 +539,7 @@ export type Database = {
           payment_hold_minutes?: number
           payment_instructions?: string
           slot_minutes?: number
+          sport_order?: Database["public"]["Enums"]["sport"][]
           timezone?: string
           updated_at?: string
         }
@@ -521,6 +555,7 @@ export type Database = {
           payment_hold_minutes?: number
           payment_instructions?: string
           slot_minutes?: number
+          sport_order?: Database["public"]["Enums"]["sport"][]
           timezone?: string
           updated_at?: string
         }
@@ -596,6 +631,7 @@ export type Database = {
           reference_code: string
         }[]
       }
+      delete_court: { Args: { p_court_id: string }; Returns: undefined }
       finish_email: {
         Args: { p_error?: string; p_id: string; p_outcome: string }
         Returns: Database["public"]["Enums"]["email_status"]
@@ -633,6 +669,10 @@ export type Database = {
           status: Database["public"]["Enums"]["booking_status"]
           total_amount: number
         }[]
+      }
+      move_court: {
+        Args: { p_court_id: string; p_direction: number }
+        Returns: undefined
       }
       paymongo_checkout_for: {
         Args: { p_booking_id: string }
@@ -686,6 +726,10 @@ export type Database = {
           outcome: string
           payment_id: string
         }[]
+      }
+      reorder_court_photos: {
+        Args: { p_court_id: string; p_ids: string[] }
+        Returns: undefined
       }
       review_payment: {
         Args: { p_approve: boolean; p_booking_id: string; p_note?: string }

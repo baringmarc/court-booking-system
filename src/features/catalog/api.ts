@@ -1,21 +1,17 @@
 import { supabase } from '../../lib/supabase'
 import { unwrap } from '../../lib/queryClient'
-import type { Enums, Tables, TablesInsert, TablesUpdate } from '../../lib/database.types'
+import type { Tables, TablesInsert, TablesUpdate } from '../../lib/database.types'
+import { sortCourts } from './sportOrder'
 
 export type VenueSettings = Tables<'venue_settings'>
 export type Court = Tables<'courts'>
+/** A court photo (M9). The lowest sort_order is the cover. */
+export type CourtPhotoRow = Pick<Tables<'court_photos'>, 'id' | 'path' | 'sort_order'>
+export type CourtWithPhotos = Court & { court_photos: CourtPhotoRow[] }
 export type CourtRate = Tables<'court_rates'>
 export type OperatingHours = Tables<'operating_hours'>
 export type Blackout = Tables<'blackouts'>
-export type Sport = Enums<'sport'>
-
-export const SPORTS: Sport[] = ['badminton', 'pickleball', 'basketball', 'tennis']
-export const SPORT_LABELS: Record<Sport, string> = {
-  badminton: 'Badminton',
-  pickleball: 'Pickleball',
-  basketball: 'Basketball',
-  tennis: 'Tennis',
-}
+export { SPORTS, SPORT_LABELS, type Sport } from './sports'
 
 export const catalogKeys = {
   settings: ['venue-settings'] as const,
@@ -33,14 +29,30 @@ export async function fetchVenueSettings() {
   return unwrap(await supabase.from('venue_settings').select('*').single())
 }
 
-export async function fetchCourts(includeInactive: boolean) {
-  let query = supabase.from('courts').select('*').order('sport').order('sort_order').order('name')
-  if (!includeInactive) query = query.eq('is_active', true)
-  return unwrap(await query)
+// One literal, so supabase-js infers the embedded photos' type from it.
+const COURT_SELECT = '*, court_photos(id, path, sort_order)' as const
+
+/** Photos in gallery order: the cover first. */
+function withSortedPhotos<T extends { court_photos: CourtPhotoRow[] }>(court: T): T {
+  return {
+    ...court,
+    court_photos: [...court.court_photos].sort((a, b) => a.sort_order - b.sort_order || a.id.localeCompare(b.id)),
+  }
 }
 
-export async function fetchCourt(id: string) {
-  return unwrap(await supabase.from('courts').select('*').eq('id', id).single())
+/** Courts in display order: sports in the venue's sport_order, then sort_order and name (as get_availability). */
+export async function fetchCourts(includeInactive: boolean): Promise<CourtWithPhotos[]> {
+  let query = supabase.from('courts').select(COURT_SELECT)
+  if (!includeInactive) query = query.eq('is_active', true)
+  const [courts, settings] = await Promise.all([
+    query,
+    supabase.from('venue_settings').select('sport_order').single(),
+  ])
+  return sortCourts(unwrap(courts).map(withSortedPhotos), unwrap(settings).sport_order)
+}
+
+export async function fetchCourt(id: string): Promise<CourtWithPhotos> {
+  return withSortedPhotos(unwrap(await supabase.from('courts').select(COURT_SELECT).eq('id', id).single()))
 }
 
 export async function fetchCourtRates(courtId: string) {

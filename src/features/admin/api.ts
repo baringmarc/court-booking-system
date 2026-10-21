@@ -6,7 +6,7 @@ import { parseTstzRange } from '../../lib/time'
 import type { Enums } from '../../lib/database.types'
 import { dayRangeLiteral, type BookingFilters } from './bookingFilters'
 import { VENUE_MEDIA_BUCKET } from '../catalog/media'
-import type { Court, VenueSettings } from '../catalog/api'
+import type { CourtPhotoRow, VenueSettings } from '../catalog/api'
 import { newMediaPath, storageErrorMessage } from './mediaInput'
 import { clearStoredMedia, replaceStoredMedia } from './mediaReplace'
 
@@ -120,6 +120,11 @@ export async function reviewPayment(bookingId: string, approve: boolean, note: s
   return rows[0]?.status
 }
 
+/** Swaps a court with its neighbour in its sport (-1 up, 1 down) and renumbers that sport (move_court, SPEC §6). */
+export async function moveCourt(courtId: string, direction: -1 | 1) {
+  unwrap(await supabase.rpc('move_court', { p_court_id: courtId, p_direction: direction }))
+}
+
 /** Staff cancel by booking id (the session path, so cancel_booking checks is_admin) with a required reason. */
 export async function adminCancelBooking(bookingId: string, reason: string) {
   return unwrap(await supabase.rpc('cancel_booking', { p_booking_id: bookingId, p_reason: reason }))
@@ -222,27 +227,52 @@ async function removeVenueMedia(path: string) {
   if (!data?.length) throw new ApiError(`The file ${path} was not deleted.`)
 }
 
-async function updateCourtPhotoPath(courtId: string, photoPath: string | null) {
-  return unwrap(await supabase.from('courts').update({ photo_path: photoPath }).eq('id', courtId).select().single())
+/**
+ * Deletes a court that was never booked (delete_court refuses otherwise, hint `court_has_bookings`), then removes
+ * every file under its media folder. The file cleanup is best effort: a leftover file is an orphan the RESEARCH M6
+ * query lists, never a broken link, so it doesn't fail the delete.
+ */
+export async function deleteCourt(courtId: string) {
+  unwrap(await supabase.rpc('delete_court', { p_court_id: courtId }))
+  await removeMediaFolder(`courts/${courtId}`).catch(() => {})
 }
 
-/** Uploads an already downscaled image as the court's photo, replacing any old one. */
-export async function setCourtPhoto(court: Pick<Court, 'id' | 'photo_path'>, image: Blob) {
-  return replaceStoredMedia({
-    oldPath: court.photo_path,
-    upload: () => uploadVenueMedia(`courts/${court.id}`, image),
-    save: (path) => updateCourtPhotoPath(court.id, path),
-    remove: removeVenueMedia,
-  })
+async function removeMediaFolder(folder: string) {
+  const { data: files, error } = await supabase.storage.from(VENUE_MEDIA_BUCKET).list(folder, { limit: 100 })
+  if (error) throw new ApiError(storageErrorMessage(error))
+  if (!files?.length) return
+  const { error: removeError } = await supabase.storage.from(VENUE_MEDIA_BUCKET).remove(files.map((f) => `${folder}/${f.name}`))
+  if (removeError) throw new ApiError(storageErrorMessage(removeError))
 }
 
-export async function removeCourtPhoto(court: Pick<Court, 'id' | 'photo_path'>) {
-  if (!court.photo_path) return updateCourtPhotoPath(court.id, null)
-  return clearStoredMedia({
-    oldPath: court.photo_path,
-    save: () => updateCourtPhotoPath(court.id, null),
-    remove: removeVenueMedia,
-  })
+// --- court photos (T9.7). Nothing writes courts.photo_path any more; it's dropped in T9.11. ----------------
+
+/**
+ * Uploads an already downscaled image and adds it to the court's gallery at `sortOrder` (the caller passes
+ * one past the last photo). If the row can't be saved, the uploaded file is removed again.
+ */
+export async function addCourtPhoto(courtId: string, image: Blob, sortOrder: number): Promise<CourtPhotoRow> {
+  const path = await uploadVenueMedia(`courts/${courtId}`, image)
+  try {
+    return unwrap(
+      await supabase.from('court_photos').insert({ court_id: courtId, path, sort_order: sortOrder })
+        .select('id, path, sort_order').single(),
+    )
+  } catch (error) {
+    await removeVenueMedia(path).catch(() => {})
+    throw error
+  }
+}
+
+/** Removes the row first, then the file (best effort): a row never points at a missing file (RESEARCH M6). */
+export async function removeCourtPhoto(photo: Pick<CourtPhotoRow, 'id' | 'path'>) {
+  unwrap(await supabase.from('court_photos').delete().eq('id', photo.id))
+  await removeVenueMedia(photo.path).catch(() => {})
+}
+
+/** Stores the court's photos in this order; the first is the cover (reorder_court_photos, SPEC §6). */
+export async function reorderCourtPhotos(courtId: string, ids: string[]) {
+  unwrap(await supabase.rpc('reorder_court_photos', { p_court_id: courtId, p_ids: ids }))
 }
 
 async function updateBanner(values: Pick<VenueSettings, 'banner_path' | 'banner_alt'> | Pick<VenueSettings, 'banner_alt'>) {

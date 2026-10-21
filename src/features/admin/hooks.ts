@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import {
   adminCancelBooking,
   adminKeys,
@@ -7,16 +7,20 @@ import {
   fetchApprovedPayments,
   fetchProofQueueCount,
   fetchProofUrl,
+  deleteCourt,
   fetchRefundsDue,
+  moveCourt,
   removeBanner,
   removeCourtPhoto,
+  addCourtPhoto,
+  reorderCourtPhotos,
   saveBanner,
   reviewPayment,
-  setCourtPhoto,
   type BannerInput,
   type WalkInInput,
 } from './api'
-import { catalogKeys, type Court, type VenueSettings } from '../catalog/api'
+import { catalogKeys, updateVenueSettings, type Court, type CourtPhotoRow, type CourtWithPhotos, type Sport, type VenueSettings } from '../catalog/api'
+import { moveCourtInList } from '../catalog/sportOrder'
 import { bookingKeys } from '../booking/hooks'
 import type { BookingFilters } from './bookingFilters'
 
@@ -91,28 +95,152 @@ export function useCreateWalkIn() {
   })
 }
 
-// --- venue media -----------------------------------------------------------------
+// --- ordering (T9.4) --------------------------------------------------------------
 
-function useCourtPhotoMutation<V>(court: Pick<Court, 'id' | 'photo_path'>, run: (vars: V) => Promise<Court>) {
+// Reorders update the screen at once but are saved one at a time (`scope`), so quick repeated presses reach the
+// server in order. onMutate is synchronous on purpose: TanStack calls it inside mutate(), so the next press already
+// sees the new order. An in-flight refetch is then cancelled without reverting, so it can't overwrite it. Only the last pending reorder refreshes from the server or rolls
+// back: an earlier one finishing would otherwise overwrite the newer order on screen, move the row back and
+// drop keyboard focus (T9.4 review). The current mutation is still counted by isMutating while it settles.
+const MOVE_COURT_KEY = ['move-court'] as const
+const SPORT_ORDER_KEY = ['save-sport-order'] as const
+
+/**
+ * Moves a court up or down within its sport. The admin list (all courts) is reordered at once, then refetched;
+ * public lists and the /book grid refetch too.
+ */
+export function useMoveCourt() {
   const qc = useQueryClient()
+  const key = catalogKeys.courts(true)
+  const isLast = () => qc.isMutating({ mutationKey: MOVE_COURT_KEY }) <= 1
   return useMutation({
-    mutationFn: run,
-    onSuccess: (saved) => {
-      qc.setQueryData(catalogKeys.court(saved.id), saved)
-      return qc.invalidateQueries({ queryKey: catalogKeys.allCourts })
+    mutationKey: MOVE_COURT_KEY,
+    scope: { id: 'move-court' },
+    mutationFn: ({ id, direction }: { id: string; direction: -1 | 1 }) => moveCourt(id, direction),
+    onMutate: ({ id, direction }) => {
+      const previous = qc.getQueryData<Court[]>(key)
+      if (previous) qc.setQueryData(key, moveCourtInList(previous, id, direction))
+      void qc.cancelQueries({ queryKey: key }, { revert: false })
+      return { previous }
     },
-    // A failed save may still have changed storage; refetch so the page shows what's stored.
-    onError: () => qc.invalidateQueries({ queryKey: catalogKeys.court(court.id) }),
+    onError: (_error, _vars, context) => {
+      if (isLast() && context?.previous) qc.setQueryData(key, context.previous)
+    },
+    onSettled: () => {
+      if (!isLast()) return
+      return Promise.all([
+        qc.invalidateQueries({ queryKey: catalogKeys.allCourts }),
+        qc.invalidateQueries({ queryKey: bookingKeys.allAvailability }),
+      ])
+    },
   })
 }
 
-/** Takes an image that's already downscaled (see imageResize.ts). */
-export function useSetCourtPhoto(court: Pick<Court, 'id' | 'photo_path'>) {
-  return useCourtPhotoMutation(court, (image: Blob) => setCourtPhoto(court, image))
+/** Saves the sport order. Settings update at once; court lists and the /book grid refetch in the new order. */
+export function useSaveSportOrder() {
+  const qc = useQueryClient()
+  const isLast = () => qc.isMutating({ mutationKey: SPORT_ORDER_KEY }) <= 1
+  return useMutation({
+    mutationKey: SPORT_ORDER_KEY,
+    scope: { id: 'save-sport-order' },
+    mutationFn: (order: Sport[]) => updateVenueSettings({ sport_order: order }),
+    onMutate: (order) => {
+      const previous = qc.getQueryData<VenueSettings>(catalogKeys.settings)
+      if (previous) qc.setQueryData(catalogKeys.settings, { ...previous, sport_order: order })
+      void qc.cancelQueries({ queryKey: catalogKeys.settings }, { revert: false })
+      return { previous }
+    },
+    onSuccess: (saved) => {
+      if (isLast()) qc.setQueryData(catalogKeys.settings, saved)
+    },
+    onError: (_error, _order, context) => {
+      if (isLast() && context?.previous) qc.setQueryData(catalogKeys.settings, context.previous)
+    },
+    onSettled: () => {
+      if (!isLast()) return
+      // Settings come from the last save's response (onSuccess); courts and the grid refetch in the new order.
+      return Promise.all([
+        qc.invalidateQueries({ queryKey: catalogKeys.allCourts }),
+        qc.invalidateQueries({ queryKey: bookingKeys.allAvailability }),
+      ])
+    },
+  })
 }
 
-export function useRemoveCourtPhoto(court: Pick<Court, 'id' | 'photo_path'>) {
-  return useCourtPhotoMutation<void>(court, () => removeCourtPhoto(court))
+/** Deletes a court that was never booked (T9.5). Its page and the lists drop it; the /book grid refetches. */
+export function useDeleteCourt(courtId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => deleteCourt(courtId),
+    onSuccess: () => {
+      // Not awaited, so the page can navigate away straight after; the deleted court's own query is dropped.
+      qc.removeQueries({ queryKey: catalogKeys.court(courtId) })
+      void qc.invalidateQueries({ queryKey: catalogKeys.allCourts })
+      void qc.invalidateQueries({ queryKey: catalogKeys.blackouts }) // its court blackouts went with it
+      void qc.invalidateQueries({ queryKey: bookingKeys.allAvailability })
+    },
+  })
+}
+
+// --- venue media -----------------------------------------------------------------
+
+const REORDER_PHOTOS_KEY = ['reorder-court-photos'] as const
+
+/** After a gallery change: the court page and every court list (covers on cards) refetch. */
+function refreshCourt(qc: QueryClient, courtId: string) {
+  return Promise.all([
+    qc.invalidateQueries({ queryKey: catalogKeys.court(courtId) }),
+    qc.invalidateQueries({ queryKey: catalogKeys.allCourts }),
+  ])
+}
+
+/** Adds an already downscaled image (see imageResize.ts) at the given place in the gallery. */
+export function useAddCourtPhoto(courtId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ image, sortOrder }: { image: Blob; sortOrder: number }) => addCourtPhoto(courtId, image, sortOrder),
+    onSettled: () => refreshCourt(qc, courtId),
+  })
+}
+
+export function useRemoveCourtPhoto(courtId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (photo: CourtPhotoRow) => removeCourtPhoto(photo),
+    onSettled: () => refreshCourt(qc, courtId),
+  })
+}
+
+/**
+ * Reorders the gallery (the first photo is the cover). Same pattern as useMoveCourt: the page updates at once
+ * (synchronous onMutate), saves run one at a time, and only the last pending one refetches or rolls back.
+ */
+export function useReorderCourtPhotos(courtId: string) {
+  const qc = useQueryClient()
+  const key = catalogKeys.court(courtId)
+  const isLast = () => qc.isMutating({ mutationKey: REORDER_PHOTOS_KEY }) <= 1
+  return useMutation({
+    mutationKey: REORDER_PHOTOS_KEY,
+    scope: { id: `reorder-court-photos-${courtId}` },
+    mutationFn: (ids: string[]) => reorderCourtPhotos(courtId, ids),
+    onMutate: (ids) => {
+      const previous = qc.getQueryData<CourtWithPhotos>(key)
+      if (previous) {
+        const byId = new Map(previous.court_photos.map((p) => [p.id, p]))
+        const court_photos = ids.flatMap((id, i) => {
+          const photo = byId.get(id)
+          return photo ? [{ ...photo, sort_order: i }] : []
+        })
+        qc.setQueryData<CourtWithPhotos>(key, { ...previous, court_photos })
+      }
+      void qc.cancelQueries({ queryKey: key }, { revert: false })
+      return { previous }
+    },
+    onError: (_error, _ids, context) => {
+      if (isLast() && context?.previous) qc.setQueryData(key, context.previous)
+    },
+    onSettled: () => (isLast() ? refreshCourt(qc, courtId) : undefined),
+  })
 }
 
 function useBannerMutation<V>(run: (vars: V) => Promise<VenueSettings>) {

@@ -88,7 +88,12 @@ For a task that isn't risky, state your plan in two or three lines and continue.
   - **State** (one line)
   - **Blockers / notes**: anything the next session needs to know
 - If this was the last task of the milestone, mark the milestone ✅ in SPEC §9. Breaking down the next milestone is its own step and needs approval (see step 1).
-- **No git actions.** Don't stage, commit or push. Suggest a commit message instead, e.g. `feat(booking): T3.5 create_booking RPC`.
+- **Commit, never push** (authorized by the user on 2026-10-18). Once `npm run verify` passes and the reviewer has signed off:
+  - Check `git status` and stage only the files this run created or changed, including its TASKS/SPEC/RESEARCH updates. Leave unrelated dirty files out.
+  - Never stage `.env`, `supabase/functions/.env` or other secrets.
+  - Commit on the current branch (never `master`) with a message like `feat(booking): T3.5 create_booking RPC` plus the attribution line.
+  - Don't push, amend or rewrite history.
+  - If verify fails or the reviewer still says BLOCK, don't commit; report instead.
 
 ## 8. Report
 
@@ -98,7 +103,7 @@ Send a short message:
 - what changed: files grouped by area
 - how it was proven: Vitest and pgTAP tests added, and the `npm run verify` result
 - the reviewer verdict, plus any follow-ups left
-- the suggested commit message
+- the commit hash and message (or why nothing was committed)
 - what's next
 
 ## Milestone mode

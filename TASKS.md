@@ -6,14 +6,14 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
 
 > Update this section at the end of every session or task. Keep it short; it's the first thing the next session reads.
 
-- **Current milestone:** 8 (Polish). The breakdown was approved on 2026-10-18. M7 ✅ done on 2026-10-18.
-- **Next task:** T8.6 part 2: production smoke after the user merges `develop` to `master` (steps in the T8.6 notes).
-- **State:** T8.6 part 1 done (2026-10-20): the site is on Vercel, all 5 functions are deployed, and the hosted email secrets and Vault are set. The rewrite isn't live until `master` is merged. T8.5 done: axe e2e (`e2e/a11y.spec.ts`) passes with no serious or critical violations, the slot grid has distinct statuses with a legend, and there's a skip link with focus-on-navigate. T8.4 done: errors are readable, admins see a retry when their profile fails to load, and the settings spacing is fixed. T8.3 done: booking emails work locally through Mailpit (`npm run smoke:emails`). T8.2: `email_outbox`, its trigger, RPCs and cron jobs are live on the linked project. The Vault secrets were set in T8.6, so the cron job now calls `send-emails` whenever an email is due. PayMongo test mode is live on the linked project.
+- **Current milestone:** 9 (Venue admin upgrades). The breakdown was approved on 2026-10-20 (T9.1–T9.12). M8 ✅ done on 2026-10-20.
+- **Next task:** T9.8 (booker names). Risky, so it stops at its plan gate.
+- **State:** T9.1–T9.6 done (2026-10-21): sport and court ordering, deleting never-booked courts, and `court_photos` (with the hardening) are live on production; the gallery UI is next. T9.1 and T9.2 (2026-10-20): Court Green was kept, the dark-mode danger button contrast is fixed, and `theme.test.ts` guards the real tokens. M8 done (2026-10-20): emails (Mailpit locally, `disabled` in production), error states, the a11y pass, deploy at https://court-booking-system-ashen.vercel.app, and vendor chunks under the 500 kB warning. The vendor split reaches production when `develop` is merged into `master`. Run `npm run smoke:prod -- --links-only` after that merge.
 - **Blockers / notes:**
   - Emails locally: `supabase/functions/.env` must keep `EMAIL_TRANSPORT=mailpit`, `MAILPIT_URL` and `EMAIL_WORKER_SECRET` (see `.env.example`) for smoke and e2e. Restart the stack after changing it. Your PayMongo test key is commented out there; uncomment it only for real local test payments, and expect `pay-online` e2e and `smoke:paymongo` to fail while it's active.
   - Scope added on 2026-10-19 (SPEC §9, §10, §11): slot status colors are in T8.5, the settings spacing fix is in T8.4, and M9 is outlined at the end of this file. The README moved there. Booker names are **first name only** in public. A court can be deleted only if it was never booked.
-  - The >500 kB main chunk warning is back (`index-*.js` 618 kB on 2026-10-20, see H6). T8.5 checked it: it's vendor code (react-dom, `@supabase/auth-js`, react-router), not app code. Fix it in T8.7 with a `manualChunks` vendor split or lazy public routes.
-  - **Production (2026-10-20):** https://court-booking-system-ashen.vercel.app (Vercel Hobby, project `court-booking-system`, team slug `marc-projects5`, production branch `master`). The user set the Supabase Auth Site URL and redirect URLs and the Google JS origin by hand.
+  - Bundle size: always measure with `.env` present. Without it, `lib/supabase.ts` throws at load time and the build drops supabase-js, which makes the bundle look about 330 kB smaller (SPEC §10, 2026-10-20).
+  - **Production (2026-10-20):** https://court-booking-system-ashen.vercel.app (Vercel Hobby, project `court-booking-system`, team slug `marc-projects5`, production branch `master`). The user set the Supabase Auth Site URL and redirect URLs and the Google JS origin by hand. `npm run smoke:prod` books a real `E2E Smoke` booking on production. Cancel it afterwards (T8.6 notes), or use `-- --links-only`. The admin account is the user's Google login (no email and password admin on production).
   - M8 emails: no Resend for now (user decision, 2026-10-19). Build and test through Mailpit; production runs `EMAIL_TRANSPORT=disabled`. Never commit the Vault worker secret (or a Resend key, if one is added later).
   - Docker Desktop must be running for `npm run verify`. `npm run test:e2e` and `npm run smoke:proof` need the full local stack (`npx supabase start`).
   - Email confirmation is on locally (`config.toml`, matching the hosted project). Sign-up emails land in Mailpit at http://127.0.0.1:54324. e2e reads them with `confirmationLink()`. Don't turn it off: claims trust `email_confirmed_at`.
@@ -26,6 +26,7 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
     - a user decision on capping the fresh hold after a rejection at the start time (T4.6)
     - the Edge Function `index.ts` is checked only by smoke and e2e (no Deno type-check)
     - the guest cancel path doesn't check the 30-day link expiry. That's harmless, since a cancel must be before the start (M7 added no token-authorized RPCs, so it's still fine).
+    - A PayMongo case 4 payment (refund due) sends no email yet (RESEARCH M8 "Retries and the outbox table").
     - M7 carry-overs: only QR Ph was paid for real (GCash, Maya and card are untested); the PHP 20 minimum is an assumption; a replay after a session is replaced returns `unknown_checkout`; the webhook stores an empty `provider_source` as `''`.
 
 ## How tasks work
@@ -738,7 +739,7 @@ Out of scope for M8: live PayMongo keys and real money, refunds, SMS, new featur
   - **Tests.** `SlotGrid.test.tsx` (each status's class and label, the legend), `Layout.test.tsx` and `AdminLayout.test.tsx` (focus and the skip link), and the a11y e2e spec.
   - **Checks.** verify passes and e2e passes. The reviewer passed it, and its 3 minors are fixed: an AdminLayout test, dead CSS, and narrower SPEC wording (focus moves only within a layout).
 
-### [~] T8.6 Deploy
+### [x] T8.6 Deploy
 - **Depends:** T8.1
 - **Do:** Deploy the SPA as T8.1 decides. Set the production env vars, the Supabase Auth URLs and the real origin in `PUBLIC_SITE_URL`. Deploy all Edge Functions with `EMAIL_TRANSPORT=disabled` and the Vault worker secrets (no Resend, no Auth custom SMTP for now). Add a short note on `/signup` that points visitors to Google sign-in or guest booking, because confirmation emails don't reach them yet. Run a smoke test against production (book, proof, pay online in test mode, admin review).
 - **Acceptance:** The production URL works end to end in PayMongo test mode, and the checklist is recorded in TASKS notes.
@@ -759,34 +760,228 @@ Out of scope for M8: live PayMongo keys and real money, refunds, SMS, new featur
   - **`/signup` note.** It says confirmation emails aren't sent yet (`SignupPage.test.tsx`). Remove it when Resend and Auth SMTP are switched on.
   - **Smoke so far.** `npm run smoke:prod` booked `CB-ZR53ZA` (`E2E Smoke`, Badminton 1, 2026-11-09 6 AM) and uploaded a proof through the production UI. In the DB, the booking is `payment_submitted`, the GCash payment is pending, and the `booking_created` outbox row is `skipped`. The `send-emails` cron runs succeed every minute. The deep links returned 404 because `vercel.json` wasn't on `master` yet.
   - **Checks.** verify passes (Vitest 372). e2e: 31 passed, with 3 expected skips (walk-in late at night, and zoom on desktop only). The reviewer passed part 1, and its major and 2 minors are fixed.
-- **Part 2 (to do):**
-  1. The user merges `develop` into `master`.
-  2. `npm run smoke:prod -- --links-only` passes.
-  3. An admin approves `CB-ZR53ZA` at `/admin/bookings`. Check that the `payment_confirmed` outbox row goes `skipped` within a minute; that proves the cron, Vault and worker-secret path.
-  4. The user makes one PayMongo test payment on a new guest booking and comes back to a confirmed booking.
-  5. Google sign-in works on production.
-  6. Cancel the smoke bookings, since they hold real slots. Then tick T8.6.
+- **Notes (part 2, 2026-10-20), the production checklist. Everything passed.**
+  1. The user merged `develop` into `master`. `npm run smoke:prod -- --links-only` passes: `/`, `/book`, `/admin/login`, `/booking/…` and `/me/bookings` all serve the SPA.
+  2. Google sign-in works on production. The user's Google account (`profiles.role = admin`) reached `/admin` through the public `/login`. `/admin/login` stays email and password only.
+  3. Admin review: approving `CB-ZR53ZA`'s proof confirmed the booking. 16 s later the cron job called `send-emails`, got a 200 back (`{"transport":"disabled","skipped":1}`), and the `payment_confirmed` row went `skipped`. That proves the Vault URL and worker secret.
+  4. PayMongo test mode: the guest booking `CB-V5288A` was paid with QR Ph (₱350). The webhook confirmed it (`provider_event_id` set, payment `approved`), and the user landed back on a confirmed booking.
+  5. Cleanup: both smoke bookings were cancelled with `cancel_booking` as the admin (reason "T8.6 production smoke test…"), and their `booking_cancelled` emails were queued for skipping.
 
-### [ ] T8.7 Close out M8
+### [x] T8.7 Close out M8
 - **Depends:** T8.3, T8.4, T8.5, T8.6
-- **Do:** Mark M8 ✅ in SPEC §9 and run the milestone review. *(The README, screenshots and demo video moved to the end of M9 on 2026-10-19, so they show the final product.)*
+- **Do:** Bring the main chunk under Vite's 500 kB warning (604 kB measured with `.env`; the 618 kB figure came from an earlier build), mark M8 ✅ in SPEC §9 and run the milestone review. *(The README, screenshots and demo video moved to the end of M9 on 2026-10-19, so they show the final product.)*
 - **Acceptance:** `npm run verify` and `npm run test:e2e` pass, and the reviewer signs off.
+- **Notes:**
+  - **Bundle.** With `.env` present the main chunk was 604 kB, and it has been that size since Supabase was added. Clean checkouts without `.env` built at 270 kB because `lib/supabase.ts` throws at load time and the build drops supabase-js, which is also where the old H6 "347 kB" came from. Aliasing react-router to its production build saved only about 2 kB, so it wasn't kept.
+  - **Fix.** `vite.config.ts` puts vendor code in `codeSplitting` groups. Chunks are now app 62 kB, `vendor-react` 348 kB and `vendor-supabase` 214 kB, about 624 kB in total. All of them are modulepreloaded, and admin code stays in lazy chunks (checked in `dist/`).
+  - **Milestone.** SPEC §9 marks M8 ✅ (v0.12). verify passes (Vitest 372, pgTAP 446, no chunk warning). e2e: 31 passed, with 3 expected skips (walk-in late at night, and zoom on desktop only).
+  - **Review.** The milestone reviewer passed it. Its major (the Handoff) and 3 minors (a stale SPEC cross-reference, §1 "Planned for M7", and untracked loose ends) are fixed. The loose ends now live in the Handoff follow-ups and M9 item 9.
 
 ## Milestone 9: Venue admin upgrades
 
 Goal (SPEC §9): the user's 2026-10-19 requests, then the portfolio close-out.
 
-> **Status: outline only (2026-10-19).** Per "How tasks work", it gets a full breakdown (Do, Files, Acceptance) when M8 is done, after the SPEC §11 questions are researched. The breakdown needs the user's approval. Order and rough size:
+> **Status: breakdown approved by the user (2026-10-20), with every RESEARCH M9 recommendation.** Research: RESEARCH M9. Every DB task still stops at its own plan gate before `db:push`. **Production is live:** every migration must keep the deployed frontend working (expand → deploy → contract, RESEARCH M9 "Shipping DB changes while production is live").
 
-1. Theme and colors: a palette preview page for the user to choose from (light and dark, contrast checked), then swap the tokens in `src/index.css`. *(small–medium)*
-2. Court and sport ordering: up/down controls on `/admin/courts` (`courts.sort_order` already exists), plus a sport order setting (a migration). *(small–medium)*
-3. Deleting a court: only if it has never had a booking. The court, its rates and photos go; otherwise the admin is pointed to archiving. Done through an admin RPC, with pgTAP. *(medium)*
-4. Several photos per court: a `court_photos` table (ordered, with a cover photo) replacing `courts.photo_path`, an admin gallery editor reusing the M6 upload and resize code, and a swipeable public gallery. *(medium)*
-5. Booker names: `get_availability` returns the booker's first name for booked slots (public), and an admin day view (courts by hours) shows full names. *(small–medium)*
-6. Research and plan: overnight and 24-hour hours (operating day model, SPEC §5.2 and §11). *(research, plan gate)*
-7. Overnight hours, DB: operating hours storage and checks, `get_availability`, `create_booking`, `create_walk_in`, pricing and the booking window, with pgTAP. *(large, risky)*
-8. Overnight hours, UI: the schedule editor (incl. "open 24 hours"), the `/book` date grid, walk-in "today", dashboard "today", with e2e. *(medium)*
-9. README, screenshots (phone and desktop), demo video, mark M9 ✅, and the final milestone review. *(moved from T8.7)*
+Out of scope for M9: new sports, live payments, Resend, refunds, SMS.
+
+### [x] T9.1 Palette preview
+- **Do:**
+  - A dev-only route (`import.meta.env.DEV`, never in the production bundle) shows 4 palettes on the real slot grid, buttons, badges, alerts and the booking card, in light and dark mode.
+  - Each palette shows a WCAG contrast table from a new `contrast()` helper.
+  - The user picks one.
+- **Files:** `src/lib/contrast.ts`, `src/dev/PalettePreview.tsx`, `src/routes/router.tsx`
+- **Acceptance:**
+  - Vitest covers `contrast()` against known ratios.
+  - The build shows no preview code in `dist/`.
+  - The user has chosen a palette (recorded in SPEC §10).
+- **Notes:**
+  - `src/lib/contrast.ts` (`parseColor`, `mix` like `color-mix(in srgb)`, `over`, `relativeLuminance`, `contrast`) is tested in `contrast.test.ts` against the WCAG reference values and the T8.5 measurements.
+  - Four palettes are defined in `src/dev/palettes.ts`. `palettes.test.ts` holds each, light and dark, to 12 AA pairs, including booked-slot text and the free-slot outline on the page and on cards.
+  - The dev-only `/dev/palettes` route (`import.meta.env.DEV`) is absent from `dist/` (checked).
+  - **Preview bug found and fixed:** the `--slot-*` tokens are computed on `:root`, so `palettes.css` re-declares them per frame.
+  - **The user chose Court Green (the current theme)**, recorded in SPEC §10. verify passes (Vitest 385).
+  - **Review.** The reviewer passed it. Its outline-background and Handoff minors are fixed.
+- **Follow-ups (T9.2):** `.btn-danger` hard-codes `#fff` on `--danger`, which is about 2.8:1 in dark mode (pre-existing, and no a11y e2e page shows it). Add a danger-button pair to the checks and fix it. Also check the cancelled and pending badges.
+
+### [x] T9.2 Apply the theme
+- **Depends:** T9.1
+- **Do:** Swap the light and dark tokens in `src/index.css` for the chosen palette. Check that the `--slot-*` tokens, badges and focus rings still read well, then remove the preview route.
+- **Acceptance:** The a11y e2e passes (no serious or critical violations, light and dark). Text contrast is at least 4.5:1 and the free-slot outline at least 3:1, measured as in T8.5.
+- **Notes:**
+  - Court Green was kept, so the palette tokens are unchanged.
+  - **Fixed** the T9.1 follow-up: `--danger-contrast` (dark `#1f0a08`) replaces the hard-coded white on `.btn-danger`. It was 2.79:1, and 3.77:1 on hover.
+  - **Guard.** `src/lib/themeChecks.ts` (17 AA pairs, including the danger button and hover, the cancelled and pending badges, and the free-slot outline on the page and on cards) is run on the real `index.css` tokens by `src/lib/theme.test.ts`. Mutation check: putting white back fails it.
+  - **e2e.** `e2e/a11y.spec.ts` now opens the cancel confirmation, so axe sees `.btn-danger`. Mutation check: with white text, axe fails "cancel confirmation (dark)" on `color-contrast`.
+  - The preview (`src/dev/`, the router spread) is removed. `contrast.ts` stays for the guard.
+  - **Checks.** verify passes. e2e: 31 passed, with 3 expected skips.
+  - **Review.** The reviewer passed it, and its 3 minors are fixed. The test reads `index.css?raw` (`vitest.config.ts` lets that file through Vite) instead of pulling Node types into the app tsconfig. It also asserts that the copied `color-mix` formulas still exist. The Handoff is updated.
+
+### [x] T9.3 Migration: sport order and court order
+- **Do:**
+  - `venue_settings.sport_order public.sport[]`: every sport exactly once, defaulting to the enum order.
+  - The admin RPC `move_court(p_court_id, p_direction)` swaps a court with its neighbour in the same sport and renumbers that sport's courts.
+  - `get_availability` orders by `array_position(sport_order, sport)`. Same result columns, so `create or replace` works.
+- **Acceptance:**
+  - pgTAP covers the check (a missing or duplicate sport is rejected), `move_court` (admin only, edges are no-ops, renumbering is contiguous) and the availability order.
+  - `db:push` and `db:types` have been run.
+- **Notes:**
+  - Migration `20261020152306_sport_and_court_order.sql`. It's additive only.
+  - `move_court` locks the sport's courts, ranks them by `(sort_order, name, id)`, swaps, then renumbers 0..n-1. Archived courts are included.
+  - pgTAP `20_ordering.test.sql` covers the default, the 3 check violations, RLS (anon reads, a player's update is filtered, an admin updates), `move_court` (refused for anon and players, a bad direction or unknown court is rejected, swapping with a name tie-break, both edges are no-ops, contiguous numbering, other sports untouched) and `get_availability` in sport order.
+  - Every pgTAP file passes locally. `db:push` was run (dry run first) and `db:types` too.
+  - Production after the push: all deep links work, `sport_order` is `{badminton,pickleball,basketball,tennis}`, and `get_availability` returns slots.
+  - **Review.** The reviewer passed it. The test now includes an archived court and asserts court order within a sport (23 assertions).
+- **Follow-ups (next DB migration, T9.5):** the `sport_order` check accepts a two-dimensional array (cardinality 4, containing every sport), and `array_position` would then throw for every visitor. Only an admin can write it. Re-add the check with `array_ndims(sport_order) = 1` in a new migration, with a pgTAP case. Also: T9.4 must order the client lists by `sport_order`.
+
+### [x] T9.4 Ordering UI
+- **Depends:** T9.3
+- **Do:**
+  - Up and down buttons per court on `/admin/courts`, grouped by sport, and a sport order editor in `/admin/settings`. The raw sort-order number field is removed from the court form.
+  - The home page, the `/book` sport picker and the court lists follow `sport_order`.
+- **Acceptance:** Testing Library covers the move buttons (disabled at the edges) and the sport order editor. e2e: an admin moves a court, and `/book` shows the new order.
+- **Notes:**
+  - **One source of order.** `fetchCourts` reads `sport_order` and returns the courts sorted with `catalog/sportOrder.ts`'s `sortCourts`. So the home page, the `/book` sport picker, the walk-in form and the admin lists all follow it.
+  - `sportOrder.test.ts` covers the fallback, sorting, `sportsOf`, `moveCourtInList` (it renumbers like `move_court`), `nextSortOrder` and `moveItem`.
+  - **Move buttons.** `MoveButtons` (44 px, "Move X up"/"down", disabled at the edges) restores focus after a reorder.
+  - `useMoveCourt` and `useSaveSportOrder` update the list or settings at once, roll back on error, then refetch the courts and the availability.
+  - **Court form.** The order field is gone. A new court gets `nextSortOrder`, and editing a court doesn't send `sort_order`.
+  - **Tests:**
+    - `CourtsPage.test.tsx`: grouping, edges, immediate move and focus, rollback with an error
+    - `SportOrderSection.test.tsx`: edges, immediate save, focus, rollback
+    - `CourtEditPage.test.tsx`: no order field, a new court goes last, an edit keeps its order
+    - `e2e/ordering.spec.ts`: a move, a reload, and the `/book` column order, with the seed order restored afterwards
+  - **Review.** The reviewer passed it, and its major and 2 minors are fixed:
+    - **Quick repeated presses.** Reorders now run through a `scope`, so they're saved in order, and only the last pending one refetches or rolls back.
+      - `onMutate` is synchronous (TanStack calls it inside `mutate()`), so the next press sees the new order. An in-flight refetch is cancelled with `revert: false`.
+      - The new "two quick moves" tests in `CourtsPage.test.tsx` and `SportOrderSection.test.tsx` first caught a real race in the earlier async `onMutate`.
+    - **Court form.** Create waits for the courts list, and the list's error is shown. A court moved to another sport goes last in it.
+    - **Import cycle.** `catalog/sports.ts` is a leaf module (re-exported by `api.ts`), which breaks the cycle between `api.ts` and `sportOrder.ts`.
+  - **Checks.** verify passes (Vitest 403). e2e: 33 passed, with 3 expected skips.
+
+### [x] T9.5 Delete a court
+- **Do:**
+  - The admin RPC `delete_court(p_court_id)` refuses with hint `court_has_bookings` if the court ever had a booking. Otherwise it deletes the court (rates and photos cascade).
+  - The client then removes every file under the court's media folder through the Storage API. *(Changed from "returns the photo paths" at the plan gate, SPEC §10.)*
+  - A Delete button on the court page, with a confirmation. A refusal points the admin to archiving.
+  - In the same migration, re-add the `sport_order` check with `array_ndims(sport_order) = 1` (T9.3 follow-up).
+- **Acceptance:**
+  - pgTAP: admin only, refused when a booking exists (any status), and rates are removed.
+  - Testing Library covers the confirm and refusal states.
+  - e2e: an `E2E` court is created and deleted.
+- **Notes:**
+  - Migration `20261020154357_delete_court.sql`. `delete_court` returns nothing; the client then clears `courts/{id}/` (an approved change from "returns the photo paths", SPEC §10).
+    - It locks the court row, refuses if the court ever had a booking (hint `court_has_bookings`), and maps the bookings foreign-key error to the same message.
+    - The same migration re-adds the `sport_order` check as one-dimensional.
+    - `db:push` (dry run first) and `db:types` were run. Production's check is confirmed.
+  - **Tests:**
+    - pgTAP `21_delete_court.test.sql` (18 assertions): anon and players refused, null or unknown courts rejected, refused for a confirmed and for a cancelled-only booking (court kept, hints checked), cascades (rates and the court's own blackout gone, venue-wide blackout kept), a second delete says the court doesn't exist, and 2-D and empty `sport_order` rejected.
+    - `DeleteCourtSection.test.tsx`: confirm and back out, delete then navigate, the refusal with the archive tip, no tip when already archived.
+    - `e2e/delete-court.spec.ts`: deletes an `E2E` court along with its media file, and is refused on the seeded Badminton 1. Mutation check: without the folder cleanup, the e2e fails.
+  - **Found while debugging:** an expression-bodied `beforeEach` returns the mock, and Vitest runs a returned function as cleanup, so the mock got called again. Fixed here and in `MyBookingsPage.test.tsx`.
+  - **Checks.** verify passes (Vitest 407). e2e: 35 passed, with 3 expected skips. The reviewer passed it. Its blackouts-cache minor is fixed (blackouts are refetched after a delete).
+- **Follow-ups (T9.9):** if a court is deleted while someone books it, `create_booking` or `create_walk_in` would surface the raw foreign-key error (23503) to the player. That's very unlikely. Map it to a readable "court unavailable" error when T9.9 rewrites those functions.
+
+### [x] T9.6 Migration: several photos per court
+- **Do:**
+  - `court_photos` table (id, court_id with cascade, path unique under `courts/{court_id}/`, sort_order, created_at). Public read, admin write. At most 6 per court (hint `too_many_photos`).
+  - The first photo is the cover.
+  - The admin RPC `reorder_court_photos(p_court_id, p_ids uuid[])`.
+  - Copy the existing `courts.photo_path` values in as photo 0. Keep the column until T9.11 (expand → contract).
+- **Acceptance:** pgTAP covers RLS (anon, player, admin), the limit, the path check, reorder (admin only, must list exactly that court's photos) and the backfill. `db:push` and `db:types` have been run.
+- **Notes:**
+  - Migration `20261020233215_court_photos.sql`, expand only (`courts.photo_path` stays).
+    - RLS reads through the `courts` policy (`exists` on courts), so archived courts' photos stay hidden from the public.
+    - The limit trigger `private.check_court_photo_limit` locks the court row and raises `too_many_photos`.
+    - `reorder_court_photos` locks the photos and requires the exact set, each once.
+    - The idempotent `private.backfill_court_photos()` puts a legacy photo before any existing ones. T9.11 runs it again before dropping `photo_path`.
+  - pgTAP `22_court_photos.test.sql` (27 assertions) covers RLS for anon, player and admin, the 3 path rules, the limit, 4 reorder cases plus the stored order, the backfill and its idempotence, the cover position and the cascade. `00_rls_coverage` passes.
+  - `db:push` (dry run first) and `db:types` were run. Production was backfilled (6 legacy photos became 6 rows), and all deep links work.
+  - **Review.** The reviewer passed it with 2 majors and 2 minors. The user approved a second migration, `20261020234024_court_photos_hardening.sql`, for these:
+    - **Least-privilege grants.** Everything is revoked, then `select` is granted to anon and authenticated, and `insert`/`update`/`delete` to authenticated.
+    - **The limit also applies to moves** (`before insert or update of court_id`).
+    - **A lighter court lock** (`for no key update`, which no longer blocks booking inserts), also taken in `reorder_court_photos`.
+    - **A new photo goes last.** `sort_order` has no default; the trigger fills in the max + 1.
+    - pgTAP `22_court_photos` is extended to 41 assertions: privileges, a player update filtered, an admin update, the appended order, and a move onto a full court rejected. Pushed, and production checked: anon can select but not insert.
+    - The other major, syncing photos while the old frontend is live, is handled in T9.7 and T9.11 (see their Do lines).
+    - A re-review passed. Its one minor is fixed: each privilege is checked on its own, because a comma list means "any of".
+
+### [x] T9.7 Photo gallery UI
+- **Depends:** T9.6
+- **Do:**
+  - An admin gallery editor on the court page: upload up to 6, remove, and reorder with "make cover" and arrows. It reuses the M6 resize, upload and delete code.
+  - Players see the cover on the tiles, and a swipeable gallery in "About the courts" (CSS scroll-snap, previous and next buttons, alt text, no library). A missing photo shows the sport placeholder.
+  - Inserts pass `sort_order` (max + 1). The generated Insert type requires it; the trigger only fills it in for SQL inserts.
+  - The old single-photo UI and `courts.photo_path` writes go away, and nothing new writes `photo_path`. **Until this is live, don't edit court photos in the old admin UI** (the T9.6 review): the old UI would replace or delete a file the gallery row still points at. T9.11 reconciles anything that slipped through.
+- **Acceptance:** Testing Library covers the editor (the limit, reordering, the cover) and the gallery (buttons, alt text, the placeholder). e2e: an admin uploads two photos and players see both.
+- **Notes:**
+  - **Data.** `fetchCourts` and `fetchCourt` embed `court_photos(id, path, sort_order)` sorted with the cover first (`CourtWithPhotos`). `useSaveCourt` merges the saved row into the cached court (the row has no photos).
+  - **Public.** `CourtPhoto` takes a path. `CourtTiles` shows the cover, or `CourtGallery` in the `/book` info panel (`detailed`). The gallery is a CSS scroll-snap strip with previous and next buttons, a live "N of M", per-photo alt text, a placeholder for failed images, and reduced-motion respected.
+  - **Admin.** `CourtPhotosSection` replaces `CourtPhotoSection`. It adds several at once (one at a time, `sort_order` max + 1, only as many as fit, skipped files explained), removes (row first, then the file), and reorders with `MoveButtons` or "Make cover" (`reorder_court_photos`, immediate and saved in order, like T9.4). Buttons use `aria-label`s that start with the visible text. A hidden span's leading space was being dropped from the computed name ("Removephoto 2"), which a test caught.
+  - **API.** `addCourtPhoto` removes the uploaded file if the row insert fails. `setCourtPhoto`, `removeCourtPhoto` (old) and `updateCourtPhotoPath` are gone, and nothing writes `photo_path`.
+  - **Tests:**
+    - `CourtGallery.test.tsx`: order and alt text, buttons and edges, swipe position, single and none, a failed image
+    - `CourtTiles.test.tsx` (rewritten): cover only, placeholder, failure and retry, the detailed gallery
+    - `CourtPhotosSection.test.tsx`: empty state, cover badge, multi-upload order, skip message, full, bad type, over 2 MB, server error, remove, make cover, arrows
+    - `e2e/court-photo.spec.ts` (rewritten): bad file, two at once, make cover, the home cover and the `/book` gallery with Next, remove (row and file), `photo_path` stays null
+  - **Review.** The reviewer passed it, and its major and 3 minors are fixed:
+    - **Reorders and add/remove no longer overlap.** Reorder controls wait for an add or remove, and add/remove wait for a reorder (each tested).
+    - **The gallery counter is clamped** when the list shrinks.
+    - **The strip is focusable**, with a focus ring and a label. The gallery e2e now runs axe on an open multi-photo gallery.
+    - **The `scrollTo` spy is restored** after each test.
+  - **Checks.** verify passes (Vitest 415). e2e: all passing, 1 skipped (zoom runs on desktop only).
+  - **Ship note.** This frontend has to reach production (merge to `master`) before T9.11's contract migration. Until then, don't edit court photos in the old admin UI.
+
+### [ ] T9.8 Booker names
+- **Do:**
+  - Drop and recreate `get_availability` with a new `booker_first_name` column (the first word of `guest_name` for active bookings, walk-ins included), and re-grant it in the same migration.
+  - `/book` booked cells show "Booked · Ana", and their accessible name includes it.
+  - An admin day view (courts × hours with full names and references, linking to the booking) on the dashboard.
+- **Acceptance:**
+  - pgTAP: anon gets only the first name (no email, phone or full name), and expired, cancelled and rejected bookings show none.
+  - Testing Library covers the grid cell and the day view.
+  - The a11y e2e still passes.
+
+### [ ] T9.9 Migration: overnight and 24-hour hours
+- **Do:** RESEARCH M9 "Overnight and 24-hour opening hours":
+  - Drop the `open < close` check.
+  - `private.operating_day_range`, `private.operating_day_of` and `private.operating_today`.
+  - The admin RPC `set_operating_hours(p_hours jsonb)`: all seven days at once, atomic, hint `hours_overlap`.
+  - `validate_booking_slot` checks against one operating day (the `multi_day` hint is kept), and the window counts operating days.
+  - `get_availability(p_date)` covers the whole operating day.
+  - `slot_price` uses the operating day's rate row.
+  - The walk-in "today" uses `operating_today`.
+- **Acceptance:**
+  - pgTAP: an overnight 06–05 day lists and books a 1 AM slot under the previous date, priced from that day's rates. A booking across midnight inside one operating day works, and one across an operating-day boundary is rejected. A 24-hour day works. Overlapping days are rejected by `set_operating_hours`. The window edges and a walk-in at 1 AM are covered.
+  - Every existing pgTAP file still passes unchanged.
+  - `db:push` and `db:types` have been run.
+
+### [ ] T9.10 Overnight hours UI
+- **Depends:** T9.9
+- **Do:**
+  - The schedule editor saves through `set_operating_hours`. It shows "closes next day" when close ≤ open, and has an "Open 24 hours" checkbox.
+  - `summarizeHours` says "6 AM – 5 AM (next day)" and "Open 24 hours".
+  - The `/book` grid marks after-midnight rows.
+  - The walk-in form and the dashboard use the operating day for "today" (`src/lib/time.ts` helper, mirroring the SQL).
+- **Acceptance:** Vitest covers the time helper and `summarizeHours`. Testing Library covers the editor and the grid marker. e2e: an admin sets overnight hours, a guest books a 1 AM slot, and the hours are restored in teardown.
+
+### [ ] T9.11 Contract migration
+- **Depends:** T9.7 on production (`master`)
+- **Do:**
+  - **Reconcile first:** delete `court_photos` rows whose file is gone from Storage (`storage.objects`).
+  - Then run `private.backfill_court_photos()` only for `photo_path` files that still exist and aren't in the gallery already. Skip a court that already has 6 photos (the backfill would raise `too_many_photos` and abort the migration). Without these checks, a cover deleted in the new gallery would come back (T9.6 review).
+  - Then drop `courts.photo_path` and its check, and anything else M9 left behind for the old frontend.
+  - Update what still mentions the column: `e2e/court-photo.spec.ts` (its last check reads `photo_path`) and the `photo_path: null` in the `CourtEditPage.test.tsx` fixture.
+- **Acceptance:** pgTAP is updated. `db:push` runs only after the user confirms that the T9.7 frontend is live.
+
+### [ ] T9.12 Close out M9 and the project
+- **Depends:** T9.1–T9.11
+- **Do:**
+  - README: what the project is, its stack and architecture, and how to run it locally. Note that previews share the production database (RESEARCH M8).
+  - Screenshots (phone and desktop), and decide on seed demo photos for them (skipped in T6.7).
+  - A demo video script.
+  - Mark M9 ✅ in SPEC §9 and run the final milestone review.
+- **Acceptance:** `npm run verify` and `npm run test:e2e` pass, and the reviewer signs off.
 
 ---
 
@@ -797,5 +992,5 @@ Goal (SPEC §9): the user's 2026-10-19 requests, then the portfolio close-out.
 - [x] H3 `reviewer` agent (`.claude/agents/reviewer.md`)
 - [x] H4 `/implement` command (`.claude/skills/implement/SKILL.md`)
 - [x] H5 Playwright e2e: `npm run test:e2e` (Chromium desktop + 360px phone, local stack, serial). Flows: guest booking and proof upload, admin reject → re-upload → approve, signed-in player, walk-in. Tagged test data is removed in global teardown. The Stop hook runs it when UI-facing files change (blocking if the local stack is down).
-- [x] H6 >500 kB main chunk warning: gone since the admin pages became lazy chunks (2026-10-17 build: largest chunk 347 kB). Watch it as the app grows.
+- [x] H6 >500 kB main chunk warning: fixed in T8.7 with vendor chunks (`vendor-react` 348 kB, `vendor-supabase` 214 kB, app 62 kB). The earlier "347 kB" was measured without `.env`, which drops supabase-js (SPEC §10, 2026-10-20). Watch it as the app grows, and always measure with `.env` present.
 - [x] H7 Phone layouts (360px) checked by hand in a real browser by the user (2026-10-17). The e2e phone project now runs every flow at 360px.
