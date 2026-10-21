@@ -22,7 +22,7 @@ update public.profiles set role = 'admin' where id = '22222222-2222-2222-2222-22
 insert into public.courts (id, name, sport, default_hourly_rate) values
   ('c0000000-0000-0000-0000-000000000001', 'Night Court', 'tennis', 300);
 
--- d: an overnight day (06:00 → 05:00 the next morning). e: a 24-hour day (06:00 → 06:00).
+-- d: an overnight day (06:00 → 05:00 the next morning). e: a 24-hour day (00:00 → 24:00, the only way to set one).
 -- w: the last day of the booking window (30 days), also overnight. Its weekday is the one before d's
 -- (30 = 2 mod 7), and d opens at 06:00, so 06:00–05:00 fits. Normal hours elsewhere.
 update public.venue_settings set booking_window_days = 30;
@@ -34,7 +34,7 @@ grant select on fx to anon, authenticated;
 
 update public.operating_hours set open_time = '06:00', close_time = '22:00', is_closed = false;
 update public.operating_hours set close_time = '05:00' where day_of_week = (select dow_d from fx);
-update public.operating_hours set close_time = '06:00' where day_of_week = (select dow_e from fx);
+update public.operating_hours set open_time = '00:00', close_time = '24:00' where day_of_week = (select dow_e from fx);
 update public.operating_hours set close_time = '05:00' where day_of_week = (select dow_w from fx);
 
 -- A night rate on d's row at 1 AM, and a different one on the next day's row at 1 AM (must not be used).
@@ -58,7 +58,7 @@ select is(
 );
 select is(
   upper(private.operating_day_range((select e from fx))) - lower(private.operating_day_range((select e from fx))),
-  interval '24 hours', 'open = close means 24 hours'
+  interval '24 hours', '12 AM to midnight is 24 hours'
 );
 select is(private.operating_day_of(pg_temp.at((select d from fx) + 1, '01:00')), (select d from fx),
   'a 1 AM slot after the overnight day belongs to the previous date');
@@ -120,11 +120,11 @@ select is(pg_temp.hint_of($$ select * from public.create_booking('c0000000-0000-
   pg_temp.at((select d from fx) + 1, '05:00'), 1, 'X', 'x@example.com', '09171234567') $$), 'outside_hours',
   'a booking in the gap between days is outside opening hours');
 select is(pg_temp.hint_of($$ select * from public.create_booking('c0000000-0000-0000-0000-000000000001',
-  pg_temp.at((select e from fx) + 1, '05:00'), 1, 'Late', 'late@example.com', '09171234567') $$), null,
-  'the 5 AM slot of a 24-hour day books under that day');
+  pg_temp.at((select e from fx), '23:00'), 1, 'Late', 'late@example.com', '09171234567') $$), null,
+  'the last (11 PM) slot of a 24-hour day books');
 select is(pg_temp.hint_of($$ select * from public.create_booking('c0000000-0000-0000-0000-000000000001',
-  pg_temp.at((select e from fx) + 1, '05:00'), 2, 'X', 'x@example.com', '09171234567') $$), 'multi_day',
-  'a booking from the end of one day into the next day that opens right then is refused');
+  pg_temp.at((select e from fx), '23:00'), 2, 'X', 'x@example.com', '09171234567') $$), 'multi_day',
+  'a booking from the end of a 24-hour day into the next date is refused');
 
 -- The window counts operating days: the last window day's after-midnight slots are in, the next day is out.
 select is(pg_temp.hint_of($$ select * from public.create_booking('c0000000-0000-0000-0000-000000000001',
