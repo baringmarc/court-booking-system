@@ -9,6 +9,8 @@ export type Slot = {
   slot_end: string
   price: number
   status: SlotStatus
+  /** First name of whoever booked it, on booked slots only (T9.8). Never more personal data. */
+  booker_first_name: string | null
 }
 
 /** `starts` are slot_start values, sorted and consecutive. */

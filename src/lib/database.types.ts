@@ -639,6 +639,7 @@ export type Database = {
       get_availability: {
         Args: { p_court_id?: string; p_date: string }
         Returns: {
+          booker_first_name: string
           court_id: string
           price: number
           slot_end: string

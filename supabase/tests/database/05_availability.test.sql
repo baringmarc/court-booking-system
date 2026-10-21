@@ -135,8 +135,8 @@ reset role;
 select is(
   (select array_agg(attname::text order by attnum) from pg_attribute
    where attrelid = 'a_slots'::regclass and attnum > 0 and attname <> 'h'),
-  array['court_id', 'slot_start', 'slot_end', 'price', 'status'],
-  'the result has no personal data columns'
+  array['court_id', 'slot_start', 'slot_end', 'price', 'status', 'booker_first_name'],
+  'the result has no personal data columns beyond the booker''s first name (T9.8; 23_booker_names checks it)'
 );
 
 select * from finish();

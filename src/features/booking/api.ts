@@ -54,6 +54,8 @@ export async function fetchAvailability(date: string): Promise<Slot[]> {
     price: Number(r.price),
     // Unknown statuses are treated as unavailable rather than bookable.
     status: (SLOT_STATUSES.has(r.status) ? r.status : 'booked') as SlotStatus,
+    // The generated type says string, but it's null on every slot that isn't booked (T9.8).
+    booker_first_name: r.booker_first_name || null,
   }))
 }
 

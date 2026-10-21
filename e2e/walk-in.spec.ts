@@ -1,4 +1,4 @@
-// An admin records a walk-in from the dashboard; the slot then shows as booked to everyone.
+// An admin records a walk-in from the dashboard; staff see the full name, players the first name only.
 import { expect, test } from '@playwright/test'
 import { createAdmin, E2E_PREFIX, logInAdmin, venueDate } from './support/helpers.ts'
 
@@ -22,6 +22,15 @@ test('an admin records a walk-in and the slot shows as booked on /book', async (
   await form.getByRole('button', { name: 'Record walk-in' }).click()
   await expect(page.getByRole('status').filter({ hasText: /Walk-in CB-[A-Z0-9]{6} recorded and confirmed/ })).toBeVisible()
 
+  // Staff see the full name in today's courts grid (T9.8), and its reference opens that booking.
+  const reference = (await page.getByRole('status').filter({ hasText: /Walk-in CB-/ }).textContent())!.match(/CB-[A-Z0-9]{6}/)![0]
+  const dayView = page.getByRole('region', { name: "Today's courts" })
+  await expect(dayView.getByRole('cell').filter({ hasText: `${E2E_PREFIX} Walk-in` }).first()).toBeVisible()
+  await dayView.getByRole('link', { name: reference }).first().click()
+  await expect(page.getByRole('button', { name: new RegExp(reference) })).toHaveAttribute('aria-pressed', 'true')
+
+  // The public grid shows the slot as booked, with the first name only (the same for every caller).
   await page.goto(`/book?date=${venueDate(0)}&sport=badminton`)
-  await expect(page.getByRole('button', { name: `Badminton 4, ${hourLabel}, Booked` })).toBeDisabled()
+  await expect(page.getByRole('button', { name: `Badminton 4, ${hourLabel}, Booked by ${E2E_PREFIX}` })).toBeDisabled()
+  await expect(page.getByText('Walk-in', { exact: false })).toHaveCount(0)
 })

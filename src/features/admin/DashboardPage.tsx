@@ -12,6 +12,7 @@ import type { Court, VenueSettings } from '../catalog/api'
 import { useCourts, useVenueSettings } from '../catalog/hooks'
 import { refundsDueSummary, takingsByMethod } from './dashboard'
 import { useAdminBookings, useCreateWalkIn, useProofQueueCount, useRefundsDue, useTakings } from './hooks'
+import { DayView } from './DayView'
 import { TakingsCard } from './TakingsCard'
 import { WalkInForm } from './WalkInForm'
 
@@ -46,6 +47,7 @@ function Dashboard({ settings, courts }: { settings: VenueSettings; courts: Cour
   const now = useNow(30_000)
 
   const schedule = useAdminBookings({ status: 'all', source: 'all', date: today }, tz)
+  const availability = useAvailability(today)
   const queue = useProofQueueCount()
   const takings = useTakings(dayStart, dayEnd)
   const refundsDue = useRefundsDue(dayStart, dayEnd)
@@ -91,6 +93,17 @@ function Dashboard({ settings, courts }: { settings: VenueSettings; courts: Cour
         {showWalkIn && (
           <WalkInPanel today={today} courts={courts} now={now} timeZone={tz} currency={currency}
             onRecorded={(ref) => { setLastWalkIn(ref); setShowWalkIn(false) }} />
+        )}
+      </section>
+
+      <section className="card stack" aria-labelledby="day-view-heading">
+        <h2 id="day-view-heading">Today's courts</h2>
+        {availability.isPending || schedule.isPending ? <PageLoader /> : availability.isError ? (
+          <ErrorMessage error={availability.error} onRetry={() => availability.refetch()} />
+        ) : schedule.isError ? (
+          <ErrorMessage error={schedule.error} onRetry={() => schedule.refetch()} />
+        ) : (
+          <DayView date={today} courts={courts} slots={availability.data} bookings={todays} timeZone={tz} />
         )}
       </section>
 

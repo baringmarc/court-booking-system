@@ -20,7 +20,8 @@ export function AdminBookingsPage() {
   const [params, setParams] = useSearchParams()
   const filters = filtersFromParams(params)
   const bookings = useAdminBookings(filters, settings.data?.timezone)
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  // `?booking=<id>` opens that booking straight away (the dashboard day view links here, T9.8).
+  const [selectedId, setSelectedId] = useState<string | null>(() => params.get('booking'))
   const [lastReview, setLastReview] = useState<{ ref: string; status: BookingStatus } | null>(null)
 
   const tz = settings.data?.timezone ?? 'Asia/Manila'
