@@ -7,14 +7,15 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
 > Update this section at the end of every session or task. Keep it short; it's the first thing the next session reads.
 
 - **Current milestone:** 9 (Venue admin upgrades). The breakdown was approved on 2026-10-20 (T9.1–T9.12). M8 ✅ done on 2026-10-20.
-- **Next task:** T9.9 (migration: overnight and 24-hour hours). The user pre-approved plan gates for T9.8–T9.11 on 2026-10-21, so state the plan and build.
-- **State:** T9.1–T9.8 done (2026-10-21). Their migrations (sport order, `move_court`, `delete_court`, `court_photos` with its hardening, and booker names) are live on the linked database. The UI for T9.3–T9.8 reaches production only when `develop` is merged into `master` (production is still at PR #7, pre-M9 UI). Until that merge, don't edit court photos in the live admin. M8 done (2026-10-20): deploy at https://court-booking-system-ashen.vercel.app. Run `npm run smoke:prod -- --links-only` after each merge.
+- **Next task:** T9.10 (overnight hours UI). Plan gates are pre-approved through T9.11 (2026-10-21).
+- **State:** T9.1–T9.9 done (2026-10-21). **Don't set overnight hours on production until T9.10 is on `master`:** the live schedule editor, rate grid and "today" don't understand them yet. Their migrations (sport order, `move_court`, `delete_court`, `court_photos` with its hardening, booker names, and overnight hours) are live on the linked database. The UI for T9.3–T9.8 reaches production only when `develop` is merged into `master` (production is still at PR #7, pre-M9 UI). Until that merge, don't edit court photos in the live admin. M8 done (2026-10-20): deploy at https://court-booking-system-ashen.vercel.app. Run `npm run smoke:prod -- --links-only` after each merge.
 - **Blockers / notes:**
   - Emails locally: `supabase/functions/.env` must keep `EMAIL_TRANSPORT=mailpit`, `MAILPIT_URL` and `EMAIL_WORKER_SECRET` (see `.env.example`) for smoke and e2e. Restart the stack after changing it. Your PayMongo test key is commented out there; uncomment it only for real local test payments, and expect `pay-online` e2e and `smoke:paymongo` to fail while it's active.
   - Scope added on 2026-10-19 (SPEC §9, §10, §11): slot status colors are in T8.5, the settings spacing fix is in T8.4, and M9 is outlined at the end of this file. The README moved there. Booker names are **first name only** in public. A court can be deleted only if it was never booked.
   - Bundle size: always measure with `.env` present. Without it, `lib/supabase.ts` throws at load time and the build drops supabase-js, which makes the bundle look about 330 kB smaller (SPEC §10, 2026-10-20).
   - **Production (2026-10-20):** https://court-booking-system-ashen.vercel.app (Vercel Hobby, project `court-booking-system`, team slug `marc-projects5`, production branch `master`). The user set the Supabase Auth Site URL and redirect URLs and the Google JS origin by hand. `npm run smoke:prod` books a real `E2E Smoke` booking on production. Cancel it afterwards (T8.6 notes), or use `-- --links-only`. The admin account is the user's Google login (no email and password admin on production).
   - M8 emails: no Resend for now (user decision, 2026-10-19). Build and test through Mailpit; production runs `EMAIL_TRANSPORT=disabled`. Never commit the Vault worker secret (or a Resend key, if one is added later).
+  - **Flaky 25 s Vitest timeouts** come from this Mac, not the code. Its `HostName` isn't set, so `os.hostname()` sometimes waits about 25 s on a network lookup, and jsdom test files stall on it. Rerun when it's quick (`time node -e "require('os').hostname()"`). The permanent fix needs the user: `sudo scutil --set HostName Eloys-Macbook.local`.
   - Docker Desktop must be running for `npm run verify`. `npm run test:e2e` and `npm run smoke:proof` need the full local stack (`npx supabase start`).
   - Email confirmation is on locally (`config.toml`, matching the hosted project). Sign-up emails land in Mailpit at http://127.0.0.1:54324. e2e reads them with `confirmationLink()`. Don't turn it off: claims trust `email_confirmed_at`.
   - Guest links use `#token=`. Going to the same URL again is a hash-only navigation (no reload), so e2e leaves the page first (`openGuestLink`).
@@ -958,7 +959,7 @@ Out of scope for M9: new sports, live payments, Resend, refunds, SMS.
   - **Tests.** `SlotGrid.test.tsx` (the name), `DayView.test.tsx` (layout, names and links, mixed formats, focusable region, closed and past, the closed day), and `e2e/walk-in.spec.ts` (full name on the dashboard, "Booked by E2E" on `/book`). verify passes (Vitest 422). e2e: 37 passed, 1 skipped.
 - **Follow-ups (T9.9 migration):** `create_booking` falls back to the email's local part for `guest_name` when a signed-in player has no profile name and sends none (only possible through a direct RPC call; checkout always sends a name). Since T9.8 that name is public. Drop the fallback, using `split_part` of the profile name or a plain "Player", when T9.9 rewrites the booking functions.
 
-### [ ] T9.9 Migration: overnight and 24-hour hours
+### [x] T9.9 Migration: overnight and 24-hour hours
 - **Do:** RESEARCH M9 "Overnight and 24-hour opening hours":
   - Drop the `open < close` check.
   - `private.operating_day_range`, `private.operating_day_of` and `private.operating_today`.
@@ -969,8 +970,30 @@ Out of scope for M9: new sports, live payments, Resend, refunds, SMS.
   - The walk-in "today" uses `operating_today`.
 - **Acceptance:**
   - pgTAP: an overnight 06–05 day lists and books a 1 AM slot under the previous date, priced from that day's rates. A booking across midnight inside one operating day works, and one across an operating-day boundary is rejected. A 24-hour day works. Overlapping days are rejected by `set_operating_hours`. The window edges and a walk-in at 1 AM are covered.
-  - Every existing pgTAP file still passes unchanged.
+  - Every existing pgTAP file still passes, unchanged except `02_catalog` test 3, which asserted the `open < close` rule this task drops.
   - `db:push` and `db:types` have been run.
+- **Notes:**
+  - Migration `20261021001821_overnight_hours.sql`, same RPC signatures and columns, so it's safe with the deployed frontend:
+    - **Helpers:** `private.operating_day_range`, `operating_day_of` and `operating_today`.
+    - **No-overlap rule:** the deferred constraint trigger `operating_hours_no_overlap` (it replaces `operating_hours_check`), plus `set_operating_hours(jsonb)` (admin; checks immediately).
+    - **Window and pricing:** `in_booking_window` counts operating days. `slot_price(court, ts, dow)` takes the weekday; the 2-argument version and `range_price` use the operating day.
+    - **Booking rules:** `validate_booking_slot` checks one operating day (`multi_day` when the booking also crosses the calendar midnight after it, otherwise `outside_hours`). `get_availability` covers the whole operating day.
+    - **Follow-ups done:** `create_booking` and `create_walk_in` map `foreign_key_violation` to `court_inactive` (T9.5), and a nameless player books as "Player" (T9.8).
+  - pgTAP `24_overnight_hours.test.sql` (34 assertions) covers:
+    - **The operating day:** ranges, `operating_day_of` (1 AM, the gap, the next opening), `operating_today`.
+    - **Availability:** 23 overnight slots, the 1 AM slot priced from the operating day's row (999, not the next day's 111), no double listing, 24 slots on a 24-hour day.
+    - **Bookings:** a 1 AM booking at 999, across midnight within the day, past the overnight close (`multi_day`), in the gap (`outside_hours`), the 5 AM slot of a 24-hour day, a booking into a day that opens right then (`multi_day`), a 2 AM walk-in.
+    - **Window edge:** an overnight last window day lists and books its 1 AM slot; the next day, opening that morning, is `outside_window`.
+    - **Follow-ups:** "Player" instead of an email-derived name.
+    - **`set_operating_hours`:** refused for anon and players, all 7 days required, whole hours only, overlap rejected, exact fit allowed, stored; a direct overlapping write is refused too.
+  - Every other pgTAP file passes. Only `02_catalog` test 3 changed, because it asserted the old `open < close` rule this task replaces; it now asserts the no-overlap rule.
+  - `db:push` (dry run first) and `db:types` were run. Production hours are 06:00–24:00 daily, so it behaves as before (108 slots tomorrow, today unchanged).
+  - **Checks.** `npm run verify` passes (Vitest 422, pgTAP, build).
+  - **Review.** The first round was a BLOCK: there was no window-edge test in operating days. It's fixed with the window-edge and touching-day assertions above, and the re-review passed (its minor is fixed: `w` comes from `local_today()`, which is deterministic).
+- **Follow-ups (T9.11 migration):**
+  - **`set_operating_hours` errors.** It maps every malformed element to "whole hours". Check the shape and `open_time < '24:00'` first, each with its own message. A `24:00` open would start the day on the next date.
+  - **Write skew.** The deferred no-overlap trigger reads the other days under READ COMMITTED, so two hand-made concurrent per-row updates could pass together. Lock the table in the trigger, or revoke direct UPDATE on `operating_hours` once T9.10 (which uses the RPC) is live.
+
 
 ### [ ] T9.10 Overnight hours UI
 - **Depends:** T9.9
@@ -979,7 +1002,8 @@ Out of scope for M9: new sports, live payments, Resend, refunds, SMS.
   - `summarizeHours` says "6 AM – 5 AM (next day)" and "Open 24 hours".
   - The `/book` grid marks after-midnight rows.
   - The walk-in form and the dashboard use the operating day for "today" (`src/lib/time.ts` helper, mirroring the SQL).
-- **Acceptance:** Vitest covers the time helper and `summarizeHours`. Testing Library covers the editor and the grid marker. e2e: an admin sets overnight hours, a guest books a 1 AM slot, and the hours are restored in teardown.
+  - The court rate grid (`CourtRatesSection`) shows each day's hours from open to close in operating order, after-midnight hours included under the operating day's row (pricing uses that row since T9.9). Today it builds `[open, close)`, which goes negative for an overnight day (T9.9 review).
+- **Acceptance:** Vitest covers the time helper and `summarizeHours`. Testing Library covers the editor, the grid marker and the rate grid with overnight hours. e2e: an admin sets overnight hours, a guest books a 1 AM slot, and the hours are restored in teardown.
 
 ### [ ] T9.11 Contract migration
 - **Depends:** T9.7 on production (`master`)

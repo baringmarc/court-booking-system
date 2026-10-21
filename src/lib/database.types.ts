@@ -738,6 +738,7 @@ export type Database = {
           status: Database["public"]["Enums"]["booking_status"]
         }[]
       }
+      set_operating_hours: { Args: { p_hours: Json }; Returns: undefined }
     }
     Enums: {
       booking_source: "online" | "walk_in"

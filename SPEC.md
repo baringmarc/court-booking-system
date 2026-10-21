@@ -107,19 +107,21 @@ Admins are promoted manually in the database (no self-signup as admin).
 
 1. **No overlaps.** Two active bookings can never overlap on the same court. This is enforced with a Postgres exclusion constraint (`btree_gist` on `court_id` + `tstzrange`), not only in the UI.
 2. **One day, within opening hours.** A booking must:
-   - start and end on the same day (in the venue timezone)
-   - stay inside that day's operating hours
+   - stay inside one **operating day's** opening hours (see below)
    - not touch a blackout
    - line up with slot boundaries
 
-   There is no other limit on length. These checks live in the `create_booking` RPC.
+   There is no other limit on length. These checks live in `private.validate_booking_slot`, shared by `create_booking` and `create_walk_in`.
 
-   *Planned for M9:* opening hours may run **past midnight or around the clock** (e.g. 6:00 AM to 5:00 AM, or 24 hours). The plan is an **operating day**: a slot belongs to the day whose opening it follows. A 1:00 AM slot after a 6:00 AM opening belongs to the previous date, and `/book` shows it under that date. "One day" in this rule then means one operating day. The details (pricing per hour, the booking window, blackouts, walk-in "today", the dashboard) are an open question (§11) for M9 research.
+   **Operating day (M9, T9.9).** Opening hours may run **past midnight or around the clock**. A close at or before the open means the next day (6:00 AM to 5:00 AM), and open = close means 24 hours. A slot belongs to the day whose opening it follows: a 1:00 AM slot after a 6:00 AM opening belongs to the previous date, and `/book` lists it under that date.
+   - A booking runs into another day (`multi_day`) if it goes past the end of its operating day and also past the calendar midnight after it. Otherwise it runs past closing (`outside_hours`).
+   - Days may not overlap: a day can run past midnight only until the next day opens (`hours_overlap`). This is checked for every write by a deferred constraint trigger.
+   - Blackouts are instant ranges and need nothing extra. "Today" (the walk-in form, the dashboard) is the operating day running now, or the local date while the venue is closed (`private.operating_today()`).
 
-3. **Booking window.** Bookings can be made from now up to `booking_window_days` ahead (default **30**). Slots that have already started can't be booked.
+3. **Booking window.** Bookings can be made from now up to `booking_window_days` ahead (default **30**), counted in operating days from today's operating day. Slots that have already started can't be booked.
 4. **Pricing.** The price is calculated **on the server**:
    - Add up the price of each 1-hour slot in the booking.
-   - For each slot, use the `court_rates` entry for that day of week and hour if there is one, otherwise the court's `default_hourly_rate`.
+   - For each slot, use the `court_rates` entry for its **operating day's** day of week and the slot's hour if there is one, otherwise the court's `default_hourly_rate`. A 1 AM slot after a Friday opening uses Friday's row (M9).
    - Store the total on the booking, so later rate changes don't affect existing bookings.
 
    The client never sends the price. `get_availability` returns the price of each slot so the UI can show it.
@@ -159,7 +161,8 @@ court_photos (M9) id, court_id (on delete cascade), path unique (CHECK under 'co
                   backfills only photo_path files that still exist in Storage, and deletes rows whose file is gone.
 court_rates       court_id, day_of_week (0–6), start_hour (0–23), price numeric
                   PK (court_id, day_of_week, start_hour)
-operating_hours   day_of_week (0–6) PK, open_time, close_time, is_closed
+operating_hours   day_of_week (0–6) PK, open_time, close_time, is_closed   -- whole hours; close <= open: the next day
+                  (M9); days may not overlap (deferred constraint trigger, P0001 hours_overlap)
 blackouts         id, court_id (nullable = all courts), starts_at, ends_at, reason, created_by
                   (gist index on tstzrange(starts_at, ends_at))
 bookings          id, reference_code unique, court_id, user_id (nullable),
@@ -235,6 +238,7 @@ A **public** bucket called `venue-media` holds court photos (`courts/{court_id}/
 | `move_court(court_id, direction)` (M9, T9.3)                                       | admin       | Swaps a court with its upper (-1) or lower (1) neighbour within its sport, archived courts included, and renumbers that sport's `sort_order` 0..n-1. The first court moving up, or the last moving down, does nothing. |
 | `delete_court(court_id)` (M9, T9.5)                                                | admin       | Deletes a court that never had a booking, in any status. Its rates and court-specific blackouts cascade. Otherwise P0001 `court_has_bookings` ("…Archive it instead."); the bookings FK (on delete restrict) backs this up. Locks the court row, so a booking being created at the same time waits for it. The client then removes every file under `courts/{id}/` (best effort). |
 | `reorder_court_photos(court_id, ids[])` (M9, T9.6)                                 | admin       | Stores the court's photos in the given order (`sort_order` 0..n-1; the first is the cover). The list must be exactly that court's photos, each once; otherwise P0001 `invalid_input` ("…out of date. Reload…"). |
+| `set_operating_hours(hours jsonb)` (M9, T9.9)                                      | admin       | Saves all seven days in one step: an array of `{day_of_week, open_time, close_time, is_closed}`. Rejects anything but seven distinct days (`invalid_input`), non-whole hours (`invalid_input`) and overlapping days (`hours_overlap`, checked before returning). |
 | `claim_guest_bookings()`                                                           | player      | Links matching guest bookings to the signed-in, email-verified user (§5.7).                                                                                                                                   |
 
 Guest access uses a random token. It is shown once (in the confirmation page link and email) and stored only as a hash. The link carries it in the URL **fragment** (`/booking/:ref#token=…`), which browsers never send to servers. Old `?token=` links are rewritten to the fragment. A guest link stops working 30 days after the booking ends (same "not found" response). If the link is lost, the guest can sign up or log in with the booking's email to see the booking in My bookings. "Email me a new link" is out of scope (decided in M8): emails can't re-issue a token, because only its hash is stored. There is no lookup throttle, because a 256-bit token can't be guessed (RESEARCH M5).
@@ -356,6 +360,7 @@ Until emails ship, the confirmation page shows the private link with a "save thi
 | 2026-10-20 | Theme applied (T9.2): new token `--danger-contrast` (white in light mode, `#1f0a08` in dark mode). `.btn-danger` used hard-coded white text, which was 2.8:1 on the dark-mode danger red. `src/lib/theme.test.ts` reads the real tokens from `index.css` and holds both modes to WCAG AA on 17 pairs, so a token change can't silently break contrast. The palette preview was removed. |
 | 2026-10-20 | Deleting a court (T9.5): `delete_court` returns nothing instead of photo paths. The client removes every file under `courts/{id}/` in Storage after a successful delete (best effort: a leftover file is only an orphan). That also covers T9.6's multiple photos, so the function won't need to change. A court with any booking, even a cancelled one, can't be deleted. The `sport_order` check now also requires a one-dimensional array. |
 | 2026-10-21 | Booker names as built (T9.8): `get_availability` gains `booker_first_name`, the first word of the contact name capped at 20 characters, for active bookings including walk-ins (dropped and recreated in one transaction, re-granted). `/book` shows "Booked" plus the name, labelled "Booked by …". The dashboard's "Today's courts" shows full names; a reference opens `/admin/bookings?…&booking=<id>`, which preselects the booking. Links on the booked grey use the text colour, because the accent is 4.39:1 there. |
+| 2026-10-21 | Overnight hours as built (T9.9): helpers `private.operating_day_range`, `operating_day_of` and `operating_today`. The window, pricing (`slot_price` with an operating-day weekday), `validate_booking_slot` and `get_availability` all use them, so `create_booking` and `create_walk_in` follow. The old `open < close` check became the no-overlap trigger, and `set_operating_hours` saves the week. The old `multi_day` and `outside_hours` hints keep their meaning for normal days. Also: a signed-in player with no name books as "Player" (no email-derived name, which T9.8 would expose), and a court deleted mid-booking reports `court_inactive`. |
 | 2026-10-18 | Emails and deploy (M8, T8.1): Resend from a verified domain (API for booking emails, SMTP for Supabase Auth; superseded on 2026-10-19, see the 2026-10-19 "Emails without a provider" row). A transactional outbox (`email_outbox`, filled by triggers) is drained by the `send-emails` Edge Function, run every minute by pg_cron + pg_net (URL and worker secret in Vault). Retries use backoff, at most 5 attempts, with the Resend idempotency key = outbox id. The guest link is only in the booking-created email, sent by the token-checked `email-guest-link` function, and the token is never stored. Deploy on Vercel (production from `master`, previews from branches, SPA rewrite), one Supabase project shared by previews and production, hosted Auth URLs set in the dashboard, and the production origin first in `PUBLIC_SITE_URL`. |
 | 2026-10-16 | Walk-ins go straight to `confirmed` with `source = 'walk_in'` and an approved payment row (default cash) recorded by the admin. `payment_proofs` is generalized into `payments`. |
 
