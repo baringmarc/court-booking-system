@@ -17,6 +17,14 @@ import {
   saveBanner,
   saveOpenPlay,
   deleteOpenPlay,
+  saveSocialLinks,
+  saveInfoSection,
+  deleteInfoSection,
+  moveInfoSection,
+  setBuiltinAmenity,
+  addCustomAmenity,
+  removeAmenity,
+  type InfoSectionInput,
   reviewPayment,
   type BannerInput,
   type WalkInInput,
@@ -25,6 +33,9 @@ import { catalogKeys, updateVenueSettings, type Court, type CourtPhotoRow, type 
 import { moveCourtInList } from '../catalog/sportOrder'
 import { bookingKeys } from '../booking/hooks'
 import { openPlayKeys, type OpenPlayInput } from '../openPlay/api'
+import { venueKeys, type Amenity } from '../venue/api'
+import type { AmenityKey } from '../venue/amenities'
+import type { SocialPlatform } from '../venue/social'
 import type { BookingFilters } from './bookingFilters'
 
 export function useAdminBookings(filters: BookingFilters, timeZone: string | undefined) {
@@ -284,4 +295,70 @@ export function useSaveOpenPlay() {
 export function useDeleteOpenPlay() {
   const invalidate = useInvalidateOpenPlay()
   return useMutation({ mutationFn: (id: string) => deleteOpenPlay(id), onSuccess: invalidate })
+}
+
+// --- Venue info (T9.11h) -------------------------------------------------------
+
+export function useSaveSocialLinks() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (links: Record<SocialPlatform, string>) => saveSocialLinks(links),
+    // Only on success: a refetch remounts the form, which would drop what the admin typed.
+    onSuccess: () => qc.invalidateQueries({ queryKey: venueKeys.socials }),
+  })
+}
+
+export function useSaveInfoSection() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string | null; input: InfoSectionInput }) => saveInfoSection(id, input),
+    onSuccess: () => qc.invalidateQueries({ queryKey: venueKeys.sections }),
+  })
+}
+
+export function useDeleteInfoSection() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => deleteInfoSection(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: venueKeys.sections }),
+  })
+}
+
+export function useMoveInfoSection() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, direction }: { id: string; direction: -1 | 1 }) => moveInfoSection(id, direction),
+    onSettled: () => qc.invalidateQueries({ queryKey: venueKeys.sections }),
+  })
+}
+
+/** The section shows the change at once (its own state); on success the cache takes it over, then refetches. */
+export function useSetBuiltinAmenity() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ key, on }: { key: AmenityKey; on: boolean }) => setBuiltinAmenity(key, on),
+    onSuccess: (_data, { key, on }) => {
+      qc.setQueryData<Amenity[]>(venueKeys.amenities, (rows = []) => on
+        ? [...rows.filter((r) => r.builtin_key !== key),
+            { id: `saved-${key}`, builtin_key: key, custom_name: null, created_at: new Date().toISOString() }]
+        : rows.filter((r) => r.builtin_key !== key))
+      void qc.invalidateQueries({ queryKey: venueKeys.amenities })
+    },
+  })
+}
+
+export function useAddCustomAmenity() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (name: string) => addCustomAmenity(name),
+    onSuccess: () => qc.invalidateQueries({ queryKey: venueKeys.amenities }),
+  })
+}
+
+export function useRemoveAmenity() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => removeAmenity(id),
+    onSettled: () => qc.invalidateQueries({ queryKey: venueKeys.amenities }),
+  })
 }

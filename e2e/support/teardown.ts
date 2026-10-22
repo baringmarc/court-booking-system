@@ -40,6 +40,10 @@ export default async function teardown() {
     await service.storage.from('venue-media').remove([settings.banner_path])
   }
 
+  // Tagged venue info sections (T9.11h).
+  const { error: infoError } = await service.from('venue_info_sections').delete().like('title', `${E2E_PREFIX}%`)
+  if (infoError) throw infoError
+
   // Tagged open play sessions (their court rows cascade).
   const { error: sessionsError } = await service.from('open_play_sessions').delete().like('title', `${E2E_PREFIX}%`)
   if (sessionsError) throw sessionsError

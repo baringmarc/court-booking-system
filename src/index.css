@@ -402,3 +402,11 @@ fieldset.field legend { padding: 0; margin-bottom: 6px; }
 .spinner-inline { display: inline-block; width: 1em; height: 1em; border-width: 2px; vertical-align: -0.15em; flex-shrink: 0; } /* .btn's gap spaces it */
 .alert-busy { display: flex; align-items: flex-start; gap: 10px; }
 .alert-busy .spinner-inline { margin-top: 0.25em; }
+/* Venue info admin (T9.11h). */
+.map-frame { display: block; width: 100%; aspect-ratio: 16 / 9; border: 1px solid var(--border); border-radius: 8px; background: var(--accent-soft); }
+.amenity-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px 16px; font-weight: 400; }
+.amenity-check { display: inline-flex; align-items: center; gap: 8px; }
+.amenity-icon { width: 20px; height: 20px; color: var(--accent); flex-shrink: 0; }
+.info-section-row { flex-wrap: wrap; }
+.info-section-row .info-section-form { flex: 1 1 100%; padding: 8px 0; }
+.grow { flex: 1 1 200px; }
