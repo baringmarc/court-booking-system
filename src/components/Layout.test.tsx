@@ -1,10 +1,22 @@
+import type { ReactNode } from 'react'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { createMemoryRouter, Link, MemoryRouter, RouterProvider, useLocation } from 'react-router-dom'
-import { describe, expect, it } from 'vitest'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { describe, expect, it, vi } from 'vitest'
 import { authState } from '../test/authState'
 import { AuthContext } from '../features/auth/AuthContext'
 import { Layout } from './Layout'
+
+// The footer reads the venue's social links (T9.11i); none here.
+vi.mock('../features/venue/api', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  fetchSocialLinks: vi.fn().mockResolvedValue([]),
+}))
+
+const withClient = (ui: ReactNode) => (
+  <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>{ui}</QueryClientProvider>
+)
 
 function Hash() {
   return <p>hash:{useLocation().hash}</p>
@@ -23,19 +35,19 @@ function renderLayout(initialEntry = '/') {
     }],
     { initialEntries: [initialEntry] },
   )
-  render(
+  render(withClient(
     <AuthContext.Provider value={authState('anon')}>
       <RouterProvider router={router} />
-    </AuthContext.Provider>,
+    </AuthContext.Provider>),
   )
 }
 
 describe('Layout (public header)', () => {
   it('has no Admin link, even for an admin', () => {
-    render(
+    render(withClient(
       <AuthContext.Provider value={authState('admin')}>
         <MemoryRouter><Layout /></MemoryRouter>
-      </AuthContext.Provider>,
+      </AuthContext.Provider>),
     )
     const nav = screen.getByRole('navigation', { name: 'Main' })
     expect(nav).toHaveTextContent('Book')

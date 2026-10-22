@@ -1,6 +1,7 @@
 import { Link, NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../features/auth/useAuth";
 import { useMainFocus } from "./useMainFocus";
+import { FooterSocials } from "../features/venue/VenueInfo";
 
 export function Layout() {
   const { user, profile, loading, signOut } = useAuth();
@@ -56,6 +57,7 @@ export function Layout() {
       <footer className="site-footer">
         <div className="container muted">
           © {new Date().getFullYear()} Claudex Courts
+          <FooterSocials />
         </div>
       </footer>
     </div>

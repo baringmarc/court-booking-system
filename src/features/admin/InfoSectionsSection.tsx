@@ -34,7 +34,7 @@ export function InfoSectionsSection() {
       <h2 id="info-sections-heading">Info sections</h2>
       <p className="muted small">
         Waivers, policies and house rules, shown to players in this order. Use a blank line between paragraphs and
-        **double asterisks** for bold.
+        **double asterisks** for bold. Checkout links to the first section with "cancel" in its title.
       </p>
       {sections.isPending ? (
         <PageLoader />

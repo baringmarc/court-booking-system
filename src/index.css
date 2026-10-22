@@ -410,3 +410,19 @@ fieldset.field legend { padding: 0; margin-bottom: 6px; }
 .info-section-row { flex-wrap: wrap; }
 .info-section-row .info-section-form { flex: 1 1 100%; padding: 8px 0; }
 .grow { flex: 1 1 200px; }
+/* Venue info for players (T9.11i). */
+.venue-block { margin-top: 24px; }
+.amenity-chips { list-style: none; display: flex; flex-wrap: wrap; gap: 8px; padding: 0; margin: 0; }
+.amenity-chip {
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px;
+  border: 1px solid var(--slot-free-border); background: var(--surface); font-size: 0.9rem;
+}
+.venue-address { display: flex; gap: 8px; align-items: flex-start; margin: 0; }
+.social-links { list-style: none; display: flex; flex-wrap: wrap; gap: 8px 16px; padding: 0; margin: 0; }
+.social-links a { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; }
+.social-icon { width: 18px; height: 18px; flex-shrink: 0; }
+.footer-socials { margin-top: 8px; }
+.info-panel { scroll-margin-top: 16px; }
+.info-panel summary { cursor: pointer; font-weight: 600; min-height: 28px; }
+.info-panel .info-body { margin-top: 12px; }
+.info-panel .info-body p:last-child { margin-bottom: 0; }
