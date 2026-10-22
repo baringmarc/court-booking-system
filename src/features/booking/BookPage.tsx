@@ -124,7 +124,8 @@ function BookingBoard({ settings, courts, hours }: { settings: VenueSettings; co
         )}
       </div>
 
-      <details className="court-info">
+      {/* Open by default (T9.11f); players can still collapse it. */}
+      <details className="court-info" open>
         <summary>About the {SPORT_LABELS[sport].toLowerCase()} courts</summary>
         <CourtTiles courts={sportCourts} detailed />
       </details>

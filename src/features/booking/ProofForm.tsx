@@ -90,6 +90,7 @@ export function ProofForm({ total, currency, pending, error, onSubmit }: Props) 
         <div className="alert alert-error" role="alert"><p>{bookingErrorMessage(error)}</p></div>
       )}
       <button type="submit" className="btn btn-block" disabled={pending}>
+        {pending && <span className="spinner spinner-inline" aria-hidden="true" />}
         {pending ? 'Uploading…' : 'Submit proof of payment'}
       </button>
     </form>

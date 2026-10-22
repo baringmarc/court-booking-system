@@ -158,8 +158,9 @@ describe('BookingPage: starting an online payment', () => {
     await waitFor(() => expect(goToCheckout).toHaveBeenCalledWith('https://checkout.paymongo.test/stub/cs_stub_1'))
     expect(startPaymongoCheckout).toHaveBeenCalledWith({ referenceCode: REF, token: TOKEN })
     expect(recallGuestToken(REF)).toBe(TOKEN)
-    // Stays disabled while the browser is on its way to PayMongo.
-    expect(screen.getByRole('button', { name: 'Opening PayMongo…' })).toBeDisabled()
+    // Stays busy while the browser is on its way to PayMongo.
+    expect(screen.getByRole('button', { name: 'Taking you to PayMongo…' })).toBeDisabled()
+    expect(screen.getByText(/Taking you to PayMongo… This can take a few seconds/)).toBeInTheDocument()
   })
 
   it('shows a readable error when the checkout cannot start', async () => {
@@ -171,6 +172,8 @@ describe('BookingPage: starting an online payment', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Pay online with PayMongo' }))
     expect(await screen.findByRole('alert')).toHaveTextContent("Online payment isn't available right now")
     expect(goToCheckout).not.toHaveBeenCalled()
+    // Usable again: the player can retry or upload a proof instead.
+    expect(screen.getByRole('button', { name: 'Pay online with PayMongo' })).toBeEnabled()
   })
 
   it('shows no return message on a normal visit', async () => {

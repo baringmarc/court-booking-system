@@ -63,7 +63,8 @@ test('an admin builds a court gallery that players see on the home page and /boo
     await expect(cover).toHaveJSProperty('naturalWidth', 1)
 
     await page.goto('/book?sport=tennis')
-    await page.getByText('About the tennis courts').click()
+    // Open by default (T9.11f).
+    await expect(page.getByText('About the tennis courts')).toBeVisible()
     const gallery = page.getByRole('group', { name: `Photos of ${name}` })
     await expect(gallery.getByRole('img')).toHaveCount(2)
     await expect(gallery.getByText('1 of 2')).toBeVisible()

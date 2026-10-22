@@ -398,3 +398,7 @@ fieldset.field legend { padding: 0; margin-bottom: 6px; }
 .viewer-btn:focus-visible { outline: 2px solid #f2f4f3; outline-offset: 2px; }
 .viewer-nav .viewer-btn { font-size: 1.5rem; line-height: 1; }
 .viewer:focus { outline: none; }
+/* A small spinner inside a button or an alert (T9.11f). */
+.spinner-inline { display: inline-block; width: 1em; height: 1em; border-width: 2px; vertical-align: -0.15em; flex-shrink: 0; } /* .btn's gap spaces it */
+.alert-busy { display: flex; align-items: flex-start; gap: 10px; }
+.alert-busy .spinner-inline { margin-top: 0.25em; }

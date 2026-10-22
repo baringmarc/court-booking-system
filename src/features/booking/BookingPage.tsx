@@ -11,7 +11,7 @@ import { bookingErrorCode } from './errors'
 import type { BookingDetail } from './api'
 import { readGuestToken, tokenHash } from './guestLink'
 import { useBooking, useCancelBooking, useStartPaymongoCheckout, useSubmitPaymentProof } from './hooks'
-import { PaymongoReturnNotice, PayOnline } from './PayOnline'
+import { PaymongoReturnNotice, PayOnline, type PayOnlineState } from './PayOnline'
 import { paymongoReturnState, readPaidParam, readReturnState, recallCheckoutStart, returnPollMs, tokenToRestore } from './paymongoReturn'
 import { ProofForm } from './ProofForm'
 import { useNow } from './useNow'
@@ -122,17 +122,15 @@ function ProofUpload({ booking, token, currency }: { booking: BookingDetail; tok
 function PayOnlineButton({ reference, token }: { reference: string; token: string | null }) {
   const checkout = useStartPaymongoCheckout(reference, token)
   const { reset } = checkout
-  // Back from PayMongo through the back/forward cache: the page is restored as it was ("Opening PayMongo…").
+  // Back from PayMongo through the back/forward cache: the page is restored as it was ("Taking you to PayMongo…").
   useEffect(() => {
     const onPageShow = (e: PageTransitionEvent) => { if (e.persisted) reset() }
     window.addEventListener('pageshow', onPageShow)
     return () => window.removeEventListener('pageshow', onPageShow)
   }, [reset])
-  // isSuccess too: the browser is already on its way to PayMongo.
-  return (
-    <PayOnline pending={checkout.isPending || checkout.isSuccess} error={checkout.isError ? checkout.error : null}
-      onPay={() => checkout.mutate()} />
-  )
+  // isSuccess: the browser is already on its way to PayMongo, so the page stays busy until it leaves (T9.11f).
+  const state: PayOnlineState = checkout.isPending ? 'opening' : checkout.isSuccess ? 'redirecting' : 'idle'
+  return <PayOnline state={state} error={checkout.isError ? checkout.error : null} onPay={() => checkout.mutate()} />
 }
 
 function CancelSection({ booking, token, timeZone, cutoffHours, now }: {
