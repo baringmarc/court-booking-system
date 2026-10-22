@@ -837,6 +837,23 @@ Researched on 2026-10-20 from the current migrations and client code, with local
   - **Availability:** `get_availability` gains `open_play_session_id uuid`, and the new status `open_play` sits after `booked` and `blackout` and before "in progress". The public details come from the table (public read).
   - **Production order:** the live frontend (PR #9) doesn't know `open_play`, and would show such a slot as a disabled blank button. Don't create sessions on production until T9.11d is on `master`.
 
+### Venue info: location, socials, info sections, amenities (T9.11g)
+- **Status:** Decided (SPEC §10, 2026-10-22; the user approved the plan, the key-if-set map and lucide-react)
+- **Question:** How does the venue store and show its location, social links, admin-defined info sections and amenities?
+- **Findings:**
+  - **Embedded map.** The official Maps Embed API is "available at no charge with unlimited usage", but every URL carries `key=…`: `https://www.google.com/maps/embed/v1/place?key=API_KEY&q=…`, where `q` is a place name, an address, a plus code or a Place ID ([Embed API get started](https://developers.google.com/maps/documentation/embed/get-started)). The key ends up in the page anyway, so it's a browser key restricted by HTTP referrer, not a secret. The keyless `https://maps.google.com/maps?q=…&output=embed` works today but isn't documented anywhere, so it can stop working without notice.
+  - **"Open in Google Maps."** Maps URLs need no key: `https://www.google.com/maps/search/?api=1&query=…` ([Maps URLs](https://developers.google.com/maps/documentation/urls/get-started)).
+  - **Headers.** `vercel.json` has only the SPA rewrite and `index.html` has no CSP, so nothing blocks a `www.google.com` iframe. If a CSP is added later, it needs `frame-src https://www.google.com`.
+  - **Body format.** `payment_instructions` is rendered by `SimpleMarkdown` (paragraphs, line breaks, `**bold**`; React escapes the rest, so there's no raw HTML). Info sections can reuse it.
+  - **Ordering.** Courts are reordered with `move_court(id, direction)` (security definer; renumbers `sort_order` 0..n-1).
+  - **Lesson from T9.11c.** A check constraint that calls a `private` function needs `execute` for every role that writes the table. Admin RLS writes run as `authenticated`. So the URL checks here are written inline in the constraint, without calling a function.
+  - **Icons.** `lucide-react` 1.61.0 is ISC-licensed, and each icon is its own ES module, so only the icons imported reach the bundle. Measure the real cost after the build (H6).
+- **Recommendation:**
+  - **Location:** `venue_settings` gains `address` (≤ 300) and `maps_query` (≤ 300; what the map searches, falling back to the address). The embed URL is **built from these fields, never pasted**: the Embed API when `VITE_GOOGLE_MAPS_EMBED_KEY` is set (a free key, referrer-restricted to the production domain and localhost), otherwise the keyless URL. The "Open in Google Maps" button uses Maps URLs.
+  - **Socials:** a table `venue_social_links (platform venue_social_platform primary key, url)`. Platforms are `facebook`, `instagram`, `tiktok`, `youtube`, `x`, `messenger` and `website`. The URL is `https://` (≤ 500), and an inline check limits each platform to its own hosts: facebook.com or fb.com; instagram.com; tiktok.com; youtube.com or youtu.be; x.com or twitter.com; m.me or messenger.com; any host for `website`. Anyone reads; admins write through RLS (upsert and delete).
+  - **Info sections:** a table `venue_info_sections (id, title 1–80, body ≤ 5000 in the SimpleMarkdown subset, sort_order, timestamps)`. Anyone reads; admins insert, update and delete through RLS. `move_info_section(id, direction)` reorders like `move_court`. The migration pre-fills Waiver, Reminders and policies, Cancellation and refund policy (matching the app's rules: free cancellation up to the cutoff, no refunds through the app) and House rules with editable starter text.
+  - **Amenities:** a table `venue_amenities (id, builtin_key, custom_name, created_at)` with exactly one of the two set. `builtin_key` is unique and limited to 15 keys (restrooms, parking, showers, canteen, cafe, tables, night_lights, wifi, lockers, aircon, water_station, first_aid, equipment_rental, seating, pro_shop); `custom_name` is 1–40 characters and unique ignoring case. A row means the amenity is switched on. They're shown in catalog order, then the custom ones in the order they were added; there's no reordering. Icons come from `lucide-react`, with a generic icon for custom amenities. Anyone reads; admins insert and delete through RLS.
+
 ### Theme (SPEC §11 Q1)
 - **Status:** Decided (SPEC §10, 2026-10-20)
 - **Recommendation:**

@@ -584,14 +584,64 @@ export type Database = {
         }
         Relationships: []
       }
+      venue_amenities: {
+        Row: {
+          builtin_key: string | null
+          created_at: string
+          custom_name: string | null
+          id: string
+        }
+        Insert: {
+          builtin_key?: string | null
+          created_at?: string
+          custom_name?: string | null
+          id?: string
+        }
+        Update: {
+          builtin_key?: string | null
+          created_at?: string
+          custom_name?: string | null
+          id?: string
+        }
+        Relationships: []
+      }
+      venue_info_sections: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          sort_order: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          body?: string
+          created_at?: string
+          id?: string
+          sort_order?: number
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          sort_order?: number
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       venue_settings: {
         Row: {
+          address: string
           banner_alt: string | null
           banner_path: string | null
           booking_window_days: number
           cancel_cutoff_hours: number
           currency: string
           id: boolean
+          maps_query: string
           max_rejections: number
           name: string
           payment_hold_minutes: number
@@ -602,12 +652,14 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          address?: string
           banner_alt?: string | null
           banner_path?: string | null
           booking_window_days?: number
           cancel_cutoff_hours?: number
           currency?: string
           id?: boolean
+          maps_query?: string
           max_rejections?: number
           name: string
           payment_hold_minutes?: number
@@ -618,12 +670,14 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          address?: string
           banner_alt?: string | null
           banner_path?: string | null
           booking_window_days?: number
           cancel_cutoff_hours?: number
           currency?: string
           id?: boolean
+          maps_query?: string
           max_rejections?: number
           name?: string
           payment_hold_minutes?: number
@@ -632,6 +686,24 @@ export type Database = {
           sport_order?: Database["public"]["Enums"]["sport"][]
           timezone?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      venue_social_links: {
+        Row: {
+          platform: Database["public"]["Enums"]["venue_social_platform"]
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          platform: Database["public"]["Enums"]["venue_social_platform"]
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          platform?: Database["public"]["Enums"]["venue_social_platform"]
+          updated_at?: string
+          url?: string
         }
         Relationships: []
       }
@@ -762,6 +834,10 @@ export type Database = {
         Args: { p_court_id: string; p_direction: number }
         Returns: undefined
       }
+      move_info_section: {
+        Args: { p_direction: number; p_id: string }
+        Returns: undefined
+      }
       paymongo_checkout_for: {
         Args: { p_booking_id: string }
         Returns: {
@@ -858,6 +934,14 @@ export type Database = {
       payment_review_status: "pending" | "approved" | "rejected"
       sport: "badminton" | "pickleball" | "basketball" | "tennis"
       user_role: "player" | "admin"
+      venue_social_platform:
+        | "facebook"
+        | "instagram"
+        | "tiktok"
+        | "youtube"
+        | "x"
+        | "messenger"
+        | "website"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1008,6 +1092,15 @@ export const Constants = {
       payment_review_status: ["pending", "approved", "rejected"],
       sport: ["badminton", "pickleball", "basketball", "tennis"],
       user_role: ["player", "admin"],
+      venue_social_platform: [
+        "facebook",
+        "instagram",
+        "tiktok",
+        "youtube",
+        "x",
+        "messenger",
+        "website",
+      ],
     },
   },
 } as const
