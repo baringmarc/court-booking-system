@@ -348,6 +348,83 @@ export type Database = {
           },
         ]
       }
+      open_play_courts: {
+        Row: {
+          court_id: string
+          during: unknown
+          session_id: string
+        }
+        Insert: {
+          court_id: string
+          during: unknown
+          session_id: string
+        }
+        Update: {
+          court_id?: string
+          during?: unknown
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "open_play_courts_court_id_fkey"
+            columns: ["court_id"]
+            isOneToOne: false
+            referencedRelation: "courts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "open_play_courts_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "open_play_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      open_play_sessions: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          details: string
+          ends_at: string
+          id: string
+          links: Json
+          starts_at: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          details?: string
+          ends_at: string
+          id?: string
+          links?: Json
+          starts_at: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          details?: string
+          ends_at?: string
+          id?: string
+          links?: Json
+          starts_at?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "open_play_sessions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       operating_hours: {
         Row: {
           close_time: string
@@ -612,6 +689,17 @@ export type Database = {
           reference_code: string
         }[]
       }
+      create_open_play: {
+        Args: {
+          p_court_ids: string[]
+          p_details?: string
+          p_end: string
+          p_links?: Json
+          p_start: string
+          p_title: string
+        }
+        Returns: string
+      }
       create_walk_in: {
         Args: {
           p_amount?: number
@@ -629,6 +717,7 @@ export type Database = {
         }[]
       }
       delete_court: { Args: { p_court_id: string }; Returns: undefined }
+      delete_open_play: { Args: { p_id: string }; Returns: undefined }
       finish_email: {
         Args: { p_error?: string; p_id: string; p_outcome: string }
         Returns: Database["public"]["Enums"]["email_status"]
@@ -638,6 +727,7 @@ export type Database = {
         Returns: {
           booker_first_name: string
           court_id: string
+          open_play_session_id: string
           price: number
           slot_end: string
           slot_start: string
@@ -736,6 +826,18 @@ export type Database = {
         }[]
       }
       set_operating_hours: { Args: { p_hours: Json }; Returns: undefined }
+      update_open_play: {
+        Args: {
+          p_court_ids: string[]
+          p_details?: string
+          p_end: string
+          p_id: string
+          p_links?: Json
+          p_start: string
+          p_title: string
+        }
+        Returns: string
+      }
     }
     Enums: {
       booking_source: "online" | "walk_in"
