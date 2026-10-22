@@ -275,7 +275,9 @@ Guest access uses a random token. It is shown once (in the confirmation page lin
 
 The UI is mobile-first: most players will book from a phone.
 
-**Site banner (M6).** When the venue has a banner, the **home page** (`/`) shows it just below the header, before the page content. Other pages never show it. It's an image with alt text only (no headline or link). Without one (or while settings load or fail), the section isn't rendered at all.
+**Site banner (M6).** When the venue has a banner, the **home page** (`/`) shows it just below the header, before the page content. Other pages never show it. It's an image with alt text only (no headline or link). Tapping it opens the whole image in the photo viewer (M9). Without one (or while settings load or fail), the section isn't rendered at all.
+
+**Photo viewer (M9, T9.11e).** Tapping a court photo (a home page cover, any `/book` gallery photo) or the banner opens a full-screen viewer: a native modal `<dialog>` with the whole image (`object-fit: contain`, always on a dark background), a "2 of 4" counter, previous and next buttons, the arrow keys and a one-finger swipe between that court's photos (a home page cover opens all of them), and Close. Escape closes it, focus is trapped while it's open and returns to the photo afterwards, and the gallery strip follows to the photo it closed on. Pinch zoom is the browser's. No library.
 
 **Admin shell.** Every `/admin/*` route renders in its own `AdminLayout` (admin nav, no public header, footer or booking nav), not inside the public `Layout`. The public header has no Admin link; staff go to `/admin` directly, and unauthenticated visits redirect to `/admin/login` and return to the requested page after sign-in. The shell only controls what is shown: admin access itself is enforced in the database (`profiles.role` can't be changed by users, and every admin read and write checks `private.is_admin()`). It is still one Vite app, and admin code stays lazy-loaded out of the public bundle. If a signed-in account's profile (and so its role) can't be loaded, the admin shell says "Couldn't load your account" with Try again and Log out, never "Admins only" (M8).
 

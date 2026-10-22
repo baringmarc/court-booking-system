@@ -373,3 +373,28 @@ button.day:focus-visible, .slot:focus-visible, .date-nav input:focus-visible { o
 fieldset.field { border: 0; margin: 0; padding: 0; min-width: 0; }
 fieldset.field legend { padding: 0; margin-bottom: 6px; }
 .check-list { display: flex; flex-wrap: wrap; gap: 8px 20px; font-weight: 400; }
+
+/* Photos that open full screen (T9.11e). */
+.photo-open { display: block; width: 100%; padding: 0; border: 0; background: none; cursor: zoom-in; border-radius: 8px; }
+.photo-open:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.banner-open { margin-top: 16px; border-radius: var(--radius); }
+.banner-open .home-banner { margin-top: 0; }
+/* The full-screen viewer: always dark, whatever the theme, so photos read well. */
+.viewer {
+  width: 100vw; max-width: none; height: 100dvh; max-height: none; margin: 0; padding: 0; border: 0;
+  background: #0b0d0c; color: #f2f4f3;
+}
+.viewer[open] { display: grid; grid-template-rows: auto 1fr auto; }
+.viewer::backdrop { background: #0b0d0c; }
+.viewer-bar, .viewer-nav { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 16px; }
+.viewer-stage { display: flex; align-items: center; justify-content: center; min-height: 0; overflow: hidden; touch-action: pan-y pinch-zoom; }
+.viewer-img { max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; }
+.viewer-error { color: #c9d1cd; }
+.viewer-btn {
+  min-width: 44px; min-height: 44px; padding: 0 14px; font: inherit; font-weight: 600; font-size: 1rem;
+  color: #f2f4f3; background: rgba(255, 255, 255, 0.12); border: 1px solid rgba(255, 255, 255, 0.35); border-radius: 999px; cursor: pointer;
+}
+.viewer-btn:disabled { opacity: 0.45; cursor: default; }
+.viewer-btn:focus-visible { outline: 2px solid #f2f4f3; outline-offset: 2px; }
+.viewer-nav .viewer-btn { font-size: 1.5rem; line-height: 1; }
+.viewer:focus { outline: none; }

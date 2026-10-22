@@ -1,6 +1,5 @@
 import type { CourtWithPhotos } from './api'
 import { CourtGallery } from './CourtGallery'
-import { CourtPhoto } from './CourtPhoto'
 
 type Props = {
   courts: CourtWithPhotos[]
@@ -17,7 +16,7 @@ export function CourtTiles({ courts, detailed = false }: Props) {
           {detailed ? (
             <CourtGallery court={c} photos={c.court_photos} />
           ) : (
-            <CourtPhoto court={c} path={c.court_photos[0]?.path ?? null} />
+            <CourtGallery court={c} photos={c.court_photos} coverOnly />
           )}
           <div className="court-tile-body">
             <p className="court-tile-name">{c.name}</p>

@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { ErrorMessage } from '../../components/ErrorMessage'
 import { PageLoader } from '../../components/PageLoader'
 import type { OpenPlaySession } from './api'
@@ -20,13 +20,14 @@ type Props = {
 export function OpenPlayDialog({ sessionId, sessions, courtName, timeZone, onClose }: Props) {
   const ref = useRef<HTMLDialogElement>(null)
   const titleId = useId()
+  // Whatever had focus before the first render (the slot), so a StrictMode re-run can't swap in the dialog's button.
+  const [opener] = useState(() => (document.activeElement instanceof HTMLElement ? document.activeElement : null))
 
   useEffect(() => {
     const dialog = ref.current
-    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null
     if (dialog && !dialog.open) dialog.showModal()
     return () => opener?.focus()
-  }, [])
+  }, [opener])
 
   const session = sessions.data?.find((s) => s.id === sessionId)
   const courts = session?.court_ids.map(courtName).filter((name): name is string => !!name) ?? []

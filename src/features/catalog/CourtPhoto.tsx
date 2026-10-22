@@ -10,20 +10,27 @@ type Props = {
   path: string | null
   /** Defaults to "Photo of {court}". */
   alt?: string
+  /** Makes the photo a button that opens it full screen (T9.11e). The placeholder never opens. */
+  onOpen?: () => void
 }
 
 /**
  * A court photo at 16:9, lazy-loaded with fixed dimensions so it never shifts the layout. No photo, or one
  * that fails to load, gets a neutral placeholder for the court's sport.
  */
-export function CourtPhoto({ court, path, alt }: Props) {
+export function CourtPhoto({ court, path, alt, onOpen }: Props) {
   // Remembers which path failed, so a new photo gets a fresh try without an effect.
   const [failedPath, setFailedPath] = useState<string | null>(null)
 
   if (path && path !== failedPath) {
-    return (
-      <img className="court-photo" src={mediaUrl(path)} alt={alt ?? `Photo of ${court.name}`} width={640} height={360}
+    const text = alt ?? `Photo of ${court.name}`
+    const img = (
+      <img className="court-photo" src={mediaUrl(path)} alt={text} width={640} height={360}
         loading="lazy" decoding="async" onError={() => setFailedPath(path)} />
+    )
+    if (!onOpen) return img
+    return (
+      <button type="button" className="photo-open" aria-label={`View full screen: ${text}`} onClick={onOpen}>{img}</button>
     )
   }
   return <SportPlaceholder sport={court.sport} />
