@@ -7,8 +7,8 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
 > Update this section at the end of every session or task. Keep it short; it's the first thing the next session reads.
 
 - **Current milestone:** 9 (Venue admin upgrades). The breakdown was approved on 2026-10-20 (T9.1–T9.12). M8 ✅ done on 2026-10-20.
-- **Next task:** T9.12 (close out M9 and the project: README, screenshots, demo video script, the final review). It's **not** covered by the pre-approval, so it goes back to the normal plan gate.
-- **State:** T9.1–T9.11 and T9.11a done (2026-10-21). T9.11a (the user's review of T9.10): the editor's 24-hour checkbox is gone, and 24 hours is only 12 AM → midnight; an open day can't close at its opening time. Its migration is pushed, and production's Saturday moved from 06:00 → 06:00 to 00:00 → 24:00 (the user's choice). Every M9 migration is live, and the contract step dropped `courts.photo_path`. Production's frontend is at PR #9 (through T9.8); T9.9–T9.11 reach it when `develop` is merged into `master`. **Until then, don't set overnight hours on production:** the live schedule editor, rate grid and "today" don't understand them yet. M8 done (2026-10-20): deploy at https://court-booking-system-ashen.vercel.app. Run `npm run smoke:prod -- --links-only` after each merge.
+- **Next task:** T9.11c and T9.11d (open play), T9.11e (photo viewer), T9.11f (court details open by default, PayMongo loading), T9.11g–i (venue info: location, socials, info sections, amenities) and T9.11j (waiver acceptance, **blocked on the user's client**), all added on 2026-10-21 at the user's request and placed before T9.12 (close-out: README, screenshots, demo video script, the final review). None of these is covered by the M9 pre-approval, so each goes through the normal plan gate. T9.11c starts with research (RESEARCH M9 "Open play") and needs the user to confirm the session's detail fields.
+- **State:** T9.1–T9.11, T9.11a (2026-10-21) and T9.11b (2026-10-22: `/book` rows show "1 PM – 2 PM") done. T9.11a (the user's review of T9.10): the editor's 24-hour checkbox is gone, and 24 hours is only 12 AM → midnight; an open day can't close at its opening time. Its migration is pushed, and production's Saturday moved from 06:00 → 06:00 to 00:00 → 24:00 (the user's choice). Every M9 migration is live, and the contract step dropped `courts.photo_path`. Production's frontend is at PR #9 (through T9.8); T9.9–T9.11 reach it when `develop` is merged into `master`. **Until then, don't set overnight hours on production:** the live schedule editor, rate grid and "today" don't understand them yet. M8 done (2026-10-20): deploy at https://court-booking-system-ashen.vercel.app. Run `npm run smoke:prod -- --links-only` after each merge.
 - **Blockers / notes:**
   - Emails locally: `supabase/functions/.env` must keep `EMAIL_TRANSPORT=mailpit`, `MAILPIT_URL` and `EMAIL_WORKER_SECRET` (see `.env.example`) for smoke and e2e. Restart the stack after changing it. Your PayMongo test key is commented out there; uncomment it only for real local test payments, and expect `pay-online` e2e and `smoke:paymongo` to fail while it's active.
   - Scope added on 2026-10-19 (SPEC §9, §10, §11): slot status colors are in T8.5, the settings spacing fix is in T8.4, and M9 is outlined at the end of this file. The README moved there. Booker names are **first name only** in public. A court can be deleted only if it was never booked.
@@ -1074,8 +1074,79 @@ Out of scope for M9: new sports, live payments, Resend, refunds, SMS.
   - **Not checked:** production bookings on Sunday 00:00–06:00 made under the old Saturday 06 → 06 (a read-only production query was blocked by the permission classifier). They stay valid but now sit outside opening hours.
 
 
+### [x] T9.11b Slot grid time ranges
+- **Depends:** T9.10
+- **Do (the user's request, 2026-10-21):** on `/book`, each row of the slot grid shows its time as a range instead of its start: "1 PM – 2 PM", in the app's existing hour format. After-midnight rows keep "(next day)". The slot buttons' accessible labels use the same range ("Court 1, 1 PM – 2 PM, ₱300"). The selection bar and other pages stay as they are.
+- **Acceptance:**
+  - Testing Library: a normal row, an after-midnight row, and the last row before a midnight close ("11 PM – 12 AM") show ranges, and so do the button labels.
+  - The grid still fits a 360px phone without the time column wrapping badly (checked in the e2e phone project or by hand).
+  - e2e flows that select slots by accessible name are updated.
+- **Notes:** UI only, no database change. Each row's end comes from its slots' `slot_end` (start only if a row had none). "(next day)" sits on its own small line (`.slot-next-day`), so the time column stays one line wide at 360px (checked with a screenshot). Tests: `SlotGrid.test.tsx` (normal, after-midnight and 11 PM – 12 AM rows and labels). e2e `overnight` and `walk-in` selectors updated; e2e 39 passed, 1 skipped (banner). The reviewer passed it with no findings.
+
+### [ ] T9.11c Research and migration: open play sessions
+- **Depends:** T9.11a
+- **Do (the user's request, 2026-10-21):** admins register **one-off open play sessions**. A session blocks its court(s) for a time range. Players **can't book** those slots. They see them as "Open play" on `/book` and can open the details. No online sign-up or payment.
+  - **Research first** (RESEARCH M9 "Open play"), then record the decisions in SPEC §10:
+    - **Storage:** a new `open_play_sessions` table, or extend `blackouts`, which already block a court or all courts for a range. Can one session cover several courts?
+    - **No clashes:** how a session and bookings exclude each other. A cross-table exclusion constraint isn't possible, so `validate_booking_slot` refuses booking into a session, and creating a session over active bookings is refused, with locking so the two can't race.
+    - **Availability:** `get_availability` gives the slot a new status `open_play`, plus the session id, so the grid can open its details.
+    - **Detail fields:** proposed: a title, free-text details, and up to a few labelled links, **https only**, such as an RSVP form or Reclub link. Any fee is written as text in the details. The user confirms this at the plan gate.
+    - **Holds and walk-ins:** the cron, `review_payment` and walk-ins all respect sessions the same way they respect blackouts.
+  - Migration: the table (or columns), RLS (anyone reads, admins write through RPCs), and admin RPCs to create, edit and delete a session. A session that has already started can't be edited.
+- **Acceptance:**
+  - pgTAP: RLS for anon, player and admin. A booking, walk-in or held-booking reconfirm into a session is refused. A session over an active booking is refused. `get_availability` reports `open_play`. Link URLs that aren't https are refused.
+  - `db:push` and `db:types` have been run.
+- **Notes:** This is new DB and security work, and it's **not** covered by the M9 pre-approval, so it waits at the plan gate.
+
+### [ ] T9.11d Open play UI
+- **Depends:** T9.11c
+- **Do:**
+  - **Admin** (lazy-loaded): create, edit and delete sessions with a date, time range, court(s), title, details and links. List upcoming sessions. A clash with bookings shows the server's message.
+  - **`/book`:** open play slots get their own status color and legend entry (distinct and accessible, like the T8.5 colors) and the label "Open play". Clicking one opens a details dialog with the title, time, courts, details and links. Links open in a new tab with `rel="noopener noreferrer"`. The slot can't be selected for booking.
+  - The admin day view shows sessions too.
+- **Acceptance:** Testing Library covers the admin form (including the clash error), the grid status and the details dialog (keyboard and screen reader accessible). e2e: an admin creates a session, a guest sees "Open play" on `/book`, opens the details and can't book the slot, and the session is removed in teardown (`E2E…` data).
+
+### [ ] T9.11e Photo viewer
+- **Do (the user's request, 2026-10-21):** players can tap a court photo, or any gallery photo, to see it properly: a full-screen viewer that shows the whole image, swipe or previous/next between that court's photos with a "2 of 4" counter, and a close button. Escape, the arrow keys, focus trapping and returning focus all work. Uses the native `<dialog>` and the T9.7 gallery code (no library), with pinch zoom left to the browser. Also opens from the banner if that's simple.
+- **Acceptance:** Testing Library covers open, next/previous, Escape and focus returning to the photo. axe passes on the open viewer. e2e on the phone project opens a photo and closes it.
+
+### [ ] T9.11f Booking page polish: court details open, PayMongo loading
+- **Do (the user's request, 2026-10-21):**
+  - On `/book`, "About the … courts" is **open by default**. It's a `<details>` element that currently starts closed. Players can still collapse it.
+  - A proper loading state while going to PayMongo. After "Pay online", the button and the page show a clear "Taking you to PayMongo…" state (a spinner, disabled controls, `aria-live`) until the browser leaves. It stays if the redirect is slow. If creating the checkout fails, it returns to a usable state with the error. Check the other redirects and long waits (the PayMongo return page, proof upload) for the same gap.
+- **Acceptance:** Testing Library covers the open details and the pending, redirecting and error states of Pay online. The e2e `pay-online` flow still passes.
+
+### [ ] T9.11g Research and migration: venue info (location, socials, info sections, amenities)
+- **Depends:** T9.11a
+- **Do (the user's request, 2026-10-21):** the venue details admins can set and players see. **Research first** (RESEARCH M9 "Venue info"), then record the decisions in SPEC §10:
+  - **Location:** an address, a Google Maps link and an embedded map. Research whether to use the official Maps Embed API (free, but needs a key restricted to our domains) or the keyless `?output=embed` URL, and how the admin supplies the place (an address, a pasted Maps share link, or a place query). Check any CSP or `frame-src` rules on Vercel. Only `https://www.google.com/maps…` embeds are allowed, built from stored fields, never a pasted iframe.
+  - **Socials:** a fixed set of platforms (proposed: Facebook, Instagram, TikTok, YouTube, X, Messenger, a website), each with an optional URL. https only, checked by host per platform where practical.
+  - **Info sections:** admin-defined sections, each with a title and a body, reorderable (like the T9.2 ordering). Pre-filled, but editable or deletable: Waiver, Reminders and policies, Cancellation and refund policy, House rules. The body format reuses whatever `payment_instructions` uses (plain text or the existing safe markdown), with no raw HTML.
+  - **Amenities:** a built-in catalog of about 15 amenities with icons (CR/restrooms, parking, shower, canteen/food, cafe, tables, night lights, Wi-Fi, lockers, aircon, water station, first aid, equipment rental, seating, pro shop) that admins switch on or off, plus custom amenities by name with a generic icon. Ordering is decided in the research. Pick an icon set (likely `lucide-react`, tree-shaken) and check the bundle cost (H6). The user's reference is a row of pill chips with green outline icons.
+  - **Storage:** new columns on `venue_settings` for the location and socials, and tables for the sections and amenities. RLS: anyone reads, admins write. Length limits and URL checks are in the database.
+- **Acceptance:** pgTAP covers RLS for anon, player and admin, the URL and length checks, and the section and amenity ordering. `db:push` and `db:types` have been run.
+- **Notes:** New DB work, **not** covered by the M9 pre-approval, so it waits at the plan gate.
+
+### [ ] T9.11h Venue info: admin
+- **Depends:** T9.11g
+- **Do:** in admin settings (lazy-loaded): edit the location (with a live map preview), the social links, the info sections (add, edit, delete, reorder) and the amenities (checkboxes with their icons, plus add or remove custom ones). Every form handles loading, empty and error states and shows the server's validation messages.
+- **Acceptance:** Testing Library covers each form, including the validation errors and reordering. e2e: an admin enables an amenity, adds a section and sets a social link, and they appear on the public side (restored in teardown).
+
+### [ ] T9.11i Venue info: player side
+- **Depends:** T9.11h
+- **Do:** on the home page (exact placement settled in the plan, mobile-first):
+  - amenities as a row of chips with icons, like the user's reference
+  - a "Location" section with the address, the embedded map (lazy, `loading="lazy"`, with a title) and an "Open in Google Maps" button
+  - social links as labelled icon links, also in the footer
+  - the info sections at the bottom as expandable panels
+  - Checkout links to the "Cancellation and refund policy" section when there is one. Empty parts are hidden.
+- **Acceptance:** Testing Library covers each part, with data and without. axe passes on the home page. e2e on the phone project checks that the sections render.
+
+### [ ] T9.11j Waiver acceptance (blocked: waiting on the user's client)
+- **Do:** whether players must accept the waiver at checkout (a required checkbox, recorded with the booking and the waiver version) or it is only displayed (already covered by T9.11i's info sections). SPEC §11 has the open question. Plan it only once the client decides. If it isn't needed, mark it `[-]`.
+
 ### [ ] T9.12 Close out M9 and the project
-- **Depends:** T9.1–T9.11
+- **Depends:** T9.1–T9.11i (and T9.11j once it's decided)
 - **Do:**
   - README: what the project is, its stack and architecture, and how to run it locally. Note that previews share the production database (RESEARCH M8).
   - Screenshots (phone and desktop), and decide on seed demo photos for them (skipped in T6.7).

@@ -261,6 +261,7 @@ button.day:focus-visible, .slot:focus-visible, .date-nav input:focus-visible { o
 .slot-grid thead th { position: sticky; top: 0; background: var(--surface); padding: 8px 4px; z-index: 1; font-weight: 600; }
 .slot-grid tbody th { position: sticky; left: 0; background: var(--surface); padding: 0 6px; font-weight: 500; color: var(--muted); text-align: right; white-space: nowrap; }
 .slot-grid td { padding: 0; }
+.slot-grid .slot-next-day { display: block; font-size: 0.75rem; }
 .slot-grid .slot-none { text-align: center; color: var(--muted); }
 .slot {
   width: 100%; min-width: 64px; min-height: 44px; font: inherit; font-weight: 600;

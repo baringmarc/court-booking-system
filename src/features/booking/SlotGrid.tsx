@@ -52,13 +52,20 @@ export function SlotGrid({ courts, times, slotsByCourt, selection, onToggle, tim
           </thead>
           <tbody>
             {times.map((time) => {
+              const rowSlots = courts.map((court) => slotsByCourt.get(court.id)?.find((s) => s.slot_start === time))
+              // Rows show their range, ending where the row's slots end (T9.11b).
+              const end = rowSlots.find((s) => s)?.slot_end
+              const range = `${formatHour(hourInZone(time, timeZone))}${end ? ` – ${formatHour(hourInZone(end, timeZone))}` : ''}`
               const nextDay = !!date && isAfterMidnight(time, date, timeZone)
-              const hourLabel = `${formatHour(hourInZone(time, timeZone))}${nextDay ? ' (next day)' : ''}`
+              const hourLabel = `${range}${nextDay ? ' (next day)' : ''}`
               return (
                 <tr key={time}>
-                  <th scope="row">{hourLabel}</th>
-                  {courts.map((court) => {
-                    const slot = slotsByCourt.get(court.id)?.find((s) => s.slot_start === time)
+                  <th scope="row">
+                    {range}
+                    {nextDay && <>{' '}<span className="slot-next-day">(next day)</span></>}
+                  </th>
+                  {courts.map((court, i) => {
+                    const slot = rowSlots[i]
                     if (!slot) return <td key={court.id} className="slot-none">—</td>
                     const free = slot.status === 'free'
                     const selected = free && selection?.courtId === court.id && selection.starts.includes(time)
