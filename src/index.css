@@ -17,6 +17,9 @@
   --slot-free-border: color-mix(in srgb, var(--accent) 70%, var(--border));
   --slot-booked-bg: color-mix(in srgb, var(--text) 10%, var(--surface));
   --slot-closed-stripe: color-mix(in srgb, var(--muted) 25%, transparent);
+  /* Open play (T9.11d): its own hue, apart from the green accent and the greys. */
+  --open-play: #6941c6;
+  --slot-open-bg: color-mix(in srgb, var(--open-play) 12%, var(--surface));
 
   color-scheme: light dark;
   font: 16px/1.5 var(--sans);
@@ -38,6 +41,7 @@
     --accent-soft: rgba(52, 196, 139, 0.12);
     --danger: #f97066;
     --danger-contrast: #1f0a08; /* white on this light red is ~2.8:1 (T9.2) */
+    --open-play: #b692f6;
     --shadow: none;
   }
 }
@@ -298,6 +302,10 @@ button.day:focus-visible, .slot:focus-visible, .date-nav input:focus-visible { o
   border-color: var(--slot-closed-stripe); color: var(--text);
 }
 .slot-past { background: transparent; border-style: dashed; color: var(--muted); }
+/* Open play: tinted with a thick left bar, and pressable (it opens the session's details). */
+.slot-open_play { background: var(--slot-open-bg); border-color: var(--open-play); border-left-width: 4px; color: var(--text); }
+.slot.slot-open_play:hover { background: color-mix(in srgb, var(--open-play) 20%, var(--surface)); }
+.day-open_play { background: var(--slot-open-bg); box-shadow: inset 4px 0 0 var(--open-play); }
 .selection-bar {
   position: sticky; bottom: 12px; z-index: 2; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px;
   background: var(--surface); border: 1px solid var(--accent); border-radius: var(--radius); padding: 12px 14px; box-shadow: var(--shadow);
@@ -350,3 +358,18 @@ button.day:focus-visible, .slot:focus-visible, .date-nav input:focus-visible { o
 .dash-cards { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
 .dash-cards .card { margin-bottom: 0; }
 .big-number { font-size: 2rem; font-weight: 700; margin: 0 0 4px; }
+
+/* Modal dialogs (T9.11d): the native <dialog>, sized for a phone first. */
+.dialog {
+  width: min(480px, calc(100vw - 32px)); max-height: calc(100vh - 32px); padding: 0; border: 1px solid var(--border);
+  border-radius: var(--radius); background: var(--surface); color: var(--text); box-shadow: var(--shadow);
+}
+.dialog::backdrop { background: rgba(0, 0, 0, 0.5); }
+.dialog-body { padding: 20px; }
+.pre-line { white-space: pre-line; overflow-wrap: anywhere; }
+.link-list { margin: 0; padding-left: 1.25rem; }
+.link-list a { overflow-wrap: anywhere; }
+/* Grouped fields (T9.11d): a fieldset laid out like a .field, without the browser's frame. */
+fieldset.field { border: 0; margin: 0; padding: 0; min-width: 0; }
+fieldset.field legend { padding: 0; margin-bottom: 6px; }
+.check-list { display: flex; flex-wrap: wrap; gap: 8px 20px; font-weight: 400; }

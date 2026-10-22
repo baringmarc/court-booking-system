@@ -42,7 +42,7 @@ function toPaymentAttempts(value: unknown): PaymentAttempt[] {
     .sort((a, b) => a.submitted_at.localeCompare(b.submitted_at))
 }
 
-const SLOT_STATUSES = new Set<string>(['free', 'booked', 'blackout', 'past'])
+const SLOT_STATUSES = new Set<string>(['free', 'booked', 'blackout', 'open_play', 'past'])
 
 /** One row per active court × slot on a venue-local date ("YYYY-MM-DD"). Empty for closed or out-of-window days. */
 export async function fetchAvailability(date: string): Promise<Slot[]> {
@@ -56,6 +56,7 @@ export async function fetchAvailability(date: string): Promise<Slot[]> {
     status: (SLOT_STATUSES.has(r.status) ? r.status : 'booked') as SlotStatus,
     // The generated type says string, but it's null on every slot that isn't booked (T9.8).
     booker_first_name: r.booker_first_name || null,
+    open_play_session_id: r.open_play_session_id || null,
   }))
 }
 

@@ -1,5 +1,5 @@
 // Removes everything the E2E run created in the LOCAL database: tagged bookings (payments cascade),
-// their proof files, tagged courts with their photos, an E2E banner, and the e2e-* users.
+// their proof files, tagged courts with their photos, an E2E banner, tagged open play sessions, and the e2e-* users.
 import { E2E_PREFIX, serviceClient } from './helpers.ts'
 
 export default async function teardown() {
@@ -39,6 +39,10 @@ export default async function teardown() {
     if (clearError) throw clearError
     await service.storage.from('venue-media').remove([settings.banner_path])
   }
+
+  // Tagged open play sessions (their court rows cascade).
+  const { error: sessionsError } = await service.from('open_play_sessions').delete().like('title', `${E2E_PREFIX}%`)
+  if (sessionsError) throw sessionsError
 
   const { data: users } = await service.auth.admin.listUsers({ perPage: 1000 })
   for (const user of users?.users ?? []) {

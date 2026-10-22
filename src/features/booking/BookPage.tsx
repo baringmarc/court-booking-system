@@ -7,6 +7,8 @@ import { SPORT_LABELS, type CourtWithPhotos, type OperatingHours, type Sport, ty
 import { operatingToday } from '../catalog/hours'
 import { sportsOf } from '../catalog/sportOrder'
 import { useCourts, useOperatingHours, useVenueSettings } from '../catalog/hooks'
+import { useUpcomingOpenPlay } from '../openPlay/hooks'
+import { OpenPlayDialog } from '../openPlay/OpenPlayDialog'
 import { CourtTiles } from '../catalog/CourtTiles'
 import { toCheckoutSearch } from './checkoutParams'
 import { useAvailability } from './hooks'
@@ -48,6 +50,7 @@ function BookingBoard({ settings, courts, hours }: { settings: VenueSettings; co
   const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
   const [selection, setSelection] = useState<Selection>(null)
+  const [openPlayId, setOpenPlayId] = useState<string | null>(null)
 
   const tz = settings.timezone
   // The operating day running now: at 1 AM after a 6 AM–5 AM day, that's still yesterday (T9.10).
@@ -60,6 +63,8 @@ function BookingBoard({ settings, courts, hours }: { settings: VenueSettings; co
   const sportCourts = courts.filter((c) => c.sport === sport)
 
   const availability = useAvailability(date)
+  // Session details are only fetched once the day has open play slots.
+  const openPlay = useUpcomingOpenPlay({ enabled: !!availability.data?.some((s) => s.status === 'open_play') })
 
   const slotsByCourt = useMemo(() => {
     const map = new Map<string, Slot[]>()
@@ -147,9 +152,20 @@ function BookingBoard({ settings, courts, hours }: { settings: VenueSettings; co
           slotsByCourt={slotsByCourt}
           selection={activeSelection}
           onToggle={handleToggle}
+          onOpenPlay={setOpenPlayId}
           timeZone={tz}
           currency={settings.currency}
           date={date}
+        />
+      )}
+
+      {openPlayId && (
+        <OpenPlayDialog
+          sessionId={openPlayId}
+          sessions={openPlay}
+          courtName={(id) => courts.find((c) => c.id === id)?.name}
+          timeZone={tz}
+          onClose={() => setOpenPlayId(null)}
         />
       )}
 

@@ -28,6 +28,12 @@ export function zonedLocalToISO(local: string, timeZone: string) {
   return new Date(ts).toISOString()
 }
 
+/** UTC ISO string → wall-clock "YYYY-MM-DDTHH:mm" in `timeZone`, for seeding <input type="datetime-local">. */
+export function isoToZonedLocal(iso: string, timeZone: string) {
+  const date = new Date(iso)
+  return `${todayInZone(timeZone, date)}T${formatInZone(iso, timeZone, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })}`
+}
+
 export function formatInZone(iso: string, timeZone: string, options: Intl.DateTimeFormatOptions) {
   return new Intl.DateTimeFormat('en-PH', { timeZone, ...options }).format(new Date(iso))
 }

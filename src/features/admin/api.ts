@@ -7,6 +7,7 @@ import type { Enums } from '../../lib/database.types'
 import { dayRangeLiteral, type BookingFilters } from './bookingFilters'
 import { VENUE_MEDIA_BUCKET } from '../catalog/media'
 import type { CourtPhotoRow, VenueSettings } from '../catalog/api'
+import type { OpenPlayInput } from '../openPlay/api'
 import { newMediaPath, storageErrorMessage } from './mediaInput'
 import { clearStoredMedia, replaceStoredMedia } from './mediaReplace'
 
@@ -300,4 +301,25 @@ export async function removeBanner(settings: Pick<VenueSettings, 'banner_path'>)
   const clear = () => updateBanner({ banner_path: null, banner_alt: null })
   if (!settings.banner_path) return clear()
   return clearStoredMedia({ oldPath: settings.banner_path, save: clear, remove: removeVenueMedia })
+}
+
+// --- Open play sessions (T9.11d; the RPCs check every rule) ---------------------
+
+/** Creates a session (id null) or replaces one that hasn't started. Returns its id. */
+export async function saveOpenPlay(id: string | null, input: OpenPlayInput): Promise<string> {
+  const args = {
+    p_court_ids: input.courtIds,
+    p_start: input.start,
+    p_end: input.end,
+    p_title: input.title,
+    p_details: input.details,
+    p_links: input.links,
+  }
+  return id
+    ? unwrap(await supabase.rpc('update_open_play', { p_id: id, ...args }))
+    : unwrap(await supabase.rpc('create_open_play', args))
+}
+
+export async function deleteOpenPlay(id: string) {
+  unwrap(await supabase.rpc('delete_open_play', { p_id: id }))
 }

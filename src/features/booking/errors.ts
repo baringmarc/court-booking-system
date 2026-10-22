@@ -11,6 +11,8 @@ const CODES = [
   'not_cancellable', 'cutoff_passed', 'booking_ended', 'reason_required',
   // Online payments (M7): the create-paymongo-checkout Edge Function.
   'payments_unavailable', 'payments_failed', 'amount_too_low',
+  // Open play (M9, T9.11c): validate_booking_slot and the session RPCs.
+  'open_play', 'invalid_links', 'session_overlap', 'session_started',
 ] as const
 
 export type BookingErrorCode = (typeof CODES)[number]
@@ -24,7 +26,7 @@ export function bookingErrorCode(error: unknown): BookingErrorCode | null {
 /** The chosen time can no longer be booked: send the user back to the grid to pick again. */
 export function isSlotGone(error: unknown) {
   const code = bookingErrorCode(error)
-  return code === 'slot_unavailable' || code === 'slot_started' || code === 'blackout' || code === 'court_inactive'
+  return code === 'slot_unavailable' || code === 'slot_started' || code === 'blackout' || code === 'open_play' || code === 'court_inactive'
 }
 
 /** User-facing text. Booking RPC messages are written for users; anything else gets a generic line. */

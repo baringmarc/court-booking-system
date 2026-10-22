@@ -8,7 +8,7 @@ import { DayView } from './DayView'
 const at = (h: number) => new Date(Date.UTC(2030, 0, 7, h - 8)).toISOString()
 const courts = [{ id: 'A', name: 'Badminton 1' }, { id: 'B', name: 'Badminton 2' }]
 const slot = (court_id: string, h: number, status: Slot['status'], booker_first_name: string | null = null): Slot =>
-  ({ court_id, slot_start: at(h), slot_end: at(h + 1), price: 350, status, booker_first_name })
+  ({ court_id, slot_start: at(h), slot_end: at(h + 1), price: 350, status, booker_first_name, open_play_session_id: null })
 const slots = [
   slot('A', 17, 'past'), slot('A', 18, 'booked', 'Ana'), slot('A', 19, 'booked', 'Ana'),
   slot('B', 17, 'blackout'), slot('B', 18, 'free'), slot('B', 19, 'free'),
@@ -78,5 +78,20 @@ describe('DayView', () => {
     renderDay([])
     expect(screen.getByText('The venue is closed on this day.')).toBeInTheDocument()
     expect(screen.queryByRole('table')).not.toBeInTheDocument()
+  })
+
+  it('marks open play slots with the session title', () => {
+    const withSession = [...slots.slice(0, 4), { ...slot('B', 18, 'open_play'), open_play_session_id: 'S1' }, slot('B', 19, 'open_play')]
+    render(
+      <MemoryRouter>
+        <DayView date="2030-01-07" courts={courts} slots={withSession} bookings={bookings} timeZone="Asia/Manila"
+          sessionTitle={(id) => (id === 'S1' ? 'Saturday open play' : undefined)} />
+      </MemoryRouter>,
+    )
+    const rows = screen.getAllByRole('row').slice(1)
+    const named = within(rows[1]).getAllByRole('cell')[1]
+    expect(named).toHaveTextContent('Open playSaturday open play')
+    expect(named).toHaveClass('day-open_play')
+    expect(within(rows[2]).getAllByRole('cell')[1]).toHaveTextContent(/^Open play$/)
   })
 })

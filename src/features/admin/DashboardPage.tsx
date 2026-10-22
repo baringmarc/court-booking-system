@@ -5,6 +5,7 @@ import { PageLoader } from '../../components/PageLoader'
 import { formatHour } from '../../lib/format'
 import { addDays, formatDateLabel, hourInZone, zonedLocalToISO } from '../../lib/time'
 import { useAvailability } from '../booking/hooks'
+import { useUpcomingOpenPlay } from '../openPlay/hooks'
 import type { Slot } from '../booking/selection'
 import { displayStatus, STATUS_LABELS } from '../booking/status'
 import { useNow } from '../booking/useNow'
@@ -58,6 +59,7 @@ function Dashboard({ settings, courts, hours }: { settings: VenueSettings; court
   // An overnight day also has bookings on the next calendar date.
   const scheduleNext = useAdminBookings({ status: 'all', source: 'all', date: addDays(today, 1) }, pastMidnight ? tz : undefined)
   const availability = useAvailability(today)
+  const openPlay = useUpcomingOpenPlay({ enabled: !!availability.data?.some((s) => s.status === 'open_play') })
   const queue = useProofQueueCount()
   const takings = useTakings(dayStart, dayEnd)
   const refundsDue = useRefundsDue(dayStart, dayEnd)
@@ -119,7 +121,8 @@ function Dashboard({ settings, courts, hours }: { settings: VenueSettings; court
         ) : scheduleError ? (
           <ErrorMessage error={scheduleError} onRetry={retrySchedule} />
         ) : (
-          <DayView date={today} courts={courts} slots={availability.data} bookings={todays} timeZone={tz} />
+          <DayView date={today} courts={courts} slots={availability.data} bookings={todays} timeZone={tz}
+            sessionTitle={(id) => openPlay.data?.find((s) => s.id === id)?.title} />
         )}
       </section>
 

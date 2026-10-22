@@ -15,6 +15,8 @@ import {
   addCourtPhoto,
   reorderCourtPhotos,
   saveBanner,
+  saveOpenPlay,
+  deleteOpenPlay,
   reviewPayment,
   type BannerInput,
   type WalkInInput,
@@ -22,6 +24,7 @@ import {
 import { catalogKeys, updateVenueSettings, type Court, type CourtPhotoRow, type CourtWithPhotos, type Sport, type VenueSettings } from '../catalog/api'
 import { moveCourtInList } from '../catalog/sportOrder'
 import { bookingKeys } from '../booking/hooks'
+import { openPlayKeys, type OpenPlayInput } from '../openPlay/api'
 import type { BookingFilters } from './bookingFilters'
 
 export function useAdminBookings(filters: BookingFilters, timeZone: string | undefined) {
@@ -259,4 +262,26 @@ export function useSaveBanner(settings: Pick<VenueSettings, 'banner_path'>) {
 
 export function useRemoveBanner(settings: Pick<VenueSettings, 'banner_path'>) {
   return useBannerMutation<void>(() => removeBanner(settings))
+}
+
+/** An open play change moves slots in and out of open play, so availability refetches too (T9.11d). */
+function useInvalidateOpenPlay() {
+  const qc = useQueryClient()
+  return () => {
+    void qc.invalidateQueries({ queryKey: openPlayKeys.all })
+    void qc.invalidateQueries({ queryKey: bookingKeys.allAvailability })
+  }
+}
+
+export function useSaveOpenPlay() {
+  const invalidate = useInvalidateOpenPlay()
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string | null; input: OpenPlayInput }) => saveOpenPlay(id, input),
+    onSuccess: invalidate,
+  })
+}
+
+export function useDeleteOpenPlay() {
+  const invalidate = useInvalidateOpenPlay()
+  return useMutation({ mutationFn: (id: string) => deleteOpenPlay(id), onSuccess: invalidate })
 }
