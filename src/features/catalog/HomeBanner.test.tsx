@@ -1,5 +1,6 @@
+import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { catalogKeys, fetchVenueSettings, type VenueSettings } from './api'
 import { HomeBanner } from './HomeBanner'
@@ -40,6 +41,16 @@ describe('HomeBanner', () => {
     expect(img).toHaveAttribute('height', '733')
     expect(screen.queryByRole('link')).not.toBeInTheDocument()
     expect(screen.queryByRole('heading')).not.toBeInTheDocument()
+  })
+
+  it('opens the whole banner full screen when tapped', async () => {
+    vi.mocked(fetchVenueSettings).mockResolvedValue(settings(PATH, 'Night games on court 1'))
+    renderBanner()
+    await userEvent.click(await screen.findByRole('button', { name: 'View full screen: Night games on court 1' }))
+    const viewer = screen.getByRole('dialog', { name: 'Banner photo' })
+    expect(within(viewer).getByRole('img', { name: 'Night games on court 1' })).toHaveAttribute('src', `https://cdn.test/${PATH}`)
+    await userEvent.click(within(viewer).getByRole('button', { name: 'Close' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
   it('renders nothing when no banner is set', async () => {

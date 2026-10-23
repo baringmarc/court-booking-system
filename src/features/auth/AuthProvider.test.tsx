@@ -1,5 +1,5 @@
 import { act, render, screen, waitFor } from '@testing-library/react'
-import { useEffect } from 'react'
+import { useLayoutEffect } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fetchProfile } from './api'
 import type { Profile } from './AuthContext'
@@ -27,7 +27,9 @@ const capture = (value: ReturnType<typeof useAuth>) => {
 }
 function Probe() {
   const value = useAuth()
-  useEffect(() => capture(value))
+  // Layout effect: it runs in the same commit as the DOM update, so when findByText sees the new text, `auth` is
+  // already the matching value (a passive effect could still be pending under load, which made this test flaky).
+  useLayoutEffect(() => capture(value))
   return <p>{value.loading ? 'loading' : value.profileError ? 'error' : value.isAdmin ? 'admin' : 'not admin'}</p>
 }
 

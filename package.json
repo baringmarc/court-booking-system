@@ -22,11 +22,13 @@
     "db:start": "sh scripts/with-docker.sh supabase db start",
     "db:stop": "sh scripts/with-docker.sh supabase stop",
     "db:reset:local": "sh scripts/with-docker.sh supabase db reset --local",
-    "smoke:prod": "node scripts/smoke-production.mjs"
+    "smoke:prod": "node scripts/smoke-production.mjs",
+    "screenshots": "node scripts/screenshots.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",
     "@tanstack/react-query": "5.104.3",
+    "lucide-react": "^1.61.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router-dom": "^7.18.4"

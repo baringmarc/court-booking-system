@@ -1,7 +1,7 @@
 // Pure slot-selection logic for the booking grid. A selection is one court and a run of
 // consecutive free slots. The total here is for display only: the server prices the booking.
 
-export type SlotStatus = 'free' | 'booked' | 'blackout' | 'past'
+export type SlotStatus = 'free' | 'booked' | 'blackout' | 'open_play' | 'past'
 
 export type Slot = {
   court_id: string
@@ -11,6 +11,8 @@ export type Slot = {
   status: SlotStatus
   /** First name of whoever booked it, on booked slots only (T9.8). Never more personal data. */
   booker_first_name: string | null
+  /** The open play session holding it, on open_play slots only (T9.11c). */
+  open_play_session_id: string | null
 }
 
 /** `starts` are slot_start values, sorted and consecutive. */

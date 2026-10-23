@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { CourtPhotoRow } from './api'
@@ -56,9 +56,45 @@ describe('CourtGallery', () => {
   it('shows a single photo, or the sport placeholder, without gallery controls', () => {
     const { rerender } = render(<CourtGallery court={court} photos={photos.slice(0, 1)} />)
     expect(screen.getByRole('img', { name: 'Photo of Badminton 1' })).toBeInTheDocument()
-    expect(screen.queryByRole('button')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Next photo|Previous photo/ })).not.toBeInTheDocument()
+    expect(screen.queryByText('1 of 1')).not.toBeInTheDocument()
     rerender(<CourtGallery court={court} photos={[]} />)
     expect(screen.getByRole('img', { name: 'Badminton court' })).toBeInTheDocument()
+    expect(screen.queryByRole('button')).not.toBeInTheDocument() // the placeholder never opens
+  })
+
+  it('opens a tapped photo full screen, moves between photos, and returns focus on Escape', async () => {
+    const scrollTo = vi.spyOn(Element.prototype, 'scrollTo').mockImplementation(() => {})
+    render(<CourtGallery court={court} photos={photos} />)
+    const second = screen.getByRole('button', { name: 'View full screen: Photo 2 of 3 of Badminton 1' })
+    await userEvent.click(second)
+    const viewer = screen.getByRole('dialog', { name: 'Photos of Badminton 1' })
+    expect(within(viewer).getByRole('img')).toHaveAttribute('alt', 'Photo 2 of 3 of Badminton 1')
+    expect(within(viewer).getByText('2 of 3')).toBeInTheDocument()
+
+    await userEvent.click(within(viewer).getByRole('button', { name: 'Next photo' }))
+    expect(within(viewer).getByRole('img')).toHaveAttribute('src', `https://cdn.test/${photos[2].path}`)
+    expect(within(viewer).getByRole('button', { name: 'Next photo' })).toBeDisabled()
+    await userEvent.click(within(viewer).getByRole('button', { name: 'Previous photo' }))
+    expect(within(viewer).getByText('2 of 3')).toBeInTheDocument()
+
+    await userEvent.keyboard('{ArrowRight}')
+    expect(within(viewer).getByText('3 of 3')).toBeInTheDocument()
+    await userEvent.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(second).toHaveFocus()
+    // The strip follows the viewer to the photo it closed on.
+    expect(screen.getAllByText('3 of 3')).toHaveLength(1)
+    expect(scrollTo).toHaveBeenCalled()
+  })
+
+  it('opens every photo from the cover alone (the home page tiles)', async () => {
+    render(<CourtGallery court={court} photos={photos} coverOnly />)
+    expect(screen.getAllByRole('img')).toHaveLength(1)
+    await userEvent.click(screen.getByRole('button', { name: 'View full screen: Photo of Badminton 1' }))
+    const viewer = screen.getByRole('dialog')
+    expect(within(viewer).getByText('1 of 3')).toBeInTheDocument()
+    expect(within(viewer).getByRole('img')).toHaveAttribute('alt', 'Photo 1 of 3 of Badminton 1')
   })
 
   it('stays within the list when it shrinks under an open gallery', async () => {

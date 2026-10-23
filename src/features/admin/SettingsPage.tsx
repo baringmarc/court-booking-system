@@ -4,7 +4,11 @@ import { ErrorMessage } from '../../components/ErrorMessage'
 import { SaveStatus } from '../../components/SaveStatus'
 import { useUpdateVenueSettings, useVenueSettings } from '../catalog/hooks'
 import type { VenueSettings } from '../catalog/api'
+import { AmenitiesSection } from './AmenitiesSection'
 import { BannerSection } from './BannerSection'
+import { InfoSectionsSection } from './InfoSectionsSection'
+import { LocationSection } from './LocationSection'
+import { SocialLinksSection } from './SocialLinksSection'
 import { SportOrderSection } from './SportOrderSection'
 
 export function SettingsPage() {
@@ -23,6 +27,10 @@ export function SettingsPage() {
           <SettingsForm initial={settings.data} />
           <SportOrderSection settings={settings.data} />
           <BannerSection settings={settings.data} />
+          <LocationSection settings={settings.data} />
+          <SocialLinksSection />
+          <InfoSectionsSection />
+          <AmenitiesSection />
         </div>
       )}
     </section>

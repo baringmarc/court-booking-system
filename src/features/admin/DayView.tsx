@@ -15,10 +15,12 @@ type Props = {
   /** The day's active bookings, with full names (admins only, through RLS). */
   bookings: Pick<AdminBooking, 'id' | 'reference_code' | 'court_name' | 'slot_start' | 'slot_end' | 'guest_name'>[]
   timeZone: string
+  /** Open play session titles by id (T9.11d); a cell without one still says "Open play". */
+  sessionTitle?: (id: string) => string | undefined
 }
 
 /** Courts × hours for one day with each booker's full name and reference (T9.8). Players only see first names. */
-export function DayView({ date, courts, slots, bookings, timeZone }: Props) {
+export function DayView({ date, courts, slots, bookings, timeZone, sessionTitle }: Props) {
   const times = [...new Set(slots.map((s) => s.slot_start))].sort()
   if (times.length === 0) return <p className="muted">The venue is closed on this day.</p>
 
@@ -58,6 +60,15 @@ export function DayView({ date, courts, slots, bookings, timeZone }: Props) {
                     <td key={court.id} className="day-cell day-booked">
                       <span className="day-name">{booking.guest_name}</span>
                       <Link to={linkTo(booking.id, booking.slot_start)} className="small">{booking.reference_code}</Link>
+                    </td>
+                  )
+                }
+                if (slot?.status === 'open_play') {
+                  const title = slot.open_play_session_id ? sessionTitle?.(slot.open_play_session_id) : undefined
+                  return (
+                    <td key={court.id} className="day-cell day-open_play">
+                      <span className="day-name">Open play</span>
+                      {title && <span className="small">{title}</span>}
                     </td>
                   )
                 }

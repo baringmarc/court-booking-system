@@ -8,7 +8,7 @@ import { WalkInForm } from './WalkInForm'
 const now = new Date('2030-01-07T02:30:00.000Z') // 10:30 Manila
 const at = (h: number) => new Date(Date.UTC(2030, 0, 7, h - 8)).toISOString()
 const slot = (court: string, h: number, status: Slot['status'], price = 400): Slot =>
-  ({ court_id: court, slot_start: at(h), slot_end: at(h + 1), price, status, booker_first_name: null })
+  ({ court_id: court, slot_start: at(h), slot_end: at(h + 1), price, status, booker_first_name: null, open_play_session_id: null })
 const courts = [{ id: 'A', name: 'Badminton 1' }, { id: 'B', name: 'Badminton 2' }] as Court[]
 const slotsByCourt = new Map<string, Slot[]>([
   ['A', [slot('A', 9, 'past'), slot('A', 10, 'past'), slot('A', 11, 'free', 450), slot('A', 12, 'booked')]],

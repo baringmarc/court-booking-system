@@ -31,6 +31,8 @@ test('an admin records a walk-in and the slot shows as booked on /book', async (
 
   // The public grid shows the slot as booked, with the first name only (the same for every caller).
   await page.goto(`/book?date=${venueDate(0)}&sport=badminton`)
-  await expect(page.getByRole('button', { name: `Badminton 4, ${hourLabel}, Booked by ${E2E_PREFIX}` })).toBeDisabled()
+  // The grid labels the row by its range ("9 PM – 10 PM"); the walk-in form shows only the start.
+  const startHour = hourLabel.replace(' (next day)', '')
+  await expect(page.getByRole('button', { name: new RegExp(`^Badminton 4, ${startHour} – \\d+ [AP]M( \\(next day\\))?, Booked by ${E2E_PREFIX}`) })).toBeDisabled()
   await expect(page.getByText('Walk-in', { exact: false })).toHaveCount(0)
 })

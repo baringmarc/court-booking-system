@@ -43,9 +43,9 @@ test('an admin opens a day until 2 AM and a guest books an after-midnight slot',
   const guestContext = await browser.newContext({ ...test.info().project.use })
   const guest = await guestContext.newPage()
   await guest.goto(`/book?date=${date}&sport=tennis`)
-  await expect(guest.getByRole('rowheader', { name: '1 AM (next day)' })).toBeVisible()
+  await expect(guest.getByRole('rowheader', { name: '1 AM – 2 AM (next day)' })).toBeVisible()
   // The first free after-midnight slot (12 AM or 1 AM: the desktop and phone runs each take one).
-  const slot = guest.getByRole('button', { name: /^Tennis Court, \d+ AM \(next day\), ₱/ }).first()
+  const slot = guest.getByRole('button', { name: /^Tennis Court, \d+ AM – \d+ AM \(next day\), ₱/ }).first()
   const hourLabel = (await slot.getAttribute('aria-label'))!.split(', ')[1]
   await slot.click()
   await expect(slot).toHaveAttribute('aria-pressed', 'true')

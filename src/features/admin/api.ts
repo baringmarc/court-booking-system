@@ -7,6 +7,9 @@ import type { Enums } from '../../lib/database.types'
 import { dayRangeLiteral, type BookingFilters } from './bookingFilters'
 import { VENUE_MEDIA_BUCKET } from '../catalog/media'
 import type { CourtPhotoRow, VenueSettings } from '../catalog/api'
+import type { OpenPlayInput } from '../openPlay/api'
+import type { SocialPlatform } from '../venue/social'
+import type { AmenityKey } from '../venue/amenities'
 import { newMediaPath, storageErrorMessage } from './mediaInput'
 import { clearStoredMedia, replaceStoredMedia } from './mediaReplace'
 
@@ -300,4 +303,69 @@ export async function removeBanner(settings: Pick<VenueSettings, 'banner_path'>)
   const clear = () => updateBanner({ banner_path: null, banner_alt: null })
   if (!settings.banner_path) return clear()
   return clearStoredMedia({ oldPath: settings.banner_path, save: clear, remove: removeVenueMedia })
+}
+
+// --- Open play sessions (T9.11d; the RPCs check every rule) ---------------------
+
+/** Creates a session (id null) or replaces one that hasn't started. Returns its id. */
+export async function saveOpenPlay(id: string | null, input: OpenPlayInput): Promise<string> {
+  const args = {
+    p_court_ids: input.courtIds,
+    p_start: input.start,
+    p_end: input.end,
+    p_title: input.title,
+    p_details: input.details,
+    p_links: input.links,
+  }
+  return id
+    ? unwrap(await supabase.rpc('update_open_play', { p_id: id, ...args }))
+    : unwrap(await supabase.rpc('create_open_play', args))
+}
+
+export async function deleteOpenPlay(id: string) {
+  unwrap(await supabase.rpc('delete_open_play', { p_id: id }))
+}
+
+// --- Venue info (T9.11h; admin RLS on the tables, plus move_info_section) --------
+
+/** Saves every platform at once: a URL upserts, an empty one removes that platform's link. */
+export async function saveSocialLinks(links: Record<SocialPlatform, string>) {
+  const entries = Object.entries(links) as [SocialPlatform, string][]
+  const upserts = entries.filter(([, url]) => url).map(([platform, url]) => ({ platform, url }))
+  const removed = entries.filter(([, url]) => !url).map(([platform]) => platform)
+  if (upserts.length) unwrap(await supabase.from('venue_social_links').upsert(upserts))
+  if (removed.length) unwrap(await supabase.from('venue_social_links').delete().in('platform', removed))
+}
+
+export type InfoSectionInput = { title: string; body: string }
+
+/** Creates a section (it goes last) or updates one. */
+export async function saveInfoSection(id: string | null, input: InfoSectionInput) {
+  const query = id
+    ? supabase.from('venue_info_sections').update(input).eq('id', id).select('id').single()
+    : supabase.from('venue_info_sections').insert(input).select('id').single()
+  return unwrap(await query)
+}
+
+export async function deleteInfoSection(id: string) {
+  unwrap(await supabase.from('venue_info_sections').delete().eq('id', id))
+}
+
+export async function moveInfoSection(id: string, direction: -1 | 1) {
+  unwrap(await supabase.rpc('move_info_section', { p_id: id, p_direction: direction }))
+}
+
+/** Switches a built-in amenity on (a row) or off (no row). */
+export async function setBuiltinAmenity(key: AmenityKey, on: boolean) {
+  unwrap(on
+    ? await supabase.from('venue_amenities').insert({ builtin_key: key })
+    : await supabase.from('venue_amenities').delete().eq('builtin_key', key))
+}
+
+export async function addCustomAmenity(name: string) {
+  unwrap(await supabase.from('venue_amenities').insert({ custom_name: name }))
+}
+
+export async function removeAmenity(id: string) {
+  unwrap(await supabase.from('venue_amenities').delete().eq('id', id))
 }

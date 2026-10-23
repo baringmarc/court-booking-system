@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { addDays, formatDateLabel, formatInZone, hourInZone, parseTstzRange, todayInZone, zonedLocalToISO } from './time'
+import { addDays, formatDateLabel, formatInZone, hourInZone, isoToZonedLocal, parseTstzRange, todayInZone, zonedLocalToISO } from './time'
 
 describe('zonedLocalToISO', () => {
   it('converts Manila wall-clock time to UTC (UTC+8, previous UTC day)', () => {
@@ -13,6 +13,15 @@ describe('zonedLocalToISO', () => {
   it('handles zones with DST on both sides of the switch', () => {
     expect(zonedLocalToISO('2026-01-15T12:00', 'America/New_York')).toBe('2026-01-15T17:00:00.000Z')
     expect(zonedLocalToISO('2026-07-01T12:00', 'America/New_York')).toBe('2026-07-01T16:00:00.000Z')
+  })
+})
+
+describe('isoToZonedLocal', () => {
+  it('gives the wall-clock time in the zone, the inverse of zonedLocalToISO', () => {
+    expect(isoToZonedLocal('2026-10-16T23:00:00.000Z', 'Asia/Manila')).toBe('2026-10-17T07:00')
+    expect(isoToZonedLocal('2026-10-17T16:00:00.000Z', 'Asia/Manila')).toBe('2026-10-18T00:00')
+    expect(zonedLocalToISO(isoToZonedLocal('2026-07-01T16:00:00.000Z', 'America/New_York'), 'America/New_York'))
+      .toBe('2026-07-01T16:00:00.000Z')
   })
 })
 

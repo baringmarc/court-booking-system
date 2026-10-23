@@ -13,9 +13,10 @@ const SLOT_LOOK_LABEL: Record<SlotLook, string> = {
   selected: 'Selected',
   booked: 'Booked',
   blackout: 'Closed',
+  open_play: 'Open play',
   past: 'Past',
 }
-const LEGEND: SlotLook[] = ['free', 'selected', 'booked', 'blackout', 'past']
+const LEGEND: SlotLook[] = ['free', 'selected', 'booked', 'blackout', 'open_play', 'past']
 const VISIBLE_LABEL: Partial<Record<SlotLook, string>> = { past: '—' }
 
 type Props = {
@@ -24,14 +25,16 @@ type Props = {
   slotsByCourt: Map<string, Slot[]>
   selection: Selection
   onToggle: (slot: Slot) => void
+  /** Open play slots can't be booked; pressing one shows its session's details (T9.11d). */
+  onOpenPlay?: (sessionId: string) => void
   timeZone: string
   /** The operating date shown; slots on the next calendar day (after midnight) are marked (T9.10). */
   date?: string
   currency: string
 }
 
-/** Times down the side, courts across the top. Only free slots are buttons you can press. */
-export function SlotGrid({ courts, times, slotsByCourt, selection, onToggle, timeZone, currency, date }: Props) {
+/** Times down the side, courts across the top. Free slots select; open play slots open their details; the rest are disabled. */
+export function SlotGrid({ courts, times, slotsByCourt, selection, onToggle, onOpenPlay, timeZone, currency, date }: Props) {
   return (
     <div>
       <ul className="slot-legend" aria-label="Slot key">
@@ -52,17 +55,25 @@ export function SlotGrid({ courts, times, slotsByCourt, selection, onToggle, tim
           </thead>
           <tbody>
             {times.map((time) => {
+              const rowSlots = courts.map((court) => slotsByCourt.get(court.id)?.find((s) => s.slot_start === time))
+              // Rows show their range, ending where the row's slots end (T9.11b).
+              const end = rowSlots.find((s) => s)?.slot_end
+              const range = `${formatHour(hourInZone(time, timeZone))}${end ? ` – ${formatHour(hourInZone(end, timeZone))}` : ''}`
               const nextDay = !!date && isAfterMidnight(time, date, timeZone)
-              const hourLabel = `${formatHour(hourInZone(time, timeZone))}${nextDay ? ' (next day)' : ''}`
+              const hourLabel = `${range}${nextDay ? ' (next day)' : ''}`
               return (
                 <tr key={time}>
-                  <th scope="row">{hourLabel}</th>
-                  {courts.map((court) => {
-                    const slot = slotsByCourt.get(court.id)?.find((s) => s.slot_start === time)
+                  <th scope="row">
+                    {range}
+                    {nextDay && <>{' '}<span className="slot-next-day">(next day)</span></>}
+                  </th>
+                  {courts.map((court, i) => {
+                    const slot = rowSlots[i]
                     if (!slot) return <td key={court.id} className="slot-none">—</td>
                     const free = slot.status === 'free'
                     const selected = free && selection?.courtId === court.id && selection.starts.includes(time)
                     const look: SlotLook = selected ? 'selected' : slot.status
+                    const sessionId = slot.status === 'open_play' && onOpenPlay ? slot.open_play_session_id : null
                     // Booked slots name the booker by first name only (T9.8; the server never sends more).
                     const booker = slot.status === 'booked' ? slot.booker_first_name : null
                     const label = free
@@ -73,10 +84,11 @@ export function SlotGrid({ courts, times, slotsByCourt, selection, onToggle, tim
                         <button
                           type="button"
                           className={`slot slot-${look}`}
-                          disabled={!free}
+                          disabled={!free && !sessionId}
                           aria-pressed={free ? selected : undefined}
+                          aria-haspopup={sessionId ? 'dialog' : undefined}
                           aria-label={`${court.name}, ${hourLabel}, ${label}`}
-                          onClick={() => onToggle(slot)}
+                          onClick={() => (sessionId ? onOpenPlay?.(sessionId) : onToggle(slot))}
                         >
                           {selected && <span aria-hidden="true">✓ </span>}
                           {booker ? (

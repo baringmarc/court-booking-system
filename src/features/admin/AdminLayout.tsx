@@ -7,6 +7,7 @@ const LINKS = [
   { to: '/admin/bookings', label: 'Bookings' },
   { to: '/admin/courts', label: 'Courts & rates' },
   { to: '/admin/schedule', label: 'Schedule' },
+  { to: '/admin/open-play', label: 'Open play' },
   { to: '/admin/settings', label: 'Settings' },
 ]
 

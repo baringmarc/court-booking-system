@@ -7,12 +7,13 @@ const rpcError = (hint: string, message = 'Readable message.') => new ApiError(m
 describe('booking errors', () => {
   it('reads the stable code from the hint', () => {
     expect(bookingErrorCode(rpcError('slot_unavailable'))).toBe('slot_unavailable')
+    expect(bookingErrorCode(rpcError('open_play'))).toBe('open_play')
     expect(bookingErrorCode(rpcError('something_else'))).toBeNull()
     expect(bookingErrorCode(new Error('x'))).toBeNull()
   })
 
-  it('treats taken, started, blacked-out and archived slots as "pick again"', () => {
-    for (const code of ['slot_unavailable', 'slot_started', 'blackout', 'court_inactive']) {
+  it('treats taken, started, blacked-out, open play and archived slots as "pick again"', () => {
+    for (const code of ['slot_unavailable', 'slot_started', 'blackout', 'open_play', 'court_inactive']) {
       expect(isSlotGone(rpcError(code))).toBe(true)
     }
     expect(isSlotGone(rpcError('invalid_guest'))).toBe(false)

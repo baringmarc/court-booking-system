@@ -8,6 +8,7 @@ import { summarizeHours } from '../features/catalog/hours'
 import { CourtTiles } from '../features/catalog/CourtTiles'
 import { HomeBanner } from '../features/catalog/HomeBanner'
 import { formatMoney } from '../lib/format'
+import { AmenityChips, InfoSections, VenueLocation } from '../features/venue/VenueInfo'
 
 export function HomePage() {
   const settings = useVenueSettings()
@@ -35,6 +36,8 @@ export function HomePage() {
         </div>
       </div>
 
+      <AmenityChips />
+
       <h2>Our courts</h2>
       {courts.isPending ? (
         <PageLoader />
@@ -50,6 +53,11 @@ export function HomePage() {
           ))}
         </div>
       )}
+
+      {settings.data && (
+        <VenueLocation venueName={venueName} address={settings.data.address} mapsQuery={settings.data.maps_query} />
+      )}
+      <InfoSections />
     </section>
   )
 }

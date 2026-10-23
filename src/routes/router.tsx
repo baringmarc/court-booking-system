@@ -62,6 +62,10 @@ export const router = createBrowserRouter([
             lazy: () => import('../features/admin/SchedulePage').then((m) => ({ Component: m.SchedulePage })),
           },
           {
+            path: 'open-play',
+            lazy: () => import('../features/admin/OpenPlayPage').then((m) => ({ Component: m.OpenPlayPage })),
+          },
+          {
             path: 'settings',
             lazy: () => import('../features/admin/SettingsPage').then((m) => ({ Component: m.SettingsPage })),
           },

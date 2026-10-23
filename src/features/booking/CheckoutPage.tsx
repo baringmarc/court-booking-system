@@ -13,6 +13,7 @@ import { parseCheckoutSearch, type CheckoutParams } from './checkoutParams'
 import type { Contact } from './contact'
 import { bookingErrorMessage, isSlotGone } from './errors'
 import { useAvailability, useCreateBooking } from './hooks'
+import { CancellationPolicyLink } from '../venue/VenueInfo'
 
 export function CheckoutPage() {
   const [params] = useSearchParams()
@@ -136,6 +137,7 @@ function Checkout({ choice, settings, court, hours }: { choice: CheckoutParams; 
           </p>
         )}
         <CheckoutForm key={user?.id ?? 'guest'} initial={initial} isGuest={isGuest} pending={create.isPending} onSubmit={handleSubmit} />
+        <CancellationPolicyLink />
       </section>
     </div>
   )

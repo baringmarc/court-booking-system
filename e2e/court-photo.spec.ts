@@ -63,7 +63,8 @@ test('an admin builds a court gallery that players see on the home page and /boo
     await expect(cover).toHaveJSProperty('naturalWidth', 1)
 
     await page.goto('/book?sport=tennis')
-    await page.getByText('About the tennis courts').click()
+    // Open by default (T9.11f).
+    await expect(page.getByText('About the tennis courts')).toBeVisible()
     const gallery = page.getByRole('group', { name: `Photos of ${name}` })
     await expect(gallery.getByRole('img')).toHaveCount(2)
     await expect(gallery.getByText('1 of 2')).toBeVisible()
@@ -72,6 +73,23 @@ test('an admin builds a court gallery that players see on the home page and /boo
     // The a11y spec never sees a multi-photo gallery (seed courts have one photo at most): check it here.
     const axe = await new AxeBuilder({ page }).include('.gallery').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
     expect(axe.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical').map((v) => v.id)).toEqual([])
+
+    // T9.11e: tap a photo for the full-screen viewer; Escape closes it and focus returns to that photo.
+    const photo = gallery.getByRole('button', { name: `View full screen: Photo 2 of 2 of ${name}` })
+    await photo.click()
+    const viewer = page.getByRole('dialog', { name: `Photos of ${name}` })
+    await expect(viewer).toBeVisible()
+    await expect(viewer.getByText('2 of 2')).toBeVisible()
+    await expect(viewer.getByRole('img', { name: `Photo 2 of 2 of ${name}` })).toHaveJSProperty('naturalWidth', 1)
+    const viewerAxe = await new AxeBuilder({ page }).include('.viewer').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
+    expect(viewerAxe.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical').map((v) => v.id)).toEqual([])
+    await viewer.getByRole('button', { name: 'Previous photo' }).click()
+    await expect(viewer.getByText('1 of 2')).toBeVisible()
+    await page.keyboard.press('ArrowRight')
+    await expect(viewer.getByText('2 of 2')).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(viewer).toBeHidden()
+    await expect(photo).toBeFocused()
   } finally {
     await service.from('courts').update({ is_active: false }).eq('id', court.id).throwOnError()
   }

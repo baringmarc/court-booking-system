@@ -6,7 +6,7 @@ const H = (h: number) => `2030-01-07T${String(h - 8).padStart(2, '0')}:00:00.000
 function court(id: string, statuses: Record<number, SlotStatus> = {}, from = 10, to = 16): Slot[] {
   return Array.from({ length: to - from }, (_, i) => {
     const h = from + i
-    return { court_id: id, slot_start: H(h), slot_end: H(h + 1), price: h >= 14 ? 450 : 350, status: statuses[h] ?? 'free', booker_first_name: null }
+    return { court_id: id, slot_start: H(h), slot_end: H(h + 1), price: h >= 14 ? 450 : 350, status: statuses[h] ?? 'free', booker_first_name: null, open_play_session_id: null }
   })
 }
 
