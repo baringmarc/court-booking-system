@@ -412,6 +412,7 @@ fieldset.field legend { padding: 0; margin-bottom: 6px; }
 .grow { flex: 1 1 200px; }
 /* Venue info for players (T9.11i). */
 .venue-block { margin-top: 24px; }
+.venue-block + h2 { margin-top: 24px; }
 .amenity-chips { list-style: none; display: flex; flex-wrap: wrap; gap: 8px; padding: 0; margin: 0; }
 .amenity-chip {
   display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px;

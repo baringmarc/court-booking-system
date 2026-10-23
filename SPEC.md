@@ -1,6 +1,6 @@
 # Court Booking System — Product Spec
 
-> Status: draft v0.12 (2026-10-20, M8 done and deployed; M9 venue admin upgrades next). Portfolio project: one realistic venue, simplified operations.
+> Status: v1.0 (2026-10-23, M1–M9 done; M9's frontend reaches production when `develop` is merged into `master`). Portfolio project: one realistic venue, simplified operations.
 
 ## 1. Overview
 
@@ -333,7 +333,7 @@ Until emails ship, the confirmation page shows the private link with a "save thi
 6. ✅ **Venue media**: court photos and an optional site banner, uploaded by admins.
 7. ✅ **Online payments**: PayMongo (test mode) checkout with webhook auto-confirm, alongside manual proof.
 8. ✅ **Polish**: emails, empty, loading and error states, an a11y pass (including distinct slot status colors and the settings page spacing), and deploy (Vercel + Supabase). Deploy happens here so later work ships automatically.
-9. **Venue admin upgrades** (added 2026-10-19):
+9. ✅ **Venue admin upgrades** (added 2026-10-19; done 2026-10-23):
    - a new theme and colors (the palette is chosen from a preview)
    - court and sport ordering
    - deleting never-booked courts
@@ -344,7 +344,7 @@ Until emails ship, the confirmation page shows the private link with a "save thi
    - open play sessions: admins block courts for one-off open play sessions, shown on `/book` with their details (added 2026-10-21)
    - a full-screen photo viewer; court details open by default on `/book`; a clear loading state while going to PayMongo
    - venue info set by admins: location with an embedded Google map, social links, admin-defined info sections (waiver, reminders and policies, cancellation and refund policy, house rules) and amenities with icons (added 2026-10-21)
-   - then the README, screenshots, a demo video and close-out (moved from M8)
+   - then the README, screenshots, a demo video script and close-out (moved from M8). Waiver acceptance was skipped (§11). The video itself is recorded from `docs/demo-script.md`.
 
 ## 10. Decisions log
 
@@ -398,12 +398,13 @@ Until emails ship, the confirmation page shows the private link with a "save thi
 | 2026-10-21 | More M9 scope (the user's call), also before the close-out. **Photos:** tap to open a full-screen viewer. **`/book`:** "About the … courts" starts open. **PayMongo:** a clear loading state while redirecting. **Location:** an address, an embedded Google map and an "Open in Google Maps" button. **Socials:** links for a fixed set of platforms. **Info sections:** admin-defined (title and body, reorderable), pre-filled with Waiver, Reminders and policies, Cancellation and refund policy, and House rules. **Amenities:** a built-in list with icons that admins switch on or off, plus custom ones with a generic icon. Whether players must **accept the waiver** is open (§11). How it's stored and rendered is settled in T9.11g's research. |
 | 2026-10-22 | Open play sessions (T9.11c; the user approved the plan, the detail fields and multi-court sessions). A new `open_play_sessions` table plus `open_play_courts` (one session, several courts) instead of extending `blackouts`, which are written directly and never checked against bookings. Sessions and bookings check each other under a per-court advisory lock taken in an earlier statement than the STABLE `validate_booking_slot` (RESEARCH M9 "Open play sessions"); the PayMongo revival takes it before its row lock, so it can't deadlock with `create_booking`. `get_availability` was dropped and recreated with `open_play_session_id`. Details: a title, free text and up to 3 https links. **Don't create sessions on production** until T9.11d's frontend is on `master`: the live grid would show them as blank disabled slots. |
 | 2026-10-22 | Venue info (T9.11g; the user approved the plan, the map approach and lucide-react). `venue_settings.address` and `maps_query`; the embed is built from them (the Maps Embed API with `VITE_GOOGLE_MAPS_EMBED_KEY`, a referrer-restricted browser key, otherwise the keyless embed URL), and "Open in Google Maps" uses keyless Maps URLs. Social links are one row per platform, with an inline host check per platform. Info sections are admin-defined, reordered with `move_info_section`, and pre-filled with Waiver, Reminders and policies, Cancellation and refund policy, and House rules. Amenities are 15 built-in keys or custom names, shown in catalog order and then the custom ones as added, with lucide-react icons. URL checks are inline (no function), because admins write through RLS as `authenticated` (RESEARCH M9 "Venue info"). |
+| 2026-10-23 | Close-out (T9.12; the user approved the plan). README screenshots come from `npm run screenshots` (`scripts/screenshots.mjs`), run against the **local** stack. It points its own Vite server at the local stack (`.env` targets the linked project), adds temporary demo data (generated court illustrations, never third-party photos; venue info; an open play session; a guest booking), saves phone (360px) and desktop PNGs to `docs/screenshots/`, and removes everything again. Seed demo photos stay out of `seed.sql` (the T6.7 question). Headless Chromium needs software GL to draw the embedded map. |
 | 2026-10-18 | Emails and deploy (M8, T8.1): Resend from a verified domain (API for booking emails, SMTP for Supabase Auth; superseded on 2026-10-19, see the 2026-10-19 "Emails without a provider" row). A transactional outbox (`email_outbox`, filled by triggers) is drained by the `send-emails` Edge Function, run every minute by pg_cron + pg_net (URL and worker secret in Vault). Retries use backoff, at most 5 attempts, with the Resend idempotency key = outbox id. The guest link is only in the booking-created email, sent by the token-checked `email-guest-link` function, and the token is never stored. Deploy on Vercel (production from `master`, previews from branches, SPA rewrite), one Supabase project shared by previews and production, hosted Auth URLs set in the dashboard, and the production origin first in `PUBLIC_SITE_URL`. |
 | 2026-10-16 | Walk-ins go straight to `confirmed` with `source = 'walk_in'` and an approved payment row (default cash) recorded by the admin. `payment_proofs` is generalized into `payments`. |
 
 ## 11. Open questions
 
-- **Waiver acceptance (2026-10-21, waiting on the user's client):** must players accept the waiver before booking (a required checkbox at checkout, recorded with the booking and the waiver version), or is it only displayed as an info section? Walk-ins would skip it, or the admin would tick it for them. Tracked as T9.11j.
+- **Waiver acceptance (2026-10-21; closed 2026-10-23):** the user skipped it (T9.11j). The Waiver is an info section players can read; there's no acceptance checkbox or record. A new task would add one if the client asks.
 
 The M9 questions (theme, overnight hours, sport order, court photos) were settled on 2026-10-20 (§10, RESEARCH M9). The palette was chosen in T9.1 (Court Green).
 

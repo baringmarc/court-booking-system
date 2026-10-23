@@ -6,9 +6,9 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
 
 > Update this section at the end of every session or task. Keep it short; it's the first thing the next session reads.
 
-- **Current milestone:** 9 (Venue admin upgrades). The breakdown was approved on 2026-10-20 (T9.1–T9.12). M8 ✅ done on 2026-10-20.
-- **Next task:** T9.12 (close-out: README, screenshots, demo video script, the final review). It needs its own **plan gate**. T9.11j (waiver acceptance) is **blocked on the user's client**; T9.12 depends on it only once it's decided.
-- **State:** T9.1–T9.11, T9.11a (2026-10-21), T9.11b–T9.11i (2026-10-22: venue info on the home page and checkout; venue info admin; the venue info migration, pushed; `/book` polish and the PayMongo loading state; the photo viewer; time ranges on `/book`; open play sessions, with the migration pushed and the admin page and `/book` details built) done. **Don't create open play sessions on production** until `develop` (through T9.11d) is merged into `master`: the live grid would show them as blank disabled slots. T9.11a (the user's review of T9.10): the editor's 24-hour checkbox is gone, and 24 hours is only 12 AM → midnight; an open day can't close at its opening time. Its migration is pushed, and production's Saturday moved from 06:00 → 06:00 to 00:00 → 24:00 (the user's choice). Every M9 migration is live, and the contract step dropped `courts.photo_path`. Production's frontend is at PR #9 (through T9.8); T9.9–T9.11 reach it when `develop` is merged into `master`. **Until then, don't set overnight hours on production:** the live schedule editor, rate grid and "today" don't understand them yet. M8 done (2026-10-20): deploy at https://court-booking-system-ashen.vercel.app. Run `npm run smoke:prod -- --links-only` after each merge.
+- **Current milestone:** none. M9 ✅ done on 2026-10-23 (M1–M9 all done; SPEC v1.0). There's no M10 breakdown; any new scope needs its own breakdown and approval.
+- **Next task:** none planned. What's left is for the user: (1) merge `develop` into `master` (production still runs the PR #9 frontend, through T9.8), then (2) run `npm run smoke:prod -- --links-only`, and (3) record the demo video from `docs/demo-script.md`. Optional: a Maps Embed API key (`VITE_GOOGLE_MAPS_EMBED_KEY`, see below).
+- **State:** T9.1–T9.12 done, T9.11j skipped (2026-10-23). Every M9 migration is pushed and live on the linked project. **Until `develop` is merged into `master`, don't set overnight hours or create open play sessions on production:** the live frontend doesn't understand them yet (blank disabled slots, a confused schedule editor). M8 deploy: https://court-booking-system-ashen.vercel.app.
 - **Blockers / notes:**
   - Emails locally: `supabase/functions/.env` must keep `EMAIL_TRANSPORT=mailpit`, `MAILPIT_URL` and `EMAIL_WORKER_SECRET` (see `.env.example`) for smoke and e2e. Restart the stack after changing it. Your PayMongo test key is commented out there; uncomment it only for real local test payments, and expect `pay-online` e2e and `smoke:paymongo` to fail while it's active.
   - Scope added on 2026-10-19 (SPEC §9, §10, §11): slot status colors are in T8.5, the settings spacing fix is in T8.4, and M9 is outlined at the end of this file. The README moved there. Booker names are **first name only** in public. A court can be deleted only if it was never booked.
@@ -785,7 +785,7 @@ Out of scope for M8: live PayMongo keys and real money, refunds, SMS, new featur
 
 Goal (SPEC §9): the user's 2026-10-19 requests, then the portfolio close-out.
 
-> **Status: breakdown approved by the user (2026-10-20), with every RESEARCH M9 recommendation.** Research: RESEARCH M9. Every DB task still stops at its own plan gate before `db:push`. **Production is live:** every migration must keep the deployed frontend working (expand → deploy → contract, RESEARCH M9 "Shipping DB changes while production is live").
+> **Status: ✅ done (2026-10-23).** The breakdown was approved by the user on 2026-10-20, with every RESEARCH M9 recommendation. Research: RESEARCH M9. Every DB task still stops at its own plan gate before `db:push`. **Production is live:** every migration must keep the deployed frontend working (expand → deploy → contract, RESEARCH M9 "Shipping DB changes while production is live").
 
 Out of scope for M9: new sports, live payments, Resend, refunds, SMS.
 
@@ -1153,17 +1153,19 @@ Out of scope for M9: new sports, live payments, Resend, refunds, SMS.
 - **Acceptance:** Testing Library covers each part, with data and without. axe passes on the home page. e2e on the phone project checks that the sections render.
 - **Notes:** `src/features/venue/VenueInfo.tsx` holds `AmenityChips` (under the hero), `VenueLocation` (a card after the courts: address, lazy map from `mapEmbedUrl`, "Open in Google Maps", social links), `FooterSocials` (in `Layout`, every public page), `InfoSections` ("Good to know" panels with `info-<id>` anchors; a hash opens one and scrolls to it, again after page load) and `CancellationPolicyLink` (under the checkout form, in a new tab: the first section with "cancel" in its title, which the admin page and SPEC §7 say). Social links use generic icons, because lucide v1 has no brand logos. Every part renders nothing while loading, on error or when empty. Tests: `VenueInfo.test.tsx` (13), `Layout.test.tsx` (QueryClient wrapper), and e2e `venue-info.spec.ts`, extended to a signed-out player on `/` at desktop and 360px with axe in light and dark (the third-party map frame excluded). verify passes (504); full e2e 41 passed, 3 skipped. The public index chunk grew from 67.9 kB to 82.9 kB (25.9 kB gzip, +5.6 kB): the amenity icons and the venue components. The reviewer passed it; its three minors (the documented title rule, the error-state tests, the re-scroll after load) are fixed.
 
-### [ ] T9.11j Waiver acceptance (blocked: waiting on the user's client)
+### [-] T9.11j Waiver acceptance (skipped)
 - **Do:** whether players must accept the waiver at checkout (a required checkbox, recorded with the booking and the waiver version) or it is only displayed (already covered by T9.11i's info sections). SPEC §11 has the open question. Plan it only once the client decides. If it isn't needed, mark it `[-]`.
+- **Notes:** Skipped by the user on 2026-10-23. There's no acceptance checkbox; the Waiver info section is shown on the home page (T9.11i). Revisit it as a new task if the client asks for recorded acceptance.
 
-### [ ] T9.12 Close out M9 and the project
-- **Depends:** T9.1–T9.11i (and T9.11j once it's decided)
+### [x] T9.12 Close out M9 and the project
+- **Depends:** T9.1–T9.11i (T9.11j skipped)
 - **Do:**
   - README: what the project is, its stack and architecture, and how to run it locally. Note that previews share the production database (RESEARCH M8).
   - Screenshots (phone and desktop), and decide on seed demo photos for them (skipped in T6.7).
   - A demo video script.
   - Mark M9 ✅ in SPEC §9 and run the final milestone review.
 - **Acceptance:** `npm run verify` and `npm run test:e2e` pass, and the reviewer signs off.
+- **Notes:** The user approved the plan on 2026-10-23, including generated court illustrations for the screenshots, and skipped T9.11j. `README.md` was rewritten (what it does, stack, architecture, running it locally, tests, deployment and the shared preview database). `docs/demo-script.md` is a 6-scene, roughly 3½-minute script. `npm run screenshots` (`scripts/screenshots.mjs`) regenerates `docs/screenshots/` (17 PNGs, phone and desktop) on the local stack: it points its own Vite server at the local stack, adds temporary demo data, and removes it step by step even after an error or Ctrl-C (checked: nothing left behind). Seed demo photos stay out of `seed.sql` (SPEC §10, 2026-10-23). The user approved deleting 63 leftover local smoke-test bookings. A flaky `AuthProvider.test.tsx` was fixed: the probe captures in `useLayoutEffect`, with the assertions unchanged. SPEC §9 marks M9 ✅ (v1.0). verify passes (504 Vitest, 687 pgTAP); e2e 43 passed, 1 skipped. The final milestone 9 review passed; its major (this Handoff) and two minors (screenshot cleanup, Node 22.12 in the README) are fixed.
 
 ---
 
