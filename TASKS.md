@@ -7,8 +7,8 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
 > Update this section at the end of every session or task. Keep it short; it's the first thing the next session reads.
 
 - **Current milestone:** M10 Product improvements, **approved by the user on 2026-10-25** (breakdown below; background in `docs/SAAS-PLAN.md` §7a). M9 ✅ done on 2026-10-23 (M1–M9 all done; SPEC v1.0). After M10 come the SaaS milestones (M11+, `docs/SAAS-PLAN.md`), each with its own breakdown and approval.
-- **Next task:** T10.4 Migration: block keys in availability (DB: stops at its plan gate). Still the user's: run `npm run smoke:prod -- --links-only` and record the demo video from `docs/demo-script.md`. Optional: a Maps Embed API key (`VITE_GOOGLE_MAPS_EMBED_KEY`, see below).
-- **State:** T10.1–T10.3 done on 2026-10-25: the date, hour and duration pickers are live on `/book`, open play and blackouts (on `develop`; production gets them when `develop` is merged into `master`). M8 deploy: https://court-booking-system-ashen.vercel.app.
+- **Next task:** T10.5 Merged blocks on the slot grids (UI only, no plan gate). T10.6 and T10.9 are DB tasks and stop at their plan gates. Still the user's: run `npm run smoke:prod -- --links-only` and record the demo video from `docs/demo-script.md`. Optional: a Maps Embed API key (`VITE_GOOGLE_MAPS_EMBED_KEY`, see below).
+- **State:** T10.1–T10.4 done on 2026-10-25. The pickers are on `develop`, and `get_availability.block_key` is live on the linked project (expand only, so production's frontend is unaffected). M8 deploy: https://court-booking-system-ashen.vercel.app.
 - **Blockers / notes:**
   - Emails locally: `supabase/functions/.env` must keep `EMAIL_TRANSPORT=mailpit`, `MAILPIT_URL` and `EMAIL_WORKER_SECRET` (see `.env.example`) for smoke and e2e. Restart the stack after changing it. Your PayMongo test key is commented out there; uncomment it only for real local test payments, and expect `pay-online` e2e and `smoke:paymongo` to fail while it's active.
   - Scope added on 2026-10-19 (SPEC §9, §10, §11): slot status colors are in T8.5, the settings spacing fix is in T8.4, and M9 is outlined at the end of this file. The README moved there. Booker names are **first name only** in public. A court can be deleted only if it was never booked.
@@ -1242,7 +1242,7 @@ Out of scope for M10: multiple venues, billing and Plotline fees (M11+), a rain-
   - verify passes (537 Vitest, 687 pgTAP); e2e 43 passed, 3 skipped (time-of-day walk-in, phone zoom).
   - The reviewer passed it; its major (the smoke script) and both minors (the Handoff bundle baseline, the start date after midnight) are fixed.
 
-### [ ] T10.4 Migration: block keys in availability
+### [x] T10.4 Migration: block keys in availability
 - **Depends:** T10.1
 - **Do:** `get_availability` returns a `block_key` per slot, so the grid can merge consecutive slots of the same booking, open play session or blackout.
   - Bookings use an opaque hash, never the booking id or reference.
@@ -1253,6 +1253,12 @@ Out of scope for M10: multiple venues, billing and Plotline fees (M11+), a rain-
   - pgTAP: the same booking's slots share a key and different bookings differ; the key isn't the booking id; open play and blackouts are keyed as above; free and past slots have none.
   - `05`, `20`, `23` and `26` are updated only for the new column.
   - `db:push` and `db:types` have been run.
+- **Notes:** Done on 2026-10-25; the user approved the plan, including `db:push`.
+  - **Migration** `20261025151341_availability_block_keys.sql`: drop and recreate with `block_key` last, the blackout `exists` turned into a lateral that picks the lowest id, and the same grants. Status precedence and every earlier column are unchanged.
+  - **Evidence:** `28_block_keys.test.sql` (18 tests). The past-slot check skips before 01:00 Manila, when no slot has ended yet. `05`, `20` and `23` were updated only for the column; `26` needed no change.
+  - **Pushed to the linked project:** the new signature, anon can execute and PUBLIC can't, and tomorrow's 98 slots have no unkeyed block. The live frontend ignores the column.
+  - verify passes (537 Vitest, 705 pgTAP); e2e 43 passed, 3 skipped. The reviewer passed it; its two minors (the vacuous past-slot test, the Handoff) are fixed.
+- **Follow-up (T10.5):** the generated type says `block_key: string`, but it's null for free and past slots (gen types marks every returned column non-null). Treat it as nullable when grouping.
 
 ### [ ] T10.5 Merged blocks on the slot grids
 - **Depends:** T10.4
