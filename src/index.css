@@ -447,3 +447,15 @@ fieldset.field legend { padding: 0; margin-bottom: 6px; }
 .info-panel summary { cursor: pointer; font-weight: 600; min-height: 28px; }
 .info-panel .info-body { margin-top: 12px; }
 .info-panel .info-body p:last-child { margin-bottom: 0; }
+
+/* Earnings (T10.7): a plain data table, and a bar per day with its label and amount as text. */
+.data-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+.data-table th, .data-table td { padding: 6px; text-align: right; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.data-table th[scope='row'], .data-table thead th:first-child { text-align: left; white-space: normal; }
+.data-table thead th { font-weight: 600; color: var(--muted); white-space: normal; vertical-align: bottom; }
+.data-table .subtotal th, .data-table .subtotal td, .data-table tfoot th, .data-table tfoot td { font-weight: 600; }
+.bar-chart { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.bar-chart li { display: grid; grid-template-columns: 7.5em 1fr auto; align-items: center; gap: 8px; font-size: 0.8rem; }
+.bar-track { height: 12px; border-radius: 6px; background: var(--accent-soft); overflow: hidden; }
+.bar { display: block; height: 100%; background: var(--accent); }
+.bar-value { white-space: nowrap; text-align: right; }

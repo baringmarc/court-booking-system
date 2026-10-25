@@ -7,8 +7,8 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
 > Update this section at the end of every session or task. Keep it short; it's the first thing the next session reads.
 
 - **Current milestone:** M10 Product improvements, **approved by the user on 2026-10-25** (breakdown below; background in `docs/SAAS-PLAN.md` §7a). M9 ✅ done on 2026-10-23 (M1–M9 all done; SPEC v1.0). After M10 come the SaaS milestones (M11+, `docs/SAAS-PLAN.md`), each with its own breakdown and approval.
-- **Next task:** T10.7 Dashboard: earnings (UI only, no plan gate). T10.9 is the remaining DB task. Still the user's: run `npm run smoke:prod -- --links-only` and record the demo video from `docs/demo-script.md`. Optional: a Maps Embed API key (`VITE_GOOGLE_MAPS_EMBED_KEY`, see below).
-- **State:** T10.1–T10.6 done (2026-10-25). The pickers and merged grid blocks are on `develop`. On the linked project, `get_availability.block_key` and `get_earnings` are live (expand only; production's frontend doesn't use them yet). M8 deploy: https://court-booking-system-ashen.vercel.app.
+- **Next task:** T10.8 CSV export (UI only, no plan gate). T10.9 is the remaining DB task. Still the user's: run `npm run smoke:prod -- --links-only` and record the demo video from `docs/demo-script.md`. Optional: a Maps Embed API key (`VITE_GOOGLE_MAPS_EMBED_KEY`, see below).
+- **State:** T10.1–T10.7 done (2026-10-26). The pickers, merged grid blocks and dashboard earnings are on `develop`. On the linked project, `get_availability.block_key` and `get_earnings` are live (expand only). M8 deploy: https://court-booking-system-ashen.vercel.app.
 - **Blockers / notes:**
   - Emails locally: `supabase/functions/.env` must keep `EMAIL_TRANSPORT=mailpit`, `MAILPIT_URL` and `EMAIL_WORKER_SECRET` (see `.env.example`) for smoke and e2e. Restart the stack after changing it. Your PayMongo test key is commented out there; uncomment it only for real local test payments, and expect `pay-online` e2e and `smoke:paymongo` to fail while it's active.
   - Scope added on 2026-10-19 (SPEC §9, §10, §11): slot status colors are in T8.5, the settings spacing fix is in T8.4, and M9 is outlined at the end of this file. The README moved there. Booker names are **first name only** in public. A court can be deleted only if it was never booked.
@@ -1312,7 +1312,7 @@ Out of scope for M10: multiple venues, billing and Plotline fees (M11+), a rain-
   - **T10.7:** clamp occupancy at 100%. Blackouts aren't checked against bookings, so a booking inside a blackout counts in both sold and blackout hours.
   - **Later, if it gets slow:** an index on `payments (reviewed_at)` in a new migration.
 
-### [ ] T10.7 Dashboard: earnings
+### [x] T10.7 Dashboard: earnings
 - **Depends:** T10.6
 - **Do:**
   - An earnings section on `/admin`:
@@ -1329,6 +1329,20 @@ Out of scope for M10: multiple venues, billing and Plotline fees (M11+), a rain-
   - Component tests for each state.
   - e2e: a walk-in shows up in today's collected total.
   - axe clean in light and dark. The chart is readable without color alone and has a text alternative.
+- **Notes:** Done on 2026-10-26.
+  - **`EarningsSection`** (on `get_earnings`) replaces "Today's takings":
+    - a period switch with whole weeks (Monday to Sunday) and whole months, and a custom range up to 366 days;
+    - collected per method, with the change from the period before, and refunds due shown apart;
+    - coming up;
+    - a booked-hours table per court and sport, with occupancy capped at 100%;
+    - a labelled bar per day.
+  - **Removed:** the old takings code (`TakingsCard`, `takingsByMethod`, `refundsDueSummary`, `fetchApprovedPayments`, `fetchRefundsDue`, `useTakings`, `useRefundsDue`). Walk-in and review mutations now refresh earnings.
+  - **Evidence:**
+    - `earnings.test.ts` (12 tests: periods, parsing, occupancy, change, bars) and `EarningsSection.test.tsx` (6 states);
+    - e2e `earnings.spec.ts` (a cash walk-in payment raises today's total by its amount; This week bars; axe light and dark; no overflow at 360px);
+    - `walk-in.spec.ts`: a walk-in recorded through the form raises the total by the amount received.
+  - **Layout:** the hours table fits 360px (columns Court, Booked, Occupancy, Open play; headers wrap).
+  - verify passes; e2e passes. The reviewer passed it; its 3 minors (the exact walk-in total, the active-courts note, a duplicate CSS rule) are fixed.
 
 ### [ ] T10.8 CSV export
 - **Depends:** T10.6

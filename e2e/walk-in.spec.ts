@@ -5,6 +5,11 @@ import { createAdmin, E2E_PREFIX, logInAdmin, venueDate } from './support/helper
 test('an admin records a walk-in and the slot shows as booked on /book', async ({ page }) => {
   const admin = await createAdmin()
   await logInAdmin(page, admin.email, admin.password)
+  // Today's collected total before the walk-in (T10.7).
+  const collected = page.getByRole('region', { name: 'Earnings' }).locator('.big-number').first()
+  await expect(collected).toHaveText(/₱/)
+  const pesos = (text: string | null) => Number((text ?? '').replace(/[^\d.]/g, ''))
+  const before = pesos(await collected.textContent())
   await page.getByRole('button', { name: '+ Walk-in' }).click()
 
   const form = page.getByRole('form', { name: 'Walk-in booking' })
@@ -19,8 +24,13 @@ test('an admin records a walk-in and the slot shows as booked on /book', async (
   const hourLabel = ((await options.last().textContent()) ?? '').replace(' (now)', '').trim()
   await start.selectOption({ index: await options.count() })
   await form.getByLabel('Customer name').fill(`${E2E_PREFIX} Walk-in`)
+  const amount = Number(await form.getByLabel('Amount received').inputValue())
   await form.getByRole('button', { name: 'Record walk-in' }).click()
   await expect(page.getByRole('status').filter({ hasText: /Walk-in CB-[A-Z0-9]{6} recorded and confirmed/ })).toBeVisible()
+
+  // Its cash payment is in today's earnings (T10.7): the total rises by exactly the amount received.
+  await expect.poll(async () => pesos(await collected.textContent())).toBe(before + amount)
+  await expect(page.getByRole('region', { name: 'Earnings' }).getByRole('list', { name: 'Collected by method' })).toContainText('Cash')
 
   // Staff see the full name in today's courts grid (T9.8), and its reference opens that booking.
   const reference = (await page.getByRole('status').filter({ hasText: /Walk-in CB-/ }).textContent())!.match(/CB-[A-Z0-9]{6}/)![0]

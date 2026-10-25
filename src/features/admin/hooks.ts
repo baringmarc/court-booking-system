@@ -4,11 +4,10 @@ import {
   adminKeys,
   createWalkIn,
   fetchAdminBookings,
-  fetchApprovedPayments,
+  fetchEarnings,
   fetchProofQueueCount,
   fetchProofUrl,
   deleteCourt,
-  fetchRefundsDue,
   moveCourt,
   removeBanner,
   removeCourtPhoto,
@@ -65,7 +64,7 @@ export function useReviewPayment() {
     onSettled: () => Promise.all([
       qc.invalidateQueries({ queryKey: adminKeys.allBookings }),
       qc.invalidateQueries({ queryKey: adminKeys.proofQueue }),
-      qc.invalidateQueries({ queryKey: adminKeys.allTakings }),
+      qc.invalidateQueries({ queryKey: adminKeys.allEarnings }),
       qc.invalidateQueries({ queryKey: bookingKeys.allAvailability }),
     ]),
   })
@@ -87,14 +86,9 @@ export function useProofQueueCount() {
   return useQuery({ queryKey: adminKeys.proofQueue, queryFn: fetchProofQueueCount, staleTime: 15_000, refetchInterval: 60_000 })
 }
 
-/** Approved payments in the venue-local day [fromIso, toIso). */
-export function useTakings(fromIso: string, toIso: string) {
-  return useQuery({ queryKey: adminKeys.takings(fromIso), queryFn: () => fetchApprovedPayments(fromIso, toIso), staleTime: 30_000 })
-}
-
-/** PayMongo payments received in the venue-local day [fromIso, toIso) but not accepted (refund outside the app). */
-export function useRefundsDue(fromIso: string, toIso: string) {
-  return useQuery({ queryKey: adminKeys.refundsDue(fromIso), queryFn: () => fetchRefundsDue(fromIso, toIso), staleTime: 30_000 })
+/** The earnings summary for venue dates from–to (T10.7). */
+export function useEarnings(from: string, to: string, enabled = true) {
+  return useQuery({ queryKey: adminKeys.earnings(from, to), queryFn: () => fetchEarnings(from, to), staleTime: 30_000, enabled })
 }
 
 export function useCreateWalkIn() {
@@ -103,7 +97,7 @@ export function useCreateWalkIn() {
     mutationFn: (input: WalkInInput) => createWalkIn(input),
     onSettled: () => Promise.all([
       qc.invalidateQueries({ queryKey: adminKeys.allBookings }),
-      qc.invalidateQueries({ queryKey: adminKeys.allTakings }),
+      qc.invalidateQueries({ queryKey: adminKeys.allEarnings }),
       qc.invalidateQueries({ queryKey: bookingKeys.allAvailability }),
     ]),
   })

@@ -12,10 +12,10 @@ import { useNow } from '../booking/useNow'
 import type { Court, OperatingHours, VenueSettings } from '../catalog/api'
 import { useCourts, useOperatingHours, useVenueSettings } from '../catalog/hooks'
 import { isAfterMidnight, operatingDayRange, operatingToday } from '../catalog/hours'
-import { operatingDayBookings, refundsDueSummary, takingsByMethod } from './dashboard'
-import { useAdminBookings, useCreateWalkIn, useProofQueueCount, useRefundsDue, useTakings } from './hooks'
+import { operatingDayBookings } from './dashboard'
+import { useAdminBookings, useCreateWalkIn, useProofQueueCount } from './hooks'
 import { DayView } from './DayView'
-import { TakingsCard } from './TakingsCard'
+import { EarningsSection } from './EarningsSection'
 import { WalkInForm } from './WalkInForm'
 
 export function DashboardPage() {
@@ -48,9 +48,8 @@ function Dashboard({ settings, courts, hours }: { settings: VenueSettings; court
   const currency = settings.currency
   const now = useNow(30_000)
   // "Today" is the operating day running now (T9.10): at 1 AM after a 6 AM–5 AM day, still yesterday's date.
-  // Takings stay on that calendar date (money is counted by day).
+  // Earnings count money on that calendar date (money is counted by day).
   const today = operatingToday(hours, tz, now)
-  const dayStart = zonedLocalToISO(`${today}T00:00`, tz)
   const dayEnd = zonedLocalToISO(`${addDays(today, 1)}T00:00`, tz)
   const open = operatingDayRange(hours, today, tz)
   const pastMidnight = !!open && open.end > dayEnd
@@ -61,8 +60,6 @@ function Dashboard({ settings, courts, hours }: { settings: VenueSettings; court
   const availability = useAvailability(today)
   const openPlay = useUpcomingOpenPlay({ enabled: !!availability.data?.some((s) => s.status === 'open_play') })
   const queue = useProofQueueCount()
-  const takings = useTakings(dayStart, dayEnd)
-  const refundsDue = useRefundsDue(dayStart, dayEnd)
   const [showWalkIn, setShowWalkIn] = useState(false)
   const [lastWalkIn, setLastWalkIn] = useState<string | null>(null)
 
@@ -73,7 +70,6 @@ function Dashboard({ settings, courts, hours }: { settings: VenueSettings; court
   const todays = operatingDayBookings(
     [schedule.data?.bookings ?? [], pastMidnight ? scheduleNext.data?.bookings ?? [] : []], open,
   ).filter((b) => ACTIVE.has(displayStatus(b, now)))
-  const summary = takings.data ? takingsByMethod(takings.data) : null
 
   return (
     <div className="stack">
@@ -88,15 +84,6 @@ function Dashboard({ settings, courts, hours }: { settings: VenueSettings; court
               <Link to="/admin/bookings">{queue.data ? 'Review proofs' : 'Open bookings'}</Link>
             </>
           )}
-        </section>
-        <section className="card">
-          <h2>Today's takings</h2>
-          {takings.isPending ? <PageLoader /> : takings.isError ? (
-            <ErrorMessage error={takings.error} onRetry={() => takings.refetch()} />
-          ) : summary ? (
-            <TakingsCard takings={summary} refundsDue={refundsDue.data ? refundsDueSummary(refundsDue.data) : null} currency={currency}
-              refundsError={refundsDue.isError} onRetryRefunds={() => refundsDue.refetch()} />
-          ) : null}
         </section>
       </div>
 
@@ -113,6 +100,8 @@ function Dashboard({ settings, courts, hours }: { settings: VenueSettings; court
             onRecorded={(ref) => { setLastWalkIn(ref); setShowWalkIn(false) }} />
         )}
       </section>
+
+      <EarningsSection today={today} timeZone={tz} currency={currency} />
 
       <section className="card stack" aria-labelledby="day-view-heading">
         <h2 id="day-view-heading">Today's courts</h2>

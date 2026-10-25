@@ -57,10 +57,8 @@ export const adminKeys = {
   allBookings: ['admin-bookings'] as const,
   proofUrl: (path: string) => ['proof-url', path] as const,
   proofQueue: ['admin-proof-queue'] as const,
-  takings: (from: string) => ['admin-takings', from] as const,
-  // Under the takings prefix, so everything that refreshes takings refreshes this too.
-  refundsDue: (from: string) => ['admin-takings', 'refunds-due', from] as const,
-  allTakings: ['admin-takings'] as const,
+  earnings: (from: string, to: string) => ['admin-earnings', from, to] as const,
+  allEarnings: ['admin-earnings'] as const,
 }
 
 // One literal: supabase-js infers the row type from this string.
@@ -152,34 +150,9 @@ export async function fetchProofQueueCount() {
   return count ?? 0
 }
 
-/** Approved payments reviewed (or recorded, for walk-ins) in [from, to). */
-export async function fetchApprovedPayments(fromIso: string, toIso: string) {
-  const rows = unwrap(
-    await supabase
-      .from('payments')
-      .select('method, amount')
-      .eq('review_status', 'approved')
-      .gte('reviewed_at', fromIso)
-      .lt('reviewed_at', toIso),
-  )
-  return rows.map((r) => ({ method: r.method, amount: Number(r.amount) }))
-}
-
-/**
- * PayMongo payments received in [from, to) that weren't accepted (late or the wrong amount, SPEC §4 case 4): money
- * that came in but isn't in the takings, because staff refund it outside the app.
- */
-export async function fetchRefundsDue(fromIso: string, toIso: string) {
-  const rows = unwrap(
-    await supabase
-      .from('payments')
-      .select('amount')
-      .eq('method', 'paymongo')
-      .eq('review_status', 'rejected')
-      .gte('reviewed_at', fromIso)
-      .lt('reviewed_at', toIso),
-  )
-  return rows.map((r) => Number(r.amount))
+/** The earnings summary for venue dates from–to, inclusive (T10.6): raw JSON, read with parseEarnings. */
+export async function fetchEarnings(from: string, to: string) {
+  return unwrap(await supabase.rpc('get_earnings', { p_from: from, p_to: to }))
 }
 
 export type WalkInInput = {
