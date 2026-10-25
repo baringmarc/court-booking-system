@@ -7,8 +7,8 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
 > Update this section at the end of every session or task. Keep it short; it's the first thing the next session reads.
 
 - **Current milestone:** M10 Product improvements, **approved by the user on 2026-10-25** (breakdown below; background in `docs/SAAS-PLAN.md` §7a). M9 ✅ done on 2026-10-23 (M1–M9 all done; SPEC v1.0). After M10 come the SaaS milestones (M11+, `docs/SAAS-PLAN.md`), each with its own breakdown and approval.
-- **Next task:** T10.2 Date and hour picker component (UI only, no plan gate). T10.4, T10.6 and T10.9 are DB tasks and stop at their plan gates. Still the user's: run `npm run smoke:prod -- --links-only` and record the demo video from `docs/demo-script.md`. Optional: a Maps Embed API key (`VITE_GOOGLE_MAPS_EMBED_KEY`, see below).
-- **State:** T10.1 done on 2026-10-25: RESEARCH M10 written, every recommendation approved (SPEC §9 item 10, §10 2026-10-25). `develop` is merged into `master` (PR #12), so overnight hours and open play are safe on production now. M8 deploy: https://court-booking-system-ashen.vercel.app.
+- **Next task:** T10.3 Use the picker: open play, blackouts and `/book` (UI only; see T10.2's follow-ups). T10.4, T10.6 and T10.9 are DB tasks and stop at their plan gates. Still the user's: run `npm run smoke:prod -- --links-only` and record the demo video from `docs/demo-script.md`. Optional: a Maps Embed API key (`VITE_GOOGLE_MAPS_EMBED_KEY`, see below).
+- **State:** T10.1 and T10.2 done on 2026-10-25. The picker components are in `src/components/` but not used by any page yet (T10.3). `develop` is merged into `master` (PR #12), so overnight hours and open play are safe on production now. M8 deploy: https://court-booking-system-ashen.vercel.app.
 - **Blockers / notes:**
   - Emails locally: `supabase/functions/.env` must keep `EMAIL_TRANSPORT=mailpit`, `MAILPIT_URL` and `EMAIL_WORKER_SECRET` (see `.env.example`) for smoke and e2e. Restart the stack after changing it. Your PayMongo test key is commented out there; uncomment it only for real local test payments, and expect `pay-online` e2e and `smoke:paymongo` to fail while it's active.
   - Scope added on 2026-10-19 (SPEC §9, §10, §11): slot status colors are in T8.5, the settings spacing fix is in T8.4, and M9 is outlined at the end of this file. The README moved there. Booker names are **first name only** in public. A court can be deleted only if it was never booked.
@@ -24,7 +24,7 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
   - `e2e/banner.spec.ts` skips itself when a banner is already set on the local stack (the banner is venue-wide). Remove it in `/admin/settings` to get the coverage back.
   - PayMongo on the linked project: secrets `PAYMONGO_SECRET_KEY`, `PAYMONGO_WEBHOOK_SECRET` and `PUBLIC_SITE_URL` (production first since T8.6, then the two localhost origins). Webhook registered in the dashboard under Settings → Webhooks (Test Mode).
   - Local PayMongo setup: `supabase/functions/.env` (from `.env.example`) holds `PAYMONGO_MODE=stub`, `PUBLIC_SITE_URL` and the local webhook secret. Restart the stack (`supabase stop/start`) after adding a function or changing that file. `npm run smoke:paymongo` exercises both functions.
-  - M10 picker: install `@daypicker/react` at exactly 10.0.2 (v10's new name; `react-day-picker` is only an alias). Load the calendar with `React.lazy` so `/book`'s `index` chunk doesn't grow (RESEARCH M10).
+  - M10 picker: `@daypicker/react` is pinned at 10.0.2 (v10's new name; `react-day-picker` is only an alias). Keep `Calendar.tsx` behind `React.lazy` (only `DatePicker` imports it) so `/book`'s `index` doesn't take the 19.9 kB gzip calendar.
   - Open follow-ups:
     - a user decision on capping the fresh hold after a rejection at the start time (T4.6)
     - the Edge Function `index.ts` is checked only by smoke and e2e (no Deno type-check)
@@ -1195,7 +1195,7 @@ Out of scope for M10: multiple venues, billing and Plotline fees (M11+), a rain-
 - **Acceptance:** RESEARCH M10 written with sources. SPEC §9 and §10 updated. The user has seen the recommendations at the plan gate.
 - **Notes:** The user approved every recommendation on 2026-10-25: walk-in slot rules for rescheduling, no cascade on cancel, contact details off by default in CSV. Evidence: a scratch esbuild bundle (DayPicker +74.6 kB raw / 22.5 kB gzip JS, 2.2 kB gzip CSS), local queries (Monday `date_trunc('week')`, the enum-in-transaction failure, current function bodies). T10.3, T10.4, T10.6, T10.8 and T10.9 were updated with the decisions. No code changed. The reviewer passed it; its 5 minors were fixed (T10.9 wording, the T10.4 blackout key, the OWASP link, the refunds-due filter, and cancel emails for continuations).
 
-### [ ] T10.2 Date and hour picker component
+### [x] T10.2 Date and hour picker component
 - **Depends:** T10.1
 - **Do:** shared components (where research puts them, e.g. `src/components/DatePicker.tsx` and `HourPicker.tsx`):
   - **Date:** a calendar on `react-day-picker`. Days outside a given range and closed days are disabled. "Today" and "Tomorrow" quick picks. Styled with our tokens, light and dark.
@@ -1206,6 +1206,18 @@ Out of scope for M10: multiple venues, billing and Plotline fees (M11+), a rain-
   - Vitest covers the helpers, including overnight and 24-hour days and the DST-free Asia/Manila zone.
   - Component tests cover keyboard use and disabled days.
   - The bundle size is measured with `.env` present. The calendar stays out of the public bundle if only admin pages use it; if `/book` uses it, record its public cost in the Handoff.
+- **Notes:** Done on 2026-10-25.
+  - **Files:** `src/components/DatePicker.tsx` (Today/Tomorrow plus a lazy `Calendar.tsx` on `@daypicker/react` 10.0.2 in a native `<dialog>`), `HourPicker.tsx` (`HourPicker`, `DurationPicker`) on `ChoiceGroup.tsx` (native radio pills: arrow keys, one tab stop), and `pickerHours.ts`. The helpers live in `src/components`, not `src/lib` as RESEARCH suggested, because they build on `features/catalog/hours.ts`. They're named `operatingHourOptions`, `calendarHourOptions`, `maxDuration` and `endAfter`, and share `hourOnDate()` with `operatingDayRange`.
+  - **Fixed:** `showModal()` moved focus to "previous month" once the calendar chunk was cached, so the dialog now gives focus back to the day. The dialog has less padding and the days are 42px under 380px, so a week fits on a 360px phone.
+  - **Evidence:** `pickerHours.test.ts` (15 tests), `HourPicker.test.tsx` and `DatePicker.test.tsx` (13 tests, including the first and the cached opens).
+  - **Bundle** (with `.env`): unused, the public `index` is unchanged at 83.1 kB (26.0 kB gzip). A trial on `/book` (reverted) gave `index` +6.4 kB raw / +1.7 kB gzip, plus a lazy `Calendar` chunk of 67.6 kB (19.9 kB gzip) and 1.8 kB gzip CSS.
+  - verify passes (532 Vitest, 687 pgTAP); e2e 41 passed, 3 skipped (time-of-day walk-in, phone zoom). The reviewer passed it; its major (phone fit) and a minor (duplicated hour helper) are fixed.
+- **Follow-ups (T10.3):**
+  - Clear or clamp the parent's duration when the date or start changes; `DurationPicker` only hides a stale value.
+  - Blackout "Until" offers 12 AM–11 PM, so midnight is the next day's 12 AM: label it clearly or add "midnight (end of day)".
+  - Check what the +6.4 kB in `index` is (probably Vite's preload helper).
+  - Pass `operatingToday()` and `closedDaysOfWeek(hours)` to `DatePicker`.
+  - Check the calendar at 360px in the phone e2e.
 
 ### [ ] T10.3 Use the picker: open play, blackouts and `/book`
 - **Depends:** T10.2

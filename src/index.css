@@ -372,6 +372,24 @@ button.day:focus-visible, .slot:focus-visible, .date-nav input:focus-visible { o
 /* Grouped fields (T9.11d): a fieldset laid out like a .field, without the browser's frame. */
 fieldset.field { border: 0; margin: 0; padding: 0; min-width: 0; }
 fieldset.field legend { padding: 0; margin-bottom: 6px; }
+
+/* Date, hour and duration pickers (T10.2): pills that wrap, at least 44px tall for touch. The radio input stays
+   focusable but hidden; its pill shows the checked state with colour and a border, and the focus ring. */
+.choice-group, .date-picker { border: 0; margin: 0; padding: 0; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.choice-group legend, .field-label { padding: 0; margin-bottom: 6px; font-weight: 500; }
+.choice-options { display: flex; flex-wrap: wrap; gap: 6px; }
+.choice { position: relative; }
+.choice input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; }
+.choice > span {
+  display: inline-flex; align-items: center; gap: 4px; min-height: 44px; padding: 0 14px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer; white-space: nowrap;
+}
+.choice:hover > span { background: var(--accent-soft); }
+.choice input:checked + span { background: var(--accent); border-color: var(--accent); color: var(--accent-contrast); font-weight: 600; }
+.choice input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+.choice-note { font-size: 0.75rem; }
+.date-picker .btn { min-height: 44px; }
+.date-picker .btn[aria-pressed='true'] { background: var(--accent); border-color: var(--accent); color: var(--accent-contrast); }
 .check-list { display: flex; flex-wrap: wrap; gap: 8px 20px; font-weight: 400; }
 
 /* Photos that open full screen (T9.11e). */
