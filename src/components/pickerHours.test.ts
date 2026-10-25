@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { OperatingHours } from '../features/catalog/api'
 import {
-  calendarHourOptions, closedDaysOfWeek, durationLabel, endAfter, findHour, fromPickerDate, hoursBetween,
+  calendarEndOptions, calendarHourOptions, closedDaysOfWeek, durationLabel, endAfter, findHour, fromPickerDate, hoursBetween,
   isDateAllowed, maxDuration, operatingHourOptions, toPickerDate,
 } from './pickerHours'
 
@@ -57,6 +57,15 @@ describe('calendarHourOptions', () => {
     expect(options).toHaveLength(24)
     expect(options[0]).toEqual({ start: '2026-10-23T16:00:00.000Z', label: '12 AM', nextDay: false })
     expect(options[13].label).toBe('1 PM')
+  })
+})
+
+describe('calendarEndOptions', () => {
+  it('ends at 1 AM through midnight, the end of the date', () => {
+    const options = calendarEndOptions(SAT, TZ)
+    expect(options).toHaveLength(24)
+    expect(options[0]).toEqual({ start: '2026-10-23T17:00:00.000Z', label: '1 AM', nextDay: false })
+    expect(options.at(-1)).toEqual({ start: '2026-10-24T16:00:00.000Z', label: 'Midnight', nextDay: false })
   })
 })
 

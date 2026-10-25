@@ -7,12 +7,12 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
 > Update this section at the end of every session or task. Keep it short; it's the first thing the next session reads.
 
 - **Current milestone:** M10 Product improvements, **approved by the user on 2026-10-25** (breakdown below; background in `docs/SAAS-PLAN.md` §7a). M9 ✅ done on 2026-10-23 (M1–M9 all done; SPEC v1.0). After M10 come the SaaS milestones (M11+, `docs/SAAS-PLAN.md`), each with its own breakdown and approval.
-- **Next task:** T10.3 Use the picker: open play, blackouts and `/book` (UI only; see T10.2's follow-ups). T10.4, T10.6 and T10.9 are DB tasks and stop at their plan gates. Still the user's: run `npm run smoke:prod -- --links-only` and record the demo video from `docs/demo-script.md`. Optional: a Maps Embed API key (`VITE_GOOGLE_MAPS_EMBED_KEY`, see below).
-- **State:** T10.1 and T10.2 done on 2026-10-25. The picker components are in `src/components/` but not used by any page yet (T10.3). `develop` is merged into `master` (PR #12), so overnight hours and open play are safe on production now. M8 deploy: https://court-booking-system-ashen.vercel.app.
+- **Next task:** T10.4 Migration: block keys in availability (DB: stops at its plan gate). Still the user's: run `npm run smoke:prod -- --links-only` and record the demo video from `docs/demo-script.md`. Optional: a Maps Embed API key (`VITE_GOOGLE_MAPS_EMBED_KEY`, see below).
+- **State:** T10.1–T10.3 done on 2026-10-25: the date, hour and duration pickers are live on `/book`, open play and blackouts (on `develop`; production gets them when `develop` is merged into `master`). M8 deploy: https://court-booking-system-ashen.vercel.app.
 - **Blockers / notes:**
   - Emails locally: `supabase/functions/.env` must keep `EMAIL_TRANSPORT=mailpit`, `MAILPIT_URL` and `EMAIL_WORKER_SECRET` (see `.env.example`) for smoke and e2e. Restart the stack after changing it. Your PayMongo test key is commented out there; uncomment it only for real local test payments, and expect `pay-online` e2e and `smoke:paymongo` to fail while it's active.
   - Scope added on 2026-10-19 (SPEC §9, §10, §11): slot status colors are in T8.5, the settings spacing fix is in T8.4, and M9 is outlined at the end of this file. The README moved there. Booker names are **first name only** in public. A court can be deleted only if it was never booked.
-  - Bundle size: always measure with `.env` present. Baseline after T9.11i: public `index` 82.9 kB (25.9 kB gzip). Without it, `lib/supabase.ts` throws at load time and the build drops supabase-js, which makes the bundle look about 330 kB smaller (SPEC §10, 2026-10-20).
+  - Bundle size: always measure with `.env` present. Baseline after T10.3: public `index` 88.4 kB (27.3 kB gzip); the lazy `Calendar` chunk is 67.6 kB (19.9 kB gzip). Without it, `lib/supabase.ts` throws at load time and the build drops supabase-js, which makes the bundle look about 330 kB smaller (SPEC §10, 2026-10-20).
   - **Production (2026-10-20):** https://court-booking-system-ashen.vercel.app (Vercel Hobby, project `court-booking-system`, team slug `marc-projects5`, production branch `master`). The user set the Supabase Auth Site URL and redirect URLs and the Google JS origin by hand. `npm run smoke:prod` books a real `E2E Smoke` booking on production. Cancel it afterwards (T8.6 notes), or use `-- --links-only`. The admin account is the user's Google login (no email and password admin on production).
   - M8 emails: no Resend for now (user decision, 2026-10-19). Build and test through Mailpit; production runs `EMAIL_TRANSPORT=disabled`. Never commit the Vault worker secret (or a Resend key, if one is added later).
   - **Flaky 25 s Vitest timeouts** come from this Mac, not the code. Its `HostName` isn't set, so `os.hostname()` sometimes waits about 25 s on a network lookup, and jsdom test files stall on it. Rerun when it's quick (`time node -e "require('os').hostname()"`). The permanent fix needs the user: `sudo scutil --set HostName Eloys-Macbook.local`.
@@ -24,6 +24,7 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
   - `e2e/banner.spec.ts` skips itself when a banner is already set on the local stack (the banner is venue-wide). Remove it in `/admin/settings` to get the coverage back.
   - PayMongo on the linked project: secrets `PAYMONGO_SECRET_KEY`, `PAYMONGO_WEBHOOK_SECRET` and `PUBLIC_SITE_URL` (production first since T8.6, then the two localhost origins). Webhook registered in the dashboard under Settings → Webhooks (Test Mode).
   - Local PayMongo setup: `supabase/functions/.env` (from `.env.example`) holds `PAYMONGO_MODE=stub`, `PUBLIC_SITE_URL` and the local webhook secret. Restart the stack (`supabase stop/start`) after adding a function or changing that file. `npm run smoke:paymongo` exercises both functions.
+  - `smoke:prod` now steps with "Next day" (T10.3). After the next merge into `master`, run the full `npm run smoke:prod` once to confirm it, then cancel the `E2E Smoke` booking.
   - M10 picker: `@daypicker/react` is pinned at 10.0.2 (v10's new name; `react-day-picker` is only an alias). Keep `Calendar.tsx` behind `React.lazy` (only `DatePicker` imports it) so `/book`'s `index` doesn't take the 19.9 kB gzip calendar.
   - Open follow-ups:
     - a user decision on capping the fresh hold after a rejection at the start time (T4.6)
@@ -1219,7 +1220,7 @@ Out of scope for M10: multiple venues, billing and Plotline fees (M11+), a rain-
   - Pass `operatingToday()` and `closedDaysOfWeek(hours)` to `DatePicker`.
   - Check the calendar at 360px in the phone e2e.
 
-### [ ] T10.3 Use the picker: open play, blackouts and `/book`
+### [x] T10.3 Use the picker: open play, blackouts and `/book`
 - **Depends:** T10.2
 - **Do:**
   - **Open play form:** date + start hour + duration replace the two `datetime-local` inputs. Editing a session shows its current values.
@@ -1227,6 +1228,19 @@ Out of scope for M10: multiple venues, billing and Plotline fees (M11+), a rain-
   - **`/book`:** the calendar replaces the plain date input, limited to the booking window.
   - The RPCs are unchanged; this is UI only.
 - **Acceptance:** Vitest and component tests updated. The e2e flows for open play, blackouts and booking use the new pickers through accessible selectors. axe is clean in light and dark.
+- **Notes:** Done on 2026-10-25.
+  - **Open play:** date + start hour + length within the operating day. Started hours are left out, and a stale start or length is derived away, never sent.
+  - **Blackouts:** "Starts on/at" and "Ends on/at" over all 24 hours. "Midnight" ends a date (`calendarEndOptions`), the end day follows the start day, and a start day left behind past midnight moves up to today.
+  - **`/book`:** `DatePicker` with `hideLabel` and `stepper` (the ‹ › arrows sit beside the date and wrap with it) replaces the date input.
+  - `.choice` inputs now cover their pill, so taps land on the radio.
+  - **Evidence:**
+    - `OpenPlayPage.test.tsx`, `SchedulePage.test.tsx` (blackouts block), `BookPage.test.tsx` ("BookPage date") and `pickerHours.test.ts`;
+    - e2e `blackout.spec.ts` (new: pickers, axe light and dark with the calendar open, the month fitting the dialog at 360px, a guest picking the date in `/book`'s calendar) and `open-play.spec.ts` (pickers);
+    - the `pickDate` helper, with E2E blackouts in teardown.
+  - **Bundle** (with `.env`): public `index` 88.4 kB (27.3 kB gzip), up 5.4 kB raw / 1.3 kB gzip (DatePicker, the picker helpers and Vite's preload helper). `Calendar` stays a lazy 19.9 kB gzip chunk plus 1.8 kB gzip CSS.
+  - `scripts/smoke-production.mjs` steps with "Next day" instead of filling the removed date input (it works with the old and new frontend). It has only been syntax-checked, because a local run would still book on the linked project.
+  - verify passes (537 Vitest, 687 pgTAP); e2e 43 passed, 3 skipped (time-of-day walk-in, phone zoom).
+  - The reviewer passed it; its major (the smoke script) and both minors (the Handoff bundle baseline, the start date after midnight) are fixed.
 
 ### [ ] T10.4 Migration: block keys in availability
 - **Depends:** T10.1

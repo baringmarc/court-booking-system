@@ -3,7 +3,7 @@ import { ErrorMessage } from '../../components/ErrorMessage'
 import { PageLoader } from '../../components/PageLoader'
 import { errorMessage } from '../../lib/errors'
 import { useNow } from '../booking/useNow'
-import { useCourts, useVenueSettings } from '../catalog/hooks'
+import { useCourts, useOperatingHours, useVenueSettings } from '../catalog/hooks'
 import type { OpenPlaySession } from '../openPlay/api'
 import { useUpcomingOpenPlay } from '../openPlay/hooks'
 import { useDeleteOpenPlay, useSaveOpenPlay } from './hooks'
@@ -16,6 +16,7 @@ export function OpenPlayPage() {
   // Archived courts too: a session may still name one (its name lists, and an edit can untick it).
   const courts = useCourts({ includeInactive: true })
   const settings = useVenueSettings()
+  const hours = useOperatingHours()
   const save = useSaveOpenPlay()
   const remove = useDeleteOpenPlay()
   const now = useNow(60_000)
@@ -47,12 +48,14 @@ export function OpenPlayPage() {
 
       <section className="card stack" aria-labelledby="open-play-form-heading">
         <h2 id="open-play-form-heading">{editing ? `Edit ${editing.title}` : 'New session'}</h2>
-        {courts.isPending || settings.isPending ? (
+        {courts.isPending || settings.isPending || hours.isPending ? (
           <PageLoader />
         ) : courts.isError ? (
           <ErrorMessage error={courts.error} onRetry={() => courts.refetch()} />
         ) : settings.isError ? (
           <ErrorMessage error={settings.error} onRetry={() => settings.refetch()} />
+        ) : hours.isError ? (
+          <ErrorMessage error={hours.error} onRetry={() => hours.refetch()} />
         ) : !courts.data.some((c) => c.is_active) ? (
           <p className="muted">Add a court first.</p>
         ) : (
@@ -60,7 +63,9 @@ export function OpenPlayPage() {
             key={`${editing?.id ?? 'new'}-${formKey}`}
             initial={editing}
             courts={courts.data.filter((c) => c.is_active || editing?.court_ids.includes(c.id))}
+            hours={hours.data}
             timeZone={settings.data.timezone}
+            now={now}
             saving={save.isPending}
             error={save.error}
             onCancel={editing ? () => startEdit(null) : undefined}

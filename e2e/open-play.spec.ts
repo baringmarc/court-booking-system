@@ -2,7 +2,7 @@
 // can't book it; deleting the session frees the slots. Runs the T9.11c RPCs and get_availability end to end.
 import { AxeBuilder } from '@axe-core/playwright'
 import { expect, test, type Page } from '@playwright/test'
-import { createAdmin, E2E_PREFIX, logInAdmin, serviceClient, venueDate } from './support/helpers.ts'
+import { createAdmin, E2E_PREFIX, logInAdmin, pickDate, serviceClient, venueDate } from './support/helpers.ts'
 
 const date = venueDate(22)
 
@@ -33,8 +33,10 @@ test('an admin adds open play, a guest sees its details and cannot book it, and 
 
   const form = page.getByRole('form', { name: 'Open play session' })
   await form.getByRole('checkbox', { name: /Badminton 3/ }).check()
-  await form.getByLabel('Starts').fill(`${date}T10:00`)
-  await form.getByLabel('Ends').fill(`${date}T12:00`)
+  // Date, start hour and length through the pickers (T10.3), all by role.
+  await pickDate(page, form, 'Date', date)
+  await form.getByRole('group', { name: 'Starts' }).getByRole('radio', { name: '10 AM', exact: true }).check()
+  await form.getByRole('group', { name: 'How long' }).getByRole('radio', { name: '2 hrs', exact: true }).check()
   await form.getByLabel('Title').fill(title)
   await form.getByLabel('Details').fill('All levels welcome.\nBring water.')
   await form.getByLabel('Link 1 label').fill('RSVP')
@@ -43,6 +45,7 @@ test('an admin adds open play, a guest sees its details and cannot book it, and 
   const listed = page.getByRole('listitem').filter({ hasText: title })
   await expect(listed).toBeVisible()
   await expect(listed).toContainText('Badminton 3')
+  await expect(listed).toContainText('10 AM – 12 PM')
 
   // A guest on the same device size.
   const guestContext = await browser.newContext({ ...test.info().project.use })

@@ -28,6 +28,14 @@ export function calendarHourOptions(date: string, timeZone: string): HourOption[
   return Array.from({ length: 24 }, (_, hour) => option(date, hour, timeZone))
 }
 
+/** End hours for a calendar date: 1 AM up to "Midnight", the end of that date (an end is exclusive, like a close). */
+export function calendarEndOptions(date: string, timeZone: string): HourOption[] {
+  return Array.from({ length: 24 }, (_, i) => {
+    const hour = i + 1
+    return { start: hourOnDate(date, hour, timeZone), label: hour === 24 ? 'Midnight' : formatHour(hour), nextDay: false }
+  })
+}
+
 /** The option starting at `start`, compared as instants (the server writes "+00:00", the client "Z"). */
 export function findHour(options: HourOption[], start: string | null) {
   if (!start) return undefined
