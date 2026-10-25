@@ -51,9 +51,11 @@ test('an admin adds open play, a guest sees its details and cannot book it, and 
   const guestContext = await browser.newContext({ ...test.info().project.use })
   const guest = await guestContext.newPage()
   await guest.goto(`/book?date=${date}&sport=badminton`)
-  const slot = guest.getByRole('button', { name: 'Badminton 3, 10 AM – 11 AM, Open play' })
+  // The session's two hours are one merged cell (T10.5).
+  const slot = guest.getByRole('button', { name: 'Badminton 3, 10 AM – 12 PM, Open play' })
   await expect(slot).toBeVisible()
-  await expect(guest.getByRole('button', { name: 'Badminton 3, 11 AM – 12 PM, Open play' })).toBeVisible()
+  await expect(slot).toContainText('10 AM – 12 PM')
+  await expect(guest.getByRole('button', { name: /^Badminton 3, 11 AM – 12 PM/ })).toHaveCount(0)
   await expect(slot).not.toHaveAttribute('aria-pressed', /.*/)
   expect(await axeViolations(guest), 'the grid with open play slots').toEqual([])
 

@@ -13,6 +13,8 @@ export type Slot = {
   booker_first_name: string | null
   /** The open play session holding it, on open_play slots only (T9.11c). */
   open_play_session_id: string | null
+  /** The booking, open play session or blackout this slot belongs to; slots of one block share it (T10.4). */
+  block_key: string | null
 }
 
 /** `starts` are slot_start values, sorted and consecutive. */

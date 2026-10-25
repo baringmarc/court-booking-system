@@ -7,8 +7,8 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
 > Update this section at the end of every session or task. Keep it short; it's the first thing the next session reads.
 
 - **Current milestone:** M10 Product improvements, **approved by the user on 2026-10-25** (breakdown below; background in `docs/SAAS-PLAN.md` §7a). M9 ✅ done on 2026-10-23 (M1–M9 all done; SPEC v1.0). After M10 come the SaaS milestones (M11+, `docs/SAAS-PLAN.md`), each with its own breakdown and approval.
-- **Next task:** T10.5 Merged blocks on the slot grids (UI only, no plan gate). T10.6 and T10.9 are DB tasks and stop at their plan gates. Still the user's: run `npm run smoke:prod -- --links-only` and record the demo video from `docs/demo-script.md`. Optional: a Maps Embed API key (`VITE_GOOGLE_MAPS_EMBED_KEY`, see below).
-- **State:** T10.1–T10.4 done on 2026-10-25. The pickers are on `develop`, and `get_availability.block_key` is live on the linked project (expand only, so production's frontend is unaffected). M8 deploy: https://court-booking-system-ashen.vercel.app.
+- **Next task:** T10.6 Migration: earnings summary (DB: stops at its plan gate). T10.9 is also a DB task. Still the user's: run `npm run smoke:prod -- --links-only` and record the demo video from `docs/demo-script.md`. Optional: a Maps Embed API key (`VITE_GOOGLE_MAPS_EMBED_KEY`, see below).
+- **State:** T10.1–T10.5 done on 2026-10-25. The pickers and merged grid blocks are on `develop`; `get_availability.block_key` is live on the linked project (expand only). M8 deploy: https://court-booking-system-ashen.vercel.app.
 - **Blockers / notes:**
   - Emails locally: `supabase/functions/.env` must keep `EMAIL_TRANSPORT=mailpit`, `MAILPIT_URL` and `EMAIL_WORKER_SECRET` (see `.env.example`) for smoke and e2e. Restart the stack after changing it. Your PayMongo test key is commented out there; uncomment it only for real local test payments, and expect `pay-online` e2e and `smoke:paymongo` to fail while it's active.
   - Scope added on 2026-10-19 (SPEC §9, §10, §11): slot status colors are in T8.5, the settings spacing fix is in T8.4, and M9 is outlined at the end of this file. The README moved there. Booker names are **first name only** in public. A court can be deleted only if it was never booked.
@@ -1260,7 +1260,7 @@ Out of scope for M10: multiple venues, billing and Plotline fees (M11+), a rain-
   - verify passes (537 Vitest, 705 pgTAP); e2e 43 passed, 3 skipped. The reviewer passed it; its two minors (the vacuous past-slot test, the Handoff) are fixed.
 - **Follow-up (T10.5):** the generated type says `block_key: string`, but it's null for free and past slots (gen types marks every returned column non-null). Treat it as nullable when grouping.
 
-### [ ] T10.5 Merged blocks on the slot grids
+### [x] T10.5 Merged blocks on the slot grids
 - **Depends:** T10.4
 - **Do:**
   - On `/book` and the admin day view, consecutive slots with the same `block_key` on one court become one cell spanning those hours:
@@ -1274,6 +1274,16 @@ Out of scope for M10: multiple venues, billing and Plotline fees (M11+), a rain-
   - Component tests: one button per block, labelled with the court(s) and the full range.
   - e2e at desktop and 360px; axe clean in light and dark.
   - Screenshots regenerated (`npm run screenshots`).
+- **Notes:** Done on 2026-10-25.
+  - **Grouping:** a pure `groupBlocks()` in `features/booking/blocks.ts`. Runs of one key go down; neighbouring courts merge only with the same key and the same rows.
+  - **`SlotGrid`:** `rowSpan`/`colSpan` cells, one button per block labelled with every court and the full range (with "(next day)" when it ends after midnight). Rows keep 44px.
+  - **`DayView`:** bookings group by booking id (an ended hour stays in its cell); open play and blackouts by `block_key`.
+  - `Slot.block_key` is `string | null`.
+  - **Evidence:** `blocks.test.ts` (12 tests), `SlotGrid.test.tsx` ("merged blocks"), `DayView.test.tsx`; the e2e `open-play` and `blackout` specs (merged cells, axe light and dark, desktop and 360px). Screenshots were regenerated with `npm run screenshots`, whose open play selector was updated.
+  - **Also fixed:** `CourtEditPage` gave two sibling sections the same `key`. It predates M10 and caused React duplicate-key warnings in e2e; the keys now have prefixes.
+  - A `court-photo` e2e failure in one Stop-hook run ("2 of 2" after ArrowRight in the photo viewer) didn't reproduce: it passed 3 repeats and every later full run.
+  - verify passes (557 Vitest, 705 pgTAP); e2e 43 passed, 3 skipped. The reviewer passed it with no findings.
+- **Follow-up (optional):** `DayView`'s range text in a merged cell has no "(next day)" marker. The row headers show it.
 
 ### [ ] T10.6 Migration: earnings summary
 - **Depends:** T10.1

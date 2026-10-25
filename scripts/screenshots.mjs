@@ -236,7 +236,7 @@ async function main() {
       await shoot(page, 'home', kind, { fullPage: kind === 'desktop' })
 
       await page.goto(`${BASE}/book?date=${day}&sport=pickleball`)
-      const slot = page.getByRole('button', { name: /^Pickleball 1, 10 AM – 11 AM, Open play/ })
+      const slot = page.getByRole('button', { name: /^Pickleball 1 and Pickleball 2, 10 AM – 12 PM, Open play/ })
       await slot.waitFor()
       // The grid, not the controls above it: the legend at the top of the shot.
       await page.locator('.slot-legend').evaluate((el) => el.scrollIntoView({ block: 'start' }))

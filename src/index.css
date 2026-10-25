@@ -262,6 +262,12 @@ button.day:focus-visible, .slot:focus-visible { outline: 2px solid var(--accent)
 .slot-grid td { padding: 0; }
 .slot-grid .slot-next-day { display: block; font-size: 0.75rem; }
 .slot-grid .slot-none { text-align: center; color: var(--muted); }
+/* A merged block (T10.5): the button fills every row and court it spans. A cell height lets 100% resolve. */
+.slot-grid td.slot-span { height: 1px; }
+/* Rows keep a free slot's height even when a merged block is the only cell in them. */
+.slot-grid:not(.day-grid) tbody th { height: 44px; }
+.slot-span .slot { height: 100%; }
+.slot-range { display: block; font-size: 0.75rem; font-weight: 400; }
 .slot {
   width: 100%; min-width: 64px; min-height: 44px; font: inherit; font-weight: 600;
   border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer;

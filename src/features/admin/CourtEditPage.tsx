@@ -30,10 +30,11 @@ export function CourtEditPage() {
       ) : (
         <>
           <h1>{court.data.name}</h1>
-          <CourtForm key={court.data.id} court={court.data} />
+          {/* Keys remount each section for another court; prefixed, since sibling keys must differ. */}
+          <CourtForm key={`form-${court.data.id}`} court={court.data} />
           <CourtPhotosSection court={court.data} />
           <CourtRatesSection court={court.data} />
-          <DeleteCourtSection key={court.data.id} court={court.data} />
+          <DeleteCourtSection key={`delete-${court.data.id}`} court={court.data} />
         </>
       )}
     </section>

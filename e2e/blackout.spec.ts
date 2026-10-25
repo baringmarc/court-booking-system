@@ -71,8 +71,9 @@ test('an admin adds a blackout with the pickers, and a guest picking that date i
   await expect(guest.getByRole('group', { name: 'Date' }).getByRole('button', { name: 'Today' })).toHaveAttribute('aria-pressed', 'true')
   await pickDate(guest, guest, 'Date', date)
   await expect(guest).toHaveURL(new RegExp(`date=${date}`))
-  await expect(guest.getByRole('button', { name: 'Badminton 2, 2 PM – 3 PM, Closed' })).toBeDisabled()
-  await expect(guest.getByRole('button', { name: 'Badminton 2, 3 PM – 4 PM, Closed' })).toBeDisabled()
+  // One merged cell for the whole blackout (T10.5).
+  await expect(guest.getByRole('button', { name: 'Badminton 2, 2 PM – 4 PM, Closed' })).toBeDisabled()
+  await expect(guest.getByRole('button', { name: /^Badminton 2, 3 PM – 4 PM/ })).toHaveCount(0)
   await expect(guest.getByRole('button', { name: /^Badminton 2, 4 PM – 5 PM, ₱/ })).toBeEnabled()
   expect(await overflow(guest), '/book scrolls sideways').toBeLessThanOrEqual(0)
   await guestContext.close()

@@ -4,7 +4,7 @@ import { isWalkInStartable, maxWalkInSlots, refundsDueSummary, takingsByMethod, 
 
 const now = new Date('2030-01-07T02:30:00.000Z') // 10:30 Manila
 const at = (h: number) => new Date(Date.UTC(2030, 0, 7, h - 8)).toISOString()
-const slot = (h: number, status: Slot['status']): Slot => ({ court_id: 'A', slot_start: at(h), slot_end: at(h + 1), price: 400, status, booker_first_name: null, open_play_session_id: null })
+const slot = (h: number, status: Slot['status']): Slot => ({ court_id: 'A', slot_start: at(h), slot_end: at(h + 1), price: 400, status, booker_first_name: null, open_play_session_id: null, block_key: null })
 // 9 past (ended), 10 past (in progress), 11 free, 12 free, 13 booked, 14 free
 const day = [slot(9, 'past'), slot(10, 'past'), slot(11, 'free'), slot(12, 'free'), slot(13, 'booked'), slot(14, 'free')]
 
