@@ -7,8 +7,8 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
 > Update this section at the end of every session or task. Keep it short; it's the first thing the next session reads.
 
 - **Current milestone:** M10 Product improvements, **approved by the user on 2026-10-25** (breakdown below; background in `docs/SAAS-PLAN.md` §7a). M9 ✅ done on 2026-10-23 (M1–M9 all done; SPEC v1.0). After M10 come the SaaS milestones (M11+, `docs/SAAS-PLAN.md`), each with its own breakdown and approval.
-- **Next task:** T10.1 Research: M10 (in progress). `develop` was merged into `master` (PR #12). Still the user's: run `npm run smoke:prod -- --links-only` and record the demo video from `docs/demo-script.md`. Optional: a Maps Embed API key (`VITE_GOOGLE_MAPS_EMBED_KEY`, see below).
-- **State:** T9.1–T9.12 done, T9.11j skipped (2026-10-23). Every M9 migration is pushed and live on the linked project. **Until `develop` is merged into `master`, don't set overnight hours or create open play sessions on production:** the live frontend doesn't understand them yet (blank disabled slots, a confused schedule editor). M8 deploy: https://court-booking-system-ashen.vercel.app.
+- **Next task:** T10.2 Date and hour picker component (UI only, no plan gate). T10.4, T10.6 and T10.9 are DB tasks and stop at their plan gates. Still the user's: run `npm run smoke:prod -- --links-only` and record the demo video from `docs/demo-script.md`. Optional: a Maps Embed API key (`VITE_GOOGLE_MAPS_EMBED_KEY`, see below).
+- **State:** T10.1 done on 2026-10-25: RESEARCH M10 written, every recommendation approved (SPEC §9 item 10, §10 2026-10-25). `develop` is merged into `master` (PR #12), so overnight hours and open play are safe on production now. M8 deploy: https://court-booking-system-ashen.vercel.app.
 - **Blockers / notes:**
   - Emails locally: `supabase/functions/.env` must keep `EMAIL_TRANSPORT=mailpit`, `MAILPIT_URL` and `EMAIL_WORKER_SECRET` (see `.env.example`) for smoke and e2e. Restart the stack after changing it. Your PayMongo test key is commented out there; uncomment it only for real local test payments, and expect `pay-online` e2e and `smoke:paymongo` to fail while it's active.
   - Scope added on 2026-10-19 (SPEC §9, §10, §11): slot status colors are in T8.5, the settings spacing fix is in T8.4, and M9 is outlined at the end of this file. The README moved there. Booker names are **first name only** in public. A court can be deleted only if it was never booked.
@@ -24,6 +24,7 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
   - `e2e/banner.spec.ts` skips itself when a banner is already set on the local stack (the banner is venue-wide). Remove it in `/admin/settings` to get the coverage back.
   - PayMongo on the linked project: secrets `PAYMONGO_SECRET_KEY`, `PAYMONGO_WEBHOOK_SECRET` and `PUBLIC_SITE_URL` (production first since T8.6, then the two localhost origins). Webhook registered in the dashboard under Settings → Webhooks (Test Mode).
   - Local PayMongo setup: `supabase/functions/.env` (from `.env.example`) holds `PAYMONGO_MODE=stub`, `PUBLIC_SITE_URL` and the local webhook secret. Restart the stack (`supabase stop/start`) after adding a function or changing that file. `npm run smoke:paymongo` exercises both functions.
+  - M10 picker: install `@daypicker/react` at exactly 10.0.2 (v10's new name; `react-day-picker` is only an alias). Load the calendar with `React.lazy` so `/book`'s `index` chunk doesn't grow (RESEARCH M10).
   - Open follow-ups:
     - a user decision on capping the fresh hold after a rejection at the start time (T4.6)
     - the Edge Function `index.ts` is checked only by smoke and e2e (no Deno type-check)
@@ -1175,7 +1176,7 @@ Goal: the user's 2026-10-25 requests, built on the current single-venue app befo
 
 Out of scope for M10: multiple venues, billing and Plotline fees (M11+), a rain-check status with no new time yet, bulk rescheduling, player self-rescheduling (never: staff only), refunds, live payments.
 
-### [~] T10.1 Research: M10
+### [x] T10.1 Research: M10
 - **Do:** research, then record the findings in RESEARCH M10 and the accepted decisions in SPEC §10. Add M10 to SPEC §9.
   - **Picker:** `react-day-picker`. The current version, React 19 support, bundle cost (with `.env` present), styling it with our CSS tokens in light and dark, keyboard and screen-reader behavior, and disabling days (outside the booking window, closed days). The hour-button model for overnight operating days (`lib/time.ts`, `catalog/hours.ts`).
   - **Merged blocks:** table `rowSpan`/`colSpan` versus CSS grid for the slot grid. Accessibility of one button per block (labels, focus order, axe). How the phone layout scrolls. What `get_availability` must return: an opaque per-block key, never a booking id.
@@ -1192,6 +1193,7 @@ Out of scope for M10: multiple venues, billing and Plotline fees (M11+), a rain-
     - the email outbox uniqueness (a booking can be rescheduled more than once).
     - Should a continuation point to the booking it was split from, or to the original?
 - **Acceptance:** RESEARCH M10 written with sources. SPEC §9 and §10 updated. The user has seen the recommendations at the plan gate.
+- **Notes:** The user approved every recommendation on 2026-10-25: walk-in slot rules for rescheduling, no cascade on cancel, contact details off by default in CSV. Evidence: a scratch esbuild bundle (DayPicker +74.6 kB raw / 22.5 kB gzip JS, 2.2 kB gzip CSS), local queries (Monday `date_trunc('week')`, the enum-in-transaction failure, current function bodies). T10.3, T10.4, T10.6, T10.8 and T10.9 were updated with the decisions. No code changed. The reviewer passed it; its 5 minors were fixed (T10.9 wording, the T10.4 blackout key, the OWASP link, the refunds-due filter, and cancel emails for continuations).
 
 ### [ ] T10.2 Date and hour picker component
 - **Depends:** T10.1
@@ -1209,7 +1211,7 @@ Out of scope for M10: multiple venues, billing and Plotline fees (M11+), a rain-
 - **Depends:** T10.2
 - **Do:**
   - **Open play form:** date + start hour + duration replace the two `datetime-local` inputs. Editing a session shows its current values.
-  - **Schedule page (blackouts):** the same. A blackout longer than one operating day either keeps a date-range mode or is out of scope (decided in T10.1).
+  - **Schedule page (blackouts):** a From/Until date + hour range over all 24 hours (blackouts may span days and cover closed time; T10.1).
   - **`/book`:** the calendar replaces the plain date input, limited to the booking window.
   - The RPCs are unchanged; this is UI only.
 - **Acceptance:** Vitest and component tests updated. The e2e flows for open play, blackouts and booking use the new pickers through accessible selectors. axe is clean in light and dark.
@@ -1219,7 +1221,7 @@ Out of scope for M10: multiple venues, billing and Plotline fees (M11+), a rain-
 - **Do:** `get_availability` returns a `block_key` per slot, so the grid can merge consecutive slots of the same booking, open play session or blackout.
   - Bookings use an opaque hash, never the booking id or reference.
   - Open play can use the session id (already public).
-  - Blackouts use an opaque key; an all-courts blackout shares one key across courts.
+  - Blackouts use the blackout id (public); an all-courts blackout shares one key across courts.
   - Expand only: a new result column, with the old columns unchanged, so the live frontend keeps working.
 - **Acceptance:**
   - pgTAP: the same booking's slots share a key and different bookings differ; the key isn't the booking id; open play and blackouts are keyed as above; free and past slots have none.
@@ -1247,7 +1249,7 @@ Out of scope for M10: multiple venues, billing and Plotline fees (M11+), a rain-
   - **Collected:** totals per method by when the money came in (T10.1's definition), the previous period's totals for comparison, and a daily series. PayMongo money that wasn't accepted (refund due) is excluded, as on today's dashboard.
   - **Booked hours and occupancy:** per court and per sport, by play time. Open play hours are reported separately.
   - **Coming up:** confirmed bookings not yet played, as a count and a value.
-  - Add a `received_at` column with a backfill if research says it's needed (expand only).
+  - No `received_at` column: the approved payment's `reviewed_at` is when the money came in, for every method (T10.1). One RPC `get_earnings(p_from, p_to)` (RESEARCH M10 "Earnings").
 - **Acceptance:**
   - pgTAP: admin only (anon and player refused); range edges at midnight and on overnight days; the Monday week start; methods; refunds due excluded; occupancy with blackouts and open play.
   - `db:push` and `db:types` have been run.
@@ -1277,6 +1279,7 @@ Out of scope for M10: multiple venues, billing and Plotline fees (M11+), a rain-
     - **Bookings by play date:** reference, court, sport, start, end, status, source, name, phone, email, amount.
     - **Payments by received date:** booking reference, method, amount, reference number, received time, review status.
   - Times are in the venue timezone. Cells are escaped against formula injection; UTF-8 with a BOM.
+  - Phone and email only when "Include contact details" is ticked (off by default), with a note to store the file securely (T10.1).
 - **Acceptance:** Vitest for the CSV builder (quotes, commas, newlines, formula prefixes, the peso sign, an empty range). e2e downloads both files and checks the headers and one row.
 
 ### [ ] T10.9 Research and migration: rescheduling
@@ -1289,7 +1292,7 @@ Out of scope for M10: multiple venues, billing and Plotline fees (M11+), a rain-
       - `source = 'moved'`, `parent_booking_id`, status `confirmed`, `total_amount = 0`, its own reference code;
       - the parent's contact snapshot, `user_id` and `guest_token_hash`, so the same guest link shows both;
       - no payment of its own.
-  - **The new range:** a court of the **same sport**, the same number of hours, free, within operating hours, not blacked out, not open play, and in the future. Checked with `validate_booking_slot` under `lock_court_slots`; the exclusion constraint backs it up.
+  - **The new range:** a court of the **same sport**, the same number of hours, free, within operating hours, not blacked out, not open play, and not already ended (walk-in rules: the hour in progress is allowed). Checked with `validate_booking_slot` under `lock_court_slots`; the exclusion constraint backs it up.
   - **Price:** unchanged. No new payment, no new charge.
   - **`booking_changes` table:** booking, old court and range, new court and range, continuation id, reason, `changed_by`, `changed_at`. Admins read; only the RPC writes.
   - **Invariant change:** "every confirmed booking has exactly one approved payment" now excludes `source = 'moved'`, which must have a confirmed parent and no payments. Update the checks and every function that assumes it.
@@ -1297,7 +1300,10 @@ Out of scope for M10: multiple venues, billing and Plotline fees (M11+), a rain-
   - **Guest and player reads:**
     - `get_guest_booking` returns the booking's continuation(s) and change history (old time, new time, reason).
     - `claim_guest_bookings` claims continuations too.
-    - `cancel_booking` works on a continuation like any booking. Whether cancelling a parent cascades is decided at the plan gate.
+    - `cancel_booking` works on a continuation like any booking. Cancelling a parent doesn't cascade (T10.1); the admin cancel form warns that the moved part stays booked.
+    - `queue_booking_email` skips `source <> 'online'`, so extend it: cancelling a `moved` continuation whose root is `online` queues `booking_cancelled` to the root's contact.
+  - **Slot rules:** the walk-in rules (`validate_booking_slot(…, p_walk_in => true)`): staff may move into the hour in progress and aren't limited by the booking window (T10.1).
+  - **Migrations:** the new enum values (`booking_source` `moved`, `email_kind` `booking_rescheduled`) ship in their own migration first.
 - **Acceptance:**
   - pgTAP: admin only, confirmed only, reason required.
   - Whole move before the start; a split during play (from the hour in progress, and from a later hour); refused for a past `from_start`, a different sport, a different length, a clash with a booking, open play or a blackout, and outside hours.
