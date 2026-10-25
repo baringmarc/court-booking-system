@@ -7,8 +7,8 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
 > Update this section at the end of every session or task. Keep it short; it's the first thing the next session reads.
 
 - **Current milestone:** M10 Product improvements, **approved by the user on 2026-10-25** (breakdown below; background in `docs/SAAS-PLAN.md` §7a). M9 ✅ done on 2026-10-23 (M1–M9 all done; SPEC v1.0). After M10 come the SaaS milestones (M11+, `docs/SAAS-PLAN.md`), each with its own breakdown and approval.
-- **Next task:** T10.6 Migration: earnings summary (DB: stops at its plan gate). T10.9 is also a DB task. Still the user's: run `npm run smoke:prod -- --links-only` and record the demo video from `docs/demo-script.md`. Optional: a Maps Embed API key (`VITE_GOOGLE_MAPS_EMBED_KEY`, see below).
-- **State:** T10.1–T10.5 done on 2026-10-25. The pickers and merged grid blocks are on `develop`; `get_availability.block_key` is live on the linked project (expand only). M8 deploy: https://court-booking-system-ashen.vercel.app.
+- **Next task:** T10.7 Dashboard: earnings (UI only, no plan gate). T10.9 is the remaining DB task. Still the user's: run `npm run smoke:prod -- --links-only` and record the demo video from `docs/demo-script.md`. Optional: a Maps Embed API key (`VITE_GOOGLE_MAPS_EMBED_KEY`, see below).
+- **State:** T10.1–T10.6 done (2026-10-25). The pickers and merged grid blocks are on `develop`. On the linked project, `get_availability.block_key` and `get_earnings` are live (expand only; production's frontend doesn't use them yet). M8 deploy: https://court-booking-system-ashen.vercel.app.
 - **Blockers / notes:**
   - Emails locally: `supabase/functions/.env` must keep `EMAIL_TRANSPORT=mailpit`, `MAILPIT_URL` and `EMAIL_WORKER_SECRET` (see `.env.example`) for smoke and e2e. Restart the stack after changing it. Your PayMongo test key is commented out there; uncomment it only for real local test payments, and expect `pay-online` e2e and `smoke:paymongo` to fail while it's active.
   - Scope added on 2026-10-19 (SPEC §9, §10, §11): slot status colors are in T8.5, the settings spacing fix is in T8.4, and M9 is outlined at the end of this file. The README moved there. Booker names are **first name only** in public. A court can be deleted only if it was never booked.
@@ -1285,7 +1285,7 @@ Out of scope for M10: multiple venues, billing and Plotline fees (M11+), a rain-
   - verify passes (557 Vitest, 705 pgTAP); e2e 43 passed, 3 skipped. The reviewer passed it with no findings.
 - **Follow-up (optional):** `DayView`'s range text in a merged cell has no "(next day)" marker. The row headers show it.
 
-### [ ] T10.6 Migration: earnings summary
+### [x] T10.6 Migration: earnings summary
 - **Depends:** T10.1
 - **Do:** admin-only RPC(s) for a date range in the venue timezone, returning:
   - **Collected:** totals per method by when the money came in (T10.1's definition), the previous period's totals for comparison, and a daily series. PayMongo money that wasn't accepted (refund due) is excluded, as on today's dashboard.
@@ -1295,6 +1295,22 @@ Out of scope for M10: multiple venues, billing and Plotline fees (M11+), a rain-
 - **Acceptance:**
   - pgTAP: admin only (anon and player refused); range edges at midnight and on overnight days; the Monday week start; methods; refunds due excluded; occupancy with blackouts and open play.
   - `db:push` and `db:types` have been run.
+- **Notes:** Done on 2026-10-25; the user approved the plan, including `db:push`.
+  - **Migration:** `20261025155529_earnings_summary.sql`, `public.get_earnings(date, date) returns jsonb`:
+    - **security definer** with an explicit admin check (the operating-day helpers are private; SPEC §10);
+    - execute for `authenticated` only;
+    - up to 366 days.
+  - **Evidence:** `29_earnings.test.sql` (21 tests):
+    - access: anon and player refused, bad ranges refused;
+    - money: methods, refunds due vs rejected proofs, the previous period, payments at Monday 00:00 and Sunday 23:59:59;
+    - hours: an overnight Saturday's 1 AM booking, overlapping and clipped blackouts, all-courts blackouts, open play apart, sports = the sum of their courts;
+    - coming up.
+  - **Pushed to the linked project:** anon and PUBLIC can't execute, authenticated can, `prosecdef` is true.
+  - A year takes about 0.4 s locally, a week about 8 ms.
+  - verify passes (557 Vitest, 726 pgTAP); e2e 44 passed, 2 skipped. The reviewer passed it.
+- **Follow-ups:**
+  - **T10.7:** clamp occupancy at 100%. Blackouts aren't checked against bookings, so a booking inside a blackout counts in both sold and blackout hours.
+  - **Later, if it gets slow:** an index on `payments (reviewed_at)` in a new migration.
 
 ### [ ] T10.7 Dashboard: earnings
 - **Depends:** T10.6

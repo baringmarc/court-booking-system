@@ -807,6 +807,7 @@ export type Database = {
           status: string
         }[]
       }
+      get_earnings: { Args: { p_from: string; p_to: string }; Returns: Json }
       get_guest_booking: {
         Args: { p_reference_code: string; p_token: string }
         Returns: {
