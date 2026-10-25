@@ -7,8 +7,8 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
 > Update this section at the end of every session or task. Keep it short; it's the first thing the next session reads.
 
 - **Current milestone:** M10 Product improvements, **approved by the user on 2026-10-25** (breakdown below; background in `docs/SAAS-PLAN.md` §7a). M9 ✅ done on 2026-10-23 (M1–M9 all done; SPEC v1.0). After M10 come the SaaS milestones (M11+, `docs/SAAS-PLAN.md`), each with its own breakdown and approval.
-- **Next task:** T10.8 CSV export (UI only, no plan gate). T10.9 is the remaining DB task. Still the user's: run `npm run smoke:prod -- --links-only` and record the demo video from `docs/demo-script.md`. Optional: a Maps Embed API key (`VITE_GOOGLE_MAPS_EMBED_KEY`, see below).
-- **State:** T10.1–T10.7 done (2026-10-26). The pickers, merged grid blocks and dashboard earnings are on `develop`. On the linked project, `get_availability.block_key` and `get_earnings` are live (expand only). M8 deploy: https://court-booking-system-ashen.vercel.app.
+- **Next task:** T10.9 Research and migration: rescheduling (DB: stops at its plan gate; the design is decided in RESEARCH M10 and SPEC §10). Still the user's: run `npm run smoke:prod -- --links-only` and record the demo video from `docs/demo-script.md`. Optional: a Maps Embed API key (`VITE_GOOGLE_MAPS_EMBED_KEY`, see below).
+- **State:** T10.1–T10.8 done (2026-10-26). The pickers, merged grid blocks, dashboard earnings and CSV export are on `develop`. On the linked project, `get_availability.block_key` and `get_earnings` are live (expand only). M8 deploy: https://court-booking-system-ashen.vercel.app.
 - **Blockers / notes:**
   - Emails locally: `supabase/functions/.env` must keep `EMAIL_TRANSPORT=mailpit`, `MAILPIT_URL` and `EMAIL_WORKER_SECRET` (see `.env.example`) for smoke and e2e. Restart the stack after changing it. Your PayMongo test key is commented out there; uncomment it only for real local test payments, and expect `pay-online` e2e and `smoke:paymongo` to fail while it's active.
   - Scope added on 2026-10-19 (SPEC §9, §10, §11): slot status colors are in T8.5, the settings spacing fix is in T8.4, and M9 is outlined at the end of this file. The README moved there. Booker names are **first name only** in public. A court can be deleted only if it was never booked.
@@ -1344,7 +1344,7 @@ Out of scope for M10: multiple venues, billing and Plotline fees (M11+), a rain-
   - **Layout:** the hours table fits 360px (columns Court, Booked, Occupancy, Open play; headers wrap).
   - verify passes; e2e passes. The reviewer passed it; its 3 minors (the exact walk-in total, the active-courts note, a duplicate CSS rule) are fixed.
 
-### [ ] T10.8 CSV export
+### [x] T10.8 CSV export
 - **Depends:** T10.6
 - **Do:**
   - "Export CSV" for the selected range, built in the browser from admin-only reads:
@@ -1353,6 +1353,18 @@ Out of scope for M10: multiple venues, billing and Plotline fees (M11+), a rain-
   - Times are in the venue timezone. Cells are escaped against formula injection; UTF-8 with a BOM.
   - Phone and email only when "Include contact details" is ticked (off by default), with a note to store the file securely (T10.1).
 - **Acceptance:** Vitest for the CSV builder (quotes, commas, newlines, formula prefixes, the peso sign, an empty range). e2e downloads both files and checks the headers and one row.
+- **Notes:** Done on 2026-10-26.
+  - **Builder:** `features/admin/csv.ts`:
+    - every cell quoted, with `"` doubled;
+    - a leading `'` before `= + - @`, tab, CR, LF or the full-width forms (after leading spaces too);
+    - CRLF line ends and a UTF-8 BOM;
+    - venue-local times named in the headers, and `amount_php` as plain numbers.
+  - **Reads:** paged reads of 1000 rows (`allPages`, a stable order by time then id) in `api.ts`:
+    - bookings that start in the range;
+    - payments that came in during it, both accepted ones and PayMongo refunds due.
+  - **UI:** the `CsvExport` block under the earnings, for the selected range. "Include contact details" is off by default, with a note to store the files securely.
+  - **Evidence:** `csv.test.ts` (12 tests: quotes, commas, newlines, every formula prefix, the peso sign, an empty range, both files); `EarningsSection.test.tsx` (range bounds, contact details off and on, the payments file, a failure); e2e `earnings.spec.ts` downloads both files and checks the names, the BOM and header, and a row in each.
+  - verify passes (580 Vitest, 726 pgTAP); e2e 47 passed, 1 skipped. The reviewer passed it; its 3 minors are fixed (a deferred `revokeObjectURL`, no invented court or sport, the e2e's operating-day assumption written down).
 
 ### [ ] T10.9 Research and migration: rescheduling
 - **Depends:** T10.1

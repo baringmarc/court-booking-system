@@ -3,10 +3,17 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Json } from '../../lib/database.types'
-import { fetchEarnings } from './api'
+import { fetchBookingsForExport, fetchEarnings, fetchPaymentsForExport, type ExportBooking } from './api'
+import { downloadCsv } from './csv'
 import { EarningsSection } from './EarningsSection'
 
-vi.mock('./api', async (importOriginal) => ({ ...(await importOriginal<object>()), fetchEarnings: vi.fn() }))
+vi.mock('./api', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  fetchEarnings: vi.fn(),
+  fetchBookingsForExport: vi.fn(),
+  fetchPaymentsForExport: vi.fn(),
+}))
+vi.mock('./csv', async (importOriginal) => ({ ...(await importOriginal<object>()), downloadCsv: vi.fn() }))
 
 // Sunday 2026-10-25.
 const TODAY = '2026-10-25'
@@ -118,5 +125,50 @@ describe('EarningsSection', () => {
     vi.mocked(fetchEarnings).mockResolvedValue(result())
     await userEvent.click(screen.getByRole('button', { name: 'Try again' }))
     expect(await screen.findByText('₱1,500')).toBeInTheDocument()
+  })
+
+  describe('CSV export (T10.8)', () => {
+    const booking: ExportBooking = {
+      reference_code: 'CB-ABC234', court_name: 'Badminton 1', sport: 'badminton',
+      slot_start: '2026-10-25T06:00:00.000Z', slot_end: '2026-10-25T07:00:00.000Z', status: 'confirmed', source: 'online',
+      expires_at: null, guest_name: 'Ana Santos', guest_phone: '0917 000 0000', guest_email: 'ana@example.com', total_amount: 350,
+    }
+
+    beforeEach(() => {
+      vi.mocked(fetchBookingsForExport).mockReset().mockResolvedValue([booking])
+      vi.mocked(fetchPaymentsForExport).mockReset().mockResolvedValue([])
+      vi.mocked(downloadCsv).mockReset()
+    })
+
+    it('exports bookings for the range without contact details unless asked', async () => {
+      const user = userEvent.setup()
+      renderSection()
+      await screen.findByText('₱1,500')
+      expect(screen.getByRole('checkbox', { name: /Include contact details/ })).not.toBeChecked()
+      await user.click(screen.getByRole('button', { name: 'Export bookings (CSV)' }))
+      // Today in Manila: midnight to midnight.
+      expect(fetchBookingsForExport).toHaveBeenCalledWith('2026-10-24T16:00:00.000Z', '2026-10-25T16:00:00.000Z')
+      const [name, text] = vi.mocked(downloadCsv).mock.calls[0]
+      expect(name).toBe(`bookings_${TODAY}_to_${TODAY}.csv`)
+      expect(text).toContain('"Ana Santos"')
+      expect(text).not.toContain('ana@example.com')
+
+      await user.click(screen.getByRole('checkbox', { name: /Include contact details/ }))
+      await user.click(screen.getByRole('button', { name: 'Export bookings (CSV)' }))
+      expect(vi.mocked(downloadCsv).mock.calls[1][1]).toContain('"ana@example.com"')
+    })
+
+    it('exports payments, and says when the export fails', async () => {
+      const user = userEvent.setup()
+      renderSection()
+      await screen.findByText('₱1,500')
+      await user.click(screen.getByRole('button', { name: 'Export payments (CSV)' }))
+      expect(vi.mocked(downloadCsv).mock.calls[0][0]).toBe(`payments_${TODAY}_to_${TODAY}.csv`)
+
+      vi.mocked(fetchPaymentsForExport).mockRejectedValue(new TypeError('Failed to fetch'))
+      await user.click(screen.getByRole('button', { name: 'Export payments (CSV)' }))
+      expect(await screen.findByRole('alert')).toHaveTextContent(/Could not reach the server/)
+      expect(downloadCsv).toHaveBeenCalledTimes(1)
+    })
   })
 })

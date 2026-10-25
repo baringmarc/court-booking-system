@@ -3,14 +3,16 @@ import { DatePicker } from '../../components/DatePicker'
 import { ErrorMessage } from '../../components/ErrorMessage'
 import { PageLoader } from '../../components/PageLoader'
 import { formatMoney } from '../../lib/format'
-import { addDays, formatDateLabel } from '../../lib/time'
+import { errorMessage } from '../../lib/errors'
+import { addDays, formatDateLabel, zonedLocalToISO } from '../../lib/time'
 import { METHOD_LABELS } from '../booking/proofInput'
 import { SPORT_LABELS } from '../catalog/api'
 import {
   barShares, change, formatHours, formatShare, occupancy, parseEarnings, periodRange, previousLabel, rangeDays,
   rangeProblem, type DateRange, type Earnings, type HourTotals, type Period,
 } from './earnings'
-import { useEarnings } from './hooks'
+import { bookingsCsv, downloadCsv, paymentsCsv } from './csv'
+import { useEarnings, useExportRows } from './hooks'
 
 const PERIODS: { value: Period; label: string }[] = [
   { value: 'today', label: 'Today' },
@@ -73,6 +75,7 @@ export function EarningsSection({ today, timeZone, currency }: Props) {
         <EarningsBody earnings={parseEarnings(earnings.data)} period={period} days={rangeDays(range)} currency={currency}
           timeZone={timeZone} />
       )}
+      {!problem && <CsvExport range={range} timeZone={timeZone} currency={currency} />}
     </section>
   )
 }
@@ -207,6 +210,52 @@ function DailyChart({ earnings, money, timeZone }: { earnings: Earnings; money: 
           </li>
         ))}
       </ul>
+    </section>
+  )
+}
+
+/**
+ * CSV files for the selected range (T10.8): bookings by play date and payments by the date the money came in. Phone
+ * and email are left out unless asked for (Data Privacy Act proportionality, SPEC §10).
+ */
+function CsvExport({ range, timeZone, currency }: { range: DateRange; timeZone: string; currency: string }) {
+  const [includeContact, setIncludeContact] = useState(false)
+  const exportRows = useExportRows()
+  const startIso = zonedLocalToISO(`${range.from}T00:00`, timeZone)
+  const endIso = zonedLocalToISO(`${addDays(range.to, 1)}T00:00`, timeZone)
+  const busy = exportRows.isPending ? exportRows.variables?.kind : null
+
+  function run(kind: 'bookings' | 'payments') {
+    exportRows.mutate({ kind, startIso, endIso }, {
+      onSuccess: (result) => {
+        const name = `${result.kind}_${range.from}_to_${range.to}.csv`
+        downloadCsv(name, result.kind === 'bookings'
+          ? bookingsCsv(result.bookings, { timeZone, currency, includeContact })
+          : paymentsCsv(result.payments, { timeZone, currency }))
+      },
+    })
+  }
+
+  return (
+    <section className="stack">
+      <h3>Export</h3>
+      <label className="check">
+        <input type="checkbox" checked={includeContact} onChange={(e) => setIncludeContact(e.target.checked)} />
+        <span>Include contact details (phone, email) in the bookings file</span>
+      </label>
+      <div className="form-actions">
+        <button type="button" className="btn btn-small btn-outline" disabled={!!busy} onClick={() => run('bookings')}>
+          {busy === 'bookings' ? 'Preparing…' : 'Export bookings (CSV)'}
+        </button>
+        <button type="button" className="btn btn-small btn-outline" disabled={!!busy} onClick={() => run('payments')}>
+          {busy === 'payments' ? 'Preparing…' : 'Export payments (CSV)'}
+        </button>
+      </div>
+      {exportRows.isError && <p className="form-error" role="alert">{errorMessage(exportRows.error)}</p>}
+      <p className="muted small">
+        Bookings by play date, payments by the date the money came in, times in {timeZone}. The files contain personal
+        data: store them securely and delete them when you no longer need them.
+      </p>
     </section>
   )
 }

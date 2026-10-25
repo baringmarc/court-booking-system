@@ -4,6 +4,8 @@ import {
   adminKeys,
   createWalkIn,
   fetchAdminBookings,
+  fetchBookingsForExport,
+  fetchPaymentsForExport,
   fetchEarnings,
   fetchProofQueueCount,
   fetchProofUrl,
@@ -84,6 +86,16 @@ export function useAdminCancelBooking() {
 
 export function useProofQueueCount() {
   return useQuery({ queryKey: adminKeys.proofQueue, queryFn: fetchProofQueueCount, staleTime: 15_000, refetchInterval: 60_000 })
+}
+
+/** Reads every booking or payment in [startIso, endIso) for a CSV export (T10.8). */
+export function useExportRows() {
+  return useMutation({
+    mutationFn: async ({ kind, startIso, endIso }: { kind: 'bookings' | 'payments'; startIso: string; endIso: string }) =>
+      kind === 'bookings'
+        ? { kind, bookings: await fetchBookingsForExport(startIso, endIso) } as const
+        : { kind, payments: await fetchPaymentsForExport(startIso, endIso) } as const,
+  })
 }
 
 /** The earnings summary for venue dates from–to (T10.7). */
