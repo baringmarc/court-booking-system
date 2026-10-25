@@ -1,7 +1,7 @@
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeAll, describe, expect, it, vi } from 'vitest'
 import { DatePicker } from './DatePicker'
 
 const TZ = 'Asia/Manila'
@@ -17,6 +17,12 @@ function Harness({ onChange = () => {}, closedDays = [1], max = '2026-10-31' }: 
 }
 
 describe('DatePicker', () => {
+  // Compile the lazy calendar module (DayPicker and date-fns) once up front: under a full parallel run, its first
+  // transform can outlast findBy's 1 s wait. React.lazy still suspends on the first open, so that path stays tested.
+  beforeAll(async () => {
+    await import('./Calendar')
+  })
+
   it('shows the date and presses the matching quick pick', async () => {
     const user = userEvent.setup()
     const onChange = vi.fn()
