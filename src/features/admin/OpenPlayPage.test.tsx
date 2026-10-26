@@ -1,9 +1,9 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../../lib/queryClient'
-import { fetchCourts, fetchVenueSettings, type CourtWithPhotos, type VenueSettings } from '../catalog/api'
+import { fetchCourts, fetchOperatingHours, fetchVenueSettings, type CourtWithPhotos, type OperatingHours, type VenueSettings } from '../catalog/api'
 import { fetchUpcomingOpenPlay, type OpenPlaySession } from '../openPlay/api'
 import { deleteOpenPlay, saveOpenPlay } from './api'
 import { OpenPlayPage } from './OpenPlayPage'
@@ -11,6 +11,7 @@ import { OpenPlayPage } from './OpenPlayPage'
 vi.mock('../catalog/api', async (importOriginal) => ({
   ...(await importOriginal<object>()),
   fetchCourts: vi.fn(),
+  fetchOperatingHours: vi.fn(),
   fetchVenueSettings: vi.fn(),
 }))
 vi.mock('../openPlay/api', async (importOriginal) => ({
@@ -33,10 +34,13 @@ const upcoming: OpenPlaySession = {
   ends_at: '2030-01-05T07:00:00.000Z',
   court_ids: ['A', 'B'],
 }
+// The clock is Fri 2030-01-04 10 AM in Manila, so "Tomorrow" is the session's Saturday.
+const NOW = new Date('2030-01-04T02:00:00.000Z')
 const running: OpenPlaySession = {
   ...upcoming, id: 'S0', title: 'Morning drills', links: [],
-  starts_at: new Date(Date.now() - 3_600_000).toISOString(), ends_at: new Date(Date.now() + 3_600_000).toISOString(),
+  starts_at: '2030-01-04T01:00:00.000Z', ends_at: '2030-01-04T03:00:00.000Z',
 }
+const sixToTen = [0, 1, 2, 3, 4, 5, 6].map((d) => ({ day_of_week: d, open_time: '06:00:00', close_time: '22:00:00', is_closed: false })) as OperatingHours[]
 
 function renderPage() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
@@ -46,19 +50,27 @@ function renderPage() {
 async function fillNew() {
   const form = await screen.findByRole('form', { name: 'Open play session' })
   await userEvent.click(within(form).getByRole('checkbox', { name: /Pickleball 2/ }))
-  fireEvent.change(within(form).getByLabelText('Starts'), { target: { value: '2030-01-05T13:00' } })
-  fireEvent.change(within(form).getByLabelText('Ends'), { target: { value: '2030-01-05T15:00' } })
+  await userEvent.click(within(form).getByRole('button', { name: 'Tomorrow' }))
+  await userEvent.click(within(form).getByRole('radio', { name: '1 PM' }))
+  await userEvent.click(within(form).getByRole('radio', { name: '2 hrs' }))
   await userEvent.type(within(form).getByLabelText('Title'), '  Saturday open play ')
   return form
 }
 
 describe('OpenPlayPage', () => {
   beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(NOW)
+    vi.mocked(fetchOperatingHours).mockReset().mockResolvedValue(sixToTen)
     vi.mocked(fetchCourts).mockReset().mockResolvedValue([court('A', 'Pickleball 1'), court('B', 'Pickleball 2')])
     vi.mocked(fetchVenueSettings).mockReset().mockResolvedValue({ timezone: 'Asia/Manila' } as VenueSettings)
     vi.mocked(fetchUpcomingOpenPlay).mockReset().mockResolvedValue([])
     vi.mocked(saveOpenPlay).mockReset().mockResolvedValue('S9')
     vi.mocked(deleteOpenPlay).mockReset().mockResolvedValue()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it('adds a session with its courts, times in the venue zone, title and links', async () => {
@@ -95,6 +107,35 @@ describe('OpenPlayPage', () => {
     expect(saveOpenPlay).not.toHaveBeenCalled()
   })
 
+  it('offers only the hours left today and asks for a start and a length', async () => {
+    renderPage()
+    const form = await screen.findByRole('form', { name: 'Open play session' })
+    await userEvent.click(within(form).getByRole('checkbox', { name: /Pickleball 1/ }))
+    expect(within(form).getByRole('button', { name: 'Today' })).toHaveAttribute('aria-pressed', 'true')
+    // 10 AM has started: today starts at 11 AM and runs to 9 PM.
+    const starts = within(within(form).getByRole('group', { name: 'Starts' }))
+    expect(starts.queryByRole('radio', { name: '10 AM' })).toBeNull()
+    expect(starts.getAllByRole('radio').map((r) => r.closest('label')?.textContent)).toEqual(
+      ['11 AM', '12 PM', '1 PM', '2 PM', '3 PM', '4 PM', '5 PM', '6 PM', '7 PM', '8 PM', '9 PM'])
+    expect(within(form).getByText('Choose a start time first.')).toBeInTheDocument()
+    await userEvent.type(within(form).getByLabelText('Title'), 'Drills')
+    await userEvent.click(within(form).getByRole('button', { name: 'Add session' }))
+    expect(within(form).getByRole('alert')).toHaveTextContent('Choose a start time.')
+
+    await userEvent.click(within(form).getByRole('radio', { name: '8 PM' }))
+    expect(within(within(form).getByRole('group', { name: 'How long' })).getAllByRole('radio')).toHaveLength(2)
+    await userEvent.click(within(form).getByRole('button', { name: 'Add session' }))
+    expect(within(form).getByRole('alert')).toHaveTextContent('Choose how long the session runs.')
+
+    // A length that no longer fits after moving the start drops out instead of being sent.
+    await userEvent.click(within(form).getByRole('radio', { name: '2 hrs' }))
+    await userEvent.click(within(form).getByRole('radio', { name: '9 PM' }))
+    expect(within(form).getByRole('radio', { name: '1 hr' })).not.toBeChecked()
+    await userEvent.click(within(form).getByRole('button', { name: 'Add session' }))
+    expect(within(form).getByRole('alert')).toHaveTextContent('Choose how long the session runs.')
+    expect(saveOpenPlay).not.toHaveBeenCalled()
+  })
+
   it("shows the server's message when the time clashes with bookings", async () => {
     vi.mocked(saveOpenPlay).mockRejectedValue(
       new ApiError('There are bookings on Pickleball 2 at that time. Cancel or move them first.', 'P0001', 'slot_unavailable'),
@@ -119,7 +160,9 @@ describe('OpenPlayPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Edit Saturday open play' }))
     const form = screen.getByRole('form', { name: 'Open play session' })
     expect(screen.getByRole('heading', { name: 'Edit Saturday open play' })).toBeInTheDocument()
-    expect(within(form).getByLabelText('Starts')).toHaveValue('2030-01-05T13:00')
+    expect(within(form).getByRole('button', { name: 'Tomorrow' })).toHaveAttribute('aria-pressed', 'true')
+    expect(within(form).getByRole('radio', { name: '1 PM' })).toBeChecked()
+    expect(within(form).getByRole('radio', { name: '2 hrs' })).toBeChecked()
     expect(within(form).getByLabelText('Link 1 address')).toHaveValue('https://forms.gle/abc')
     expect(within(form).getByRole('checkbox', { name: /Pickleball 1/ })).toBeChecked()
     await userEvent.clear(within(form).getByLabelText('Title'))

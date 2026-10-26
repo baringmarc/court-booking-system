@@ -1,5 +1,6 @@
 // Admin data access for bookings and payments. Admins read everything through RLS (private.is_admin());
 // writes go through RPCs (venue media: storage plus the admin RLS on courts and venue_settings). Only imported by lazy admin routes.
+import type { PostgrestSingleResponse } from '@supabase/supabase-js'
 import { supabase } from '../../lib/supabase'
 import { ApiError, unwrap } from '../../lib/queryClient'
 import { parseTstzRange } from '../../lib/time'
@@ -57,10 +58,8 @@ export const adminKeys = {
   allBookings: ['admin-bookings'] as const,
   proofUrl: (path: string) => ['proof-url', path] as const,
   proofQueue: ['admin-proof-queue'] as const,
-  takings: (from: string) => ['admin-takings', from] as const,
-  // Under the takings prefix, so everything that refreshes takings refreshes this too.
-  refundsDue: (from: string) => ['admin-takings', 'refunds-due', from] as const,
-  allTakings: ['admin-takings'] as const,
+  earnings: (from: string, to: string) => ['admin-earnings', from, to] as const,
+  allEarnings: ['admin-earnings'] as const,
 }
 
 // One literal: supabase-js infers the row type from this string.
@@ -152,34 +151,100 @@ export async function fetchProofQueueCount() {
   return count ?? 0
 }
 
-/** Approved payments reviewed (or recorded, for walk-ins) in [from, to). */
-export async function fetchApprovedPayments(fromIso: string, toIso: string) {
-  const rows = unwrap(
-    await supabase
-      .from('payments')
-      .select('method, amount')
-      .eq('review_status', 'approved')
-      .gte('reviewed_at', fromIso)
-      .lt('reviewed_at', toIso),
-  )
-  return rows.map((r) => ({ method: r.method, amount: Number(r.amount) }))
+/** PostgREST returns at most max_rows (1000) per request, so exports read page by page (RESEARCH M10). */
+export const EXPORT_PAGE = 1000
+
+async function allPages<T>(page: (from: number, to: number) => PromiseLike<PostgrestSingleResponse<T[]>>) {
+  const rows: T[] = []
+  for (let from = 0; ; from += EXPORT_PAGE) {
+    const batch = unwrap(await page(from, from + EXPORT_PAGE - 1))
+    rows.push(...batch)
+    if (batch.length < EXPORT_PAGE) return rows
+  }
 }
 
-/**
- * PayMongo payments received in [from, to) that weren't accepted (late or the wrong amount, SPEC §4 case 4): money
- * that came in but isn't in the takings, because staff refund it outside the app.
- */
-export async function fetchRefundsDue(fromIso: string, toIso: string) {
-  const rows = unwrap(
-    await supabase
-      .from('payments')
-      .select('amount')
-      .eq('method', 'paymongo')
-      .eq('review_status', 'rejected')
-      .gte('reviewed_at', fromIso)
-      .lt('reviewed_at', toIso),
-  )
-  return rows.map((r) => Number(r.amount))
+export type ExportBooking = {
+  reference_code: string
+  /** Empty if the court can't be read (never invented). */
+  court_name: string | null
+  sport: Enums<'sport'> | null
+  slot_start: string
+  slot_end: string
+  status: Enums<'booking_status'>
+  source: Enums<'booking_source'>
+  expires_at: string | null
+  guest_name: string
+  guest_phone: string | null
+  guest_email: string | null
+  total_amount: number
+}
+
+/** Every booking that starts in [startIso, endIso), by play time (T10.8). */
+export async function fetchBookingsForExport(startIso: string, endIso: string): Promise<ExportBooking[]> {
+  const rows = await allPages((from, to) => supabase
+    .from('bookings')
+    .select('reference_code, during, status, source, expires_at, guest_name, guest_phone, guest_email, total_amount, courts(name, sport)')
+    .overlaps('during', `[${startIso},${endIso})`)
+    .order('during')
+    .order('id')
+    .range(from, to))
+  const start = Date.parse(startIso)
+  const end = Date.parse(endIso)
+  return rows
+    .map((row) => {
+      const { start: slot_start, end: slot_end } = parseTstzRange(row.during)
+      return {
+        reference_code: row.reference_code,
+        court_name: row.courts?.name ?? null,
+        sport: row.courts?.sport ?? null,
+        slot_start,
+        slot_end,
+        status: row.status,
+        source: row.source,
+        expires_at: row.expires_at,
+        guest_name: row.guest_name,
+        guest_phone: row.guest_phone,
+        guest_email: row.guest_email,
+        total_amount: Number(row.total_amount),
+      }
+    })
+    // Overlapping isn't enough: a booking belongs to the range it starts in.
+    .filter((b) => Date.parse(b.slot_start) >= start && Date.parse(b.slot_start) < end)
+}
+
+export type ExportPayment = {
+  booking_reference: string
+  method: Enums<'payment_method'>
+  amount: number
+  reference_number: string | null
+  received_at: string | null
+  review_status: Enums<'payment_review_status'>
+}
+
+/** Money that came in during [startIso, endIso): accepted payments, and PayMongo payments to refund (T10.8). */
+export async function fetchPaymentsForExport(startIso: string, endIso: string): Promise<ExportPayment[]> {
+  const rows = await allPages((from, to) => supabase
+    .from('payments')
+    .select('method, amount, reference_number, reviewed_at, review_status, bookings(reference_code)')
+    .or('review_status.eq.approved,and(method.eq.paymongo,review_status.eq.rejected)')
+    .gte('reviewed_at', startIso)
+    .lt('reviewed_at', endIso)
+    .order('reviewed_at')
+    .order('id')
+    .range(from, to))
+  return rows.map((row) => ({
+    booking_reference: row.bookings?.reference_code ?? '',
+    method: row.method,
+    amount: Number(row.amount),
+    reference_number: row.reference_number,
+    received_at: row.reviewed_at,
+    review_status: row.review_status,
+  }))
+}
+
+/** The earnings summary for venue dates from–to, inclusive (T10.6): raw JSON, read with parseEarnings. */
+export async function fetchEarnings(from: string, to: string) {
+  return unwrap(await supabase.rpc('get_earnings', { p_from: from, p_to: to }))
 }
 
 export type WalkInInput = {

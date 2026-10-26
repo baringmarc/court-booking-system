@@ -140,7 +140,7 @@ select lives_ok(
 select is(
   (select array_agg(sport order by first_row)
    from (select c.sport, min(g.n) as first_row
-         from public.get_availability((select d from fx)) with ordinality as g(court_id, slot_start, slot_end, price, status, booker_first_name, open_play_session_id, n)
+         from public.get_availability((select d from fx)) with ordinality as g(court_id, slot_start, slot_end, price, status, booker_first_name, open_play_session_id, block_key, n)
          join public.courts c on c.id = g.court_id
          group by c.sport) s),
   array['tennis', 'basketball', 'pickleball', 'badminton']::public.sport[],
@@ -149,7 +149,7 @@ select is(
 select is(
   (select array_agg(name order by first_row)
    from (select c.name, min(g.n) as first_row
-         from public.get_availability((select d from fx)) with ordinality as g(court_id, slot_start, slot_end, price, status, booker_first_name, open_play_session_id, n)
+         from public.get_availability((select d from fx)) with ordinality as g(court_id, slot_start, slot_end, price, status, booker_first_name, open_play_session_id, block_key, n)
          join public.courts c on c.id = g.court_id
          where c.sport = 'tennis'
          group by c.name) s),

@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { expect, type Page } from '@playwright/test'
+import { expect, type Locator, type Page } from '@playwright/test'
 import { localSupabase } from './local.ts'
 
 /** Everything a test creates is tagged so global teardown can remove it. */
@@ -89,6 +89,22 @@ export async function emailText(to: string, subject: RegExp): Promise<string> {
 /** A venue-local date (Asia/Manila) `days` from today, as YYYY-MM-DD. */
 export function venueDate(days: number) {
   return new Date(Date.now() + days * 86_400_000).toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' })
+}
+
+/**
+ * Picks `date` (YYYY-MM-DD) in the DatePicker named `label` inside `scope` (T10.3): opens its calendar dialog, goes
+ * forward month by month until the day shows, and clicks it. The dialog closes on a pick.
+ */
+export async function pickDate(page: Page, scope: Page | Locator, label: string, date: string) {
+  await scope.getByRole('group', { name: label }).getByRole('button', { name: /^Choose a date/ }).click()
+  const dialog = page.getByRole('dialog', { name: label })
+  await expect(dialog.getByRole('grid')).toBeVisible()
+  const [y, m, d] = date.split('-').map(Number)
+  const month = new Date(Date.UTC(y, m - 1, d)).toLocaleString('en-US', { month: 'long', timeZone: 'UTC' })
+  const day = dialog.getByRole('button', { name: new RegExp(`${month} ${d}(st|nd|rd|th), ${y}`) })
+  for (let i = 0; i < 24 && !(await day.isVisible()); i++) await dialog.getByRole('button', { name: /next month/i }).click()
+  await day.click()
+  await expect(dialog).toBeHidden()
 }
 
 /** Selects the first free slot on `court` and continues to checkout. Returns the slot's accessible name. */

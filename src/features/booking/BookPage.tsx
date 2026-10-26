@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { DatePicker } from '../../components/DatePicker'
 import { ErrorMessage } from '../../components/ErrorMessage'
 import { PageLoader } from '../../components/PageLoader'
+import { closedDaysOfWeek } from '../../components/pickerHours'
 import { addDays, formatDateLabel, todayInZone } from '../../lib/time'
 import { SPORT_LABELS, type CourtWithPhotos, type OperatingHours, type Sport, type VenueSettings } from '../catalog/api'
 import { operatingToday } from '../catalog/hours'
@@ -101,17 +103,8 @@ function BookingBoard({ settings, courts, hours }: { settings: VenueSettings; co
   return (
     <div className="stack">
       <div className="book-controls">
-        <div className="date-nav">
-          <button type="button" className="btn btn-small btn-outline" aria-label="Previous day"
-            disabled={date <= today} onClick={() => update({ date: addDays(date, -1) })}>‹</button>
-          <label>
-            <span className="sr-only">Date</span>
-            <input type="date" value={date} min={today} max={lastDay}
-              onChange={(e) => e.target.value && update({ date: clampDate(e.target.value, today, lastDay) })} />
-          </label>
-          <button type="button" className="btn btn-small btn-outline" aria-label="Next day"
-            disabled={date >= lastDay} onClick={() => update({ date: addDays(date, 1) })}>›</button>
-        </div>
+        <DatePicker label="Date" hideLabel stepper value={date} today={today} min={today} max={lastDay}
+          closedDays={closedDaysOfWeek(hours)} timeZone={tz} onChange={(d) => update({ date: clampDate(d, today, lastDay) })} />
         {sports.length > 1 && (
           <div className="day-picker" role="group" aria-label="Sport">
             {sports.map((s) => (

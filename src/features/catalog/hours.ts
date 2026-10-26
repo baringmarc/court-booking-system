@@ -54,15 +54,17 @@ export const dowOf = (date: string) => {
   return new Date(Date.UTC(y, m - 1, d)).getUTCDay()
 }
 
+/** The instant `hour` hours past local midnight of `date` (24 and up land on the following days). */
+export function hourOnDate(date: string, hour: number, timeZone: string) {
+  const day = addDays(date, Math.floor(hour / 24))
+  return zonedLocalToISO(`${day}T${String(hour % 24).padStart(2, '0')}:00`, timeZone)
+}
+
 /** The instants an operating date is open, as ISO strings, or null when it's closed. Same as operating_day_range. */
 export function operatingDayRange(hours: Hours[], date: string, timeZone: string): { start: string; end: string } | null {
   const span = daySpan(hours.find((h) => h.day_of_week === dowOf(date)))
   if (!span) return null
-  const at = (hour: number) => {
-    const day = addDays(date, Math.floor(hour / 24))
-    return zonedLocalToISO(`${day}T${String(hour % 24).padStart(2, '0')}:00`, timeZone)
-  }
-  return { start: at(span.open), end: at(span.end) }
+  return { start: hourOnDate(date, span.open, timeZone), end: hourOnDate(date, span.end, timeZone) }
 }
 
 /**

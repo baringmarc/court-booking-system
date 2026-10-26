@@ -24,14 +24,17 @@ for (const path of ['/', '/book', '/admin/login', '/booking/CB-SMOKE0', '/me/boo
 }
 
 if (!LINKS_ONLY) {
-  const date = new Date(Date.now() + DAYS_AHEAD * 86_400_000).toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' })
   const browser = await chromium.launch()
   const page = await browser.newPage()
   try {
     // Start at / and navigate inside the app, so this part works even before the rewrite is live.
     await page.goto(BASE + '/')
     await page.getByRole('link', { name: 'Book now' }).click()
-    await page.getByLabel('Date').fill(date)
+    // Step forward with "Next day": both the old date input page and the M10 DatePicker (T10.3) have it.
+    // The app's own "today" is the operating day, so read the date it landed on from the URL.
+    for (let i = 0; i < DAYS_AHEAD; i++) await page.getByRole('button', { name: 'Next day' }).click()
+    await page.waitForURL(/date=\d{4}-\d{2}-\d{2}/)
+    const date = new URL(page.url()).searchParams.get('date')
     const slot = page.getByRole('button', { name: /, .*₱/ }).first()
     await slot.waitFor({ timeout: 20_000 })
     const slotName = await slot.getAttribute('aria-label')

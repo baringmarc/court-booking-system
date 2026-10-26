@@ -859,3 +859,150 @@ Researched on 2026-10-20 from the current migrations and client code, with local
 - **Recommendation:**
   - A **dev-only** palette preview route (`import.meta.env.DEV`, so it's never in the production bundle) shows 4 palettes on the real slot grid, buttons, badges and alerts, in light and dark mode. Each palette gets a computed WCAG contrast table (a `contrast()` helper with Vitest).
   - The user picks one. The tokens in `src/index.css` are swapped (the `--slot-*` tokens follow automatically), and the axe e2e confirms contrast.
+
+## Milestone 10: Product improvements
+
+Researched on 2026-10-25 (T10.1) from the current migrations and client code, with experiments on the local database and a scratch bundle build. The user approved every recommendation at the T10.1 plan gate on 2026-10-25.
+
+### Date and hour picker
+- **Status:** Decided (SPEC §10, 2026-10-25)
+- **Findings:**
+  - **Version.** `react-day-picker` 10.0.2 (2026-09-30) is current. v10 renamed the package to **`@daypicker/react`**; the old name stays as a compatibility alias, and `@daypicker/react` 10.0.2 depends on it (`npm view @daypicker/react dependencies`). Its peer is `react >=16.8`, so React 19 is supported. It depends on `date-fns` ^4 and `@date-fns/tz` ([Upgrading to v10](https://daypicker.dev/upgrading)).
+  - **v10 changes that matter here:** the stylesheet is `@daypicker/react/style.css`; `fromDate`/`toDate` are gone (use `hidden`/`disabled` matchers with `before`/`after`, plus `startMonth`/`endMonth` to limit navigation); `initialFocus` became `autoFocus`; the `onDay*` handlers were removed ([Upgrading to v10](https://daypicker.dev/upgrading)). The `today`, `startMonth`, `endMonth`, `autoFocus` and `footer` props are in the 10.0.2 type definitions (`dist/esm/types/props.d.ts`).
+  - **Bundle cost (measured).** In a scratch esbuild bundle (minified, production React), `<DayPicker mode="single" disabled={…}>` adds **74.6 kB raw / 22.5 kB gzip** of JS over a React-only baseline (298.3 vs 223.7 kB raw; 91.6 vs 69.1 kB gzip). The `timeZone` prop made no difference (the tz code is bundled either way). `style.css` is 11.3 kB, **2.2 kB gzip**. For comparison, the whole public `index` chunk is 82.9 kB (25.9 kB gzip), so a calendar loaded eagerly on `/book` would almost double it.
+  - **Styling.** Override the CSS variables under `.rdp-root` after importing the stylesheet: `--rdp-accent-color`, `--rdp-accent-background-color`, `--rdp-day-width`/`--rdp-day-height` (44px by default, a good touch target), `--rdp-today-color`, `--rdp-selected-border`, `--rdp-disabled-opacity`, `--rdp-outside-opacity`. Dark mode overrides the same variables under the dark theme selector. `classNames` replaces or extends classes (`getDefaultClassNames()`) ([Styling](https://daypicker.dev/docs/styling)). So our `--accent`, `--surface` and `--text` tokens map onto the `--rdp-*` variables, and the theme follows automatically.
+  - **Keyboard and screen readers.** Arrows move by day and week, Shift+arrows by month and year, PageUp/PageDown by month, Home/End to the week's start and end, Enter/Space selects; focus is managed by the component; `labels` customizes the ARIA labels, `aria-labelledby` names it, and the `footer` can be a live region that announces the selection. It follows the APG date picker dialog pattern and claims WCAG 2.1 AA ([Accessibility](https://daypicker.dev/guides/accessibility)).
+  - **Time zones.** The `timeZone` prop plus `TZDate` makes it read and write instants in a zone ([Setting the time zone](https://daypicker.dev/localization/setting-time-zone)). We don't need instants: every picker value here is a venue-local calendar date (`YYYY-MM-DD`), and `lib/time.ts` already converts dates and hours to instants (`zonedLocalToISO`).
+  - **Hours.** `catalog/hours.ts` already has `daySpan()` (open hour and an end past 24 for overnight days) and `operatingDayRange()`. Asia/Manila has had no DST since 1978, so every venue-local day has 24 hours. The helpers should still go through `zonedLocalToISO` rather than add hours to an instant by hand.
+  - **What each form needs:**
+    - `save_open_play` refuses a session that doesn't fit within one operating day (`outside_hours`), so start + duration covers it completely.
+    - Blackouts are written directly, can be any length (multi-day maintenance), may cover closed hours, and are publicly readable.
+- **Recommendation:**
+  - **Library:** `@daypicker/react` 10.0.2 (exact pin), with `mode="single"` and **no `timeZone` prop**. Convert between `YYYY-MM-DD` and a local `Date(y, m - 1, d)` in one helper. `today` comes from `operatingToday()`/`todayInZone()`, never the browser clock. Disabled days are `{ before: first }`, `{ after: last }` and `{ dayOfWeek: closedDays }` matchers, and `startMonth`/`endMonth` limit navigation.
+  - **Components** in `src/components/`:
+    - `DatePicker`: "Today" and "Tomorrow" quick picks plus a button showing the chosen date. It opens the calendar in a dialog (`<dialog>`, focus returns to the button). The calendar is its own module loaded with `React.lazy`, so it costs nothing until it's opened.
+    - `HourPicker`: buttons for one operating day's hours, overnight ones labelled "12 AM (next day)".
+    - `DurationPicker`: 1h, 2h… up to what's left of that operating day.
+  - **Helpers** in `src/lib/pickerHours.ts` (Vitest): `dayHours(hours, date, tz)` → `{ start, label, nextDay }[]`, `maxDuration(…)`, `rangeFrom(start, hours)`, and a `calendarHours(date, tz)` variant with all 24 hours for blackouts.
+  - **`/book`** gets the calendar through the lazy chunk: about **+22.5 kB gzip JS and 2.2 kB CSS, loaded only when the calendar is opened**, and nothing added to `index`. Admin pages load the same chunk.
+  - **Blackouts keep a range** (decides the T10.3 question): "From" date + hour and "Until" date + hour, with the 24 calendar hours (not operating hours, since blackouts may cover closed time), and "until" defaulting to the same day. **Open play** uses date + start hour + duration within the operating day.
+
+### Merged blocks on the slot grids
+- **Status:** Decided (SPEC §10, 2026-10-25)
+- **Findings:**
+  - `SlotGrid` and `DayView` are real `<table>`s with `th scope="col"` (courts) and `th scope="row"` (hours). `rowspan` and `colspan` keep that semantic: a spanning cell belongs to the column header and the row headers it starts in ([W3C WAI tables tutorial](https://www.w3.org/WAI/tutorials/tables/)). A CSS grid would lose the table semantics and need ARIA grid roles rebuilt by hand.
+  - Every slot button already has an `aria-label` with the court, the range and the state, so a merged button just labels the full range and every court it spans ("Court 1 and Court 2, 2 PM – 5 PM, Closed"). Focus order stays row by row: a merged cell is reached once, in the row it starts.
+  - `get_availability` already resolves one booking per slot (at most one, by the exclusion constraint) and one open play session (at most one). Blackouts are matched with `exists`, so it needs to pick one id. Booking ids and reference codes are private; blackouts (`Anyone can read blackouts`) and open play sessions are public, so their ids leak nothing.
+  - A slot's status is `past` once it has ended, even if it was booked. A booking in progress is therefore split into its ended part (each `—`) and its booked rest, which merges.
+  - Phone layout: the grid already scrolls sideways inside `.table-scroll` with sticky time and court headers. A tall merged cell scrolls with its rows; nothing changes there.
+- **Recommendation:**
+  - `get_availability` gains `block_key text` (expand: drop and recreate, re-grant, as in M9):
+    - **booked:** `left(encode(sha256(convert_to('booking:' || b.id, 'UTF8')), 'hex'), 16)`. It stays the same across refetches (stable React keys) and can't be reversed into the uuid.
+    - **open play:** the session id.
+    - **blackout:** `'blackout:' || bo.id`, the lowest overlapping id. An all-courts blackout gives every court the same key.
+    - free, past and in-progress free slots: null.
+  - Keep the `<table>` and use `rowSpan`/`colSpan`. A pure `groupBlocks(times, courts, slotsByCourt)` returns per-cell `{ rowSpan, colSpan } | 'covered'`. It merges down while the key repeats on consecutive rows, and across only when neighbouring courts have the same key and the same rows. Blocks are cut at the first visible row, so a block that started the day before begins at the top. Free slots never merge.
+
+### Earnings
+- **Status:** Decided (SPEC §10, 2026-10-25)
+- **Findings:**
+  - **When money comes in.** Every approved payment already has `reviewed_at`:
+    - `review_payment` sets it when staff approve a proof;
+    - `record_paymongo_payment` sets it to `now()` when the webhook records the payment, which is the paid time to within a webhook delay;
+    - `create_walk_in` sets it at creation.
+
+    `payments_one_approved_per_booking` keeps one approved row per booking. PayMongo money that wasn't accepted is stored as `rejected` (refund due), so `review_status = 'approved'` already leaves it out. Today's `TakingsCard` (`fetchApprovedPayments`) reads exactly this (SPEC §10 2026-10-17: a cash basis by venue-local calendar date). **No `received_at` column is needed.**
+  - **Cancelled after payment.** The approved payment stays (no refunds through the app), so it stays in "collected", as it does today.
+  - **Weeks.** Postgres `date_trunc('week', …)` starts on Monday (ISO): `2026-10-25` (a Sunday) → `2026-10-19`, `2026-10-26` → `2026-10-26` (local query).
+  - **Day boundaries.** Money is counted by the venue-local calendar date (as today's takings are). Hours are counted by **operating day** (`private.operating_day_range(d)`), so a session at 1 AM on an overnight Saturday is Saturday's, as in the day view.
+- **Recommendation:**
+  - One admin-only RPC `get_earnings(p_from date, p_to date)` (inclusive dates, at most 366 days, `security invoker` plus an explicit `private.is_admin()` check, `forbidden` otherwise). It returns jsonb:
+    - **collected:** per method, total, `count`, and the same for the **previous period** (the same number of days just before);
+    - **refunds_due:** count and total of `method = 'paymongo' and review_status = 'rejected'` by `reviewed_at`, the same filter as today's `fetchRefundsDue` (rejected proofs are `rejected` too, and must not count);
+    - **daily:** per date, collected and booked hours;
+    - **hours:** per court and per sport, `open_hours`, `blackout_hours`, `sold_hours`, `open_play_hours`;
+    - **coming_up:** count and value of confirmed bookings that start after `now()`.
+  - **Occupancy** = sold ÷ (open − blackout):
+    - **open:** for each operating day in the range, the hours of `operating_day_range(d)` × each active court;
+    - **blackout:** blackout hours clipped to the open hours (overlapping blackouts counted once, as a `tstzmultirange` union);
+    - **sold:** hours of `confirmed` bookings of any source, rescheduled continuations included, clipped to the day;
+    - **open play:** hours shown on their own line and kept out of "sold".
+
+    Only courts active now are counted (a court switched off mid-range drops out; noted in the UI copy).
+  - **Chart:** plain CSS bars (a `<ul>` of bars with heights from the data) with the amount as visible text on each bar and a "Show as table" list, so it doesn't rely on colour or hover. There's no chart library: one bar series doesn't need one.
+
+### CSV export
+- **Status:** Decided (SPEC §10, 2026-10-25)
+- **Findings:**
+  - **RFC 4180:** quote fields that contain commas, double quotes or line breaks, double the quotes inside them, and end lines with CRLF ([RFC 4180](https://www.rfc-editor.org/rfc/rfc4180)).
+  - **Formula injection.** A cell starting with `=`, `+`, `-`, `@`, a tab, CR or LF (or their full-width forms `＝ ＋ － ＠`) can run as a formula. OWASP recommends quoting each field and prefixing a single quote. A tab prefix survives Excel re-saving better, but it changes the data ([OWASP CSV Injection](https://owasp.org/www-community/attacks/CSV_Injection), which redirects to community.owasp.org). Phone numbers like `+63…` hit this rule.
+  - **Excel and UTF-8.** Excel opens a double-clicked CSV in the legacy code page unless the file starts with a UTF-8 BOM, which garbles `ñ` and `₱` ([Trac #6656](https://trac.edgewall.org/ticket/6656), [domainpunch KB](https://learn.domainpunch.com/wmdsed/kb/unicode-excel/)).
+  - **Row limits.** PostgREST returns at most `max_rows` (1000 on Supabase) per request, so a month of bookings has to be read in pages with `.range()`.
+  - **Data Privacy Act (RA 10173).** Personal data must be processed under transparency, legitimate purpose and **proportionality**, with organizational, physical and technical security measures ([IRR of RA 10173](https://privacy.gov.ph/wp-content/uploads/2023/06/IRR_RA-10173-as-amended.pdf), Rule IV §18 and Rule VI). An export of names, phones and emails is a copy of personal data that leaves the app's access controls.
+- **Recommendation:**
+  - A pure `toCsv(headers, rows)` in `features/admin/csv.ts`:
+    - every field quoted, with `"` doubled;
+    - a leading `'` when the trimmed value starts with `= + - @`, a tab, CR, LF or a full-width form;
+    - CRLF line endings and a `﻿` BOM;
+    - amounts as plain numbers in a column named for the currency (`amount_php`), so the `₱` sign never appears in a number cell;
+    - times as `YYYY-MM-DD HH:mm` in the venue zone, named in the header (`start (Asia/Manila)`).
+  - Two exports, read in pages of 1000 through the admin's RLS:
+    - **bookings** by play date: reference, court, sport, start, end, status, source, name, phone, email, amount;
+    - **payments** by received date (`reviewed_at`; approved rows, plus refund due = `method = 'paymongo' and review_status = 'rejected'`, never rejected proofs): reference, method, amount, reference number, received, status.
+  - Download through a `Blob` and `URL.createObjectURL`, with a filename that includes the range.
+  - DPA: an "Include contact details (phone, email)" checkbox, **off by default**, plus a line under the button: "Contains personal data. Store it securely and delete it when you no longer need it." Names are always included, because staff need them to match bookings.
+
+### Rescheduling (T10.9 design)
+- **Status:** Decided (SPEC §10, 2026-10-25): walk-in slot rules, no cascade on cancel
+- **Findings (current code):**
+  - **Slot rules.** `validate_booking_slot(court, start, slots, p_walk_in)` checks:
+    - the input shape and an active court;
+    - start on the hour;
+    - online bookings start in the future, while a walk-in may start in the hour in progress;
+    - one operating day, and the booking window (skipped for walk-ins);
+    - no blackout and no open play.
+
+    It doesn't look at other bookings: the exclusion constraint `bookings_no_overlap` (court, during, for active statuses) does that.
+  - **Locks.** `lock_court_slots(court)` is a per-court transaction advisory lock, taken by `create_booking`, the open play RPCs and the PayMongo revival before any row lock. That prevents deadlocks with `create_booking`.
+  - **Emails.** `queue_booking_email` (AFTER INSERT or UPDATE OF status) returns early unless `source = 'online'`, and only reacts to status changes. So shortening a booking (`during` changes) sends nothing. A continuation inserted with `source = 'moved'` sends nothing either: no wrong `booking_created`. `email_outbox_once_per_booking` is unique on `(booking_id, kind)` except for `proof_rejected`.
+  - **Guest link.** `get_guest_booking` matches on reference + `guest_token_hash` and expires 30 days after the booking's **own** end. `claim_guest_bookings` claims only `source = 'online'`. `cancel_booking` matches a guest on reference + hash.
+  - **Payment invariant.** "Every confirmed booking has exactly one approved payment" is enforced by:
+    - the partial unique index (at most one approved);
+    - the RPCs: `record_payment_proof` needs `pending_payment`, `review_payment` needs `payment_submitted`, and the webhook needs a `paymongo_checkouts` row, so none of them can attach a payment to a confirmed continuation;
+    - the pgTAP seed check in `08_payments`.
+
+    The UI uses `payments.some(approved)` for "paid" and refund notes.
+  - **Enums (local experiment).** `alter type … add value` followed by using the value in the same transaction fails with "New enum values must be committed before they can be used". `db push` runs each migration file in its own transaction ([ALTER TYPE](https://www.postgresql.org/docs/current/sql-altertype.html)).
+  - **The live frontend.** The live frontend shows an unknown `source` without the walk-in label, which is harmless.
+- **Recommendation:**
+  - **Two migrations:** (1) `booking_source` + `'moved'` and `email_kind` + `'booking_rescheduled'` alone, then (2) everything else.
+  - **Columns and constraints:**
+    - `bookings.parent_booking_id uuid references bookings(id)`, indexed;
+    - checks: `source = 'moved'` ⇔ `parent_booking_id is not null`, and a moved booking has `total_amount = 0`;
+    - a payments BEFORE INSERT guard refuses rows for a `moved` booking (`hint = 'moved_booking'`).
+  - **The parent is always the root.** A continuation points to the **original** booking, never to another continuation. A second split of a continuation also points to the root, and moving a continuation whole just updates it. So the guest read, claims and "moved part" lists are one-level queries, and `booking_changes` keeps the full history.
+  - **`reschedule_booking(p_booking_id, p_from_start, p_new_court_id, p_new_start, p_reason)`** (security definer, admin only):
+    1. Check the reason (1–500 characters).
+    2. Read the booking's court without a lock, take `lock_court_slots` for the old and the new court **in uuid order**, then select the booking `for update` and refuse it if its court changed in between (`try_again`).
+    3. Refuse anything not `confirmed` or already ended (`booking_ended`).
+    4. `p_from_start` must be on the hour, within `[lower, upper)`, and not before the hour in progress (`from_past`).
+    5. The new court must be active with the same sport (`different_sport`). The moved length is `upper - from_start`.
+    6. Validate with `validate_booking_slot(new_court, new_start, hours, p_walk_in => true)`. That uses the walk-in rules (staff may move into the hour in progress, as at the counter, and aren't limited by the booking window). Every other rule applies.
+    7. **Whole move** when `p_from_start = lower(during)` (whether or not it has started): update `court_id` and `during`. The exclusion constraint skips the row itself, so moving within the same court works.
+    8. **Split** otherwise:
+       - shorten the original to `[lower, from_start)`;
+       - insert the continuation: `source = 'moved'`, `status = 'confirmed'`, `total_amount = 0`, a new reference code (same retry loop), `parent_booking_id` = root, and the parent's contact snapshot, `user_id`, `guest_token_hash` and `created_by` = the admin.
+    9. An `exclusion_violation` becomes `slot_unavailable`.
+    10. Insert the `booking_changes` row.
+  - **`booking_changes`** (`id`, `booking_id`, `old_court_id`, `old_during`, `new_court_id`, `new_during`, `continuation_id`, `reason`, `changed_by`, `changed_at`) records the moved part. RLS:
+    - admins read;
+    - players read the changes of their own bookings (`booking.user_id = auth.uid()`);
+    - no direct writes (only the RPC writes).
+  - **Email:** a trigger AFTER INSERT on `booking_changes` queues `booking_rescheduled` for an `online` root booking with an email. It sets a new `email_outbox.change_id` (unique where not null), and `email_outbox_once_per_booking` also exempts `booking_rescheduled`. Walk-ins are never emailed (unchanged).
+  - **Guest and player reads:**
+    - `get_guest_booking` gains `continuations jsonb` (reference, court, start, end, status) and `changes jsonb` (old and new court and time, reason, when). The 30-day expiry runs from the latest end among the booking and its continuations. This changes the result shape: drop, recreate and re-grant.
+    - A continuation's own reference also opens through the guest link, since it carries the same hash.
+    - `claim_guest_bookings` claims `source in ('online', 'moved')` (continuations copy the parent's email).
+  - **Cancel:** `cancel_booking` works on a continuation unchanged, by id or by reference + token. `queue_booking_email` returns early for `source <> 'online'`, so T10.9 extends it: cancelling a `moved` continuation whose root is `online` queues `booking_cancelled` to the root's contact. **Recommended: no cascade.** A continuation only exists once the parent has started, so the player can't cancel the parent anymore. If staff cancel the parent's remaining hour, the admin form warns: "The moved part CB-… stays booked."
+  - **Invariant, restated:** every confirmed booking that isn't `moved` has exactly one approved payment, and a `moved` booking has a root booking and no payments of its own. `08_payments` and the new tests check both. The UI's "paid" checks look at the root's payments for a continuation.
+  - **Earnings:** sold hours include continuations (by play time). Money doesn't move. "Coming up" values a continuation at ₱0.

@@ -1,7 +1,10 @@
 import { useState, type FormEvent } from 'react'
+import { DatePicker } from '../../components/DatePicker'
+import { DurationPicker, HourPicker } from '../../components/HourPicker'
+import { closedDaysOfWeek, endAfter, findHour, hoursBetween, maxDuration, operatingHourOptions } from '../../components/pickerHours'
 import { errorMessage } from '../../lib/errors'
-import { isoToZonedLocal, zonedLocalToISO } from '../../lib/time'
-import { SPORT_LABELS, type Court } from '../catalog/api'
+import { SPORT_LABELS, type Court, type OperatingHours } from '../catalog/api'
+import { operatingDateOf, operatingToday } from '../catalog/hours'
 import type { OpenPlayInput, OpenPlaySession } from '../openPlay/api'
 import { DETAILS_MAX, LABEL_MAX, linksFromRows, MAX_LINKS, TITLE_MAX, type OpenPlayLink } from '../openPlay/session'
 
@@ -10,7 +13,11 @@ type Props = {
   initial: OpenPlaySession | null
   /** Active courts, plus any archived ones the session already uses (shown as archived, so they can be unticked). */
   courts: Pick<Court, 'id' | 'name' | 'sport' | 'is_active'>[]
+  /** The venue's opening hours: a session fits within one operating day. */
+  hours: OperatingHours[]
   timeZone: string
+  /** Hours that have started can't be picked. */
+  now: Date
   saving: boolean
   /** The last save's error: the server's message (a clash names the courts). */
   error: unknown
@@ -21,15 +28,26 @@ type Props = {
 const emptyRows = (links: OpenPlayLink[]) =>
   Array.from({ length: MAX_LINKS }, (_, i) => links[i] ?? { label: '', url: '' })
 
-/** Create or edit one open play session (T9.11d). The RPCs check every rule; this catches the obvious slips. */
-export function OpenPlayForm({ initial, courts, timeZone, saving, error, onSave, onCancel }: Props) {
+/**
+ * Create or edit one open play session (T9.11d). The time is a date, a start hour and a length within that operating
+ * day (T10.3). The RPCs check every rule; this catches the obvious slips.
+ */
+export function OpenPlayForm({ initial, courts, hours, timeZone, now, saving, error, onSave, onCancel }: Props) {
   const [courtIds, setCourtIds] = useState<string[]>(initial?.court_ids ?? [])
-  const [startsAt, setStartsAt] = useState(initial ? isoToZonedLocal(initial.starts_at, timeZone) : '')
-  const [endsAt, setEndsAt] = useState(initial ? isoToZonedLocal(initial.ends_at, timeZone) : '')
+  const [date, setDate] = useState(() =>
+    initial ? operatingDateOf(hours, timeZone, new Date(initial.starts_at)) : operatingToday(hours, timeZone, now))
+  const [start, setStart] = useState<string | null>(initial?.starts_at ?? null)
+  const [duration, setDuration] = useState<number | null>(initial ? hoursBetween(initial.starts_at, initial.ends_at) : null)
   const [title, setTitle] = useState(initial?.title ?? '')
   const [details, setDetails] = useState(initial?.details ?? '')
   const [rows, setRows] = useState(() => emptyRows(initial?.links ?? []))
   const [problem, setProblem] = useState<string | null>(null)
+
+  // Derived, not synced: a start that isn't on the chosen day (or has started) and a length that no longer fits drop out.
+  const options = operatingHourOptions(hours, date, timeZone).filter((o) => Date.parse(o.start) > now.getTime())
+  const chosenStart = findHour(options, start)?.start ?? null
+  const max = maxDuration(options, chosenStart)
+  const chosenHours = duration !== null && duration <= max ? duration : null
 
   function toggleCourt(id: string, on: boolean) {
     setCourtIds((ids) => (on ? [...ids, id] : ids.filter((c) => c !== id)))
@@ -42,15 +60,16 @@ export function OpenPlayForm({ initial, courts, timeZone, saving, error, onSave,
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
     const { links, error: linkError } = linksFromRows(rows)
-    const next = courtIds.length === 0
-      ? 'Choose at least one court.'
-      : endsAt <= startsAt ? 'The session must end after it starts.' : linkError
+    const next = courtIds.length === 0 ? 'Choose at least one court.'
+      : !chosenStart ? 'Choose a start time.'
+      : !chosenHours ? 'Choose how long the session runs.'
+      : linkError
     setProblem(next)
-    if (next) return
+    if (next || !chosenStart || !chosenHours) return
     onSave({
       courtIds,
-      start: zonedLocalToISO(startsAt, timeZone),
-      end: zonedLocalToISO(endsAt, timeZone),
+      start: chosenStart,
+      end: endAfter(chosenStart, chosenHours),
       title: title.trim(),
       details: details.trim(),
       links,
@@ -72,17 +91,11 @@ export function OpenPlayForm({ initial, courts, timeZone, saving, error, onSave,
           ))}
         </div>
       </fieldset>
-      <div className="form-grid">
-        <label className="field">
-          <span>Starts</span>
-          <input type="datetime-local" step={3600} required value={startsAt} onChange={(e) => setStartsAt(e.target.value)} />
-        </label>
-        <label className="field">
-          <span>Ends</span>
-          <input type="datetime-local" step={3600} required min={startsAt || undefined} value={endsAt}
-            onChange={(e) => setEndsAt(e.target.value)} />
-        </label>
-      </div>
+      <DatePicker label="Date" value={date} onChange={setDate} today={operatingToday(hours, timeZone, now)}
+        min={operatingToday(hours, timeZone, now)} closedDays={closedDaysOfWeek(hours)} timeZone={timeZone} />
+      <HourPicker label="Starts" options={options} value={chosenStart} onChange={setStart}
+        empty="No start times left on this day." />
+      <DurationPicker max={max} value={chosenHours} onChange={setDuration} />
       <label className="field">
         <span>Title</span>
         <input required maxLength={TITLE_MAX} value={title} placeholder="e.g. Saturday open play" onChange={(e) => setTitle(e.target.value)} />

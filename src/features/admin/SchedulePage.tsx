@@ -1,4 +1,7 @@
 import { useState, type FormEvent, type ReactNode } from 'react'
+import { DatePicker } from '../../components/DatePicker'
+import { HourPicker } from '../../components/HourPicker'
+import { calendarEndOptions, calendarHourOptions, findHour } from '../../components/pickerHours'
 import { PageLoader } from '../../components/PageLoader'
 import { ErrorMessage } from '../../components/ErrorMessage'
 import { SaveStatus } from '../../components/SaveStatus'
@@ -14,7 +17,8 @@ import {
 import type { OperatingHours } from '../catalog/api'
 import { DAY_NAMES, DISPLAY_DAY_ORDER, formatHour, hourOf, hourToTime } from '../../lib/format'
 import { findOverlap, findSameTime, isAllDay, isOvernight, overlapMessage, sameTimeMessage } from '../catalog/hours'
-import { formatDateTimeInZone, zonedLocalToISO } from '../../lib/time'
+import { formatDateTimeInZone, todayInZone } from '../../lib/time'
+import { useNow } from '../booking/useNow'
 import { errorMessage } from '../../lib/errors'
 
 export function SchedulePage() {
@@ -132,28 +136,42 @@ function BlackoutsSection() {
   const create = useCreateBlackout()
   const remove = useDeleteBlackout()
   const timeZone = settings.data?.timezone ?? 'Asia/Manila'
+  const now = useNow(60_000)
+  const today = todayInZone(timeZone, now)
 
+  // Blackouts can span days and cover closed time, so they use calendar dates and all 24 hours (T10.3).
   const [courtId, setCourtId] = useState('')
-  const [startsAt, setStartsAt] = useState('')
-  const [endsAt, setEndsAt] = useState('')
+  const [pickedFromDate, setFromDate] = useState(today)
+  const [from, setFrom] = useState<string | null>(null)
+  const [untilDate, setUntilDate] = useState(today)
+  const [until, setUntil] = useState<string | null>(null)
   const [reason, setReason] = useState('')
+  const [problem, setProblem] = useState<string | null>(null)
+
+  // Derived, not synced: a start day before today moves up to today, hours that have ended drop out, the end day is never before the start day, and an end that
+  // isn't after the start drops out.
+  const fromDate = pickedFromDate < today ? today : pickedFromDate // the page stayed open past midnight
+  const fromOptions = calendarHourOptions(fromDate, timeZone).filter((o) => Date.parse(o.start) + 3_600_000 > now.getTime())
+  const chosenFrom = findHour(fromOptions, from)?.start ?? null
+  const untilDay = untilDate < fromDate ? fromDate : untilDate
+  const untilOptions = calendarEndOptions(untilDay, timeZone)
+    .filter((o) => Date.parse(o.start) > (chosenFrom ? Date.parse(chosenFrom) : now.getTime()))
+  const chosenUntil = findHour(untilOptions, until)?.start ?? null
 
   const courtName = (id: string | null) =>
     id ? courts.data?.find((c) => c.id === id)?.name ?? 'Unknown court' : 'All courts'
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
+    const next = !chosenFrom ? 'Choose when the blackout starts.' : !chosenUntil ? 'Choose when it ends.' : null
+    setProblem(next)
+    if (!chosenFrom || !chosenUntil) return
     create.mutate(
-      {
-        court_id: courtId || null,
-        starts_at: zonedLocalToISO(startsAt, timeZone),
-        ends_at: zonedLocalToISO(endsAt, timeZone),
-        reason: reason.trim(),
-      },
+      { court_id: courtId || null, starts_at: chosenFrom, ends_at: chosenUntil, reason: reason.trim() },
       {
         onSuccess: () => {
-          setStartsAt('')
-          setEndsAt('')
+          setFrom(null)
+          setUntil(null)
           setReason('')
         },
       },
@@ -181,21 +199,18 @@ function BlackoutsSection() {
             </select>
           </label>
           <label className="field">
-            <span>Starts</span>
-            <input type="datetime-local" step={3600} required value={startsAt} onChange={(e) => setStartsAt(e.target.value)} />
-          </label>
-          <label className="field">
-            <span>Ends</span>
-            <input type="datetime-local" step={3600} required min={startsAt || undefined} value={endsAt} onChange={(e) => setEndsAt(e.target.value)} />
-          </label>
-          <label className="field">
             <span>Reason</span>
             <input value={reason} placeholder="e.g. Floor maintenance" onChange={(e) => setReason(e.target.value)} />
           </label>
         </div>
+        <DatePicker label="Starts on" value={fromDate} onChange={setFromDate} today={today} min={today} timeZone={timeZone} />
+        <HourPicker label="Starts at" options={fromOptions} value={chosenFrom} onChange={setFrom} empty="No hours left on this day." />
+        <DatePicker label="Ends on" value={untilDay} onChange={setUntilDate} today={today} min={fromDate} timeZone={timeZone} />
+        <HourPicker label="Ends at" options={untilOptions} value={chosenUntil} onChange={setUntil}
+          empty="Pick a later day to end on." />
         <div className="form-actions">
           <button type="submit" className="btn" disabled={create.isPending}>{create.isPending ? 'Adding…' : 'Add blackout'}</button>
-          {create.error && <span className="form-error" role="alert">{errorMessage(create.error)}</span>}
+          {(problem || create.error) && <span className="form-error" role="alert">{problem ?? errorMessage(create.error)}</span>}
         </div>
       </form>
 

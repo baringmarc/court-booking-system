@@ -57,6 +57,8 @@ export async function fetchAvailability(date: string): Promise<Slot[]> {
     // The generated type says string, but it's null on every slot that isn't booked (T9.8).
     booker_first_name: r.booker_first_name || null,
     open_play_session_id: r.open_play_session_id || null,
+    // Also typed string, but null on free and past slots (T10.4).
+    block_key: r.block_key || null,
   }))
 }
 

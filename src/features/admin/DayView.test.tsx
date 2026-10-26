@@ -8,7 +8,7 @@ import { DayView } from './DayView'
 const at = (h: number) => new Date(Date.UTC(2030, 0, 7, h - 8)).toISOString()
 const courts = [{ id: 'A', name: 'Badminton 1' }, { id: 'B', name: 'Badminton 2' }]
 const slot = (court_id: string, h: number, status: Slot['status'], booker_first_name: string | null = null): Slot =>
-  ({ court_id, slot_start: at(h), slot_end: at(h + 1), price: 350, status, booker_first_name, open_play_session_id: null })
+  ({ court_id, slot_start: at(h), slot_end: at(h + 1), price: 350, status, booker_first_name, open_play_session_id: null, block_key: null })
 const slots = [
   slot('A', 17, 'past'), slot('A', 18, 'booked', 'Ana'), slot('A', 19, 'booked', 'Ana'),
   slot('B', 17, 'blackout'), slot('B', 18, 'free'), slot('B', 19, 'free'),
@@ -32,21 +32,50 @@ describe('DayView', () => {
     expect(screen.getAllByRole('rowheader').map((h) => h.textContent)).toEqual(['5 PM', '6 PM', '7 PM'])
   })
 
-  it('shows the full name and reference on every hour of a booking, linking to that booking', () => {
+  it('shows a booking as one cell over its hours, with the full name, reference and range (T10.5)', () => {
     renderDay()
     const rows = screen.getAllByRole('row').slice(1)
-    for (const row of rows.slice(1)) {
-      const cell = within(row).getAllByRole('cell')[0]
-      expect(cell).toHaveTextContent('Ana Maria Santos')
-      expect(within(cell).getByRole('link', { name: 'CB-7KQ2XD' })).toHaveAttribute('href', '/admin/bookings?status=all&date=2030-01-07&booking=b1')
-    }
+    const cell = within(rows[1]).getAllByRole('cell')[0]
+    expect(cell).toHaveAttribute('rowspan', '2')
+    expect(cell).toHaveTextContent('Ana Maria SantosCB-7KQ2XD6 PM – 8 PM')
+    expect(within(cell).getByRole('link', { name: 'CB-7KQ2XD' })).toHaveAttribute('href', '/admin/bookings?status=all&date=2030-01-07&booking=b1')
+    // The next row has only Badminton 2's cell: the booking covers Badminton 1 there.
+    expect(within(rows[2]).getAllByRole('cell')).toHaveLength(1)
+    expect(screen.getAllByText('Ana Maria Santos')).toHaveLength(1)
+  })
+
+  it('keeps an ended hour of a booking in its cell (bookings group by id, not by status)', () => {
+    const started = [slot('A', 17, 'past'), slot('A', 18, 'past'), slot('A', 19, 'booked', 'Ana'), ...slots.slice(3)]
+    renderDay(started)
+    const cell = within(screen.getAllByRole('row')[2]).getAllByRole('cell')[0]
+    expect(cell).toHaveAttribute('rowspan', '2')
+    expect(cell).toHaveTextContent('Ana Maria Santos')
+  })
+
+  it('merges an open play session over its hours and an all-courts blackout across courts', () => {
+    const op = (h: number): Slot => ({ ...slot('B', h, 'open_play'), open_play_session_id: 'S1', block_key: 'S1' })
+    const bo = (c: string): Slot => ({ ...slot(c, 17, 'blackout'), block_key: 'blackout:X' })
+    render(
+      <MemoryRouter>
+        <DayView date="2030-01-07" courts={courts} bookings={[]} timeZone="Asia/Manila" sessionTitle={() => 'Drills'}
+          slots={[bo('A'), bo('B'), slot('A', 18, 'free'), slot('A', 19, 'free'), op(18), op(19)]} />
+      </MemoryRouter>,
+    )
+    const rows = screen.getAllByRole('row').slice(1)
+    const closed = within(rows[0]).getAllByRole('cell')
+    expect(closed).toHaveLength(1)
+    expect(closed[0]).toHaveAttribute('colspan', '2')
+    expect(closed[0]).toHaveTextContent(/^Closed$/)
+    const session = within(rows[1]).getAllByRole('cell')[1]
+    expect(session).toHaveAttribute('rowspan', '2')
+    expect(session).toHaveTextContent('Open playDrills6 PM – 8 PM')
   })
 
   it('matches bookings to slots by time, whatever format each timestamp comes in', () => {
     // Slots from get_availability use "+00:00"; bookings parsed from a range use ".000Z". Same instants.
     const pgSlots = slots.map((s) => ({ ...s, slot_start: s.slot_start.replace('.000Z', '+00:00'), slot_end: s.slot_end.replace('.000Z', '+00:00') }))
     renderDay(pgSlots)
-    expect(screen.getAllByText('Ana Maria Santos')).toHaveLength(2)
+    expect(screen.getByText('Ana Maria Santos').closest('td')).toHaveAttribute('rowspan', '2')
   })
 
   it('links an after-midnight booking to its own calendar date and marks the hour as the next day', () => {
@@ -92,6 +121,7 @@ describe('DayView', () => {
     const named = within(rows[1]).getAllByRole('cell')[1]
     expect(named).toHaveTextContent('Open playSaturday open play')
     expect(named).toHaveClass('day-open_play')
-    expect(within(rows[2]).getAllByRole('cell')[1]).toHaveTextContent(/^Open play$/)
+    // Badminton 1's booking covers this row, so Badminton 2's cell is the only one. No block key: no merge.
+    expect(within(rows[2]).getAllByRole('cell')[0]).toHaveTextContent(/^Open play$/)
   })
 })

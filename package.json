@@ -26,6 +26,7 @@
     "screenshots": "node scripts/screenshots.mjs"
   },
   "dependencies": {
+    "@daypicker/react": "10.0.2",
     "@supabase/supabase-js": "^2.118.0",
     "@tanstack/react-query": "5.104.3",
     "lucide-react": "^1.61.0",

@@ -797,6 +797,7 @@ export type Database = {
       get_availability: {
         Args: { p_court_id?: string; p_date: string }
         Returns: {
+          block_key: string
           booker_first_name: string
           court_id: string
           open_play_session_id: string
@@ -806,6 +807,7 @@ export type Database = {
           status: string
         }[]
       }
+      get_earnings: { Args: { p_from: string; p_to: string }; Returns: Json }
       get_guest_booking: {
         Args: { p_reference_code: string; p_token: string }
         Returns: {
