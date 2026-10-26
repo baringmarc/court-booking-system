@@ -17,7 +17,7 @@ Summary of the Plotline Brand Style Guide (Canva, "Brand Guidelines", design `DA
 - **Clear space:** half the tile's width on every side.
 - **Minimum size:** 32px wide on screen. Below that, use the tile alone (favicon).
 - **Never** stretch, recolor, rotate or add shadows.
-- Source files: none. The guide is on a free Canva account, so there's no SVG export; T11.3 redraws the tile and wordmark as SVG from the guide's logo pages, keeping the "km" node.
+- Source files: the Canva account has no SVG export, but `/Users/macbookpro/Documents/Projects/plotline-site/public/logo.svg` (324×324, tile only, ~52 kB: the "km" node is traced paths) already exists. T11.3 starts from it: copy it for the tile and favicon, and size-optimize it (it has many unused clip-paths). The wordmark is live text there (see below), so no wordmark SVG is needed.
 
 ## Colors
 
@@ -50,3 +50,19 @@ Flat geometric shapes (quarter circles, rings, arches, leaf and star cut-outs) i
 
 - Brand and marketing: Kyla Khorrine Alingasa
 - Website and technical lead: Marc Baring
+
+## Reference implementation: plotline-site
+
+`/Users/macbookpro/Documents/Projects/plotline-site` (Vite + React, same stack) applied this guide. Patterns to reuse in M11; its `src/styles/global.css` is the source.
+
+- **Two token layers.** Fixed brand palette (`--brown`, `--cream`, `--rose`, `--sage`, `--sand`, `--terracotta`, never redefined) plus derived shades (`--warm-white #fffcf7`, `--sage-soft #e5ebdd`, `--sage-dark #9fae8f`, `--rose-soft #f6e4dd`). Components use only role tokens (`--bg`, `--surface`, `--field`, `--text`, `--text-soft`, `--line`, `--highlight`, `--panel`, `--band`, `--ok`, `--err`, ...). Dark theme only redefines the roles.
+- **Light = the primary logo on cream; dark = the secondary logo on warm brown** (`prefers-color-scheme`). Dark: `--bg` brown, `--surface #45372f`, `--bg-alt #342924`, `--field #2f2521`, `--text` cream, `--line` soft brown.
+- **Highlights:** terracotta in light, dusty rose in dark (terracotta fails on brown). Links use `--highlight`.
+- **Status:** `--ok #4c6b3c` (sage in dark), `--err #a3361f` (`#f2b4a3` in dark), each with a soft background.
+- **Buttons:** pill (radius 30px), DM Sans bold 15px. Primary is sage with warm-brown text, hover `--sage-dark`. Ghost has a 1.5px `--text` outline. "Dark" button is `--text` on `--bg`.
+- **Inputs:** focus ring is `border-color: --text-soft` plus a 3px `rgba(183,196,168,.55)` sage glow. (Check this against the 3:1 non-text contrast rule in T11.1 before copying: the glow alone is too light on cream.)
+- **Type:** headings Fraunces 600, h1/h2 700; body DM Sans 500, buttons 700. Google Fonts link `DM Sans 500;700` and `Fraunces opsz 9..144, 600;700`. We plan to self-host instead (T11.1).
+- **Wordmark is live text:** lowercase Fraunces 700, 23px, beside a 38px tile, taking the theme text color. An optional `<b>` suffix uses `--highlight`.
+- **Shapes:** a sand ring (320px, 56px border) and a rose dot (180px) positioned behind the hero, clipped by the section, decorative only.
+- **Radius** 18px for cards; 14px for details/FAQ rows. Shadow `0 12px 34px rgba(59,47,42,.1)`.
+- **Meta:** `theme-color` `#F5EFE6` (light) and `#3B2F2A` (dark) by media query; favicon is `logo.svg`.
