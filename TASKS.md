@@ -6,8 +6,8 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
 
 > Update this section at the end of every session or task. Keep it short; it's the first thing the next session reads.
 
-- **Current milestone:** M10 Product improvements, **approved by the user on 2026-10-25** (breakdown below; background in `docs/SAAS-PLAN.md` §7a). M9 ✅ done on 2026-10-23 (M1–M9 all done; SPEC v1.0). After M10 come the SaaS milestones (M11+, `docs/SAAS-PLAN.md`), each with its own breakdown and approval.
-- **Next task:** T10.10 Rescheduling UI and email (add the `booking_rescheduled` template to `supabase/functions/_shared/emailTemplates.ts`). Still the user's: run `npm run smoke:prod -- --links-only` and record the demo video from `docs/demo-script.md`. Optional: a Maps Embed API key (`VITE_GOOGLE_MAPS_EMBED_KEY`, see below).
+- **Current milestone:** M10 Product improvements, **approved by the user on 2026-10-25** (breakdown below; background in `docs/SAAS-PLAN.md` §7a). M9 ✅ done on 2026-10-23 (M1–M9 all done; SPEC v1.0). After M10 comes **M11 Plotline brand and venue upgrades** (approved by the user on 2026-10-26), then the SaaS milestones (M12+, `docs/SAAS-PLAN.md`), each with its own breakdown and approval.
+- **Next task:** T10.10 Rescheduling UI and email (add the `booking_rescheduled` template to `supabase/functions/_shared/emailTemplates.ts`). Still the user's: run `npm run smoke:prod -- --links-only` and record the demo video from `docs/demo-script.md`. Skip the optional Maps Embed API key: M11 (T11.9) removes the embedded map.
 - **State:** T10.1–T10.9 done (2026-10-26); `reschedule_booking`, `booking_changes` and the extended `get_guest_booking` are live on the linked project (no UI yet). The pickers, merged grid blocks, dashboard earnings and CSV export are on `develop`. On the linked project, `get_availability.block_key` and `get_earnings` are live (expand only). M8 deploy: https://court-booking-system-ashen.vercel.app.
 - **Blockers / notes:**
   - Emails locally: `supabase/functions/.env` must keep `EMAIL_TRANSPORT=mailpit`, `MAILPIT_URL` and `EMAIL_WORKER_SECRET` (see `.env.example`) for smoke and e2e. Restart the stack after changing it. Your PayMongo test key is commented out there; uncomment it only for real local test payments, and expect `pay-online` e2e and `smoke:paymongo` to fail while it's active.
@@ -1171,11 +1171,11 @@ Out of scope for M9: new sports, live payments, Resend, refunds, SMS.
 
 ## Milestone 10: Product improvements
 
-Goal: the user's 2026-10-25 requests, built on the current single-venue app before the SaaS work (`docs/SAAS-PLAN.md` §7a; the multi-venue phases follow as M11+). Product decisions were made in that plan's discussion and are repeated in each task. Research settles the technical ones.
+Goal: the user's 2026-10-25 requests, built on the current single-venue app before the SaaS work (`docs/SAAS-PLAN.md` §7a; M11 follows, then the multi-venue phases as M12+). Product decisions were made in that plan's discussion and are repeated in each task. Research settles the technical ones.
 
 > **Status: approved by the user on 2026-10-25.** Every DB task stops at its own plan gate before `db:push`. **Production is live:** every migration keeps the deployed frontend working (expand → deploy → contract, RESEARCH M9 "Shipping DB changes while production is live").
 
-Out of scope for M10: multiple venues, billing and Plotline fees (M11+), a rain-check status with no new time yet, bulk rescheduling, player self-rescheduling (never: staff only), refunds, live payments.
+Out of scope for M10: multiple venues, the booking fee (M11), billing and invoices (M12+), a rain-check status with no new time yet, bulk rescheduling, player self-rescheduling (never: staff only), refunds, live payments.
 
 ### [x] T10.1 Research: M10
 - **Do:** research, then record the findings in RESEARCH M10 and the accepted decisions in SPEC §10. Add M10 to SPEC §9.
@@ -1323,7 +1323,7 @@ Out of scope for M10: multiple venues, billing and Plotline fees (M11+), a rain-
     - "Coming up".
   - Keep the proofs-to-review, walk-in and today's courts cards. Lazy-loaded with the rest of admin.
   - Loading, empty and error states. Mobile-first.
-  - Leave a place for the "Plotline fees" line (M11+), without showing it yet.
+  - Leave a place for the "Plotline fees" line (M11), without showing it yet.
 - **Acceptance:**
   - Vitest for formatting and the period math.
   - Component tests for each state.
@@ -1416,7 +1416,154 @@ Out of scope for M10: multiple venues, billing and Plotline fees (M11+), a rain-
 - **Do:**
   - Update the README (features and screenshots) and `docs/demo-script.md` (rescheduling and earnings scenes).
   - Mark M10 ✅ in SPEC §9 and run the milestone review.
-  - Move the Handoff on to M11 (the multi-venue database, `docs/SAAS-PLAN.md` Phase 1), which needs its own breakdown and approval.
+  - Move the Handoff on to M11 (Plotline brand and venue upgrades, below).
+- **Acceptance:** `npm run verify` and `npm run test:e2e` pass, and the reviewer signs off.
+
+## Milestone 11: Plotline brand and venue upgrades
+
+Goal: the user's 2026-10-26 requests, built on the single-venue app after M10 and before the SaaS work (the multi-venue phases follow as M12+, `docs/SAAS-PLAN.md`). The brand is summarized in [docs/BRAND.md](docs/BRAND.md).
+
+> **Status: approved by the user on 2026-10-26**, with the four product decisions below. Every DB task stops at its own plan gate before `db:push`. **Production is live:** every migration keeps the deployed frontend working (expand → deploy → contract).
+
+**Decisions (the user's, 2026-10-26):**
+- **Booking fee now:** the ₱10 booking fee paid by the player is built in M11 for the single venue, brought forward from SaaS Phase 1. The dashboard's total revenue, owner earnings and platform earnings are real numbers from it. The billing ledger and invoices stay in SaaS Phase 1.
+- **Themes:** Plotline's fonts, shapes and logo apply everywhere. Owners pick one of about 4–5 color presets: Plotline (the default), Court Green (today's) and a few more, each with light and dark versions checked for contrast. No custom colors.
+- **Location:** the admin pastes a Google Maps link. Players see only the address with a pin icon, linked to Google Maps. The embedded map and the optional Maps Embed API key are removed.
+- **Walk-ins:** one flag in the code, **hidden by default**. Existing walk-in bookings still show normally.
+- **Logo:** no SVG export is available (the guide is on a free Canva account), so T11.3 redraws the logo as SVG from the guide (`docs/BRAND.md`). The "km" node stays, as in the guide.
+
+Out of scope for M11: multiple venues, the billing ledger, invoices and statements (SaaS Phase 1), custom theme colors, a player light/dark toggle (the system setting decides, as today), refunds of the booking fee in the app, a server-side ban on walk-ins (SaaS Phase 1, per venue).
+
+### [ ] T11.1 Research: M11
+- **Depends:** T10.11
+- **Do:** research, then record the findings in RESEARCH M11 and the accepted decisions in SPEC §10.
+  - **Brand tokens:** map docs/BRAND.md onto our CSS tokens for light and dark (dark: warm-brown surfaces with cream text). Sage and dusty rose fail as text and thin outlines on cream, so derive darker shades for links, focus rings, the free-slot outline and badges, and distinct slot status colors (free, selected, booked, pending, open play, closed). Every pair goes through `themeChecks.ts`.
+  - **Fonts:** self-hosting Fraunces and DM Sans (`@fontsource` packages, only the weights used, `font-display: swap`) versus Google Fonts. Cost with `.env` present, layout shift, and the Data Privacy Act angle of a third-party font request.
+  - **Logo:** redrawing the tile as SVG (no Canva export; keep the "km" node) and the wordmark (Fraunces as SVG paths, or live text with the font loaded). The favicon (tile only, below 32px) and an apple-touch icon.
+  - **Where Plotline shows on a venue's site:** proposal: the venue name stays in the public header; the Plotline logo goes in the admin header, the admin login and a "Powered by Plotline" footer line; the favicon is the Plotline tile.
+  - **Theme presets:** the preset list and names, and how a venue's preset reaches the page without a flash of the default (a `data-theme` attribute on `<html>`, the last theme cached in `localStorage` and applied by a small inline script). Does the admin area follow the venue's preset or stay in Plotline's? (Proposal: it follows the preset, with a preview in settings.)
+  - **Maps links:** which pasted links to accept (`https://www.google.com/maps/…`, `https://maps.google.com/…`, `https://maps.app.goo.gl/…`, `https://goo.gl/maps/…`), checked in the database. Short links can't be expanded in the browser (no CORS), so the admin types the address; a long link's `/place/<name>/` can pre-fill it. How to move the stored `maps_query` to a link (expand → deploy → contract).
+  - **Payment QR codes:** the data model (proposal: a `venue_payment_accounts` table with label, account name, account number, an optional QR image and a position; the free-text `payment_instructions` stays for extra notes), the storage path in `venue-media`, and keeping QR codes scannable: no lossy downscaling (PNG or lossless WebP, a size cap), and a "Save QR" download so players can scan it from their gallery in GCash or their bank app.
+  - **Booking fee:** every place that treats `total_amount` as the amount due: `create_booking`, the PayMongo checkout and webhook amount checks, `review_payment`, the late-payment refund path, `get_guest_booking`, emails, earnings, CSV. Naming (`booking_fee` plus a computed amount due, or a stored total). Where the fee comes from (`platform_pricing`, readable by anyone, writable by no client role). Which bookings carry it (online only; walk-ins and `moved` continuations ₱0). **Rollout:** the fee starts at ₱0 on production and becomes ₱10 only after the frontend that shows it is deployed, so the live site never asks for an amount it doesn't display.
+  - **Earnings split:** total revenue = court price + fees collected, owner earnings = court price, Plotline fees = fees, by when the money came in (T10.1's rule). Bookings cancelled by the venue (`cancelled_by_venue`) don't count their fee (SaaS plan §5).
+  - **Walk-in flag:** a build-time flag (proposal: `VITE_FEATURE_WALK_INS`, read once in `src/lib/features.ts`, off unless `true`) so the walk-in code drops out of the build when off. How e2e runs the walk-in specs (the e2e server turns it on) and still checks the hidden state.
+- **Acceptance:** RESEARCH M11 written with sources. SPEC §9 and §10 updated. The user has seen the recommendations at the plan gate, including the theme preset list.
+
+### [ ] T11.2 Walk-in feature flag
+- **Depends:** T11.1
+- **Do:**
+  - `src/lib/features.ts` exports the flag. With it off: no walk-in form or "+ Walk-in" action on the dashboard, and nothing else that creates a walk-in. With it on, everything works as today.
+  - Existing walk-in bookings still show everywhere (lists, filters, the day view, earnings, CSV) with their "Walk-in" label.
+  - Rescheduling keeps its walk-in slot rules; they don't depend on the flag.
+  - `.env.example` documents the variable. Vercel keeps it unset (hidden).
+- **Acceptance:**
+  - Component tests for the dashboard with the flag off and on.
+  - The production build with the flag off has no walk-in form code (checked in `dist/`).
+  - e2e: the walk-in specs run with the flag on; one check confirms the dashboard has no walk-in action when it's off (or a unit test does, if the e2e server can run only one mode).
+
+### [ ] T11.3 Brand foundation: tokens, fonts, logo
+- **Depends:** T11.1
+- **Do:**
+  - The Plotline palette becomes the default light and dark tokens in `src/index.css`, with the shades T11.1 derived.
+  - Fraunces for headings and the wordmark, DM Sans for everything else, loaded as T11.1 decides.
+  - The Plotline logo redrawn as SVG components (tile, and tile + wordmark, light and dark) in `src/components/`, matched by eye against the guide's logo pages (the user checks it). Favicon and apple-touch icon replaced.
+  - Shared building blocks restyled: buttons (sage with warm-brown text), inputs, cards, badges, alerts, the slot status colors, focus rings.
+- **Acceptance:**
+  - `theme.test.ts` checks every AA pair on the new tokens, light and dark.
+  - axe is clean in light and dark (the a11y e2e).
+  - Bundle and CSS size measured with `.env` present and recorded in the Handoff.
+
+### [ ] T11.4 Restyle the public site and emails
+- **Depends:** T11.3
+- **Do:**
+  - Home, `/book`, checkout, the booking page, My bookings, login and sign-up, and the error and empty pages, mobile-first.
+  - The header keeps the venue name; the footer gains "Powered by Plotline" with the logo (as T11.1 decides).
+  - Optional brand shapes in the hero, login and empty states, never behind text.
+  - The email templates (`emailTemplates.ts`) use the palette, with web-safe font fallbacks.
+- **Acceptance:** component tests still pass, with selectors unchanged where possible. e2e at desktop and 360px; axe clean in light and dark. No horizontal scroll at 360px.
+
+### [ ] T11.5 Restyle the admin area
+- **Depends:** T11.3
+- **Do:** the admin shell (Plotline logo in the header), admin login, dashboard and earnings, bookings, day view, courts, schedule, open play and settings, in the new style.
+- **Acceptance:** as T11.4. Screenshots regenerated (`npm run screenshots`).
+
+### [ ] T11.6 Migration: venue color theme
+- **Depends:** T11.1
+- **Do:** `venue_settings.theme`, one of the preset keys from T11.1 (a check constraint), default `plotline`. Admins write it through the existing `venue_settings` policies; anyone reads it. Expand only.
+- **Acceptance:** pgTAP: the default, the check refuses an unknown key, admins can update it, anon and players can't. `db:push` and `db:types` have been run.
+
+### [ ] T11.7 Theme picker
+- **Depends:** T11.6, T11.3
+- **Do:**
+  - Each preset defined once (light and dark tokens) and applied through `data-theme` on `<html>`, without a flash of the default theme on load (T11.1).
+  - In `/admin/settings`, a "Website colors" section: one card per preset with swatches and a small live preview (a button, a badge and a few slots) in light and dark. Saving applies it at once.
+- **Acceptance:**
+  - `theme.test.ts` checks every preset's AA pairs, light and dark.
+  - Component tests for the picker (loading, error, save).
+  - e2e: the admin picks a preset and a signed-out player sees it on `/` (restored in teardown); axe clean with each preset.
+
+### [ ] T11.8 Migration: Google Maps link
+- **Depends:** T11.1
+- **Do:** `venue_settings.maps_url` (https, the hosts T11.1 settles, a length cap, checked in the database), backfilled from `maps_query` as a Maps search URL. `maps_query` stays until the contract migration (T11.15).
+- **Acceptance:** pgTAP: accepted and refused links (http, other hosts, too long), the backfill, RLS as for the other `venue_settings` columns. `db:push` and `db:types` have been run.
+
+### [ ] T11.9 Location: paste a link, show the address
+- **Depends:** T11.8, T11.4
+- **Do:**
+  - **Admin:** `LocationSection` takes the address and a pasted Google Maps link (with the same host check in the client, and the address pre-filled from a long link's place name when it's empty). No map preview.
+  - **Player:** the address with a pin icon, as a link to the Maps URL (new tab), on the home page and the booking page. The embedded map, `mapEmbedUrl` and the `VITE_GOOGLE_MAPS_EMBED_KEY` code are removed (and from `.env.example` and the Handoff).
+  - Nothing shows when there's no address.
+- **Acceptance:** component tests (with and without an address or link, a refused link); the `venue-info` e2e updated (no map frame; the link has the pasted URL); axe clean.
+
+### [ ] T11.10 Migration: payment accounts and QR codes
+- **Depends:** T11.1
+- **Do:** the model T11.1 settles (proposal: `venue_payment_accounts` with label such as GCash, InstaPay, Maya or a bank, account name, account number, an optional `qr_path` in `venue-media`, and a position, reordered like info sections). Anyone reads; admins write. Length checks in the database. Upload policies for the QR folder (images only, a size cap).
+- **Acceptance:** pgTAP: RLS for anon, player and admin; the checks; ordering; storage policies. `db:push` and `db:types` have been run.
+
+### [ ] T11.11 Payment QR codes: admin and player
+- **Depends:** T11.10, T11.4
+- **Do:**
+  - **Admin (settings, near the payment instructions):** add, edit, delete and reorder payment accounts; upload or replace each QR image (kept scannable, T11.1).
+  - **Player (where the manual payment instructions show today):** a card per account with the label, account name and number (a copy button), and the QR code, which opens full size on tap and has a "Save QR" button. The free-text instructions stay below.
+  - The amount to send is the amount due, including the booking fee once T11.13 ships.
+- **Acceptance:** component tests for both sides (empty, loading, error, an account without a QR); e2e: an admin adds an account with a QR and a guest sees it while paying (restored in teardown); axe clean; the QR fits a 360px screen.
+
+### [ ] T11.12 Migration: booking fee
+- **Depends:** T11.1
+- **Do:**
+  - `platform_pricing` (the fee, as data; no client writes) and `bookings.booking_fee` (snapshotted by `create_booking` for online bookings; ₱0 for walk-ins, `moved` continuations and existing bookings).
+  - The amount due is the court price + fee in every place T11.1 lists: PayMongo checkout and webhook checks, `review_payment`, the late-payment refund, `get_guest_booking`, the email payload.
+  - `get_earnings` returns total revenue, owner earnings and Plotline fees for the range and the previous period (fees of bookings cancelled by the venue excluded).
+  - **Rollout:** the fee is ₱0 on production until T11.13 is deployed; then a data change sets it to ₱10 (recorded in the Handoff).
+- **Acceptance:** pgTAP: the snapshot (online, walk-in, moved), changing `platform_pricing` doesn't touch existing bookings, PayMongo and manual amounts include the fee, the earnings split (including a venue cancellation), RLS on `platform_pricing`. `db:push` and `db:types` have been run.
+
+### [ ] T11.13 Booking fee in the UI, PayMongo and emails
+- **Depends:** T11.12, T11.4
+- **Do:**
+  - Checkout, the booking page and the manual payment amount show court price, booking fee and total, all from the server.
+  - The PayMongo checkout lists the fee as its own line item.
+  - Booking emails show the split.
+  - Admin booking details and the CSV export show the fee apart from the court price (a `booking_fee_php` column).
+  - Then set the fee to ₱10 on the linked project (T11.12 rollout).
+- **Acceptance:** Vitest and component tests for the totals; the booking e2e (manual proof and PayMongo stub) checks the amounts; `smoke:paymongo` passes; the email shows the fee in Mailpit.
+
+### [ ] T11.14 Dashboard: revenue, owner earnings and Plotline fees
+- **Depends:** T11.12, T11.5
+- **Do:** the earnings section gains three totals for the selected period, each with the change from the period before: **Total revenue**, **Your earnings** (the court owner's) and **Plotline fees** (the platform's commission), in the place T10.7 left for the fees line. A short note explains the fee (₱10 per confirmed online booking, paid by the player).
+- **Acceptance:** Vitest for the math; component tests for each state; e2e: a confirmed online booking raises all three totals by the right amounts; axe clean; fits 360px.
+
+### [ ] T11.15 Contract migration
+- **Depends:** T11.9 deployed to production
+- **Do:** drop `venue_settings.maps_query` and anything else T11.1–T11.14 left for contraction. Only after the frontend that no longer reads them is live.
+- **Acceptance:** pgTAP updated; `db:push` and `db:types` have been run; the production site still works (`npm run smoke:prod -- --links-only`).
+
+### [ ] T11.16 Close out M11
+- **Depends:** T11.2–T11.15
+- **Do:**
+  - Update the README (the new look, features and screenshots) and `docs/demo-script.md`.
+  - Update `docs/SAAS-PLAN.md` with what M11 built (the fee, the walk-in flag, themes).
+  - Mark M11 ✅ in SPEC §9 and run the milestone review.
+  - Move the Handoff on to M12 (the multi-venue database, `docs/SAAS-PLAN.md` Phase 1), which needs its own breakdown and approval.
 - **Acceptance:** `npm run verify` and `npm run test:e2e` pass, and the reviewer signs off.
 
 ---

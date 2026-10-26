@@ -1,6 +1,6 @@
 # Plotline SaaS plan
 
-> Status: **planning, not approved scope** (last updated 2026-10-26). Once it's agreed, turn each phase into a milestone in TASKS.md (research → migrations → UI → close out), the way M3–M9 were run. Prices and landing page copy aren't final.
+> Status: **planning, not approved scope** (last updated 2026-10-26). Once it's agreed, turn each phase into a milestone in TASKS.md (research → migrations → UI → close out), the way M3–M9 were run, starting with M12 (M10 and M11 come first, §7a and §7b). Prices and landing page copy aren't final.
 
 ## 1. Product and business model
 
@@ -75,6 +75,9 @@
 | 2026-10-26 | **Replaces ₱5 per court-hour: ₱10 per transaction, paid by the player** as a booking fee shown at checkout. More predictable for everyone, and the venue pays nothing itself. A transaction is one confirmed online booking (PayMongo or manual proof), whatever its length. |
 | 2026-10-26 | Walk-ins and open play aren't transactions. The walk-in form will be hidden or removed, so owners can't route players through walk-ins to avoid the fee. Staff with a counter or phone customer book through the site like a player, fee included. |
 | 2026-10-26 | The fee is non-refundable once the booking is confirmed, except when the venue cancels: the player gets the fee back and we don't bill it. |
+| 2026-10-26 | **The booking fee is built before the SaaS work, in M11**, for the single venue: `platform_pricing`, `bookings.booking_fee`, the fee in the amount due, at checkout, in PayMongo and in emails, and the dashboard's total revenue, owner earnings and Plotline fees. Phase 1 adds `venue_id`, `confirmed_at`, the `billing_charges` ledger and invoices on top. |
+| 2026-10-26 | Walk-ins are hidden behind a code flag, off by default (M11), not removed. |
+| 2026-10-26 | The product follows the Plotline brand (`docs/BRAND.md`, M11). Each venue picks one of a few color presets for its site; fonts and the logo stay Plotline's. |
 
 ## 4. Open questions
 
@@ -84,7 +87,7 @@
    - limits on webhooks per account, and creating ours on the venue's account through the Webhooks API.
 2. Domain: `.ph` or `.app`, after checking availability.
 3. Demo slug: `claudex` only, or `demo` as well, redirecting to it?
-4. **Walk-ins:** hide the form (kept for us and old data) or remove it? Existing walk-in bookings on Claudex Courts stay as history either way. Note that a free blackout could still be used to hold a court for an offline customer; we accept that, as it hides the slot from players and costs the venue bookings.
+4. ~~**Walk-ins:** hide the form (kept for us and old data) or remove it?~~ Settled on 2026-10-26: hidden behind a code flag, off by default (M11, T11.2). Existing walk-in bookings on Claudex Courts stay as history. Still open: whether Phase 1 also refuses `create_walk_in` in the database, per venue. Note that a free blackout could still be used to hold a court for an offline customer; we accept that, as it hides the slot from players and costs the venue bookings.
 5. **Tax treatment of the fee:** the venue collects the ₱10 and passes it on to us. Ask an accountant how the venue and Plotline should each record and receipt it, before the first real invoice.
 
 ## 5. Billing rules
@@ -170,6 +173,14 @@ Built on the current single-venue app first (approved 2026-10-25; breakdown in T
 - an earnings section on the dashboard (collected per method, occupancy, a daily chart, coming up) and CSV export;
 - staff-only rescheduling, including moving the rest of a booking that has already started.
 
+### 7b. Before Phase 1: Plotline brand and venue upgrades (M11)
+Also on the single-venue app (approved 2026-10-26; breakdown in TASKS.md M11). Phase 1 becomes M12, and the later phases follow:
+- the whole site restyled to the Plotline brand, and venue color presets (`venue_settings.theme`, which Phase 1 makes per venue like the rest of `venue_settings`);
+- location from a pasted Google Maps link, shown as the address with a pin icon (no embedded map);
+- payment accounts with QR codes for manual payments;
+- **the ₱10 booking fee** (amount due, checkout, PayMongo line item, emails, CSV) and the dashboard's total revenue, owner earnings and Plotline fees;
+- walk-ins behind a code flag, hidden by default.
+
 ### Phase 0: Accounts and groundwork (no code)
 - [ ] Choose and buy the domain. Move its nameservers to Cloudflare.
 - [ ] Create the Supabase production project in Singapore. Keep the current project as staging.
@@ -203,12 +214,9 @@ Expand-then-contract migrations, as the M9 contract migration did.
 - [ ] **Storage.**
   - New paths: `{venue_id}/courts/…` and `{venue_id}/banner/…`. Policies check `is_venue_admin` on the first folder.
   - Payment proofs: venue admins read their own venue's.
-- [ ] **Billing data.** `bookings.confirmed_at` (with backfill), `bookings.booking_fee` (set by `create_booking`, included in the amount due and in `review_payment`'s checks), the `billing_charges` ledger and its trigger, `platform_pricing`, `invoices`. pgTAP covers every row of the table in §5.
-- [ ] **Booking fee in the UI.**
-  - Checkout shows court price, booking fee and total, all from the server. So do the booking page, the manual payment instructions (the amount to send includes the fee) and the booking emails.
-  - The PayMongo checkout lists the fee as its own line item.
-  - Admin booking details, earnings and the CSV export show fees apart from court earnings, since the venue owes them to us.
-- [ ] **Walk-ins.** Hide or remove the walk-in form and the dashboard's "+ Walk-in" action (§4 question 4). Rescheduling keeps its own slot rules.
+- [ ] **Billing data.** `bookings.booking_fee` and `platform_pricing` come from M11 (T11.12). Phase 1 adds `bookings.confirmed_at` (with backfill), the `billing_charges` ledger and its trigger, and `invoices`, and checks whether `platform_pricing` needs a per-venue override. pgTAP covers every row of the table in §5.
+- [ ] **Booking fee in the UI.** Built in M11 (T11.13, T11.14) for one venue; Phase 1 only checks it under several venues.
+- [ ] **Walk-ins.** Hidden by a code flag since M11 (T11.2). Phase 1 decides whether `create_walk_in` is also refused in the database (§4 question 4). Rescheduling keeps its own slot rules.
 - [ ] **Isolation tests (pgTAP).**
   - Use a second venue in the fixtures.
   - For every table, RPC and bucket, venue A's staff can't read or change venue B.
