@@ -1,6 +1,6 @@
 # Plotline SaaS plan
 
-> Status: **planning, not approved scope** (last updated 2026-10-25). Once it's agreed, turn each phase into a milestone in TASKS.md (research → migrations → UI → close out), the way M3–M9 were run. Prices and landing page copy aren't final.
+> Status: **planning, not approved scope** (last updated 2026-10-26). Once it's agreed, turn each phase into a milestone in TASKS.md (research → migrations → UI → close out), the way M3–M9 were run. Prices and landing page copy aren't final.
 
 ## 1. Product and business model
 
@@ -10,12 +10,11 @@
 - **No self-serve signup and no free trial.** Interested owners fill in a contact form on the marketing site. We talk with them, then set up their venue and invite them.
 - **Pricing (2026-10-25; amounts not final):** commission only, **₱5 per billable court-hour**, for every court, sport and venue size. No subscription and no setup fee; no setup fee is the edge over competitors.
 - **Two ways a venue's players pay:**
-  - **PayMongo venues:** the venue is onboarded as a **child account under Plotline's PayMongo platform account**. Every online checkout splits automatically: ₱5 × hours to Plotline, the rest to the venue.
+  - **PayMongo venues:** the venue **connects its own PayMongo account** (2026-10-26). Players pay straight into it, and PayMongo pays the venue out. Plotline never holds venue money and takes nothing at checkout.
   - **Manual venues:** players upload a proof of a GCash, Maya or bank payment made to the venue's own details.
-- **Commission collection:**
-  - PayMongo-paid hours are collected by the split.
-  - Every other billable hour is invoiced monthly: manual proofs, walk-ins, open play, and PayMongo payments whose split failed or was reversed.
-  - So a PayMongo venue still gets a monthly invoice for its walk-ins and open play.
+- **Commission collection: invoice only (2026-10-26).**
+  - Every billable hour, whatever the payment method, goes on one monthly invoice per venue.
+  - PayMongo and manual venues are billed the same way. The payment method only decides where the player's money goes, never how we collect.
 - **Venues pay their invoices** by GCash or bank transfer: 7 days' grace, then suspension.
 
 ## 2. Architecture
@@ -47,7 +46,7 @@
 | 2026-10-24 | Host on Cloudflare (free). Supabase production in Singapore. The current project becomes staging and demo. |
 | 2026-10-24 | Supabase Pro from the first paying venue. |
 | 2026-10-24 | No self-serve signup and no free trial. A contact form, then we set up the venue and invite the owner. |
-| 2026-10-24 | ~~Each venue uses its own PayMongo account.~~ Replaced on 2026-10-25 by child accounts under Plotline's platform. |
+| 2026-10-24 | Each venue uses its own PayMongo account. (Replaced on 2026-10-25 by child accounts, then reinstated on 2026-10-26.) |
 | 2026-10-24 | Billable hours are confirmed bookings, including those cancelled after confirmation. Rejected proofs aren't monitored: rejecting reopens the slot, so it costs the venue. |
 | 2026-10-24 | ~~₱499 capped at 2 active courts; plan by the month's highest court count.~~ Replaced on 2026-10-25. |
 | 2026-10-24 | One owner can manage several venues (branches); each is its own venue, billed separately. |
@@ -59,23 +58,24 @@
 | 2026-10-24 | No pilot venue yet. Build first, starting with Phase 1. |
 | 2026-10-25 | **Replaces the ₱499 plan and the 2-court cap:** commission only, with no setup fee. |
 | 2026-10-25 | The rate is ₱5 per court-hour for every court and sport. |
-| 2026-10-25 | Hybrid collection: PayMongo split payments for venues that onboard with PayMongo (child accounts under Plotline's platform), a monthly invoice for everything else. No prepaid credits. |
+| 2026-10-25 | ~~Hybrid collection: PayMongo split payments for venues that onboard with PayMongo (child accounts under Plotline's platform), a monthly invoice for everything else.~~ Replaced on 2026-10-26 by invoice-only collection. No prepaid credits (still holds). |
 | 2026-10-25 | Every confirmed hour is billable whatever the payment method: PayMongo, manual proof or walk-in. |
 | 2026-10-25 | Open play is billed per court-hour. |
-| 2026-10-25 | PayMongo is offered only through Plotline's platform account. A venue's own standalone PayMongo account isn't supported (not two integrations). |
+| 2026-10-25 | ~~PayMongo is offered only through Plotline's platform account. A venue's own standalone PayMongo account isn't supported (not two integrations).~~ Replaced on 2026-10-26: venues use their own accounts only. |
 | 2026-10-25 | Open play is charged when the session starts. |
 | 2026-10-25 | Every venue is invoiced every month, whatever the amount (no threshold). |
-| 2026-10-25 | A venue that wants PayMongo must complete PayMongo's own verification (KYC) as a child account under Plotline. Venues that can't, or don't want to, use manual proofs. |
+| 2026-10-25 | A venue that wants PayMongo must complete PayMongo's own verification (KYC). Venues that can't, or don't want to, use manual proofs. (Since 2026-10-26 they verify their own account, not a child account.) |
 | 2026-10-25 | End state: the marketing site on the main domain, the product serving every venue on subdomains. Claudex Courts (the current demo) is venue #1, e.g. `claudex.plotline.app`. Both sites' design and features will still change. |
+| 2026-10-26 | **Replaces the hybrid collection: invoice only.** No PayMongo split. Every billable hour is invoiced monthly, for PayMongo and manual venues alike. Players' PayMongo payments go to the venue, and Plotline never holds venue money. |
+| 2026-10-26 | Why invoice only: one billing path, no dependence on PayMongo's splitting feature (being deprecated), no split failures or refund reversals to reconcile, and the same treatment for every venue. The trade-off: we carry the collection risk for every hour, covered by the 7-day grace and suspension. |
+| 2026-10-26 | **Replaces child accounts: each PayMongo venue uses its own PayMongo account.** Plotline needs no PayMongo account of its own, no Platforms approval from PayMongo, and carries no parent-account liability for venues' refunds or chargebacks. Venues sign up and pass KYC with PayMongo themselves, and handle refunds and payouts in their own dashboard. The cost is per-venue secrets, stored encrypted and used only by Edge Functions (Phase 4). One integration only: there's no child-account path. |
 
 ## 4. Open questions
 
-1. **PayMongo Platforms** (Marc to ask PayMongo sales; this blocks only Phase 4):
-   - requirements for Plotline as the platform, and whether a sole proprietor qualifies;
-   - requirements for venues as child accounts;
-   - whether a venue's existing PayMongo account can be linked, or a new child account is needed;
-   - Payment Splitting (being deprecated) vs Workflows, and whether either works with Checkout Sessions and a fixed platform fee;
-   - pricing, payout timing, refunds (can they come from the venue's share only?), and whether the webhook reports the split result.
+1. **PayMongo per venue** (settled in Phase 4 research, no PayMongo sales call needed):
+   - what a venue needs to open a PayMongo account (sole proprietor, corporation, an individual without DTI?) and how long KYC takes, so we can tell owners up front;
+   - whether there's a safer way for a venue to grant access than pasting its secret key (restricted keys or an OAuth-style connect);
+   - limits on webhooks per account, and creating ours on the venue's account through the Webhooks API.
 2. Domain: `.ph` or `.app`, after checking availability.
 3. Demo slug: `claudex` only, or `demo` as well, redirecting to it?
 
@@ -83,16 +83,18 @@
 
 **What's billable (₱5 per court-hour, rate snapshotted on each charge):**
 
-| Event | Billable hours | When it's charged | How it's collected |
-| --- | --- | --- | --- |
-| Online booking paid through PayMongo | The booking's hours | When it's confirmed (webhook) | Split at checkout |
-| Online booking paid by manual proof | The booking's hours | When staff approve the proof | Monthly invoice |
-| Walk-in | The booking's hours | When it's created (it's confirmed at once) | Monthly invoice |
-| Open play session | Courts × hours | When the session starts, through pg_cron (deleting it before then costs nothing) | Monthly invoice |
-| Confirmed, then cancelled | Still billable | Already charged | Unchanged |
-| Proof rejected, hold expired, never confirmed | Not billable | | |
-| Late PayMongo payment for an expired hold (refund due) | Not billable | | The split share goes back with the refund |
-| Blackouts | Not billable | | |
+Every charge is collected on the venue's monthly invoice.
+
+| Event | Billable hours | When it's charged |
+| --- | --- | --- |
+| Online booking paid through PayMongo | The booking's hours | When it's confirmed (webhook) |
+| Online booking paid by manual proof | The booking's hours | When staff approve the proof |
+| Walk-in | The booking's hours | When it's created (it's confirmed at once) |
+| Open play session | Courts × hours | When the session starts, through pg_cron (deleting it before then costs nothing) |
+| Confirmed, then cancelled or refunded | Still billable | Already charged |
+| Proof rejected, hold expired, never confirmed | Not billable | |
+| Late PayMongo payment for an expired hold (refund due) | Not billable | |
+| Blackouts | Not billable | |
 
 **Notes:**
 - **One rate everywhere removes the incentive to steer players.** Manual and PayMongo cost the venue the same ₱5, so it gains nothing by pushing players to GCash instead.
@@ -102,23 +104,21 @@
   - Using a free blackout instead of open play, which hides the session from players.
 
   Each one costs the venue more than ₱5.
-- **The split is fixed when the checkout is created:** ₱5 × hours, in centavos. PayMongo's fee comes off before the split, so the venue's share absorbs the whole fee. Splits that exceed the net amount fail silently, so the webhook and a monthly reconciliation must catch a missing split.
-- **Refunds done in PayMongo** take back Plotline's share in proportion, by default. For a confirmed booking that's later refunded, the hours stay billable, so the reversed ₱5 becomes an invoice line. Better: ask PayMongo whether refunds can come from the venue's share only (`refund_sources`).
+- **PayMongo's fees and refunds are between the venue and PayMongo.** They never touch our charges: a refunded confirmed booking stays billable, like a cancellation.
 
 **Data:**
 - **`bookings.confirmed_at`:** set the first time a booking becomes `confirmed`. Backfill it from the approved payment.
 - **`billing_charges` ledger, one row per billable event:**
   - `venue_id`, `booking_id` or `open_play_session_id` (unique), `hours`, `rate`, `amount`, `charged_at`, `billing_month`.
-  - `collection` (`split` | `invoice`), `payment_id` for splits, `split_status` (`pending` | `collected` | `failed` | `reversed`), `invoice_id`.
+  - `invoice_id`, set when the charge goes on an invoice.
   - Written by triggers and RPCs inside the same transaction that confirms the booking or starts the session.
   - Charges are never deleted. A correction is a new adjustment row.
 - **`platform_pricing`:** the rate and the grace days, stored as data.
-- **`venues`:** `paymongo_child_merchant_id`, `paymongo_status` (`none` | `onboarding` | `active`), and `collection_note`.
+- **`venues`:** `paymongo_status` (`none` | `connected` | `active`), and `billing_note`. The venue's PayMongo secrets live apart from it (Phase 4).
 
 **Invoices and statements:**
-- **Draft invoice.** A pg_cron job on the 1st creates a draft per venue: every `invoice` charge, plus split charges that failed or were reversed. We review it, send it, and mark it paid by hand (method and reference).
-- **Statement in the venue's admin area.** This month so far: hours collected by split, hours to be invoiced, the running total. Past invoices. Each line links to its booking, so disputes are easy.
-- **Monthly reconciliation.** Compare the split charges against PayMongo's split report.
+- **Draft invoice.** A pg_cron job on the 1st creates a draft per venue with every charge of the previous month. We review it, send it, and mark it paid by hand (method and reference).
+- **Statement in the venue's admin area.** This month so far: billable hours by source (online, manual, walk-in, open play) and the running total. Past invoices. Each line links to its booking, so disputes are easy.
 - **Suspension.** Manual, by us, after 7 days' grace:
   - The public site stops taking new bookings.
   - Existing bookings are still honored.
@@ -167,7 +167,6 @@ Built on the current single-venue app first (approved 2026-10-25; breakdown in T
 - [ ] Set up the email sender on the domain (SPF, DKIM, DMARC). Set it as custom SMTP on both projects.
 - [ ] Turn on Cloudflare Turnstile for the contact form.
 - [ ] Before the first real invoice: DTI business name, BIR registration, and a business GCash or bank account.
-- [ ] Before the first PayMongo venue: Plotline's own PayMongo account, verified, with Platforms or splitting enabled by PayMongo support. This needs the registration above.
 
 ### Phase 1: Multi-venue database (largest phase)
 Expand-then-contract migrations, as the M9 contract migration did.
@@ -238,22 +237,23 @@ Expand-then-contract migrations, as the M9 contract migration did.
   - We, or the owner, add courts, rates, hours, payment details and photos.
   - A setup checklist in the venue dashboard.
   - "Publish" sets the venue to `active`.
-- [ ] **Venues list.** Status, PayMongo status, this month's billable hours (split and invoiced), open invoices. Suspend or reactivate.
-- [ ] **Invoices.** Review the monthly drafts, mark them sent and paid. A printable invoice page. A reconciliation view of split charges that are `pending` or `failed`.
+- [ ] **Venues list.** Status, PayMongo status, this month's billable hours and running total, open invoices. Suspend or reactivate.
+- [ ] **Invoices.** Review the monthly drafts, mark them sent and paid. A printable invoice page. Overdue invoices past the grace period are flagged for suspension.
 - [ ] **Demo venue.** A nightly job resets `claudex` to its seed data.
 - [ ] **Venue showcase.** A public, opt-in list of active venues (name, city, logo, link) that the marketing site's venue slider reads, instead of hard-coded placeholders.
 
-### Phase 4: PayMongo platform (split payments) and emails
-- [ ] **Research.** PayMongo's answers to §4 question 1. Pick Payment Splitting or Workflows, and record the decision in RESEARCH.md.
-- [ ] **Venue onboarding.**
-  - Create the venue's child account through PayMongo's Onboarding API, or hosted onboarding, from the platform console.
-  - Store the child merchant id on `venues`. Plotline holds one secret key, so no per-venue secrets are stored.
-- [ ] **Checkout.** `create-paymongo-checkout` uses Plotline's key and adds the split: ₱5 × hours to Plotline, the remainder to the venue's child account. Only venues with `paymongo_status = active` show "Pay online."
+### Phase 4: PayMongo per venue and emails
+- [ ] **Research.** §4 question 1, and how to store and use per-venue secrets safely, recorded in RESEARCH.md.
+- [ ] **Connecting a venue's account.**
+  - The venue signs up with PayMongo and passes its KYC on its own. We point owners to it during setup.
+  - In the venue's admin area, the owner enters the secret key. An Edge Function checks it against PayMongo, creates our webhook on the venue's account (pointing at our endpoint with the venue id) and stores the returned webhook secret.
+  - Secrets are stored encrypted (Supabase Vault or an equivalent), keyed by `venue_id`, and read only by Edge Functions. They're never sent back to the browser: the admin sees "connected", the key's last 4 characters, and buttons to replace or disconnect.
+  - Test-mode keys are refused in production, and live keys in staging.
+- [ ] **Checkout.** `create-paymongo-checkout` loads the booking's venue and uses that venue's key, so the player pays the venue directly. Only venues with `paymongo_status = active` show "Pay online."
 - [ ] **Webhook.**
-  - The webhook stays a single function.
-  - The booking's venue must match the session's child account.
-  - Record the split result on the `billing_charges` row.
-  - Handle refund events: a reversed split becomes an invoice line.
+  - One function. It takes the venue from the URL, verifies the signature with that venue's webhook secret, and checks that the booking belongs to that venue.
+  - Billing needs nothing extra: confirming the booking writes its `billing_charges` row, as for any other method.
+  - Refunds for late payments use the venue's key. Other refunds the venue does in its own PayMongo dashboard.
 - [ ] **Live mode.** Accept live signatures, and test GCash, Maya and card for real.
 - [ ] **Emails on in production.**
   - The sender name is the venue's name; replies go to the venue's email.
@@ -288,6 +288,6 @@ Expand-then-contract migrations, as the M9 contract migration did.
 
 ## 9. Order
 
-Phase 0 → **Phase 1** (about half the work) → Phase 2 → Phase 3 (with invoicing) → Phase 5 → first pilot venue on manual proofs and invoices → Phase 6 → Phase 4 once Plotline is registered and PayMongo has enabled its platform.
+Phase 0 → **Phase 1** (about half the work) → Phase 2 → Phase 3 (with invoicing) → Phase 5 → first pilot venue on manual proofs and invoices → Phase 6 → Phase 4 when the first venue wants online payments.
 
-The invoice path ships first because every venue needs it, PayMongo venues included (walk-ins and open play). Splits are an upgrade on top.
+The invoice is the only way we collect, so it ships first and covers every venue. Phase 4 only adds online payments into venues' own PayMongo accounts; billing doesn't change.
