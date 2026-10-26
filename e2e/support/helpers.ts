@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { createClient } from '@supabase/supabase-js'
 import { expect, type Locator, type Page } from '@playwright/test'
 import { localSupabase } from './local.ts'
@@ -84,6 +85,18 @@ export async function emailText(to: string, subject: RegExp): Promise<string> {
   }, { message: `email "${subject}" to ${to}` }).toBeTruthy()
   const res = await fetch(`${mailpitUrl}/api/v1/message/${id}`)
   return ((await res.json()) as { Text: string }).Text
+}
+
+/**
+ * Runs the send-emails worker once, so a queued email arrives now instead of at the next minute's cron tick. The
+ * secret is the local one in supabase/functions/.env (the e2e stack's, never the linked project's).
+ */
+export async function runEmailWorker() {
+  const env = Object.fromEntries(
+    readFileSync('supabase/functions/.env', 'utf8').split('\n').map((l) => l.match(/^([A-Z_]+)=(.*)$/)).filter((m): m is RegExpMatchArray => m !== null).map((m) => [m[1], m[2].trim()]),
+  )
+  const res = await fetch(`${localSupabase().url}/functions/v1/send-emails`, { method: 'POST', headers: { 'x-worker-secret': env.EMAIL_WORKER_SECRET ?? '' } })
+  expect(res.status, 'send-emails worker').toBe(200)
 }
 
 /** A venue-local date (Asia/Manila) `days` from today, as YYYY-MM-DD. */

@@ -6,7 +6,7 @@ const now = new Date('2030-01-07T08:00:00.000Z')
 const row = (ref: string, startIso: string, overrides: Partial<MyBooking> = {}): MyBooking => ({
   id: ref, reference_code: ref, court_name: 'Court', sport: 'tennis',
   slot_start: startIso, slot_end: new Date(Date.parse(startIso) + 3_600_000).toISOString(),
-  status: 'confirmed', expires_at: null, total_amount: 500, ...overrides,
+  status: 'confirmed', expires_at: null, total_amount: 500, parent_booking_id: null, ...overrides,
 })
 
 describe('splitMyBookings', () => {

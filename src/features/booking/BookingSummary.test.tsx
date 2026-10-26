@@ -23,6 +23,9 @@ const booking: BookingDetail = {
   cancel_reason: null,
   cancelled_by_venue: false,
   user_id: null,
+  parent_reference_code: null,
+  continuations: [],
+  changes: [],
 }
 
 const renderAt = (now: string, overrides: Partial<BookingDetail> = {}) =>
@@ -161,5 +164,25 @@ describe('BookingSummary', () => {
         review_status: 'approved', reviewed_at: null, review_note: null }],
     })
     expect(screen.getByText('Paid online')).toBeInTheDocument()
+  })
+
+  it('shows what was moved, with the reason, and the moved parts', () => {
+    renderAt('2030-01-07T02:30:00.000Z', {
+      status: 'confirmed',
+      changes: [{
+        old_court_name: 'Badminton 1', old_start: '2030-01-07T09:00:00.000Z', old_end: '2030-01-07T11:00:00.000Z',
+        new_court_name: 'Badminton 2', new_start: '2030-01-08T08:00:00.000Z', new_end: '2030-01-08T10:00:00.000Z',
+        continuation_reference: null, reason: 'Rain', changed_at: '2030-01-07T01:00:00.000Z',
+      }],
+      continuations: [],
+    })
+    expect(screen.getByRole('heading', { name: 'Schedule changes' })).toBeInTheDocument()
+    expect(screen.getByText(/Moved from Mon, Jan 7, 5 PM–7 PM \(Badminton 1\) to Tue, Jan 8, 4 PM–6 PM \(Badminton 2\)/)).toBeInTheDocument()
+    expect(screen.getByText('Reason: Rain')).toBeInTheDocument()
+  })
+
+  it('has no schedule changes section for a booking that was never moved', () => {
+    renderAt('2030-01-07T02:30:00.000Z')
+    expect(screen.queryByRole('heading', { name: 'Schedule changes' })).not.toBeInTheDocument()
   })
 })

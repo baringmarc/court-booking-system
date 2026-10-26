@@ -2,7 +2,7 @@
 // check it with the app. The data is the email_outbox snapshot; the guest token is a separate argument that only the
 // booking_created email accepts, so no other email can ever carry the private link.
 
-export type EmailKind = 'booking_created' | 'payment_confirmed' | 'proof_rejected' | 'booking_cancelled'
+export type EmailKind = 'booking_created' | 'payment_confirmed' | 'proof_rejected' | 'booking_cancelled' | 'booking_rescheduled'
 export type BookingStatus = 'pending_payment' | 'payment_submitted' | 'confirmed' | 'expired' | 'rejected' | 'cancelled'
 
 /** The email_outbox.data snapshot (see private.booking_email_data and the trigger). */
@@ -22,6 +22,15 @@ export type EmailData = {
   final?: boolean
   cancelled_by_venue?: boolean
   reason?: string | null
+  // booking_rescheduled (private.queue_reschedule_email): the part that moved, and where it went.
+  old_court_name?: string
+  old_starts_at?: string
+  old_ends_at?: string
+  new_court_name?: string
+  new_starts_at?: string
+  new_ends_at?: string
+  /** The booking created for the moved hours after a split; absent when the whole booking moved. */
+  continuation_reference?: string | null
 }
 
 export type RenderInput = {
@@ -65,6 +74,10 @@ function timeLabel(iso: string, timeZone: string) {
   return new Intl.DateTimeFormat('en-PH', { timeZone, hour: 'numeric', minute: '2-digit' }).format(new Date(iso))
 }
 
+function whenLabel(start: string, end: string, timeZone: string) {
+  return `${dateLabel(start, timeZone)}, ${timeLabel(start, timeZone)}–${timeLabel(end, timeZone)}`
+}
+
 function firstName(name: string | null | undefined) {
   return name?.trim().split(/\s+/)[0] || 'there'
 }
@@ -81,7 +94,7 @@ function content(input: RenderInput): { subject: string; block: Block } {
   const { kind, data, forGuest } = input
   const tz = data.timezone || 'Asia/Manila'
   const ref = data.reference_code
-  const when = `${dateLabel(data.starts_at, tz)}, ${timeLabel(data.starts_at, tz)}–${timeLabel(data.ends_at, tz)}`
+  const when = whenLabel(data.starts_at, data.ends_at, tz)
   const facts: [string, string][] = [
     ['Reference', ref],
     ['Court', data.court_name],
@@ -163,6 +176,38 @@ function content(input: RenderInput): { subject: string; block: Block } {
       return {
         subject: `Booking ${ref} was cancelled`,
         block: { paragraphs: [who, ...reason, 'If you already paid, please contact the venue.'], facts, link, footer },
+      }
+    }
+    case 'booking_rescheduled': {
+      // The snapshot's own court and time are the root booking's (shortened after a split), so this email names the
+      // part that moved from its old_* and new_* fields. Guests get no private link here, like every email but
+      // booking_created (the token is never stored).
+      const newCourt = data.new_court_name ?? data.court_name
+      const newWhen = whenLabel(data.new_starts_at ?? data.starts_at, data.new_ends_at ?? data.ends_at, tz)
+      const was = data.old_starts_at && data.old_ends_at
+        ? `${data.old_court_name ?? data.court_name}, ${whenLabel(data.old_starts_at, data.old_ends_at, tz)}`
+        : null
+      const split = data.continuation_reference?.trim()
+      const reason = data.reason?.trim() ? [`Reason: ${data.reason.trim()}`] : []
+      const moved: [string, string][] = [
+        ['Reference', split || ref],
+        ['Moved to', `${newCourt}, ${newWhen}`],
+        ...(was ? [['Was', was] as [string, string]] : []),
+      ]
+      return {
+        subject: `Booking ${ref} was moved`,
+        block: {
+          paragraphs: [
+            split
+              ? `${data.venue_name} moved the rest of your booking to a new time. The moved hours have their own reference, ${split}.`
+              : `${data.venue_name} moved your booking to a new time.`,
+            ...reason,
+            'Please contact the venue if the new time does not work for you.',
+          ],
+          facts: moved,
+          link,
+          footer,
+        },
       }
     }
   }

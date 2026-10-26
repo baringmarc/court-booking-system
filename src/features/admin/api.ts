@@ -35,7 +35,9 @@ export type AdminPayment = {
 export type AdminBooking = {
   id: string
   reference_code: string
+  court_id: string
   court_name: string
+  sport: Enums<'sport'> | null
   slot_start: string
   slot_end: string
   status: Enums<'booking_status'>
@@ -51,6 +53,8 @@ export type AdminBooking = {
   cancelled_at: string | null
   cancel_reason: string | null
   cancelled_by_venue: boolean
+  /** Set on a moved part (T10.9): the booking it was split from. */
+  parent_booking_id: string | null
 }
 
 export const adminKeys = {
@@ -60,10 +64,12 @@ export const adminKeys = {
   proofQueue: ['admin-proof-queue'] as const,
   earnings: (from: string, to: string) => ['admin-earnings', from, to] as const,
   allEarnings: ['admin-earnings'] as const,
+  allMovedParts: ['admin-moved-parts'] as const,
+  movedParts: (bookingId: string) => ['admin-moved-parts', bookingId] as const,
 }
 
 // One literal: supabase-js infers the row type from this string.
-const SELECT = 'id, reference_code, during, status, source, total_amount, expires_at, rejection_count, guest_name, guest_email, guest_phone, created_at, cancelled_at, cancel_reason, cancelled_by_venue, courts(name), payments(id, method, amount, reference_number, storage_path, submitted_at, review_status, review_note, reviewed_at, reviewed_by, provider_payment_id, provider_source)' as const
+const SELECT = 'id, reference_code, court_id, during, status, source, total_amount, expires_at, rejection_count, guest_name, guest_email, guest_phone, created_at, cancelled_at, cancel_reason, cancelled_by_venue, parent_booking_id, courts(name, sport), payments(id, method, amount, reference_number, storage_path, submitted_at, review_status, review_note, reviewed_at, reviewed_by, provider_payment_id, provider_source)' as const
 
 export const ADMIN_LIST_LIMIT = 200
 
@@ -87,7 +93,9 @@ export async function fetchAdminBookings(
     return {
       id: row.id,
       reference_code: row.reference_code,
+      court_id: row.court_id,
       court_name: row.courts?.name ?? 'Court',
+      sport: row.courts?.sport ?? null,
       slot_start: start,
       slot_end: end,
       status: row.status,
@@ -102,6 +110,7 @@ export async function fetchAdminBookings(
       cancelled_at: row.cancelled_at,
       cancel_reason: row.cancel_reason,
       cancelled_by_venue: row.cancelled_by_venue,
+      parent_booking_id: row.parent_booking_id,
       payments: [...row.payments]
         .map((p) => ({ ...p, amount: Number(p.amount) }))
         .sort((a, b) => a.submitted_at.localeCompare(b.submitted_at)),
@@ -130,6 +139,48 @@ export async function moveCourt(courtId: string, direction: -1 | 1) {
 /** Staff cancel by booking id (the session path, so cancel_booking checks is_admin) with a required reason. */
 export async function adminCancelBooking(bookingId: string, reason: string) {
   return unwrap(await supabase.rpc('cancel_booking', { p_booking_id: bookingId, p_reason: reason }))
+}
+
+export type Reschedule = {
+  bookingId: string
+  /** The booking's start for a whole move, or a later hour once it has begun (everything from it to the end moves). */
+  fromStart: string
+  courtId: string
+  start: string
+  reason: string
+}
+
+export type Rescheduled = {
+  /** The booking created for the moved hours after a split; null when the whole booking moved. */
+  continuationReference: string | null
+}
+
+/** reschedule_booking (T10.9): staff move a confirmed booking. The server re-checks every rule; the price never changes. */
+export async function rescheduleBooking(input: Reschedule): Promise<Rescheduled> {
+  const rows = unwrap(
+    await supabase.rpc('reschedule_booking', {
+      p_booking_id: input.bookingId,
+      p_from_start: input.fromStart,
+      p_new_court_id: input.courtId,
+      p_new_start: input.start,
+      p_reason: input.reason,
+    }),
+  )
+  // The generated type says string, but a whole move has no continuation.
+  return { continuationReference: rows[0]?.continuation_reference || null }
+}
+
+/** References of a booking's moved parts that are still booked: cancelling the booking doesn't cancel them (T10.1). */
+export async function fetchActiveMovedParts(bookingId: string): Promise<string[]> {
+  const rows = unwrap(
+    await supabase
+      .from('bookings')
+      .select('reference_code')
+      .eq('parent_booking_id', bookingId)
+      .eq('status', 'confirmed')
+      .order('during'),
+  )
+  return rows.map((r) => r.reference_code)
 }
 
 /** A payment was approved: if the booking is cancelled, staff settle any refund outside the app (SPEC §4). */

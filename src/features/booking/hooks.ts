@@ -20,6 +20,7 @@ import {
 export const bookingKeys = {
   allAvailability: ['availability'] as const,
   availability: (date: string) => ['availability', date] as const,
+  allDetails: ['booking'] as const,
   detail: (ref: string, token: string | null) => ['booking', ref.toUpperCase(), token] as const,
 }
 

@@ -13,6 +13,8 @@ const CODES = [
   'payments_unavailable', 'payments_failed', 'amount_too_low',
   // Open play (M9, T9.11c): validate_booking_slot and the session RPCs.
   'open_play', 'invalid_links', 'session_overlap', 'session_started',
+  // Rescheduling (M10, T10.9): reschedule_booking.
+  'not_confirmed', 'from_past', 'different_sport', 'no_change', 'try_again',
 ] as const
 
 export type BookingErrorCode = (typeof CODES)[number]

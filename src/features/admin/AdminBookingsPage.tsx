@@ -12,7 +12,8 @@ import { hasPaidOnline, paymentFlags } from './paymentFlags'
 import { AdminCancelForm } from './AdminCancelForm'
 import { filtersFromParams, filtersToParams, type BookingFilters } from './bookingFilters'
 import { BookingFiltersBar } from './BookingFiltersBar'
-import { useAdminBookings, useAdminCancelBooking, useProofUrl, useReviewPayment } from './hooks'
+import { useActiveMovedParts, useAdminBookings, useAdminCancelBooking, useProofUrl, useReviewPayment } from './hooks'
+import { RescheduleSection } from './RescheduleSection'
 import { ReviewPanel, type ProofLink } from './ReviewPanel'
 
 export function AdminBookingsPage() {
@@ -23,6 +24,7 @@ export function AdminBookingsPage() {
   // `?booking=<id>` opens that booking straight away (the dashboard day view links here, T9.8).
   const [selectedId, setSelectedId] = useState<string | null>(() => params.get('booking'))
   const [lastReview, setLastReview] = useState<{ ref: string; status: BookingStatus } | null>(null)
+  const [lastMove, setLastMove] = useState<string | null>(null)
 
   const tz = settings.data?.timezone ?? 'Asia/Manila'
   const currency = settings.data?.currency ?? 'PHP'
@@ -33,6 +35,7 @@ export function AdminBookingsPage() {
     setParams(filtersToParams(next), { replace: true })
     setSelectedId(null)
     setLastReview(null)
+    setLastMove(null)
   }
 
   return (
@@ -42,6 +45,7 @@ export function AdminBookingsPage() {
       {lastReview && (
         <div className="alert alert-info" role="status"><p>{reviewOutcome(lastReview.ref, lastReview.status)}</p></div>
       )}
+      {lastMove && <div className="alert alert-info" role="status"><p>{lastMove}</p></div>}
       {settings.isError ? (
         <ErrorMessage error={settings.error} onRetry={() => settings.refetch()} />
       ) : bookings.isPending ? (
@@ -71,7 +75,8 @@ export function AdminBookingsPage() {
             // On phones the panel sits below the list: bring it into view when a booking is picked.
             <div ref={(el) => el?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' })}>
               <ReviewContainer key={selected.id} booking={selected} timeZone={tz} currency={currency}
-                onReviewed={(status) => setLastReview({ ref: selected.reference_code, status })} />
+                onReviewed={(status) => { setLastMove(null); setLastReview({ ref: selected.reference_code, status }) }}
+                onMoved={(message) => { setLastReview(null); setLastMove(message) }} />
             </div>
           )}
         </div>
@@ -90,7 +95,7 @@ export function BookingRow({ booking, timeZone, currency }: { booking: AdminBook
         <strong>{booking.reference_code}</strong> · {booking.guest_name}
         <span className="muted small block">
           {booking.court_name} · {formatDateLabel(date, timeZone)} {formatHour(hourInZone(booking.slot_start, timeZone))}
-          {booking.source === 'walk_in' ? ' · Walk-in' : ''}
+          {booking.source === 'walk_in' ? ' · Walk-in' : booking.source === 'moved' ? ' · Moved part' : ''}
         </span>
       </span>
       <span className="list-row-end">
@@ -117,13 +122,17 @@ type ReviewContainerProps = {
   timeZone: string
   currency: string
   onReviewed: (status: BookingStatus) => void
+  onMoved: (message: string) => void
 }
 
-function ReviewContainer({ booking, timeZone, currency, onReviewed }: ReviewContainerProps) {
+function ReviewContainer({ booking, timeZone, currency, onReviewed, onMoved }: ReviewContainerProps) {
   const path = pendingPayment(booking)?.storage_path ?? null
   const proofUrl = useProofUrl(path)
   const review = useReviewPayment()
   const cancel = useAdminCancelBooking()
+  const canCancel = adminCanCancel(booking, new Date())
+  // A moved part isn't cancelled with its booking (T10.1): the cancel form says which ones stay.
+  const movedParts = useActiveMovedParts(booking.id, canCancel && booking.source !== 'moved')
   const proof: ProofLink = !path
     ? { state: 'none' }
     : proofUrl.isPending
@@ -144,8 +153,9 @@ function ReviewContainer({ booking, timeZone, currency, onReviewed }: ReviewCont
         onApprove={() => review.mutate({ bookingId: booking.id, approve: true, note: null }, { onSuccess: (s) => s && onReviewed(s) })}
         onReject={(note) => review.mutate({ bookingId: booking.id, approve: false, note }, { onSuccess: (s) => s && onReviewed(s) })}
       />
-      {adminCanCancel(booking, new Date()) && (
-        <AdminCancelForm paid={hasApprovedPayment(booking)} pending={cancel.isPending} error={cancel.isError ? cancel.error : null}
+      <RescheduleSection booking={booking} onMoved={onMoved} />
+      {canCancel && (
+        <AdminCancelForm paid={hasApprovedPayment(booking)} movedParts={movedParts.data} pending={cancel.isPending} error={cancel.isError ? cancel.error : null}
           onCancel={(reason) => cancel.mutate({ bookingId: booking.id, reason }, { onSuccess: (s) => onReviewed(s) })} />
       )}
     </div>
