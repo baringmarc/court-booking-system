@@ -6,11 +6,12 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
 
 > Update this section at the end of every session or task. Keep it short; it's the first thing the next session reads.
 
-- **Current milestone:** M10 Product improvements, **approved by the user on 2026-10-25** (breakdown below; background in `docs/SAAS-PLAN.md` §7a). M9 ✅ done on 2026-10-23 (M1–M9 all done; SPEC v1.0). After M10 comes **M11 Plotline brand and venue upgrades** (approved by the user on 2026-10-26), then the SaaS milestones (M12+, `docs/SAAS-PLAN.md`), each with its own breakdown and approval.
-- **Next task:** T10.11 Close out M10 (README, demo script, milestone review). Then M11 (approved 2026-10-26; start with T11.1 research). Still the user's: run `npm run smoke:prod -- --links-only` and record the demo video from `docs/demo-script.md`. Skip the optional Maps Embed API key: M11 (T11.9) removes the embedded map.
-- **State:** T10.1–T10.10 done (2026-10-26). Rescheduling works end to end on `develop`: `reschedule_booking`, `booking_changes` and the extended `get_guest_booking` are live on the linked project, and the UI and the `booking_rescheduled` email are built (the `send-emails` Edge Function is redeployed to the linked project). The pickers, merged grid blocks, dashboard earnings and CSV export are on `develop`. On the linked project, `get_availability.block_key` and `get_earnings` are live (expand only). M8 deploy: https://court-booking-system-ashen.vercel.app.
+- **Current milestone:** M11 Plotline brand and venue upgrades (**approved by the user on 2026-10-26**; breakdown below, brand in `docs/BRAND.md`). M10 ✅ done on 2026-10-26 and M9 on 2026-10-23 (M1–M10 all done). After M11 come the SaaS milestones (M12+, `docs/SAAS-PLAN.md`), each with its own breakdown and approval.
+- **Next task:** T11.1 Research: M11 (the brand tokens and fonts, logo files, theme presets, Maps links, payment QR codes, the booking fee rollout, the walk-in flag; it ends at a plan gate with the theme preset list). Still the user's: run `npm run smoke:prod -- --links-only` and record the demo video from `docs/demo-script.md`. Skip the optional Maps Embed API key: M11 (T11.9) removes the embedded map.
+- **State:** M10 done: T10.1–T10.11 (2026-10-26). Rescheduling works end to end on `develop`: `reschedule_booking`, `booking_changes` and the extended `get_guest_booking` are live on the linked project, and the UI and the `booking_rescheduled` email are built (the `send-emails` Edge Function is redeployed to the linked project). The pickers, merged grid blocks, dashboard earnings and CSV export are on `develop`. On the linked project, `get_availability.block_key` and `get_earnings` are live (expand only). M8 deploy: https://court-booking-system-ashen.vercel.app.
 - **Blockers / notes:**
-  - **Never run two test runs at once** (found on 2026-10-26). `npm run verify`, `npm run test:e2e` and the Stop hook's own gate (`.claude/hooks/verify-gate.mjs`) share the local database, port 5179 and `test-results/`, so overlapping runs gave a false `30_reschedule` pgTAP failure, "port 5179 is already used" and `ENOENT` trace errors. Before running tests, check `pgrep -fl "[v]erify-gate|[p]laywright test"` is empty (the brackets keep `pgrep` from matching itself). Full e2e on 2026-10-26 once idle: 48 passed, 3 skipped, 1 flaky (`court-photo`, see T10.10).
+  - **Never run two test runs at once** (found on 2026-10-26). `npm run verify`, `npm run test:e2e` and the Stop hook's own gate (`.claude/hooks/verify-gate.mjs`) share the local database, port 5179 and `test-results/`, so overlapping runs gave a false `30_reschedule` pgTAP failure, "port 5179 is already used" and `ENOENT` trace errors. Before running tests, check `pgrep -fl "[v]erify-gate|[p]laywright test"` is empty (the brackets keep `pgrep` from matching itself). Full e2e on 2026-10-26 once idle: 49 passed, 3 skipped (`court-photo` flaked once earlier that day, see T10.10).
+  - **Screenshots:** the `admin-dashboard-*.png` images are from before the earnings section (T10.11 kept them because the local database held `smoke:paymongo` rows that would show as "Proofs to review: 1" and a not-accepted payment). Regenerate them on a clean local database (`npm run db:reset:local`, then `npm run screenshots`), and add an earnings shot to `scripts/screenshots.mjs` (it has none; the script re-shoots `admin-dashboard-*` on every run, so those images are only safe until then).
   - Emails locally: `supabase/functions/.env` must keep `EMAIL_TRANSPORT=mailpit`, `MAILPIT_URL` and `EMAIL_WORKER_SECRET` (see `.env.example`) for smoke and e2e. Restart the stack after changing it. Your PayMongo test key is commented out there; uncomment it only for real local test payments, and expect `pay-online` e2e and `smoke:paymongo` to fail while it's active.
   - Scope added on 2026-10-19 (SPEC §9, §10, §11): slot status colors are in T8.5, the settings spacing fix is in T8.4, and M9 is outlined at the end of this file. The README moved there. Booker names are **first name only** in public. A court can be deleted only if it was never booked.
   - Bundle size: always measure with `.env` present. Baseline after T10.10: public `index` 95.96 kB (29.69 kB gzip); the lazy `Calendar` chunk is 67.6 kB (19.9 kB gzip). Without it, `lib/supabase.ts` throws at load time and the build drops supabase-js, which makes the bundle look about 330 kB smaller (SPEC §10, 2026-10-20).
@@ -28,6 +29,7 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
   - `smoke:prod` now steps with "Next day" (T10.3). After the next merge into `master`, run the full `npm run smoke:prod` once to confirm it, then cancel the `E2E Smoke` booking.
   - M10 picker: `@daypicker/react` is pinned at 10.0.2 (v10's new name; `react-day-picker` is only an alias). Keep `Calendar.tsx` behind `React.lazy` (only `DatePicker` imports it) so `/book`'s `index` doesn't take the 19.9 kB gzip calendar.
   - Open follow-ups:
+    - M10 follow-ups: a whole move of a continuation emails the root's reference (needs a migration, T10.10); `MoveHistory` reads `window.location.hash` (T10.10); `DayView` merged cells have no "(next day)" marker (T10.5); an index on `payments (reviewed_at)` if earnings get slow (T10.6); `court-photo.spec.ts` is flaky (T10.10)
     - a user decision on capping the fresh hold after a rejection at the start time (T4.6)
     - the Edge Function `index.ts` is checked only by smoke and e2e (no Deno type-check)
     - the guest cancel path doesn't check the 30-day link expiry. That's harmless, since a cancel must be before the start (M7 added no token-authorized RPCs, so it's still fine).
@@ -1425,13 +1427,19 @@ Out of scope for M10: multiple venues, the booking fee (M11), billing and invoic
   - A same-court shift that overlaps the booking's own hours isn't offered (the grid shows them as booked), and dates are limited to the booking window (SPEC §10).
   - `e2e/court-photo.spec.ts` is flaky: "2 of 2" after ArrowRight in the photo viewer failed once in a full run (as in T10.5), and passed 6 of 6 on a rerun. The viewer wasn't touched here.
 
-### [ ] T10.11 Close out M10
+### [x] T10.11 Close out M10
 - **Depends:** T10.2–T10.10
 - **Do:**
   - Update the README (features and screenshots) and `docs/demo-script.md` (rescheduling and earnings scenes).
   - Mark M10 ✅ in SPEC §9 and run the milestone review.
   - Move the Handoff on to M11 (Plotline brand and venue upgrades, below).
 - **Acceptance:** `npm run verify` and `npm run test:e2e` pass, and the reviewer signs off.
+- **Notes:** Done on 2026-10-26.
+  - **README:** the calendar and merged blocks, the earnings dashboard and CSV export, rescheduling (with its history and continuation bookings), the rescheduled email, `reschedule_booking` in the RPC list, new test counts (about 630 Vitest, 800 pgTAP), and the reschedule form as the third screenshot.
+  - **Demo script:** the calendar, the earnings and CSV scene, and a new scene 6 for rescheduling (a whole move and a split during play). It's now about 4 to 5 minutes.
+  - **Screenshots:** regenerated with `npm run screenshots` (merged open play block on `/book`, and so on), plus new `admin-reschedule-phone.png` and `admin-reschedule-desktop.png` (the script confirms a second demo booking to move, and removes it). The dashboard images are the older ones; see the Handoff.
+  - **Evidence:** `npm run verify` passes (627 Vitest, 804 pgTAP); the full e2e passes (49 passed, 3 skipped); SPEC §9 marks M10 ✅.
+  - **Review:** the milestone review passed. Its major (SPEC §5.10, the §6 schema and the §2, §5 and §8 passages weren't updated for rescheduling) and its 3 minors (the demo script's button names and scene order, the Handoff follow-ups) are fixed.
 
 ## Milestone 11: Plotline brand and venue upgrades
 

@@ -1,6 +1,6 @@
 # Court Booking System — Product Spec
 
-> Status: v1.0 (2026-10-23, M1–M9 done; M9's frontend reaches production when `develop` is merged into `master`). Portfolio project: one realistic venue, simplified operations.
+> Status: v1.0 (2026-10-23), with M10 done (2026-10-26). M1–M10 are done; the M9 and M10 frontends reach production when `develop` is merged into `master`. Portfolio project: one realistic venue, simplified operations.
 
 ## 1. Overview
 
@@ -22,7 +22,7 @@ A web app for booking courts at **Claudex Courts**, a single multi-sport venue i
 | ---------- | ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Guest**  | none                                            | View availability; create a booking with name, email and phone; view and manage _that_ booking through a private link; upload payment proof; cancel.                               |
 | **Player** | Supabase Auth: Google OAuth or email + password | Everything a guest can do, plus see a "My bookings" history and have profile details prefilled. Their earlier guest bookings are attached to the account automatically (see §5.7). |
-| **Admin**  | Supabase Auth, `profiles.role = 'admin'`        | Manage courts, rates, hours, blackouts and open play sessions (M9); see all bookings; review payment proofs; confirm or reject proofs; cancel any active booking until it ends (§4); create walk-in bookings (§5.8).                  |
+| **Admin**  | Supabase Auth, `profiles.role = 'admin'`        | Manage courts, rates, hours, blackouts and open play sessions (M9); see all bookings; review payment proofs; confirm or reject proofs; cancel any active booking until it ends (§4); create walk-in bookings (§5.8); read earnings and export CSV (M10); reschedule confirmed bookings (§5.10).                  |
 
 Admins are promoted manually in the database (no self-signup as admin).
 
@@ -111,7 +111,7 @@ Admins are promoted manually in the database (no self-signup as admin).
    - not touch a blackout or an open play session (M9, hint `open_play`)
    - line up with slot boundaries
 
-   There is no other limit on length. These checks live in `private.validate_booking_slot`, shared by `create_booking` and `create_walk_in`.
+   There is no other limit on length. These checks live in `private.validate_booking_slot`, shared by `create_booking`, `create_walk_in` and `reschedule_booking` (the last two with the walk-in rules).
 
    **Operating day (M9, T9.9).** Opening hours may run **past midnight or around the clock**. A close before the open means the next day (6:00 AM to 5:00 AM). **24 hours is set only as 12:00 AM to midnight**; an open day can't close at its opening time (6:00 AM to 6:00 AM is refused). A slot belongs to the day whose opening it follows: a 1:00 AM slot after a 6:00 AM opening belongs to the previous date, and `/book` lists it under that date.
    - A booking runs into another day (`multi_day`) if it goes past the end of its operating day and also past the calendar midnight after it. Otherwise it runs past closing (`outside_hours`).
@@ -130,7 +130,7 @@ Admins are promoted manually in the database (no self-signup as admin).
 
 5. **Payment proof.** The amount paid should match `total_amount`. If it doesn't, the admin sees a warning, but the system does not block the proof.
 6. **Timestamps.** All timestamps are stored as `timestamptz` and shown in `Asia/Manila`.
-7. **Guest auto-claim.** When a player signs in with a **verified** email (Google accounts always have one; email + password accounts once confirmed), every guest booking whose `guest_email` matches and whose `user_id` is null is linked to that account through `user_id`. This runs in a `claim_guest_bookings()` RPC that the client calls after sign-in and on app load with an existing session. The RPC is idempotent, returns how many bookings it linked, only claims `online` bookings made as a guest (`guest_token_hash` set) with no `user_id`, and only uses the email from the authenticated user's record (`auth.users`, which requires `email_confirmed_at`), never one sent by the client. "Confirm email" must be on in every environment (local `config.toml` included), because without it Supabase marks every email as confirmed.
+7. **Guest auto-claim.** When a player signs in with a **verified** email (Google accounts always have one; email + password accounts once confirmed), every guest booking whose `guest_email` matches and whose `user_id` is null is linked to that account through `user_id`. This runs in a `claim_guest_bookings()` RPC that the client calls after sign-in and on app load with an existing session. The RPC is idempotent, returns how many bookings it linked, only claims `online` and `moved` (M10: a continuation copies its root's email) bookings made as a guest (`guest_token_hash` set) with no `user_id`, and only uses the email from the authenticated user's record (`auth.users`, which requires `email_confirmed_at`), never one sent by the client. "Confirm email" must be on in every environment (local `config.toml` included), because without it Supabase marks every email as confirmed.
 8. **Walk-ins.** An admin creates a walk-in booking with:
    - court, start time and number of slots
    - customer name (required) and phone (optional); no email is needed
@@ -144,6 +144,11 @@ Admins are promoted manually in the database (no self-signup as admin).
    - Bookings and sessions can't race: `create_booking`, `create_walk_in`, the PayMongo revival and the session RPCs take a per-court transaction lock (`private.lock_court_slots`) before checking.
    - A session that has started can't be edited, but it can be deleted at any time, which frees its remaining slots.
    - A session may overlap a blackout; the slot then shows as closed (`blackout` comes first in `get_availability`).
+
+10. **Rescheduling (M10, T10.9–T10.10).** Staff can move a **confirmed** booking that hasn't ended, with a required reason; the price and payments never change (`reschedule_booking`, §6).
+   - **Before it starts,** the whole booking moves: the same row, reference and guest link, with a new court and time. **Once it has started,** the move begins at the hour in progress or a later hour: the original is shortened to the hours before it, and the rest becomes a **continuation booking** (`source = 'moved'`, `parent_booking_id` = the root, ₱0, no payments of its own, the same contact, `user_id` and guest link, its own reference).
+   - **Where it can go:** a court of the **same sport**, for the same number of hours, under the walk-in slot rules (the hour in progress counts as free and the booking window doesn't apply); everything else holds (opening hours, blackouts, open play, no overlap).
+   - Cancelling a booking doesn't cancel its moved parts; the admin cancel form names the ones that stay booked. Each move is a `booking_changes` row, shown to the player as "Schedule changes", and queues one `booking_rescheduled` email for an online booking with an email (§8).
 
 ## 6. Data model (Supabase / Postgres)
 
@@ -203,16 +208,21 @@ payments          id, booking_id, method ('gcash'|'maya'|'bank_transfer'|'cash'|
                   -- provider_checkout_id (cs_…), provider_source (gcash|paymaya|card|qrph), provider_event_id;
                   -- CHECK method = 'paymongo' <=> provider_payment_id present; a trigger turns 'paymongo' from
                   -- the proof and walk-in RPCs into a readable P0001 invalid_input
+booking_changes (M10) id, booking_id (the booking that was moved; its root or a continuation), old_court_id, old_during
+                  (the part that moved), new_court_id, new_during, continuation_id (nullable; set when a split
+                  created a continuation), reason (1-500 characters), changed_by (admin), changed_at
+                  Admins read all; a player reads the changes of their own bookings; only reschedule_booking writes.
 paymongo_checkouts (M7)  booking_id unique, checkout_id unique (cs_…), checkout_url, amount_centavos,
                   created_at. Admins read; only service-role RPCs write.
                   -- M8: payments also has an index on provider_checkout_id (where not null)
-email_outbox (M8) id, booking_id, payment_id (the rejected proof; proof_rejected only), kind ('booking_created'|
-                  'payment_confirmed'|'proof_rejected'|'booking_cancelled'), to_email, for_guest,
+email_outbox (M8) id, booking_id, payment_id (the rejected proof; proof_rejected only), change_id (M10; the
+                  booking_changes row; booking_rescheduled only, unique), kind ('booking_created'|
+                  'payment_confirmed'|'proof_rejected'|'booking_cancelled'|'booking_rescheduled'), to_email, for_guest,
                   data jsonb (template snapshot: reference, venue, court, times, amount, name, status, note, …;
                   never the guest token), status ('pending'|'sending'|'sent'|'skipped'|'failed'), attempts,
                   next_attempt_at, locked_until (lease), last_error, created_at, sent_at
-                  UNIQUE (booking_id, kind) WHERE kind <> 'proof_rejected'; UNIQUE (payment_id)
-                  Filled only by the bookings_queue_email trigger (online bookings with an email; walk-ins never;
+                  UNIQUE (booking_id, kind) WHERE kind NOT IN ('proof_rejected', 'booking_rescheduled'); UNIQUE (payment_id); UNIQUE (change_id)
+                  Filled only by the bookings_queue_email trigger and, for reschedules (M10), the booking_changes_queue_email trigger (online roots with an email; walk-ins never;
                   skipped while app.suppress_booking_emails = on, as in seed.sql). Errors while queueing become a
                   warning, so they never fail the booking change. Rows that are sent, skipped or failed are
                   purged after 30 days (daily pg_cron job).
@@ -279,7 +289,7 @@ Guest access uses a random token. It is shown once (in the confirmation page lin
 | `/me/bookings`      | player             | Upcoming and past bookings, including claimed guest bookings. A moved part (M10) says "Moved part of CB-…". |
 | `/admin/login`      | public             | Admin sign-in in the admin shell: email + password only, with no Google sign-in and no sign-up (admins are promoted in the database, §2). A signed-in non-admin is refused ("Admins only", with Log out). |
 | `/admin`            | admin              | Dashboard ("today" is the operating day running now; takings stay on that calendar date, M9): "Today's courts" (courts × hours with each booker's full name and reference; a booking, session or blackout is one cell over its hours, M10; the reference opens that booking on `/admin/bookings`; M9), today's schedule, proofs waiting for review, a "+ Walk-in" quick action. **Earnings** (M10, replacing today's takings): a period switch (Today; This week, Monday to Sunday; This month; a custom range up to 366 days) over `get_earnings`. It shows money collected per method with the change from the period before, PayMongo money received but not accepted apart from the total (a refund outside the app), booked hours, occupancy (capped at 100%) and open play per court and sport, a labelled bar per day, and confirmed bookings still to come. **CSV export** for the selected range (T10.8), built in the browser from paged admin reads: bookings by play date (reference, court, sport, start, end, status, source, name, amount; phone and email only when "Include contact details" is ticked, off by default) and payments by the date the money came in (accepted, and PayMongo refunds due). Times are venue-local, cells are quoted and defused against formula injection, and files are UTF-8 with a BOM and CRLF lines; a note asks staff to store the files securely. |
-| `/admin/bookings`   | admin              | Filterable list (status, source, date). Review a proof (image or PDF preview, amount-mismatch warning), approve or reject with a reason. PayMongo payments (M7) show in the panel with source, PayMongo id and paid time, and have no review actions. Rows and the panel flag "Refund due" (paid online but not accepted) and "Check duplicate" (a proof closed because the customer also paid online). **Reschedule (M10, T10.10):** a confirmed booking that hasn't ended has a "Reschedule" form in its panel (see §4): once it has started, "Move from" hour buttons (the hour in progress or later); a new date (today to the end of the booking window), a same-sport active court, and a start hour offered only where the whole moved length is free (the hour in progress counts as free, as for walk-ins); a required reason; a summary. The list then shows a message with the new court and time (and the moved hours' reference after a split). The cancel form names a booking's moved parts that stay booked. |
+| `/admin/bookings`   | admin              | Filterable list (status, source, date). Review a proof (image or PDF preview, amount-mismatch warning), approve or reject with a reason. PayMongo payments (M7) show in the panel with source, PayMongo id and paid time, and have no review actions. Rows and the panel flag "Refund due" (paid online but not accepted) and "Check duplicate" (a proof closed because the customer also paid online). **Reschedule (M10, T10.10):** a confirmed booking that hasn't ended has a "Reschedule" form in its panel (see §5.10): once it has started, "Move from" hour buttons (the hour in progress or later); a new date (today to the end of the booking window), a same-sport active court, and a start hour offered only where the whole moved length is free (the hour in progress counts as free, as for walk-ins); a required reason; a summary. The list then shows a message with the new court and time (and the moved hours' reference after a split). The cancel form names a booking's moved parts that stay booked. |
 | `/admin/courts` | admin | Courts grouped by sport in the venue's sport order, archived ones included, with an "Add court" button. Up and down buttons per court reorder it within its sport (`move_court`, M9). The list updates at once, and focus stays on the pressed button (or its partner at an edge). |
 | `/admin/courts/:id` | admin | Edit or archive a court (`new` creates one, last in its sport). There's no order field; order is set on the list (M9). "Delete court" (with a confirmation) is allowed only for a court that was never booked; otherwise the page says to archive it (M9). Weekly rate grid editor (day × hour) with a "fill a range" helper; an overnight day's after-midnight hours appear under that day, marked "(next day)", and price from its row (M9). Photo gallery editor (M9): up to 6 photos, add several at once, reorder with arrows or "Make cover" (the first is the cover), remove. |
 | `/admin/schedule`   | admin              | Operating hours and blackouts. A blackout is picked as a start date and hour and an end date and hour over all 24 hours (ending at "Midnight" closes that date); hours that have ended aren't offered (M10). A close before the open shows "closes next day", and 12 AM to midnight shows "open 24 hours" (there's no separate 24-hour switch). A day closing at its opening time, or running into the next day's opening, is flagged before saving; the week saves in one step through `set_operating_hours` (M9). |
@@ -349,7 +359,7 @@ Until emails ship, the confirmation page shows the private link with a "save thi
    - a full-screen photo viewer; court details open by default on `/book`; a clear loading state while going to PayMongo
    - venue info set by admins: location with an embedded Google map, social links, admin-defined info sections (waiver, reminders and policies, cancellation and refund policy, house rules) and amenities with icons (added 2026-10-21)
    - then the README, screenshots, a demo video script and close-out (moved from M8). Waiver acceptance was skipped (§11). The video itself is recorded from `docs/demo-script.md`.
-10. **Product improvements** (added 2026-10-25; breakdown in TASKS.md, research in RESEARCH M10):
+10. ✅ **Product improvements** (added 2026-10-25; done 2026-10-26; breakdown in TASKS.md, research in RESEARCH M10):
    - a date and hour picker for open play, blackouts and `/book`
    - merged blocks on the slot grids (one cell per booking, open play session or blackout)
    - earnings on the dashboard (collected per method, occupancy, a daily chart, coming up) and CSV export
