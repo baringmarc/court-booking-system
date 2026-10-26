@@ -8,12 +8,15 @@
   - `court-booking-system` is the product, today a single-venue demo (Claudex Courts).
   - `plotline-site` is the marketing site.
 - **No self-serve signup and no free trial.** Interested owners fill in a contact form on the marketing site. We talk with them, then set up their venue and invite them.
-- **Pricing (2026-10-25; amounts not final):** commission only, **₱5 per billable court-hour**, for every court, sport and venue size. No subscription and no setup fee; no setup fee is the edge over competitors.
+- **Pricing (2026-10-26; amount not final):** a **₱10 booking fee per transaction, paid by the player**. A transaction is a booking a player makes on the site that gets confirmed, whatever its length, court or sport.
+  - The fee is shown before the player pays (court price + booking fee = total) and is collected by the venue together with the court price.
+  - Venues pay no subscription, no setup fee and nothing per hour. That's the pitch: Plotline costs the venue nothing out of pocket.
+  - Walk-ins and open play aren't transactions. The walk-in form is to be hidden or removed, so venues can't book players offline to skip the fee.
 - **Two ways a venue's players pay:**
   - **PayMongo venues:** the venue **connects its own PayMongo account** (2026-10-26). Players pay straight into it, and PayMongo pays the venue out. Plotline never holds venue money and takes nothing at checkout.
   - **Manual venues:** players upload a proof of a GCash, Maya or bank payment made to the venue's own details.
 - **Commission collection: invoice only (2026-10-26).**
-  - Every billable hour, whatever the payment method, goes on one monthly invoice per venue.
+  - The venue receives the fees with each booking's payment, and every fee is billed back on one monthly invoice per venue.
   - PayMongo and manual venues are billed the same way. The payment method only decides where the player's money goes, never how we collect.
 - **Venues pay their invoices** by GCash or bank transfer: 7 days' grace, then suspension.
 
@@ -47,28 +50,31 @@
 | 2026-10-24 | Supabase Pro from the first paying venue. |
 | 2026-10-24 | No self-serve signup and no free trial. A contact form, then we set up the venue and invite the owner. |
 | 2026-10-24 | Each venue uses its own PayMongo account. (Replaced on 2026-10-25 by child accounts, then reinstated on 2026-10-26.) |
-| 2026-10-24 | Billable hours are confirmed bookings, including those cancelled after confirmation. Rejected proofs aren't monitored: rejecting reopens the slot, so it costs the venue. |
+| 2026-10-24 | Billable bookings are confirmed ones, including those cancelled after confirmation (since 2026-10-26: unless the venue cancels). Rejected proofs aren't monitored: rejecting reopens the slot, so it costs the venue. |
 | 2026-10-24 | ~~₱499 capped at 2 active courts; plan by the month's highest court count.~~ Replaced on 2026-10-25. |
 | 2026-10-24 | One owner can manage several venues (branches); each is its own venue, billed separately. |
 | 2026-10-24 | Venues pay by GCash or bank transfer against an invoice: 7 days' grace, then suspension. |
 | 2026-10-24 | The demo is a real venue on production, reset nightly. Since 2026-10-25 it's Claudex Courts at `claudex.<domain>`. |
 | 2026-10-24 | Pilot invoices may go to personal accounts. Register as a sole proprietor (DTI business name, BIR) before invoicing for real. |
-| 2026-10-24 | Walk-ins are billable. They're already confirmed bookings, so they need no extra tracking. The walk-in form stays. |
+| 2026-10-24 | ~~Walk-ins are billable. They're already confirmed bookings, so they need no extra tracking. The walk-in form stays.~~ Replaced on 2026-10-26: walk-ins aren't transactions, and the walk-in form is to be hidden or removed. |
 | 2026-10-24 | A booking is billed in the month it was confirmed. |
 | 2026-10-24 | No pilot venue yet. Build first, starting with Phase 1. |
 | 2026-10-25 | **Replaces the ₱499 plan and the 2-court cap:** commission only, with no setup fee. |
-| 2026-10-25 | The rate is ₱5 per court-hour for every court and sport. |
+| 2026-10-25 | ~~The rate is ₱5 per court-hour for every court and sport.~~ Replaced on 2026-10-26 by ₱10 per transaction, paid by the player. |
 | 2026-10-25 | ~~Hybrid collection: PayMongo split payments for venues that onboard with PayMongo (child accounts under Plotline's platform), a monthly invoice for everything else.~~ Replaced on 2026-10-26 by invoice-only collection. No prepaid credits (still holds). |
-| 2026-10-25 | Every confirmed hour is billable whatever the payment method: PayMongo, manual proof or walk-in. |
-| 2026-10-25 | Open play is billed per court-hour. |
+| 2026-10-25 | Every confirmed online booking is billable whatever the payment method: PayMongo or manual proof. (Walk-ins dropped on 2026-10-26.) |
+| 2026-10-25 | ~~Open play is billed per court-hour.~~ Replaced on 2026-10-26: open play isn't billable (players don't book or pay for it in the app). |
 | 2026-10-25 | ~~PayMongo is offered only through Plotline's platform account. A venue's own standalone PayMongo account isn't supported (not two integrations).~~ Replaced on 2026-10-26: venues use their own accounts only. |
-| 2026-10-25 | Open play is charged when the session starts. |
+| 2026-10-25 | ~~Open play is charged when the session starts.~~ Replaced on 2026-10-26: open play isn't billable. |
 | 2026-10-25 | Every venue is invoiced every month, whatever the amount (no threshold). |
 | 2026-10-25 | A venue that wants PayMongo must complete PayMongo's own verification (KYC). Venues that can't, or don't want to, use manual proofs. (Since 2026-10-26 they verify their own account, not a child account.) |
 | 2026-10-25 | End state: the marketing site on the main domain, the product serving every venue on subdomains. Claudex Courts (the current demo) is venue #1, e.g. `claudex.plotline.app`. Both sites' design and features will still change. |
-| 2026-10-26 | **Replaces the hybrid collection: invoice only.** No PayMongo split. Every billable hour is invoiced monthly, for PayMongo and manual venues alike. Players' PayMongo payments go to the venue, and Plotline never holds venue money. |
+| 2026-10-26 | **Replaces the hybrid collection: invoice only.** No PayMongo split. Every charge is invoiced monthly, for PayMongo and manual venues alike. Players' PayMongo payments go to the venue, and Plotline never holds venue money. |
 | 2026-10-26 | Why invoice only: one billing path, no dependence on PayMongo's splitting feature (being deprecated), no split failures or refund reversals to reconcile, and the same treatment for every venue. The trade-off: we carry the collection risk for every hour, covered by the 7-day grace and suspension. |
 | 2026-10-26 | **Replaces child accounts: each PayMongo venue uses its own PayMongo account.** Plotline needs no PayMongo account of its own, no Platforms approval from PayMongo, and carries no parent-account liability for venues' refunds or chargebacks. Venues sign up and pass KYC with PayMongo themselves, and handle refunds and payouts in their own dashboard. The cost is per-venue secrets, stored encrypted and used only by Edge Functions (Phase 4). One integration only: there's no child-account path. |
+| 2026-10-26 | **Replaces ₱5 per court-hour: ₱10 per transaction, paid by the player** as a booking fee shown at checkout. More predictable for everyone, and the venue pays nothing itself. A transaction is one confirmed online booking (PayMongo or manual proof), whatever its length. |
+| 2026-10-26 | Walk-ins and open play aren't transactions. The walk-in form will be hidden or removed, so owners can't route players through walk-ins to avoid the fee. Staff with a counter or phone customer book through the site like a player, fee included. |
+| 2026-10-26 | The fee is non-refundable once the booking is confirmed, except when the venue cancels: the player gets the fee back and we don't bill it. |
 
 ## 4. Open questions
 
@@ -78,47 +84,50 @@
    - limits on webhooks per account, and creating ours on the venue's account through the Webhooks API.
 2. Domain: `.ph` or `.app`, after checking availability.
 3. Demo slug: `claudex` only, or `demo` as well, redirecting to it?
+4. **Walk-ins:** hide the form (kept for us and old data) or remove it? Existing walk-in bookings on Claudex Courts stay as history either way. Note that a free blackout could still be used to hold a court for an offline customer; we accept that, as it hides the slot from players and costs the venue bookings.
+5. **Tax treatment of the fee:** the venue collects the ₱10 and passes it on to us. Ask an accountant how the venue and Plotline should each record and receipt it, before the first real invoice.
 
 ## 5. Billing rules
 
-**What's billable (₱5 per court-hour, rate snapshotted on each charge):**
+**What's billable (₱10 booking fee per transaction, paid by the player, snapshotted on each booking):**
 
 Every charge is collected on the venue's monthly invoice.
 
-| Event | Billable hours | When it's charged |
+| Event | Billable | When it's charged |
 | --- | --- | --- |
-| Online booking paid through PayMongo | The booking's hours | When it's confirmed (webhook) |
-| Online booking paid by manual proof | The booking's hours | When staff approve the proof |
-| Walk-in | The booking's hours | When it's created (it's confirmed at once) |
-| Open play session | Courts × hours | When the session starts, through pg_cron (deleting it before then costs nothing) |
-| Confirmed, then cancelled or refunded | Still billable | Already charged |
+| Online booking paid through PayMongo | ₱10 | When it's confirmed (webhook) |
+| Online booking paid by manual proof | ₱10 | When staff approve the proof |
+| Confirmed, then cancelled by the player or refunded | Still ₱10 (the fee is non-refundable) | Already charged |
+| Confirmed, then cancelled by the venue | Not billable; the player gets the fee back | An adjustment cancels the charge, on a later invoice if it was already invoiced |
+| Rescheduled, or a `moved` continuation | Nothing new: still one transaction | |
 | Proof rejected, hold expired, never confirmed | Not billable | |
 | Late PayMongo payment for an expired hold (refund due) | Not billable | |
-| Blackouts | Not billable | |
+| Walk-ins (while they exist), open play, blackouts | Not billable | |
 
 **Notes:**
-- **One rate everywhere removes the incentive to steer players.** Manual and PayMongo cost the venue the same ₱5, so it gains nothing by pushing players to GCash instead.
+- **One fee everywhere removes the incentive to steer players.** PayMongo and manual proofs carry the same ₱10, so the venue gains nothing by pushing players to GCash instead.
+- **The fee is a fixed amount, never computed on the client.** `create_booking` snapshots it from `platform_pricing`, and the amount due is court price + fee. Changing the fee later doesn't touch existing bookings.
 - **Loopholes we accept:**
-  - Not recording walk-ins, which brings back double bookings.
+  - Taking offline customers without recording them, which brings back double bookings.
+  - Holding a court for an offline customer with a blackout, which hides the slot from players.
   - Rejecting a proof after collecting the money, which reopens the slot.
-  - Using a free blackout instead of open play, which hides the session from players.
-
-  Each one costs the venue more than ₱5.
-- **PayMongo's fees and refunds are between the venue and PayMongo.** They never touch our charges: a refunded confirmed booking stays billable, like a cancellation.
+  - Cancelling "as the venue" to skip the fee, which shows on the booking and in the venue's statement, so we can spot a pattern.
+- **PayMongo's fees and refunds are between the venue and PayMongo.** PayMongo's percentage applies to the whole total, fee included, and the venue absorbs it.
 
 **Data:**
 - **`bookings.confirmed_at`:** set the first time a booking becomes `confirmed`. Backfill it from the approved payment.
+- **`bookings.booking_fee`:** the fee snapshotted when the booking is created (₱0 for walk-ins and `moved` continuations). The amount due, the PayMongo checkout and the manual proof all use court price + fee.
 - **`billing_charges` ledger, one row per billable event:**
-  - `venue_id`, `booking_id` or `open_play_session_id` (unique), `hours`, `rate`, `amount`, `charged_at`, `billing_month`.
+  - `venue_id`, `booking_id`, `kind` (`booking_fee` | `adjustment`), `amount`, `charged_at`, `billing_month`.
   - `invoice_id`, set when the charge goes on an invoice.
-  - Written by triggers and RPCs inside the same transaction that confirms the booking or starts the session.
+  - Written by a trigger inside the same transaction that confirms the booking. A venue cancellation of a confirmed booking writes a negative `adjustment`.
   - Charges are never deleted. A correction is a new adjustment row.
-- **`platform_pricing`:** the rate and the grace days, stored as data.
+- **`platform_pricing`:** the booking fee and the grace days, stored as data.
 - **`venues`:** `paymongo_status` (`none` | `connected` | `active`), and `billing_note`. The venue's PayMongo secrets live apart from it (Phase 4).
 
 **Invoices and statements:**
 - **Draft invoice.** A pg_cron job on the 1st creates a draft per venue with every charge of the previous month. We review it, send it, and mark it paid by hand (method and reference).
-- **Statement in the venue's admin area.** This month so far: billable hours by source (online, manual, walk-in, open play) and the running total. Past invoices. Each line links to its booking, so disputes are easy.
+- **Statement in the venue's admin area.** This month so far: transactions by payment method, venue cancellations credited, and the running total. Past invoices. Each line links to its booking, so disputes are easy.
 - **Suspension.** Manual, by us, after 7 days' grace:
   - The public site stops taking new bookings.
   - Existing bookings are still honored.
@@ -194,7 +203,12 @@ Expand-then-contract migrations, as the M9 contract migration did.
 - [ ] **Storage.**
   - New paths: `{venue_id}/courts/…` and `{venue_id}/banner/…`. Policies check `is_venue_admin` on the first folder.
   - Payment proofs: venue admins read their own venue's.
-- [ ] **Billing data.** `bookings.confirmed_at` (with backfill), the `billing_charges` ledger and its triggers (bookings and open play), `platform_pricing`, `invoices`. pgTAP covers every row of the table in §5.
+- [ ] **Billing data.** `bookings.confirmed_at` (with backfill), `bookings.booking_fee` (set by `create_booking`, included in the amount due and in `review_payment`'s checks), the `billing_charges` ledger and its trigger, `platform_pricing`, `invoices`. pgTAP covers every row of the table in §5.
+- [ ] **Booking fee in the UI.**
+  - Checkout shows court price, booking fee and total, all from the server. So do the booking page, the manual payment instructions (the amount to send includes the fee) and the booking emails.
+  - The PayMongo checkout lists the fee as its own line item.
+  - Admin booking details, earnings and the CSV export show fees apart from court earnings, since the venue owes them to us.
+- [ ] **Walk-ins.** Hide or remove the walk-in form and the dashboard's "+ Walk-in" action (§4 question 4). Rescheduling keeps its own slot rules.
 - [ ] **Isolation tests (pgTAP).**
   - Use a second venue in the fixtures.
   - For every table, RPC and bucket, venue A's staff can't read or change venue B.
@@ -237,7 +251,7 @@ Expand-then-contract migrations, as the M9 contract migration did.
   - We, or the owner, add courts, rates, hours, payment details and photos.
   - A setup checklist in the venue dashboard.
   - "Publish" sets the venue to `active`.
-- [ ] **Venues list.** Status, PayMongo status, this month's billable hours and running total, open invoices. Suspend or reactivate.
+- [ ] **Venues list.** Status, PayMongo status, this month's transactions and running total, open invoices. Suspend or reactivate.
 - [ ] **Invoices.** Review the monthly drafts, mark them sent and paid. A printable invoice page. Overdue invoices past the grace period are flagged for suspension.
 - [ ] **Demo venue.** A nightly job resets `claudex` to its seed data.
 - [ ] **Venue showcase.** A public, opt-in list of active venues (name, city, logo, link) that the marketing site's venue slider reads, instead of hard-coded placeholders.
@@ -249,7 +263,7 @@ Expand-then-contract migrations, as the M9 contract migration did.
   - In the venue's admin area, the owner enters the secret key. An Edge Function checks it against PayMongo, creates our webhook on the venue's account (pointing at our endpoint with the venue id) and stores the returned webhook secret.
   - Secrets are stored encrypted (Supabase Vault or an equivalent), keyed by `venue_id`, and read only by Edge Functions. They're never sent back to the browser: the admin sees "connected", the key's last 4 characters, and buttons to replace or disconnect.
   - Test-mode keys are refused in production, and live keys in staging.
-- [ ] **Checkout.** `create-paymongo-checkout` loads the booking's venue and uses that venue's key, so the player pays the venue directly. Only venues with `paymongo_status = active` show "Pay online."
+- [ ] **Checkout.** `create-paymongo-checkout` loads the booking's venue and uses that venue's key, so the player pays the venue directly, booking fee included. Only venues with `paymongo_status = active` show "Pay online."
 - [ ] **Webhook.**
   - One function. It takes the venue from the URL, verifies the signature with that venue's webhook secret, and checks that the booking belongs to that venue.
   - Billing needs nothing extra: confirming the booking writes its `billing_charges` row, as for any other method.
@@ -264,7 +278,7 @@ Expand-then-contract migrations, as the M9 contract migration did.
   - Replace the owner sign-up and trial with a lead form: name, phone, email, venue, location, courts, message. No auth account.
   - A Turnstile check, then an insert into `leads` in the production project. We get an email alert.
 - [ ] **Move to production.** Move `reviews` and `leads` into the production Supabase project. Drop plotline-site's own project.
-- [ ] **Copy.** Remove the free-trial wording. Match the feature list to what ships, or schedule the gaps:
+- [ ] **Copy.** Remove the free-trial wording. Explain the pricing: free for venues, a ₱10 booking fee per online booking paid by the player. Match the feature list to what ships, or schedule the gaps:
   - open play slots, waitlist and skill levels
   - reminders
   - pay at the venue
