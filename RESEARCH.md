@@ -1006,3 +1006,115 @@ Researched on 2026-10-25 (T10.1) from the current migrations and client code, wi
   - **Cancel:** `cancel_booking` works on a continuation unchanged, by id or by reference + token. `queue_booking_email` returns early for `source <> 'online'`, so T10.9 extends it: cancelling a `moved` continuation whose root is `online` queues `booking_cancelled` to the root's contact. **Recommended: no cascade.** A continuation only exists once the parent has started, so the player can't cancel the parent anymore. If staff cancel the parent's remaining hour, the admin form warns: "The moved part CB-… stays booked."
   - **Invariant, restated:** every confirmed booking that isn't `moved` has exactly one approved payment, and a `moved` booking has a root booking and no payments of its own. `08_payments` and the new tests check both. The UI's "paid" checks look at the root's payments for a continuation.
   - **Earnings:** sold hours include continuations (by play time). Money doesn't move. "Coming up" values a continuation at ₱0.
+
+## Milestone 11: Plotline brand and venue upgrades
+
+Researched 2026-10-27 (T11.1). Contrast ratios were computed with the WCAG formula (the same math as `src/lib/contrast.ts`). T11.3 and T11.7 re-measure them through `themeChecks.ts`.
+
+### Brand tokens and contrast
+- **Status:** Decided (SPEC §10, 2026-10-27)
+- **Findings (light = brown on cream, dark = cream on warm brown):**
+  - Brand text pairs pass: brown on cream 11.3, soft brown on cream 7.4, terracotta on cream 7.1, cream on brown 11.3, sand on brown 9.3, dusty rose on brown 8.0.
+  - Sage and rose fail as text or outlines on cream: sage 1.60, rose 1.41, sand 1.22. A sage button with brown text is fine (7.06), but its edge against the page is only 1.6.
+- **Recommendation:**
+  - Two token layers as in plotline-site: fixed brand colors, plus role tokens (`--bg`, `--surface`, `--text`, `--muted`, `--border`, `--accent`, ...). Components use roles only. The names we already have stay (the existing `themeChecks` and CSS use them); `--accent` now means the "ink" accent (links, outlines, focus rings, badges), and a new `--btn` / `--btn-text` pair is the fill of primary buttons.
+  - Light: `--bg #F5EFE6`, `--surface #FFFCF7`, `--text #3B2F2A`, `--muted #5A4A42`, `--border #E6D9C6` (decorative only) with `--border-strong` for input and outline edges, `--accent #56703f` (deep sage: 4.85 on cream, 5.42 on cards), `--btn #B7C4A8` with `--btn-text #3B2F2A` (7.06), highlight words terracotta `#7A3F2C`.
+  - **A primary button gets a 1.5px `--accent` border**, so its edge is 4.85 against the page (the sage fill alone is 1.6). The label identifies the control, but the border makes it visible for low-vision users and costs nothing.
+  - Dark: `--bg #3B2F2A`, `--surface #45372F`, `--text #F5EFE6`, `--muted #E6D9C6` (8.2 on cards), `--accent` and `--btn` both sage `#B7C4A8` (7.06 on the page, 6.2 on cards), `--btn-text #3B2F2A`, highlight dusty rose.
+  - **Focus ring:** 2px solid `--accent` with 2px offset (4.85 light, 7.06 dark). plotline-site's sage glow alone fails the 3:1 rule and is not copied.
+  - **Slot statuses:** free = surface with a `--accent` outline; selected = `--btn` fill, `--btn-text` text, `--accent` border; booked = text 10% mixed into the surface (as today); pending = a dusty-rose tint with a dashed edge; open play = a terracotta (dark: rose) tint, so it is not green or grey; closed = the existing stripes. Status is never color only (labels and patterns stay).
+  - Every pair goes through `themeChecks.ts`, extended with the button-border and the new status pairs; `theme.test.ts` reads each preset block.
+- **Sources:** `docs/BRAND.md`, plotline-site `src/styles/global.css`, WCAG 2.1 1.4.3 and 1.4.11, the computed table above.
+
+### Fonts: self-host or Google Fonts
+- **Status:** Decided (SPEC §10, 2026-10-27)
+- **Findings:**
+  - `@fontsource/fraunces` 5.3.0 and `@fontsource/dm-sans` 5.3.0, latin subset: Fraunces 600 18.1 kB, 700 18.2 kB; DM Sans 500 14.3 kB, 700 14.3 kB (woff2, from `npm pack`). The four weights in use total about 65 kB, fetched in parallel, cached with the hashed assets, and not counted in the JS bundle.
+  - Google Fonts means a request to Google's servers with the visitor's IP address before consent. Self-hosting keeps visitor data on our origin, which fits the Data Privacy Act posture of this app (RA 10173) and removes a render-blocking third-party connection.
+- **Caveat:** plotline-site loads Fraunces with the optical-size axis (`opsz 9..144`); static `@fontsource/fraunces` files drop it, so large headings look slightly less refined than the reference site. T11.3 compares with `@fontsource-variable/fraunces` (weight + opsz) and picks it only if its size is acceptable.
+- **Recommendation:** self-host with `@fontsource/*/{weight}.css` imports for exactly those four weights (latin only), `font-display: swap`. Preload the two most-used files (DM Sans 500 and Fraunces 700) from `index.html` and use a metric-matched fallback stack (`Georgia` for Fraunces, `system-ui` for DM Sans) with `size-adjust` fallbacks only if the Lighthouse CLS check shows a shift. Measure the bundle with `.env` present in T11.3.
+- **Sources:** fontsource package contents; DM Sans and Fraunces as used by plotline-site.
+
+### Logo, favicon and where Plotline shows
+- **Status:** Decided (SPEC §10, 2026-10-27)
+- **Findings:** `plotline-site/public/logo.svg` is the tile only (324×324, 52 kB, traced "km" paths, many unused clip-paths). The wordmark is live Fraunces 700 text beside the tile in plotline-site.
+- **Recommendation:**
+  - T11.3 optimizes the tile (svgo, drop unused clip-paths, target under 10 kB), then wraps it in a `PlotlineTile` and a `PlotlineLogo` (tile + live Fraunces text) component. The dark variant changes only the wordmark color (the tile keeps its palette, as the guide's secondary logo does on brown).
+  - Favicon: the optimized tile as `favicon.svg` (a single file, scales), plus a 180px `apple-touch-icon.png` rendered from it. The favicon is the Plotline tile on every venue's site.
+  - **Placement:** the public header keeps the venue name (it is the venue's site). Plotline appears in the admin header, the admin login, and a "Powered by Plotline" line with the small tile in the public footer. The tagline is not used in the app.
+  - `theme-color` meta for light and dark by media query.
+- **Sources:** `docs/BRAND.md`, the guide's minimum-size rule (32px wide; below that the tile alone).
+
+### Theme presets and avoiding a flash
+- **Status:** Decided (SPEC §10, 2026-10-27); the preset list was confirmed by the user on 2026-10-27
+- **Findings:** Five accent presets were computed in light and dark. All pass the link, ring and button-text pairs; `ink` is the accent used for links and rings, `fill` the button.
+
+  | Preset | Light ink / fill (text) | Dark ink = fill (text) | Notes |
+  | --- | --- | --- | --- |
+  | `plotline` (default) | `#56703f` / sage `#B7C4A8` (brown) | sage (brown) | the brand |
+  | `court-green` | `#0f7a55` / `#0f7a55` (white) | `#34c48b` (`#08140f`) | today's palette |
+  | `ocean` | `#1b6a9c` / same (white) | `#7cc0ea` (`#0b1a24`) | |
+  | `plum` | `#7a3b7d` / same (white) | `#d9a6dc` (`#2a132b`) | |
+  | `sunset` | `#a84a12` / same (white) | `#f0a068` (`#2a1305`) | |
+
+  Lowest ratios: ink on cards 5.12 (court-green dark), ink on the page 4.67 (court-green light), button text 5.34 (court-green light). Every preset keeps the Plotline neutrals (cream/brown surfaces, Fraunces/DM Sans); only the accent and the status tints change, so every venue still looks like Plotline.
+- **Recommendation:**
+  - A preset is a `[data-theme='<key>']` block that redefines only `--accent`, `--accent-hover`, `--btn`, `--btn-text` (and `--accent-soft`), light and dark. `plotline` is `:root` itself, so no attribute means the default.
+  - **No flash:** a small inline script in `index.html` reads `localStorage['plotline-theme']` (the last venue preset seen) and sets `document.documentElement.dataset.theme` before first paint, wrapped in try/catch. After `venue_settings` loads, the app sets the attribute and refreshes the cache. First-ever visit: the default shows until settings load (a one-time flash at worst). The inline script needs no CSP change (the app sets none; if one is added later, hash it).
+  - **Admin area:** follows the venue's preset (the owner sees what players see), and the settings picker previews the choice live without saving. Plotline's own logo colors never change.
+- **Sources:** computed table; plotline-site role-token pattern.
+
+### Google Maps links
+- **Status:** Decided (SPEC §10, 2026-10-27)
+- **Findings:**
+  - Link shapes in use: `https://www.google.com/maps/...` (including `/maps/place/<name>/@lat,lng`, `/maps?q=`, `/maps/search/?api=1&query=`), `https://maps.google.com/...`, `https://maps.app.goo.gl/<id>` (the app's Share link) and the legacy `https://goo.gl/maps/<id>`. Short links redirect server-side to a long URL; `fetch` from the browser is blocked by CORS, so the app cannot expand them.
+  - The player-side link is always opened with `target="_blank" rel="noopener noreferrer"`. A `javascript:` or `http:` URL must never be stored.
+- **Recommendation:**
+  - Column `venue_settings.maps_url text not null default ''`, with a check: empty, or `^https://(www\.google\.com/maps|maps\.google\.com|maps\.app\.goo\.gl|goo\.gl/maps)([/?#].*)?$`, no whitespace, at most 500 characters. The client runs the same pattern and shows the same message.
+  - The admin types the address (it is what players read). From a long `/maps/place/<name>/` link the client can pre-fill an empty address (URL-decode, `+` to space); short links cannot be expanded, so the field stays editable.
+  - **Backfill:** `maps_url = 'https://www.google.com/maps/search/?api=1&query=' || private.url_encode(coalesce(nullif(maps_query, ''), address))` (Postgres has no built-in `urlencode`, so T11.8 adds a small `private.url_encode` helper that percent-encodes every byte outside `A-Za-z0-9-_.~`). The encoded address can triple a 300-character address, so T11.8 raises the `maps_url` cap to 1000 characters and tests the backfill against a 300-character address` for rows that have an address, so existing venues keep a working pin. `maps_query` stays until the contract migration (T11.15, after the frontend that doesn't read it is deployed).
+  - The embedded map, `mapEmbedUrl`, `MAPS_EMBED_KEY` and the `.env.example` entry are removed in T11.9.
+- **Sources:** Google Maps URLs documentation (developers.google.com/maps/documentation/urls); the existing `venue_info` migration for the old column.
+
+### Payment accounts and QR codes
+- **Status:** Decided (SPEC §10, 2026-10-27)
+- **Recommendation:**
+  - Table `venue_payment_accounts (id uuid pk, label text 1–40, account_name text 0–80, account_number text 0–60, qr_path text null, position int, created_at)`. RLS: anyone selects, admins write (`private.is_admin()`); a unique `(position)` is not enforced (reordering uses the same swap approach as info sections). At most 10 rows (checked by a trigger or by the RPC the sections already use). `payment_instructions` stays as extra notes.
+  - QR images go in the `venue-media` bucket under `payment-qr/<uuid>.<ext>` (T11.10 must replace the `venue-media` insert and update policies, which only allow the first folder `courts` or `banner` (`20261018102500_venue_media.sql:60,70`), to also allow `payment-qr`; the path CHECK keeps `qr_path` under that prefix). Public read is fine: a QR code is the same information as the account number shown next to it.
+  - **Scannable:** QR codes are re-encoded as **PNG** (lossless), never WEBP-lossy or JPEG, with no resize unless the long side exceeds 1200px (then a canvas resize to 1200px, still PNG). Size cap 1 MB. A rendered QR keeps its quiet zone because the whole image is displayed `object-fit: contain` on a white tile.
+  - **Player card:** label, account name, number with a copy button, the QR (tap to open full size in a dialog), and "Save QR" (the Storage URL is on another origin, where browsers ignore `<a download>`, so use `getPublicUrl(path, { download: 'plotline-qr.png' })`, which serves it as an attachment; on phones the user long-presses or saves to Photos and scans from the gallery in GCash/bank apps). An account with no QR shows no image.
+- **Sources:** existing `venue-media` storage policies (RESEARCH M6); QR error-correction behaves badly under lossy compression, so lossless output is the safe choice.
+
+### Booking fee: where the amount due is read
+- **Status:** Decided (SPEC §10, 2026-10-27)
+- **Findings (every place that treats `bookings.total_amount` as the amount due; from `grep -rn total_amount supabase/migrations supabase/functions src`, latest definition of each function):**
+  - **Database, reads as the amount the player owes:**
+    - `public.proof_target` (`20261017034632_expire_holds_job.sql:31-63`) returns `total_amount` to both Edge Functions. This is the one `create-paymongo-checkout` turns into centavos (`index.ts:59-68`), and `submit-payment-proof` uses it too.
+    - `public.record_paymongo_payment`: the live body is in `20261022140512_open_play_sessions.sql` (about :398; the amount check at :450 compares `p_amount_centavos` with `total_amount * 100`). The late-payment/mismatch refund path hangs off that check. T11.12 must start from this body, not the older one in `20261018123355_paymongo_payments.sql`.
+    - `get_guest_booking` (`20261026131753_guest_booking_changes_chain.sql`) and the email payload builder (`20261019143330_email_outbox.sql:89`, key `total_amount`).
+    - `create_booking` / `create_walk_in` / `reschedule_booking` write the price snapshot.
+  - **Database, not the amount due:** `review_payment` never reads `total_amount` or `payments.amount` (the mismatch warning is client-side). `private.expire_holds()` only changes status. `record_payment_proof` takes `p_amount` from the player. `get_earnings` sums `payments.amount` for collected money (`20261025155529_earnings_summary.sql:43-127`); only `coming_up.value` (:154) sums `total_amount`.
+  - **Edge Functions:** `create-paymongo-checkout` (single line item from `proof_target`), `_shared/emailTemplates.ts:102` ("Total").
+  - **Client:** `BookingSummary.tsx:56,67` and `BookingPage.tsx:113` (passes `total` to `ProofForm`, which pre-fills the amount and warns on a mismatch, `ProofForm.tsx:26,67`), `ReviewPanel.tsx:56,114` (`amountMismatch`), `AdminBookingsPage.tsx:102`, the day-view query (`admin/api.ts:237`), `account/MyBookingsPage.tsx:91` (read through RLS), `admin/csv.ts:45`. `reschedule.ts`, `WalkInForm.tsx` and the dashboard don't read it as an amount due.
+- **Recommendation:**
+  - **Keep `total_amount` as the court price** (it already means that in earnings, rescheduling and the CSV, and renaming would touch every migration for no gain). Add `bookings.booking_fee numeric(10,2) not null default 0 check (>= 0)`. The amount due is a generated column `amount_due = total_amount + booking_fee`, so no function can forget the sum. Every place above that means "what the player pays" reads `amount_due`: `proof_target` (so checkout and proof forms), the `record_paymongo_payment` check, emails, guest and admin views, `ProofForm` and `ReviewPanel` mismatch warnings, My bookings and the CSV (which also gets a `booking_fee_php` column). Rescheduling keeps `total_amount` (court price only).
+  - **Source of the fee:** `platform_pricing (id boolean pk default true check (id), booking_fee numeric(10,2) not null)`, one row, selectable by anyone (the checkout shows it), no insert/update/delete grant to `anon`/`authenticated`, changed only by migration or the service role. `create_booking` copies it into `bookings.booking_fee` (a snapshot, so changing the price later never touches existing bookings).
+  - **Which bookings carry it:** online bookings only. `create_walk_in` and the `moved` continuations created by rescheduling write `booking_fee = 0`; existing rows are 0 (the default).
+  - **Rollout (production is live):** (1) migration adds the column, generated `amount_due` and `platform_pricing` with the fee at **0**; the old frontend keeps working because `total_amount` is unchanged and the fee is 0. (2) Deploy the frontend (T11.13) that displays court price, fee and total from the server, **and redeploy both Edge Functions** (`create-paymongo-checkout`, `send-emails`) with `npx supabase functions deploy`, since Vercel doesn't deploy them; run `smoke:paymongo` against the linked project's functions. If the fee became 10 before the checkout function was redeployed, PayMongo would charge only the court price and `record_paymongo_payment` would send every online payment down the mismatch/refund path. (3) Only then a data-only change sets `platform_pricing.booking_fee = 10`. `smoke:prod -- --links-only` runs after.
+  - **Refund path:** a late payment is refunded in full at the venue's discretion (SPEC non-goal: no in-app refunds), so the fee is part of the refund note; the fee is collected only when a booking is confirmed (see below).
+- **Sources:** `supabase/migrations/20261018123355_paymongo_payments.sql` (line 187), `20261017033337_proof_rpcs.sql`, `20261025155529_earnings_summary.sql`, `supabase/functions/create-paymongo-checkout/index.ts`, `docs/SAAS-PLAN.md` §5.
+
+### Earnings split
+- **Status:** Decided (SPEC §10, 2026-10-27)
+- **Recommendation:**
+  - Collected money today is `payments.amount` of approved payments by `reviewed_at` (T10.1's rule), which can differ from `total_amount` (walk-in discounts, proofs approved at another amount). So the three totals are defined to add up: **Plotline fees** = the sum of `booking_fee` of bookings with an approved payment in the range, minus bookings cancelled by the venue (`cancelled_by_venue`, SAAS-PLAN §5); **Total revenue** = the existing collected total (`payments.amount`); **Your earnings** = total revenue minus Plotline fees. For online bookings paid in full this equals court price + fee, and a mismatched payment never makes the parts disagree with the whole. Player cancellations keep their fee (no refunds).
+  - `get_earnings` gains the three values plus the previous period's, expand-only (new JSON keys; existing keys stay until the UI moves). UI note: "₱10 per confirmed online booking, paid by the player."
+- **Sources:** `docs/SAAS-PLAN.md` §5; `20261025155529_earnings_summary.sql`.
+
+### Walk-in feature flag
+- **Status:** Decided (SPEC §10, 2026-10-27)
+- **Recommendation:**
+  - `src/lib/features.ts`: `export const WALK_INS_ENABLED = import.meta.env.VITE_FEATURE_WALK_INS === 'true'`. Off unless the build sets it. Because it is a compile-time constant, Rollup drops `if (!WALK_INS_ENABLED)` branches and, with the `WalkInForm` import behind `WALK_INS_ENABLED && ...` (lazy), the form leaves the production bundle. `.env.example` lists it as `VITE_FEATURE_WALK_INS=false`; Vercel leaves it unset.
+  - The `create_walk_in` RPC stays in the database (a per-venue server-side ban comes with SaaS Phase 1). Existing walk-in bookings, labels, filters and earnings are untouched.
+  - **e2e:** the Playwright `webServer.env` sets `VITE_FEATURE_WALK_INS=true`, so the existing walk-in specs run. The "hidden when off" check is a component test with the flag mocked (the e2e server runs a single mode).
+- **Sources:** Vite env docs (`import.meta.env` values are replaced statically at build time).
