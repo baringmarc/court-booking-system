@@ -7,8 +7,8 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
 > Update this section at the end of every session or task. Keep it short; it's the first thing the next session reads.
 
 - **Current milestone:** M10 Product improvements, **approved by the user on 2026-10-25** (breakdown below; background in `docs/SAAS-PLAN.md` §7a). M9 ✅ done on 2026-10-23 (M1–M9 all done; SPEC v1.0). After M10 come the SaaS milestones (M11+, `docs/SAAS-PLAN.md`), each with its own breakdown and approval.
-- **Next task:** T10.9 Research and migration: rescheduling (DB: stops at its plan gate; the design is decided in RESEARCH M10 and SPEC §10). Still the user's: run `npm run smoke:prod -- --links-only` and record the demo video from `docs/demo-script.md`. Optional: a Maps Embed API key (`VITE_GOOGLE_MAPS_EMBED_KEY`, see below).
-- **State:** T10.1–T10.8 done (2026-10-26). The pickers, merged grid blocks, dashboard earnings and CSV export are on `develop`. On the linked project, `get_availability.block_key` and `get_earnings` are live (expand only). M8 deploy: https://court-booking-system-ashen.vercel.app.
+- **Next task:** T10.10 Rescheduling UI and email (add the `booking_rescheduled` template to `supabase/functions/_shared/emailTemplates.ts`). Still the user's: run `npm run smoke:prod -- --links-only` and record the demo video from `docs/demo-script.md`. Optional: a Maps Embed API key (`VITE_GOOGLE_MAPS_EMBED_KEY`, see below).
+- **State:** T10.1–T10.9 done (2026-10-26); `reschedule_booking`, `booking_changes` and the extended `get_guest_booking` are live on the linked project (no UI yet). The pickers, merged grid blocks, dashboard earnings and CSV export are on `develop`. On the linked project, `get_availability.block_key` and `get_earnings` are live (expand only). M8 deploy: https://court-booking-system-ashen.vercel.app.
 - **Blockers / notes:**
   - Emails locally: `supabase/functions/.env` must keep `EMAIL_TRANSPORT=mailpit`, `MAILPIT_URL` and `EMAIL_WORKER_SECRET` (see `.env.example`) for smoke and e2e. Restart the stack after changing it. Your PayMongo test key is commented out there; uncomment it only for real local test payments, and expect `pay-online` e2e and `smoke:paymongo` to fail while it's active.
   - Scope added on 2026-10-19 (SPEC §9, §10, §11): slot status colors are in T8.5, the settings spacing fix is in T8.4, and M9 is outlined at the end of this file. The README moved there. Booker names are **first name only** in public. A court can be deleted only if it was never booked.
@@ -1366,7 +1366,7 @@ Out of scope for M10: multiple venues, billing and Plotline fees (M11+), a rain-
   - **Evidence:** `csv.test.ts` (12 tests: quotes, commas, newlines, every formula prefix, the peso sign, an empty range, both files); `EarningsSection.test.tsx` (range bounds, contact details off and on, the payments file, a failure); e2e `earnings.spec.ts` downloads both files and checks the names, the BOM and header, and a row in each.
   - verify passes (580 Vitest, 726 pgTAP); e2e 47 passed, 1 skipped. The reviewer passed it; its 3 minors are fixed (a deferred `revokeObjectURL`, no invented court or sport, the e2e's operating-day assumption written down).
 
-### [ ] T10.9 Research and migration: rescheduling
+### [x] T10.9 Research and migration: rescheduling
 - **Depends:** T10.1
 - **Do:** RPC `reschedule_booking(booking_id, from_start, new_court_id, new_start, reason)`, admin only, for `confirmed` bookings only. The reason is required.
   - **Not started yet** (`from_start` = the booking's start): the whole booking moves. Same row, reference and guest link; `court_id` and `during` change.
@@ -1379,7 +1379,7 @@ Out of scope for M10: multiple venues, billing and Plotline fees (M11+), a rain-
   - **The new range:** a court of the **same sport**, the same number of hours, free, within operating hours, not blacked out, not open play, and not already ended (walk-in rules: the hour in progress is allowed). Checked with `validate_booking_slot` under `lock_court_slots`; the exclusion constraint backs it up.
   - **Price:** unchanged. No new payment, no new charge.
   - **`booking_changes` table:** booking, old court and range, new court and range, continuation id, reason, `changed_by`, `changed_at`. Admins read; only the RPC writes.
-  - **Invariant change:** "every confirmed booking has exactly one approved payment" now excludes `source = 'moved'`, which must have a confirmed parent and no payments. Update the checks and every function that assumes it.
+  - **Invariant change:** "every confirmed booking has exactly one approved payment" now excludes `source = 'moved'`, which must have a root booking and no payments. Update the checks and every function that assumes it.
   - **Email:** a new outbox kind `booking_rescheduled`, one per `booking_changes` row (exempt from the per-booking uniqueness, like `proof_rejected`), sent to the booking's contact. Walk-ins are still never emailed.
   - **Guest and player reads:**
     - `get_guest_booking` returns the booking's continuation(s) and change history (old time, new time, reason).
@@ -1394,6 +1394,7 @@ Out of scope for M10: multiple venues, billing and Plotline fees (M11+), a rain-
   - The original is shortened correctly and the continuation is created with the right fields. Payments are untouched.
   - The invariant holds; a `booking_changes` row is written; one email row per change; the guest read shows both; claims and cancel work on continuations.
   - `db:push` and `db:types` have been run.
+- **Notes:** The user approved the plan on 2026-10-26. Migrations `20261026130653_reschedule_enums`, `20261026130654_rescheduling` and `20261026131753_guest_booking_changes_chain` (a review fix: a root's guest history also lists changes to its continuations), all pushed to the linked project, types regenerated. 78 pgTAP tests in `30_reschedule.test.sql`. "A different length" can't be a separate case (the RPC derives the moved length), so it shows up as `outside_hours` or a clash (SPEC §10). The only UI change is a `Moved` source label in `BookingFiltersBar` so the types still compile. verify passes; e2e 46 passed, 2 skipped. The reviewer passed it; its major and 3 minors are fixed. Follow-up for T10.10: the `booking_rescheduled` email has no template yet, so a reschedule on the linked project before then would queue rows that fail in `send-emails`.
 
 ### [ ] T10.10 Rescheduling UI and email
 - **Depends:** T10.9, T10.5
