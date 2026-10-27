@@ -3,6 +3,7 @@ import {
   adminCancelBooking,
   adminKeys,
   createWalkIn,
+  fetchActiveMovedParts,
   fetchAdminBookings,
   fetchBookingsForExport,
   fetchPaymentsForExport,
@@ -27,11 +28,14 @@ import {
   removeAmenity,
   type InfoSectionInput,
   reviewPayment,
+  rescheduleBooking,
+  type Reschedule,
   type BannerInput,
   type WalkInInput,
 } from './api'
 import { catalogKeys, updateVenueSettings, type Court, type CourtPhotoRow, type CourtWithPhotos, type Sport, type VenueSettings } from '../catalog/api'
 import { moveCourtInList } from '../catalog/sportOrder'
+import { accountKeys } from '../account/hooks'
 import { bookingKeys } from '../booking/hooks'
 import { openPlayKeys, type OpenPlayInput } from '../openPlay/api'
 import { venueKeys, type Amenity } from '../venue/api'
@@ -79,8 +83,35 @@ export function useAdminCancelBooking() {
     onSettled: () => Promise.all([
       qc.invalidateQueries({ queryKey: adminKeys.allBookings }),
       qc.invalidateQueries({ queryKey: adminKeys.proofQueue }),
+      qc.invalidateQueries({ queryKey: adminKeys.allMovedParts }),
       qc.invalidateQueries({ queryKey: bookingKeys.allAvailability }),
     ]),
+  })
+}
+
+/** Staff move a booking: every view of bookings, the grids, earnings (hours moved days) and the player's pages refresh. */
+export function useRescheduleBooking() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: Reschedule) => rescheduleBooking(input),
+    onSettled: () => Promise.all([
+      qc.invalidateQueries({ queryKey: adminKeys.allBookings }),
+      qc.invalidateQueries({ queryKey: adminKeys.allEarnings }),
+      qc.invalidateQueries({ queryKey: adminKeys.allMovedParts }),
+      qc.invalidateQueries({ queryKey: bookingKeys.allAvailability }),
+      qc.invalidateQueries({ queryKey: bookingKeys.allDetails }),
+      qc.invalidateQueries({ queryKey: accountKeys.allMyBookings }),
+    ]),
+  })
+}
+
+/** The moved parts of a booking that are still booked, for the cancel form's warning. */
+export function useActiveMovedParts(bookingId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: adminKeys.movedParts(bookingId),
+    queryFn: () => fetchActiveMovedParts(bookingId),
+    enabled,
+    staleTime: 15_000,
   })
 }
 

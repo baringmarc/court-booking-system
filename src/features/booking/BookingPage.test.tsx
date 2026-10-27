@@ -42,6 +42,7 @@ function booking(overrides: Partial<BookingDetail> = {}): BookingDetail {
     status: 'pending_payment', total_amount: 900, expires_at: new Date(Date.now() + 30 * 60_000).toISOString(),
     rejection_count: 0, guest_name: 'Gina Guest', guest_email: 'gina@example.com', created_at: new Date().toISOString(),
     payments: [], cancelled_at: null, cancel_reason: null, cancelled_by_venue: false, user_id: null,
+    parent_reference_code: null, continuations: [], changes: [],
     ...overrides,
   }
 }

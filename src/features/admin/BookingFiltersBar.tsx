@@ -2,7 +2,7 @@ import { Constants } from '../../lib/database.types'
 import { STATUS_LABELS } from '../booking/status'
 import type { BookingFilters } from './bookingFilters'
 
-const SOURCE_LABELS = { online: 'Online', walk_in: 'Walk-in' } as const
+const SOURCE_LABELS = { online: 'Online', walk_in: 'Walk-in', moved: 'Moved' } as const
 
 export function BookingFiltersBar({ filters, onChange }: { filters: BookingFilters; onChange: (next: BookingFilters) => void }) {
   return (

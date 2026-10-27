@@ -84,6 +84,81 @@ export type Database = {
           },
         ]
       }
+      booking_changes: {
+        Row: {
+          booking_id: string
+          changed_at: string
+          changed_by: string | null
+          continuation_id: string | null
+          id: string
+          new_court_id: string
+          new_during: unknown
+          old_court_id: string
+          old_during: unknown
+          reason: string
+        }
+        Insert: {
+          booking_id: string
+          changed_at?: string
+          changed_by?: string | null
+          continuation_id?: string | null
+          id?: string
+          new_court_id: string
+          new_during: unknown
+          old_court_id: string
+          old_during: unknown
+          reason: string
+        }
+        Update: {
+          booking_id?: string
+          changed_at?: string
+          changed_by?: string | null
+          continuation_id?: string | null
+          id?: string
+          new_court_id?: string
+          new_during?: unknown
+          old_court_id?: string
+          old_during?: unknown
+          reason?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_changes_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_changes_changed_by_fkey"
+            columns: ["changed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_changes_continuation_id_fkey"
+            columns: ["continuation_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_changes_new_court_id_fkey"
+            columns: ["new_court_id"]
+            isOneToOne: false
+            referencedRelation: "courts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_changes_old_court_id_fkey"
+            columns: ["old_court_id"]
+            isOneToOne: false
+            referencedRelation: "courts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bookings: {
         Row: {
           cancel_reason: string | null
@@ -100,6 +175,7 @@ export type Database = {
           guest_phone: string | null
           guest_token_hash: string | null
           id: string
+          parent_booking_id: string | null
           reference_code: string
           rejection_count: number
           source: Database["public"]["Enums"]["booking_source"]
@@ -123,6 +199,7 @@ export type Database = {
           guest_phone?: string | null
           guest_token_hash?: string | null
           id?: string
+          parent_booking_id?: string | null
           reference_code: string
           rejection_count?: number
           source?: Database["public"]["Enums"]["booking_source"]
@@ -146,6 +223,7 @@ export type Database = {
           guest_phone?: string | null
           guest_token_hash?: string | null
           id?: string
+          parent_booking_id?: string | null
           reference_code?: string
           rejection_count?: number
           source?: Database["public"]["Enums"]["booking_source"]
@@ -174,6 +252,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookings_parent_booking_id_fkey"
+            columns: ["parent_booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
             referencedColumns: ["id"]
           },
           {
@@ -286,6 +371,7 @@ export type Database = {
         Row: {
           attempts: number
           booking_id: string
+          change_id: string | null
           created_at: string
           data: Json
           for_guest: boolean
@@ -302,6 +388,7 @@ export type Database = {
         Insert: {
           attempts?: number
           booking_id: string
+          change_id?: string | null
           created_at?: string
           data: Json
           for_guest: boolean
@@ -318,6 +405,7 @@ export type Database = {
         Update: {
           attempts?: number
           booking_id?: string
+          change_id?: string | null
           created_at?: string
           data?: Json
           for_guest?: boolean
@@ -337,6 +425,13 @@ export type Database = {
             columns: ["booking_id"]
             isOneToOne: false
             referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_outbox_change_id_fkey"
+            columns: ["change_id"]
+            isOneToOne: false
+            referencedRelation: "booking_changes"
             referencedColumns: ["id"]
           },
           {
@@ -814,6 +909,8 @@ export type Database = {
           cancel_reason: string
           cancelled_at: string
           cancelled_by_venue: boolean
+          changes: Json
+          continuations: Json
           court_id: string
           court_name: string
           created_at: string
@@ -821,6 +918,7 @@ export type Database = {
           guest_email: string
           guest_name: string
           id: string
+          parent_reference_code: string
           payment_instructions: string
           payments: Json
           reference_code: string
@@ -897,6 +995,20 @@ export type Database = {
         Args: { p_court_id: string; p_ids: string[] }
         Returns: undefined
       }
+      reschedule_booking: {
+        Args: {
+          p_booking_id: string
+          p_from_start: string
+          p_new_court_id: string
+          p_new_start: string
+          p_reason: string
+        }
+        Returns: {
+          change_id: string
+          continuation_id: string
+          continuation_reference: string
+        }[]
+      }
       review_payment: {
         Args: { p_approve: boolean; p_booking_id: string; p_note?: string }
         Returns: {
@@ -918,7 +1030,7 @@ export type Database = {
       }
     }
     Enums: {
-      booking_source: "online" | "walk_in"
+      booking_source: "online" | "walk_in" | "moved"
       booking_status:
         | "pending_payment"
         | "payment_submitted"
@@ -931,6 +1043,7 @@ export type Database = {
         | "payment_confirmed"
         | "proof_rejected"
         | "booking_cancelled"
+        | "booking_rescheduled"
       email_status: "pending" | "sending" | "sent" | "skipped" | "failed"
       payment_method: "gcash" | "maya" | "bank_transfer" | "cash" | "paymongo"
       payment_review_status: "pending" | "approved" | "rejected"
@@ -1074,7 +1187,7 @@ export const Constants = {
   },
   public: {
     Enums: {
-      booking_source: ["online", "walk_in"],
+      booking_source: ["online", "walk_in", "moved"],
       booking_status: [
         "pending_payment",
         "payment_submitted",
@@ -1088,6 +1201,7 @@ export const Constants = {
         "payment_confirmed",
         "proof_rejected",
         "booking_cancelled",
+        "booking_rescheduled",
       ],
       email_status: ["pending", "sending", "sent", "skipped", "failed"],
       payment_method: ["gcash", "maya", "bank_transfer", "cash", "paymongo"],

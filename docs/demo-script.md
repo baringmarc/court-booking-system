@@ -1,11 +1,12 @@
 # Demo video script
 
-A walkthrough of Claudex Courts, about 3 to 4 minutes. Record it at 1080p, with one browser window for the player (phone size, 390 × 844 in device mode) and one for staff (desktop). Use the local stack with demo data (`npm run screenshots` shows how to set it up), or the live demo in PayMongo test mode.
+A walkthrough of Claudex Courts, about 4 to 5 minutes. Record it at 1080p, with one browser window for the player (phone size, 390 × 844 in device mode) and one for staff (desktop). Use the local stack with demo data (`npm run screenshots` shows how to set it up), or the live demo in PayMongo test mode.
 
 **Before recording:**
 - Pick a date 3 days ahead with free pickleball slots, and create an open play session on it (10 AM to 12 PM).
 - Set the venue's address, a few amenities and social links in `/admin/settings`.
 - Have an admin account signed in on the desktop window.
+- Have one confirmed booking for later today or tomorrow (book it, upload a proof, approve it) to reschedule in scene 6, and a few paid bookings so the earnings have numbers. Use `npm run db:reset:local` first if the local data is cluttered with test runs.
 
 ---
 
@@ -17,7 +18,7 @@ A walkthrough of Claudex Courts, about 3 to 4 minutes. Record it at 1080p, with 
 
 ## 2. Picking a time (0:30 to 1:05), phone
 
-**On screen:** Book now, then switch to Pickleball and go 3 days ahead. Point at the legend. Tap an "Open play" slot to show the details dialog with the RSVP link, then close it. Tap 1 PM, then 2 PM, to extend the selection. Show the selection bar with the total.
+**On screen:** Book now, then open the date calendar, pick the day 3 days ahead, and switch to Pickleball. Point at the legend and at the open play session, which is one block over its two hours. Tap an "Open play" slot to show the details dialog with the RSVP link, then close it. Tap 1 PM, then 2 PM, to extend the selection. Show the selection bar with the total.
 
 **Narration:** "The grid is live. Each slot shows its time range and price. Booked, closed and open play slots look different in more than colour. Open play can't be booked here; it shows the session's details and links instead. Prices come from the server, by day and hour."
 
@@ -33,18 +34,26 @@ A walkthrough of Claudex Courts, about 3 to 4 minutes. Record it at 1080p, with 
 
 **Narration:** "Players can also pay by GCash or bank transfer and upload a receipt. Staff see the proof next to the amount, approve it or reject it with a reason, and the player can upload again."
 
-## 5. Running the venue (2:20 to 3:10), desktop
+## 5. Running the venue (2:20 to 3:15), desktop
 
 **On screen:**
-- The dashboard: today's courts with full names, the proofs to review and today's takings.
-- "+ Walk-in": record one.
+- The dashboard: today's courts with full names (a booking is one block over its hours), the proofs to review, and the earnings. Switch between Today, This week and This month, point at the collected total per method, the change from the period before, the occupancy table and the daily bars, then use "Export bookings (CSV)" and "Export payments (CSV)".
+- "+ Walk-in": record one. (Since T11.2 this is hidden in production builds unless `VITE_FEATURE_WALK_INS=true`; skip it on the Vercel site, or show it locally. T11.16 rewrites this script.)
 - Open play: create a session, and show the error when it overlaps a booking.
 - Schedule: set a day that closes at 2 AM, and point out "closes next day".
 - Settings: tick an amenity.
 
-**Narration:** "The admin area is a separate, lazy-loaded app shell. Walk-ins, open play, overnight hours and the venue's details are all managed here. The rules are enforced in Postgres: an exclusion constraint makes double booking impossible, and every write goes through a checked RPC."
+**Narration:** "The admin area is a separate, lazy-loaded app shell. The dashboard shows what came in, by payment method, and how full the courts are. Walk-ins, open play, overnight hours and the venue's details are all managed here. The rules are enforced in Postgres: an exclusion constraint makes double booking impossible, and every write goes through a checked RPC."
 
-## 6. How it's built (3:10 to 3:40), desktop
+## 6. Moving a booking (3:15 to 3:55), desktop, then phone
+
+**On screen:** Admin → Bookings, open the confirmed booking, and press "Reschedule". Pick tomorrow and another pickleball court (only same-sport courts are offered, and only starts where every hour is free) and a start hour, then save without a reason to show the message. Type "Rain: the court is wet" and save. Switch to the player's phone window and reload the booking's private link: it shows "Schedule changes" with the new time and the reason. Open Mailpit to show the email.
+
+If the booking has already started (do this with a booking made for the current hour, inserted locally), choose "Move from" the next hour: the first hour stays, and the rest becomes its own booking with its own reference, which the player sees in "Schedule changes" ("1 hour moved to …").
+
+**Narration:** "Rain happens. Staff can move a confirmed booking to another court or time, and the player sees why. The price and payment don't change. If the booking has already started, only the rest moves, as a separate booking that shares the same private link, so nothing already played is rewritten. Every change is kept in a history table, and the player gets an email."
+
+## 7. How it's built (3:55 to 4:25), desktop
 
 **On screen:** briefly show the repo: the migrations folder, a pgTAP test, `npm run verify` passing in a terminal, and the Playwright report at phone size.
 

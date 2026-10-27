@@ -16,7 +16,7 @@ const data: EmailData = {
 }
 const site = 'https://claudex.example'
 const TOKEN = 'tok_SECRET-123'
-const KINDS: EmailKind[] = ['booking_created', 'payment_confirmed', 'proof_rejected', 'booking_cancelled']
+const KINDS: EmailKind[] = ['booking_created', 'payment_confirmed', 'proof_rejected', 'booking_cancelled', 'booking_rescheduled']
 
 describe('renderEmail', () => {
   it('shows the booking facts in the venue timezone and currency', () => {
@@ -93,6 +93,49 @@ describe('renderEmail', () => {
     expect(byPlayer.text).not.toContain('Reason:')
   })
 
+  it('a reschedule names the new court and time, the old ones and the reason', () => {
+    const moved: EmailData = {
+      ...data,
+      starts_at: '2030-01-07T10:00:00+00:00', // the root, as it is after the move (unused here)
+      ends_at: '2030-01-07T11:00:00+00:00',
+      old_court_name: 'Badminton 1',
+      old_starts_at: '2030-01-07T10:00:00+00:00', // 6 PM
+      old_ends_at: '2030-01-07T12:00:00+00:00',
+      new_court_name: 'Badminton 2',
+      new_starts_at: '2030-01-08T08:00:00+00:00', // 4 PM next day
+      new_ends_at: '2030-01-08T10:00:00+00:00',
+      reason: 'Rain flooded the court',
+    }
+    const { subject, text, html } = renderEmail({ kind: 'booking_rescheduled', data: moved, site, forGuest: false })
+    expect(subject).toBe('Booking CB-7KQ2XD was moved')
+    expect(text).toContain('Claudex Courts moved your booking to a new time.')
+    expect(text).toMatch(/Moved to: Badminton 2, Tue, Jan 8, 2030, 4:00\s?PM–6:00\s?PM/)
+    expect(text).toMatch(/Was: Badminton 1, Mon, Jan 7, 2030, 6:00\s?PM–8:00\s?PM/)
+    expect(text).toContain('Reason: Rain flooded the court')
+    expect(text).toContain('Reference: CB-7KQ2XD')
+    expect(text).toContain('Open your booking: https://claudex.example/booking/CB-7KQ2XD\n')
+    expect(html).toContain('Badminton 2')
+  })
+
+  it('a split reschedule gives the moved part its own reference', () => {
+    const { text } = renderEmail({
+      kind: 'booking_rescheduled',
+      data: { ...data, new_court_name: 'Badminton 2', new_starts_at: '2030-01-08T08:00:00+00:00', new_ends_at: '2030-01-08T09:00:00+00:00', continuation_reference: 'CB-MOVED1', reason: 'Rain' },
+      site,
+      forGuest: false,
+    })
+    expect(text).toContain('moved the rest of your booking')
+    expect(text).toContain('The moved hours have their own reference, CB-MOVED1.')
+    expect(text).toContain('Reference: CB-MOVED1')
+    expect(text).not.toContain('Was:') // no old range in this snapshot
+  })
+
+  it('escapes a reschedule reason from staff in the HTML', () => {
+    const { html } = renderEmail({ kind: 'booking_rescheduled', data: { ...data, reason: '<script>x</script>' }, site, forGuest: false })
+    expect(html).not.toContain('<script>')
+    expect(html).toContain('&lt;script&gt;x&lt;/script&gt;')
+  })
+
   it('payment_confirmed confirms', () => {
     expect(renderEmail({ kind: 'payment_confirmed', data, site, forGuest: false }).subject).toBe('Booking CB-7KQ2XD is confirmed')
   })
@@ -117,6 +160,7 @@ describe('shouldSkip', () => {
     for (const status of ['pending_payment', 'payment_submitted', 'confirmed'] as const) expect(shouldSkip('booking_created', status)).toBe(false)
     expect(shouldSkip('booking_cancelled', 'cancelled')).toBe(false)
     expect(shouldSkip('proof_rejected', 'rejected')).toBe(false)
+    expect(shouldSkip('booking_rescheduled', 'confirmed')).toBe(false)
   })
 })
 

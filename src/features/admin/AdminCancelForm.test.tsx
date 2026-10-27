@@ -23,6 +23,15 @@ describe('AdminCancelForm', () => {
     expect(screen.getByText(/settle any refund outside the app/)).toBeInTheDocument()
   })
 
+  it('warns that moved parts stay booked, naming them', () => {
+    const { rerender } = render(<AdminCancelForm paid={false} movedParts={['CB-MOVEDA']} pending={false} error={null} onCancel={vi.fn()} />)
+    expect(screen.getByRole('status')).toHaveTextContent('The moved part CB-MOVEDA stay booked: cancel it separately if they should go too.')
+    rerender(<AdminCancelForm paid={false} movedParts={['CB-MOVEDA', 'CB-MOVEDB']} pending={false} error={null} onCancel={vi.fn()} />)
+    expect(screen.getByRole('status')).toHaveTextContent('The moved parts CB-MOVEDA, CB-MOVEDB stay booked: cancel them separately')
+    rerender(<AdminCancelForm paid={false} pending={false} error={null} onCancel={vi.fn()} />)
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
   it('shows the server error and disables the button while cancelling', () => {
     const error = new ApiError('This booking has already ended.', 'P0001', 'booking_ended')
     const { rerender } = render(<AdminCancelForm paid={false} pending={false} error={error} onCancel={vi.fn()} />)

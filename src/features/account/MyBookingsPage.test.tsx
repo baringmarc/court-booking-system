@@ -18,7 +18,7 @@ const settings = { timezone: 'Asia/Manila', currency: 'PHP' } as VenueSettings
 const booking = (ref: string, startIso: string, overrides: Partial<MyBooking> = {}): MyBooking => ({
   id: ref, reference_code: ref, court_name: 'Badminton 1', sport: 'badminton',
   slot_start: startIso, slot_end: new Date(Date.parse(startIso) + 3_600_000).toISOString(),
-  status: 'confirmed', expires_at: null, total_amount: 450, ...overrides,
+  status: 'confirmed', expires_at: null, total_amount: 450, parent_booking_id: null, ...overrides,
 })
 const confirmedPlayer = () => authState('player', {
   user: { id: 'player-id', email: 'player@example.com', email_confirmed_at: '2030-01-01T00:00:00Z' } as User,
@@ -63,6 +63,20 @@ describe('MyBookingsPage', () => {
     expect(within(past).getByText('Completed')).toBeInTheDocument()
     expect(within(past).getByText('Cancelled')).toBeInTheDocument()
     expect(fetchMyBookings).toHaveBeenCalledWith('player-id')
+  })
+
+  it('labels a moved part with the booking it was split from', async () => {
+    vi.mocked(fetchMyBookings).mockResolvedValue([
+      booking('CB-ROOTAA', '2099-01-08T10:00:00.000Z'),
+      booking('CB-MOVEDA', '2099-01-09T10:00:00.000Z', { parent_booking_id: 'CB-ROOTAA' }),
+      booking('CB-ORPHAN', '2099-01-10T10:00:00.000Z', { parent_booking_id: 'gone' }),
+    ])
+    renderPage()
+    const upcoming = await screen.findByRole('list', { name: 'Upcoming bookings' })
+    expect(within(upcoming).getByRole('link', { name: /CB-MOVEDA.*Moved part of CB-ROOTAA/ })).toBeInTheDocument()
+    expect(within(upcoming).getByRole('link', { name: /CB-ORPHAN.*Moved part(?! of)/ })).toBeInTheDocument()
+    const root = within(upcoming).getAllByRole('link').find((a) => a.getAttribute('href') === '/booking/CB-ROOTAA')!
+    expect(root).not.toHaveTextContent('Moved part')
   })
 
   it('has an empty state with a way to book', async () => {

@@ -9,9 +9,9 @@ const payment = (overrides: Partial<AdminPayment>): AdminPayment => ({
   provider_payment_id: 'pay_1', provider_source: 'gcash', ...overrides,
 })
 const booking = (payments: AdminPayment[], status: AdminBooking['status'] = 'confirmed'): AdminBooking => ({
-  id: 'b1', reference_code: 'CB-7KQ2XD', court_name: 'Badminton 1', slot_start: '2030-01-07T09:00:00.000Z', slot_end: '2030-01-07T10:00:00.000Z',
+  id: 'b1', reference_code: 'CB-7KQ2XD', court_id: 'c1', court_name: 'Badminton 1', sport: 'badminton', slot_start: '2030-01-07T09:00:00.000Z', slot_end: '2030-01-07T10:00:00.000Z',
   status, source: 'online', total_amount: 900, expires_at: null, rejection_count: 0, guest_name: 'Gina Guest', guest_email: null,
-  guest_phone: null, created_at: '2030-01-07T01:00:00.000Z', payments, cancelled_at: null, cancel_reason: null, cancelled_by_venue: false,
+  guest_phone: null, created_at: '2030-01-07T01:00:00.000Z', payments, cancelled_at: null, cancel_reason: null, cancelled_by_venue: false, parent_booking_id: null,
 })
 
 const renderRow = (b: AdminBooking) => render(<ul><li><BookingRow booking={b} timeZone="Asia/Manila" currency="PHP" /></li></ul>)

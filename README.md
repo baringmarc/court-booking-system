@@ -6,9 +6,9 @@ A court booking web app for a single multi-sport venue in the Philippines: badmi
 
 This is a portfolio project. The product spec is [SPEC.md](SPEC.md), the work plan is [TASKS.md](TASKS.md), and the research behind each decision (with sources) is in [RESEARCH.md](RESEARCH.md).
 
-| Booking on a phone | Open play details | Admin dashboard |
+| Booking on a phone | Open play details | Rescheduling a booking |
 | --- | --- | --- |
-| ![The /book slot grid at 360px, with open play slots](docs/screenshots/book-phone.png) | ![The open play details dialog](docs/screenshots/open-play-details-phone.png) | ![The admin dashboard at 360px](docs/screenshots/admin-dashboard-phone.png) |
+| ![The /book slot grid at 360px, with one merged open play block](docs/screenshots/book-phone.png) | ![The open play details dialog](docs/screenshots/open-play-details-phone.png) | ![The admin reschedule form at 360px](docs/screenshots/admin-reschedule-phone.png) |
 
 More screenshots, at phone and desktop sizes, are in [docs/screenshots](docs/screenshots). The demo video script is [docs/demo-script.md](docs/demo-script.md).
 
@@ -16,13 +16,15 @@ More screenshots, at phone and desktop sizes, are in [docs/screenshots](docs/scr
 
 **Players** (guests or signed-in):
 - Browse courts with photo galleries, the venue's amenities, location (with a map) and policies.
-- Pick consecutive one-hour slots on a live grid. It shows each slot's time range and price, and marks booked, closed, open play and past slots, also for opening hours that run past midnight.
+- Pick a date from a calendar (or Today, Tomorrow and the arrows), then consecutive one-hour slots on a live grid. It shows each slot's time range and price, marks booked, closed, open play and past slots, and merges the hours of one booking, session or closure into a single block. It also handles opening hours that run past midnight.
 - Check out as a guest (name, email, phone) or with an account. The slot is held while the player pays.
 - Pay online with PayMongo (GCash, Maya, card, QR Ph; test mode), confirmed automatically by a signed webhook. Or pay manually and upload a receipt, which staff review.
-- Manage the booking from a private link (guests) or from My bookings (accounts). Cancel up to the venue's cutoff.
+- Manage the booking from a private link (guests) or from My bookings (accounts). Cancel up to the venue's cutoff. If staff move a booking, the page shows the new time and the reason, and the player gets an email.
 
 **Staff** (the `/admin` area, lazy-loaded so players never download it):
 - See today's courts with each booker's name, review payment proofs, and record walk-ins.
+- Follow the money on the dashboard: what was collected per payment method for a day, week, month or custom range (with the change from the period before), booked hours and occupancy per court and sport, a daily chart, and what's coming up. Export bookings and payments to CSV (contact details only when ticked).
+- Reschedule a confirmed booking to another court of the same sport or another time, with a reason the player sees. Once a booking has started, the rest of it moves as a booking of its own, so nothing already played is rewritten.
 - Edit courts, rates by day and hour, opening hours (including overnight and 24 hours), blackouts and photos.
 - Create one-off open play sessions that block courts and show their details and RSVP links to players.
 - Set the venue's location, social links, info sections (waiver, policies, house rules) and amenities.
@@ -32,9 +34,9 @@ More screenshots, at phone and desktop sizes, are in [docs/screenshots](docs/scr
 - **Frontend:** Vite, React 19, TypeScript (strict), React Router 7, TanStack Query; lucide-react for the amenity icons. Plain CSS with light and dark themes, mobile-first.
 - **Backend:** Supabase. That's Postgres with Row Level Security, Auth (email and Google), Storage, Edge Functions (Deno), and pg_cron with pg_net for background jobs.
 - **Payments:** PayMongo Checkout Sessions in test mode, through two Edge Functions.
-- **Email:** a transactional outbox drained by an Edge Function. Locally it delivers to Mailpit; email is switched off on the live demo.
+- **Email:** a transactional outbox drained by an Edge Function (booking created, payment confirmed, proof rejected, cancelled and rescheduled). Locally it delivers to Mailpit; email is switched off on the live demo.
 - **Hosting:** Vercel for the SPA. One hosted Supabase project.
-- **Tests:** Vitest with Testing Library (about 500 tests), pgTAP (about 690 database tests), and Playwright end to end on desktop and a 360px phone, with axe accessibility checks.
+- **Tests:** Vitest with Testing Library (about 630 tests), pgTAP (about 800 database tests), and Playwright end to end on desktop and a 360px phone, with axe accessibility checks.
 
 ## Architecture
 
@@ -50,7 +52,8 @@ pg_cron ──> expire_holds() every minute; kicks send-emails when the outbox h
 
 The rules live in the database, not just in the UI:
 - **No double booking.** An exclusion constraint on `bookings (court_id, during tstzrange)` makes overlaps impossible.
-- **One write path.** Bookings are written only through RPCs (`create_booking`, `create_walk_in`, `cancel_booking`, `review_payment`), and prices are computed on the server.
+- **One write path.** Bookings are written only through RPCs (`create_booking`, `create_walk_in`, `cancel_booking`, `review_payment`, `reschedule_booking`), and prices are computed on the server.
+- **Rescheduling keeps the history.** A move writes a `booking_changes` row, and a split during play creates a continuation booking (₱0, no payment of its own, the same private link), so the original is only shortened.
 - **Open play.** Sessions and bookings can't overlap. Because that rule spans two tables, each side checks the other under a per-court advisory lock.
 - **RLS on every table**, with admin checks through `private.is_admin()`. Guests reach their booking with a random token that's stored only as a hash and kept in the URL fragment, which browsers never send to servers.
 - **Timezone.** Times are `timestamptz` and shown in Asia/Manila. An "operating day" can run past midnight, and a 1 AM slot belongs to the day before.

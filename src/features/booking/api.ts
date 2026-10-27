@@ -42,6 +42,59 @@ function toPaymentAttempts(value: unknown): PaymentAttempt[] {
     .sort((a, b) => a.submitted_at.localeCompare(b.submitted_at))
 }
 
+/** A booking created for the hours staff moved after a split (T10.9). It has its own reference but no payment. */
+export type BookingContinuation = {
+  reference_code: string
+  court_name: string
+  slot_start: string
+  slot_end: string
+  status: BookingStatus
+}
+
+/** One staff reschedule: the part that moved, where it went and why (booking_changes). */
+export type BookingChange = {
+  old_court_name: string
+  old_start: string
+  old_end: string
+  new_court_name: string
+  new_start: string
+  new_end: string
+  /** The reference of the booking created for the moved hours; null when the whole booking moved. */
+  continuation_reference: string | null
+  reason: string
+  changed_at: string
+}
+
+function records(value: unknown): Record<string, unknown>[] {
+  return Array.isArray(value) ? value.filter((v): v is Record<string, unknown> => typeof v === 'object' && v !== null) : []
+}
+
+function toContinuations(value: unknown): BookingContinuation[] {
+  return records(value).map((m) => ({
+    reference_code: String(m.reference_code),
+    court_name: String(m.court_name),
+    slot_start: String(m.slot_start),
+    slot_end: String(m.slot_end),
+    status: m.status as BookingStatus,
+  }))
+}
+
+function toChanges(value: unknown): BookingChange[] {
+  return records(value)
+    .map((c) => ({
+      old_court_name: String(c.old_court_name),
+      old_start: String(c.old_start),
+      old_end: String(c.old_end),
+      new_court_name: String(c.new_court_name),
+      new_start: String(c.new_start),
+      new_end: String(c.new_end),
+      continuation_reference: (c.continuation_reference as string | null) ?? null,
+      reason: String(c.reason),
+      changed_at: String(c.changed_at),
+    }))
+    .sort((a, b) => a.changed_at.localeCompare(b.changed_at))
+}
+
 const SLOT_STATUSES = new Set<string>(['free', 'booked', 'blackout', 'open_play', 'past'])
 
 /** One row per active court × slot on a venue-local date ("YYYY-MM-DD"). Empty for closed or out-of-window days. */
@@ -113,6 +166,12 @@ export type BookingDetail = {
   cancelled_by_venue: boolean
   /** The owning account. Null for guest bookings, and on the guest path (get_guest_booking doesn't return it). */
   user_id: string | null
+  /** For a moved continuation: the reference of the booking it was split from (the root). */
+  parent_reference_code: string | null
+  /** The booking's moved parts, oldest first. */
+  continuations: BookingContinuation[]
+  /** Every reschedule of this booking, its continuations included, oldest first. */
+  changes: BookingChange[]
 }
 
 const notFound = () =>
@@ -142,6 +201,9 @@ export async function fetchGuestBooking(referenceCode: string, token: string): P
     cancel_reason: row.cancel_reason,
     cancelled_by_venue: row.cancelled_by_venue,
     user_id: null,
+    parent_reference_code: row.parent_reference_code || null,
+    continuations: toContinuations(row.continuations),
+    changes: toChanges(row.changes),
   }
 }
 
@@ -150,12 +212,13 @@ export async function fetchOwnBooking(referenceCode: string): Promise<BookingDet
   const row = unwrap(
     await supabase
       .from('bookings')
-      .select(`id, reference_code, court_id, user_id, during, status, total_amount, expires_at, rejection_count, guest_name, guest_email, created_at, cancelled_at, cancel_reason, cancelled_by_venue, courts(name, sport), payments(${PAYMENT_FIELDS})`)
+      .select(`id, reference_code, court_id, user_id, during, status, total_amount, expires_at, rejection_count, guest_name, guest_email, created_at, cancelled_at, cancel_reason, cancelled_by_venue, parent_booking_id, courts(name, sport), payments(${PAYMENT_FIELDS})`)
       .eq('reference_code', referenceCode.trim().toUpperCase())
       .maybeSingle(),
   )
   if (!row) throw notFound()
   const { start, end } = parseTstzRange(row.during)
+  const { parentReference, continuations, changes } = await fetchOwnMoves(row.id, row.parent_booking_id)
   return {
     id: row.id,
     reference_code: row.reference_code,
@@ -177,6 +240,58 @@ export async function fetchOwnBooking(referenceCode: string): Promise<BookingDet
     cancel_reason: row.cancel_reason,
     cancelled_by_venue: row.cancelled_by_venue,
     user_id: row.user_id,
+    parent_reference_code: parentReference,
+    continuations,
+    changes,
+  }
+}
+
+/**
+ * What get_guest_booking returns as `continuations` and `changes`, read through RLS for an owner or admin: the
+ * booking's moved parts, and every change to it or to them (RESEARCH M10 "Rescheduling").
+ */
+async function fetchOwnMoves(
+  bookingId: string,
+  parentId: string | null,
+): Promise<{ parentReference: string | null; continuations: BookingContinuation[]; changes: BookingChange[] }> {
+  // The parent's reference and the moved parts don't depend on each other, so they're read together.
+  const [parent, parts] = await Promise.all([
+    parentId ? supabase.from('bookings').select('reference_code').eq('id', parentId).maybeSingle() : null,
+    supabase
+      .from('bookings')
+      .select('id, reference_code, during, status, courts(name)')
+      .eq('parent_booking_id', bookingId)
+      .order('during'),
+  ]).then(([p, m]) => [p ? unwrap(p) : null, unwrap(m)] as const)
+  const ids = [bookingId, ...parts.map((p) => p.id)]
+  const rows = unwrap(
+    await supabase
+      .from('booking_changes')
+      .select('old_during, new_during, reason, changed_at, old_court:courts!booking_changes_old_court_id_fkey(name), new_court:courts!booking_changes_new_court_id_fkey(name), continuation:bookings!booking_changes_continuation_id_fkey(reference_code)')
+      .or(`booking_id.in.(${ids.join(',')}),continuation_id.eq.${bookingId}`)
+      .order('changed_at'),
+  )
+  return {
+    parentReference: parent?.reference_code ?? null,
+    continuations: parts.map((p) => {
+      const { start, end } = parseTstzRange(p.during)
+      return { reference_code: p.reference_code, court_name: p.courts?.name ?? 'Court', slot_start: start, slot_end: end, status: p.status }
+    }),
+    changes: rows.map((c) => {
+      const old = parseTstzRange(c.old_during)
+      const next = parseTstzRange(c.new_during)
+      return {
+        old_court_name: c.old_court?.name ?? 'Court',
+        old_start: old.start,
+        old_end: old.end,
+        new_court_name: c.new_court?.name ?? 'Court',
+        new_start: next.start,
+        new_end: next.end,
+        continuation_reference: c.continuation?.reference_code ?? null,
+        reason: c.reason,
+        changed_at: c.changed_at,
+      }
+    }),
   }
 }
 

@@ -5,6 +5,7 @@ import { formatDateLabel, hourInZone, todayInZone } from '../../lib/time'
 import { SPORT_LABELS } from '../catalog/api'
 import type { BookingDetail } from './api'
 import { formatRemaining } from './countdown'
+import { MoveHistory } from './MoveHistory'
 import { PaymentHistory } from './PaymentHistory'
 import { displayStatus, STATUS_LABELS } from './status'
 import { isReplacedByOnlinePayment } from './paymentLabels'
@@ -111,6 +112,7 @@ export function BookingSummary({ booking, paymentInstructions, timeZone, currenc
           <p>The times were released.{booking.payments.some((p) => p.review_status === 'approved') ? ' Contact the venue about any refund.' : ''}</p>
         </div>
       )}
+      <MoveHistory booking={booking} timeZone={timeZone} />
       {cancelSection}
       <PaymentHistory payments={booking.payments} timeZone={timeZone} currency={currency} />
     </div>

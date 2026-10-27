@@ -154,7 +154,7 @@ async function main() {
   const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] })
   const venueInfo = await snapshotVenueInfo()
   const helper = await browser.newPage()
-  const made = { photos: [], admin: null, sessionId: null, bookingId: null }
+  const made = { photos: [], admin: null, sessionId: null, bookingId: null, moveBookingId: null }
   let cleaned = false
 
   // Each step on its own, so one failure can't skip the rest; failures are logged, never swallowed.
@@ -170,6 +170,7 @@ async function main() {
       }
     }
     if (made.bookingId) await step('demo booking', () => service.from('bookings').delete().eq('id', made.bookingId).throwOnError())
+    if (made.moveBookingId) await step('demo booking to reschedule', () => service.from('bookings').delete().eq('id', made.moveBookingId).throwOnError())
     if (made.sessionId) await step('open play session', () => service.from('open_play_sessions').delete().eq('id', made.sessionId).throwOnError())
     if (made.photos.length) {
       await step('court photo rows', () => service.from('court_photos').delete().in('id', made.photos.map((p) => p.id)).throwOnError())
@@ -219,6 +220,15 @@ async function main() {
     if (bookingError) throw bookingError
     made.bookingId = booked[0].id
 
+    // A confirmed booking earlier that day, for the reschedule form (staff can only move confirmed bookings).
+    const { data: toMove, error: moveError } = await anon().rpc('create_booking', {
+      p_court_id: pickleball[1].id, p_start: at(day, 9), p_slots: 1,
+      p_guest_name: 'Ben Reyes', p_guest_email: `e2e-screens-move-${Date.now()}@example.com`, p_guest_phone: '0917 555 0456',
+    })
+    if (moveError) throw moveError
+    made.moveBookingId = toMove[0].id
+    await service.from('bookings').update({ status: 'confirmed' }).eq('id', toMove[0].id).throwOnError()
+
     for (const [kind, device] of Object.entries(VIEWPORTS)) {
       console.log(`${kind}:`)
       const player = await browser.newContext({ ...device, timezoneId: TZ, colorScheme: 'light' })
@@ -266,6 +276,17 @@ async function main() {
       await adminPage.getByRole('navigation', { name: 'Admin' }).waitFor()
       await adminPage.getByRole('heading', { name: "Today's courts" }).waitFor()
       await shoot(adminPage, 'admin-dashboard', kind)
+      await adminPage.goto(`${BASE}/admin/bookings?status=all&date=${day}`)
+      await adminPage.getByRole('button', { name: new RegExp(toMove[0].reference_code) }).click()
+      await adminPage.getByRole('button', { name: 'Reschedule' }).click()
+      const form = adminPage.getByRole('form', { name: 'Reschedule booking' })
+      await form.getByRole('button', { name: 'Tomorrow' }).click()
+      await form.getByLabel('New court').selectOption({ label: 'Pickleball 1' })
+      await form.getByRole('group', { name: 'New start' }).locator('label').first().click()
+      await form.getByLabel('Reason for moving').fill('Rain: the court is wet')
+      // On a phone the form is taller than the screen: end on the reason, the summary and the buttons.
+      await form.evaluate((el, end) => el.scrollIntoView({ block: end ? 'end' : 'start' }), kind === 'phone')
+      await shoot(adminPage, 'admin-reschedule', kind)
       await adminPage.goto(`${BASE}/admin/open-play`)
       await adminPage.getByText('Open play: all levels').first().waitFor()
       await shoot(adminPage, 'admin-open-play', kind)

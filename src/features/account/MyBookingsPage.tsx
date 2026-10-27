@@ -56,25 +56,27 @@ function BookingLists({ rows, now, timeZone, currency }: { rows: MyBooking[]; no
         {upcoming.length === 0 ? (
           <p className="muted">Nothing coming up. <Link to="/book">Book a court</Link></p>
         ) : (
-          <BookingList label="Upcoming bookings" rows={upcoming} now={now} timeZone={timeZone} currency={currency} />
+          <BookingList label="Upcoming bookings" rows={upcoming} all={rows} now={now} timeZone={timeZone} currency={currency} />
         )}
       </section>
       {past.length > 0 && (
         <section className="stack" aria-labelledby="past-heading">
           <h2 id="past-heading">Past</h2>
-          <BookingList label="Past bookings" rows={past} now={now} timeZone={timeZone} currency={currency} />
+          <BookingList label="Past bookings" rows={past} all={rows} now={now} timeZone={timeZone} currency={currency} />
         </section>
       )}
     </div>
   )
 }
 
-function BookingList({ label, rows, now, timeZone, currency }: { label: string; rows: MyBooking[]; now: Date; timeZone: string; currency: string }) {
+function BookingList({ label, rows, now, timeZone, currency, all }: { label: string; rows: MyBooking[]; now: Date; timeZone: string; currency: string; all: MyBooking[] }) {
   return (
     <ul className="list card flush" aria-label={label}>
       {rows.map((b) => {
         const status = displayStatus(b, now)
         const date = todayInZone(timeZone, new Date(b.slot_start))
+        // A moved part says which booking it came from (T10.10); the parent may be in the other list.
+        const parent = b.parent_booking_id ? all.find((r) => r.id === b.parent_booking_id) : null
         return (
           <li key={b.id}>
             <Link to={`/booking/${b.reference_code}`} className="list-row">
@@ -82,6 +84,7 @@ function BookingList({ label, rows, now, timeZone, currency }: { label: string; 
                 <strong>{b.court_name}</strong>
                 <span className="muted small block">
                   {formatDateLabel(date, timeZone)}, {formatHour(hourInZone(b.slot_start, timeZone))}–{formatHour(hourInZone(b.slot_end, timeZone))} · {b.reference_code}
+                  {b.parent_booking_id ? ` · Moved part${parent ? ` of ${parent.reference_code}` : ''}` : ''}
                 </span>
               </span>
               <span className="list-row-end">
