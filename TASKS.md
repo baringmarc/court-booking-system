@@ -8,7 +8,7 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
 
 - **Current milestone:** M11 Plotline brand and venue upgrades (**approved by the user on 2026-10-26**; breakdown below, brand in `docs/BRAND.md`). M10 ✅ done on 2026-10-26 and M9 on 2026-10-23 (M1–M10 all done). After M11 come the SaaS milestones (M12+, `docs/SAAS-PLAN.md`), each with its own breakdown and approval.
 - **Next task:** T11.4 Restyle the public site and emails (decisions in RESEARCH M11 and SPEC §10). Still the user's: run `npm run smoke:prod -- --links-only` and record the demo video from `docs/demo-script.md`. Skip the optional Maps Embed API key: M11 (T11.9) removes the embedded map.
-- **State:** M11: T11.1, T11.2 and T11.3 (brand tokens, fonts, logo) done (2026-10-27). The walk-in card is hidden unless `VITE_FEATURE_WALK_INS=true` (e2e server sets it). M10 done: T10.1–T10.11 (2026-10-26). Rescheduling works end to end on `develop`: `reschedule_booking`, `booking_changes` and the extended `get_guest_booking` are live on the linked project, and the UI and the `booking_rescheduled` email are built (the `send-emails` Edge Function is redeployed to the linked project). The pickers, merged grid blocks, dashboard earnings and CSV export are on `develop`. On the linked project, `get_availability.block_key` and `get_earnings` are live (expand only). M8 deploy: https://court-booking-system-ashen.vercel.app.
+- **State:** M11: T11.1, T11.2 and T11.3 (brand tokens, fonts, logo) done (2026-10-27). The user's feedback of 2026-10-27 is folded in: T11.4 (Espresso dark palette, heading tints, transitions, Good to know spacing, the "Stay connected" band with brand logos), a new T11.4a (the date strip on `/book`), T11.5 (split-bar booked hours, even form rows), T11.11 ("Download QR"), and two new tasks, T11.5a (drag to reorder) and T11.5b (bookings search and sort). The picks were made on the preview page https://claude.ai/artifact/YVwmkpskANhbzAacUa55Jo (SPEC §10, 2026-10-27). The walk-in card is hidden unless `VITE_FEATURE_WALK_INS=true` (e2e server sets it). M10 done: T10.1–T10.11 (2026-10-26). Rescheduling works end to end on `develop`: `reschedule_booking`, `booking_changes` and the extended `get_guest_booking` are live on the linked project, and the UI and the `booking_rescheduled` email are built (the `send-emails` Edge Function is redeployed to the linked project). The pickers, merged grid blocks, dashboard earnings and CSV export are on `develop`. On the linked project, `get_availability.block_key` and `get_earnings` are live (expand only). M8 deploy: https://court-booking-system-ashen.vercel.app.
 - **Blockers / notes:**
   - **Never run two test runs at once** (found on 2026-10-26). `npm run verify`, `npm run test:e2e` and the Stop hook's own gate (`.claude/hooks/verify-gate.mjs`) share the local database, port 5179 and `test-results/`, so overlapping runs gave a false `30_reschedule` pgTAP failure, "port 5179 is already used" and `ENOENT` trace errors. Before running tests, check `pgrep -fl "[v]erify-gate|[p]laywright test"` is empty (the brackets keep `pgrep` from matching itself). Full e2e on 2026-10-26 once idle: 49 passed, 3 skipped (`court-photo` flaked once earlier that day, see T10.10).
   - **Screenshots:** the `admin-dashboard-*.png` images are from before the earnings section (T10.11 kept them because the local database held `smoke:paymongo` rows that would show as "Proofs to review: 1" and a not-accepted payment). Regenerate them on a clean local database (`npm run db:reset:local`, then `npm run screenshots`), and add an earnings shot to `scripts/screenshots.mjs` (it has none; the script re-shoots `admin-dashboard-*` on every run, so those images are only safe until then).
@@ -1507,12 +1507,59 @@ Out of scope for M11: multiple venues, the billing ledger, invoices and statemen
   - The header keeps the venue name; the footer gains "Powered by Plotline" with the logo (as T11.1 decides).
   - Optional brand shapes in the hero, login and empty states, never behind text.
   - The email templates (`emailTemplates.ts`) use the palette, with web-safe font fallbacks.
-- **Acceptance:** component tests still pass, with selectors unchanged where possible. e2e at desktop and 360px; axe clean in light and dark. No horizontal scroll at 360px.
+  - **Shared first (the user's feedback, 2026-10-27; picked from the [preview page](https://claude.ai/artifact/YVwmkpskANhbzAacUa55Jo)):**
+    - **Dark palette "Espresso" (pick B):** `--bg #2a2522`, `--surface #3f3833`, `--field #211d1b`, `--border #574d46`, `--border-strong #968779` (cream text, sand muted and the sage, rose and danger tokens stay). Today's brown page and cards were 1.13:1 apart; these are 1.32:1. The dark `theme-color` meta becomes `#2a2522`. `docs/BRAND.md` notes that the app's dark page is espresso, not the guide's warm brown.
+    - **Color on purpose, light and dark:** card and section headings tinted with sage or rose (16% over the surface), the active nav tab filled sage with brown text, rose for pending. Sections stand apart clearly (surface against page, a border, the tinted heading), not by spacing alone.
+    - **Transitions:** 150–250 ms ease-out on panels that expand and collapse (`<details>`: `::details-content` with `interpolate-size`, opening at once where the browser can't animate it), hover and press on buttons and slots, and dialogs opening. Nothing moves under `prefers-reduced-motion: reduce`. No page-to-page transitions.
+  - **Good to know (option b):** keep one card per section, but tighter: about 12px padding and an 8px gap, with no card margin on top of the stack gap (today about 30px between panels).
+  - **"Stay connected" band (the user's request and answers, 2026-10-27):**
+    - A full-width band above the footer on every public page. It **replaces** today's social links: the footer row (`FooterSocials`) and the list in the home page's location block. No band when the venue has no links.
+    - Fixed text (not editable): the eyebrow "Stay connected", the heading "Connect with us", and "Follow us on social media for schedules, events, announcements and community updates."
+    - One card per link, in the existing platform order: a round chip with the platform's logo, then its name; opens in a new tab (the screen-reader "(opens in a new tab)" stays). Cards wrap at 360px.
+    - **Logos:** Facebook, Instagram, Messenger, TikTok, YouTube and X as the real brand marks, in one color (the band's text color, which the platforms' brand rules allow). Their paths are copied from Simple Icons (CC0) into one file (e.g. `src/components/BrandIcons.tsx`, with the source and license noted), not added as a dependency. Website keeps the globe.
+    - **Colors:** light mode, an Espresso band with cream text; dark mode, a band one step lighter than the page. Follows the venue's preset once T11.7 lands.
+    - Below the band, the footer row: the copyright and "Powered by Plotline". No floating Messenger button (the user's call).
+- **Acceptance:** component tests still pass, with selectors unchanged where possible. e2e at desktop and 360px; axe clean in light and dark. No horizontal scroll at 360px. `theme.test.ts` passes on the Espresso dark tokens and every new tint pair (heading tints, the filled tab, the band's text and chips in both modes). Component tests for the band (no links, some links, every platform's logo, website) and the `venue-info` e2e updated for its new place.
+
+### [ ] T11.4a Date strip on `/book`
+- **Depends:** T11.4
+- **Do (the user's request and answers, 2026-10-27):** on `/book` only (the admin pickers keep `DatePicker`), the date button and stepper become:
+  - **Heading:** the big word is "Today", "Tomorrow" or the weekday, with the full date under it ("Friday, October 30, 2026"). ‹ and › step one day and are disabled at today and the last bookable day. Keep the accessible names "Previous day" / "Next day": e2e and `smoke:prod` step with "Next day" (T10.3).
+  - **"Jump to date"** opens the existing lazy calendar (`Calendar.tsx` stays behind `React.lazy`), with today to the last bookable day and closed days disabled.
+  - **The strip:** a month label over it ("OCT – NOV 2026" when the shown days span two months), then at most 10 day tiles (weekday abbreviation and day number), fewer when the booking window is shorter. The selected day is filled (the theme's button colors); today has a small dot (and "today" in its accessible name); days the venue is closed are greyed and can't be picked. Tiles are buttons with `aria-pressed` and full names ("Friday, October 30"), like the sport picker.
+  - **Sliding window (option b):** the strip starts at today. When the arrows or "Jump to date" pick a day outside it, it moves the least it needs to show that day (it becomes the last tile going forward, the first going back), never before today or past the last bookable day.
+  - **Phones:** the strip scrolls sideways inside itself (scroll snap, the selected tile scrolled into view); the page never does.
+  - The URL's date parameter works as today. SPEC §7 (`/book`) updated.
+- **Acceptance:** Vitest for the window (start at today, a forward and a backward step past an edge, a far jump, a booking window under 10 days, the end clamp, the month label across two months and two years); component tests (heading words, a closed day, the today dot, the arrows' limits, Jump to date); the booking e2e picks a day from the strip and through Jump to date; no page scroll at 360px; axe clean in light and dark; the public `index` bundle measured with `.env`.
 
 ### [ ] T11.5 Restyle the admin area
 - **Depends:** T11.3
-- **Do:** the admin shell (Plotline logo in the header), admin login, dashboard and earnings, bookings, day view, courts, schedule, open play and settings, in the new style.
-- **Acceptance:** as T11.4. Screenshots regenerated (`npm run screenshots`).
+- **Do:**
+  - The admin shell (Plotline logo in the header), admin login, dashboard and earnings, bookings, day view, courts, schedule, open play and settings, in the new style (with T11.4's shared palette, tints and transitions).
+  - **Booked hours (the user's pick 3, "Split bars", 2026-10-27; [preview page](https://claude.ai/artifact/YVwmkpskANhbzAacUa55Jo)):** the table becomes one row per court with a bar of its open hours (minus blackouts) split into booked (accent), open play (`--open-play`) and free (track), under a legend. Sport heading rows carry the sport's totals; an "All courts" row closes the list. Each row also shows its numbers as text: booked hours, occupancy and open-play hours (so nothing relies on the bar or on color); the bar has a text alternative. At phone width the bar wraps under the court name. More space under the "Booked hours" heading. The occupancy note stays.
+  - **Settings forms: no lopsided rows.** When a form's fields don't fit on one line, they wrap into even columns (four fields: 4, 2 + 2 or 1, never 3 + 1), at every width. Fixes Booking rules today and applies to every settings form.
+- **Acceptance:** as T11.4. Component tests for the booked hours rows (text figures, a court with no open play, one sport and several). The settings forms checked at 360px, tablet and desktop widths for even rows. Screenshots regenerated (`npm run screenshots`).
+
+### [ ] T11.5a Drag to reorder
+- **Depends:** T11.5
+- **Do (the user's request, 2026-10-27):**
+  - One shared sortable list replaces `MoveButtons` (the up and down arrows) everywhere: courts, sport order, info sections, court photos (a grid, so it drags in both directions; the first is still the cover) and, from T11.11, payment accounts.
+  - Each item has one ☰ handle (three lines). Dragging it (mouse or touch) moves the item to any position.
+  - **WCAG 2.5.7 (single pointer):** tapping or clicking the handle without dragging opens a small menu: Move up, Move down, Move to top, Move to bottom. Keyboard: the handle takes focus; Space or Enter picks the item up, the arrow keys move it, Space or Enter drops it and Escape cancels, with screen-reader announcements; Enter on the menu path works too. Accessible names say which item ("Reorder Badminton 1").
+  - The new order saves on drop, with no Save button. On an error the list goes back to the saved order and says so.
+  - Research the library first (for example `@dnd-kit`, pinned to an exact version): touch support, the keyboard path, the bundle cost (admin chunk only; measure with `.env`).
+  - Courts are reordered by swapping neighbours today (`move.mutate({ id, direction })`). A drop at any position needs a "set the whole order" call like `reorder_court_photos`; if a list doesn't have one, that's a migration with pgTAP and its own plan gate.
+  - SPEC §7 (`/admin/courts`, `/admin/settings`, the court page) updated.
+- **Acceptance:** component tests for the sortable list (keyboard path, the tap menu, an error that restores the order); e2e: drag reorder on desktop and at 360px for courts and info sections; axe clean.
+
+### [ ] T11.5b Bookings search and sort
+- **Depends:** T11.5
+- **Do (the user's request, 2026-10-27):**
+  - **Search on `/admin/bookings`:** one search box. A whole reference code (with or without `CB-`, any case) shows just that booking, selected in the panel. Any other text (at least 2 characters) matches part of a reference, the contact name or the contact email (the `guest_name` and `guest_email` snapshot, which every booking has, accounts included), case-insensitive. Phone isn't searched. A search covers **all bookings**: it ignores the status, source and date filters while active (the page says so, with a Clear button). Kept in the URL (`q=`). The text is escaped for PostgREST filter syntax (commas, parentheses, `*`, `%`), or the search goes through an RPC; an RPC or an index is a migration with its own plan gate.
+  - **Sort on `/admin/bookings`:** Play time, latest first (today's default); Play time, earliest first (the default when a date is picked, as today); Booked on, newest first; Booked on, oldest first (`created_at`). Sorted on the server (the 200-row cap stays), tied rows ordered by id. Kept in the URL (`sort=`).
+  - **Sort on My bookings:** Play time (today's order: Upcoming soonest first, Past most recent first); Booked on, newest first; Booked on, oldest first. Applied within Upcoming and Past.
+  - SPEC §7 (`/admin/bookings`, My bookings) updated.
+- **Acceptance:** Vitest for parsing the search text (a whole code with and without `CB-`, a partial, a name, an email, filter-syntax characters) and the URL round trip for `q` and `sort`; component tests for search (found, nothing found, error) and both sort controls; e2e: an admin finds a booking by its reference, then by its email.
 
 ### [ ] T11.6 Migration: venue color theme
 - **Depends:** T11.1
@@ -1522,7 +1569,7 @@ Out of scope for M11: multiple venues, the billing ledger, invoices and statemen
 ### [ ] T11.7 Theme picker
 - **Depends:** T11.6, T11.3
 - **Do:**
-  - Each preset defined once (light and dark tokens) and applied through `data-theme` on `<html>`, without a flash of the default theme on load (T11.1).
+  - Each preset defined once (light and dark tokens) and applied through `data-theme` on `<html>`, without a flash of the default theme on load (T11.1). The `plotline` preset's dark tokens are T11.4's Espresso; every preset gets the same heading tints, filled active tab and "Stay connected" band, from its own colors.
   - In `/admin/settings`, a "Website colors" section: one card per preset with swatches and a small live preview (a button, a badge and a few slots) in light and dark. Saving applies it at once.
 - **Acceptance:**
   - `theme.test.ts` checks every preset's AA pairs, light and dark.
@@ -1544,14 +1591,14 @@ Out of scope for M11: multiple venues, the billing ledger, invoices and statemen
 
 ### [ ] T11.10 Migration: payment accounts and QR codes
 - **Depends:** T11.1
-- **Do:** the model T11.1 settles (proposal: `venue_payment_accounts` with label such as GCash, InstaPay, Maya or a bank, account name, account number, an optional `qr_path` in `venue-media`, and a position, reordered like info sections). Anyone reads; admins write. Length checks in the database. Upload policies for the QR folder (images only, a size cap).
+- **Do:** the model T11.1 settles (proposal: `venue_payment_accounts` with label such as GCash, InstaPay, Maya or a bank, account name, account number, an optional `qr_path` in `venue-media`, and a position, set as a whole order so T11.5a's drag reorder can save it). Anyone reads; admins write. Length checks in the database. Upload policies for the QR folder (images only, a size cap).
 - **Acceptance:** pgTAP: RLS for anon, player and admin; the checks; ordering; storage policies. `db:push` and `db:types` have been run.
 
 ### [ ] T11.11 Payment QR codes: admin and player
-- **Depends:** T11.10, T11.4
+- **Depends:** T11.10, T11.4, T11.5a
 - **Do:**
-  - **Admin (settings, near the payment instructions):** add, edit, delete and reorder payment accounts; upload or replace each QR image (kept scannable, T11.1).
-  - **Player (where the manual payment instructions show today):** a card per account with the label, account name and number (a copy button), and the QR code, which opens full size on tap and has a "Save QR" button. The free-text instructions stay below.
+  - **Admin (settings, near the payment instructions):** add, edit, delete and reorder payment accounts (T11.5a's drag handle); upload or replace each QR image (kept scannable, T11.1).
+  - **Player (where the manual payment instructions show today):** a card per account with the label, account name and number (a copy button), and the QR code, which opens full size on tap and has a **"Download QR"** button (the user's wording, 2026-10-27). On iPhone a download lands in Files, not Photos, so a short hint under it says to press and hold the image to save it to Photos (GCash and bank apps scan from the gallery). The free-text instructions stay below.
   - The amount to send is the amount due, including the booking fee once T11.13 ships.
 - **Acceptance:** component tests for both sides (empty, loading, error, an account without a QR); e2e: an admin adds an account with a QR and a guest sees it while paying (restored in teardown); axe clean; the QR fits a 360px screen.
 
