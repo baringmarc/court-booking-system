@@ -1018,10 +1018,10 @@ Researched 2026-10-27 (T11.1). Contrast ratios were computed with the WCAG formu
   - Sage and rose fail as text or outlines on cream: sage 1.60, rose 1.41, sand 1.22. A sage button with brown text is fine (7.06), but its edge against the page is only 1.6.
 - **Recommendation:**
   - Two token layers as in plotline-site: fixed brand colors, plus role tokens (`--bg`, `--surface`, `--text`, `--muted`, `--border`, `--accent`, ...). Components use roles only. The names we already have stay (the existing `themeChecks` and CSS use them); `--accent` now means the "ink" accent (links, outlines, focus rings, badges), and a new `--btn` / `--btn-text` pair is the fill of primary buttons.
-  - Light: `--bg #F5EFE6`, `--surface #FFFCF7`, `--text #3B2F2A`, `--muted #5A4A42`, `--border #E6D9C6` (decorative only) with `--border-strong` for input and outline edges, `--accent #56703f` (deep sage: 4.85 on cream, 5.42 on cards), `--btn #B7C4A8` with `--btn-text #3B2F2A` (7.06), highlight words terracotta `#7A3F2C`.
-  - **A primary button gets a 1.5px `--accent` border**, so its edge is 4.85 against the page (the sage fill alone is 1.6). The label identifies the control, but the border makes it visible for low-vision users and costs nothing.
+  - Light: `--bg #F5EFE6`, `--surface #FFFCF7`, `--text #3B2F2A`, `--muted #5A4A42`, `--border #E6D9C6` (decorative only) with `--border-strong` for input and outline edges, `--accent #4c6b3c` (deep sage; T11.3 deepened it from #56703f because badge text on the tinted background fell to 4.5: now 5.29 on cream, 5.9 on cards), `--btn #B7C4A8` with `--btn-text #3B2F2A` (7.06), highlight words terracotta `#7A3F2C`.
+  - **A primary button gets a 1.5px `--accent` border**, so its edge is 5.29 against the page (the sage fill alone is 1.6). The label identifies the control, but the border makes it visible for low-vision users and costs nothing.
   - Dark: `--bg #3B2F2A`, `--surface #45372F`, `--text #F5EFE6`, `--muted #E6D9C6` (8.2 on cards), `--accent` and `--btn` both sage `#B7C4A8` (7.06 on the page, 6.2 on cards), `--btn-text #3B2F2A`, highlight dusty rose.
-  - **Focus ring:** 2px solid `--accent` with 2px offset (4.85 light, 7.06 dark). plotline-site's sage glow alone fails the 3:1 rule and is not copied.
+  - **Focus ring:** 2px solid `--accent` with 2px offset (5.29 light, 7.06 dark). plotline-site's sage glow alone fails the 3:1 rule and is not copied.
   - **Slot statuses:** free = surface with a `--accent` outline; selected = `--btn` fill, `--btn-text` text, `--accent` border; booked = text 10% mixed into the surface (as today); pending = a dusty-rose tint with a dashed edge; open play = a terracotta (dark: rose) tint, so it is not green or grey; closed = the existing stripes. Status is never color only (labels and patterns stay).
   - Every pair goes through `themeChecks.ts`, extended with the button-border and the new status pairs; `theme.test.ts` reads each preset block.
 - **Sources:** `docs/BRAND.md`, plotline-site `src/styles/global.css`, WCAG 2.1 1.4.3 and 1.4.11, the computed table above.
@@ -1031,6 +1031,7 @@ Researched 2026-10-27 (T11.1). Contrast ratios were computed with the WCAG formu
 - **Findings:**
   - `@fontsource/fraunces` 5.3.0 and `@fontsource/dm-sans` 5.3.0, latin subset: Fraunces 600 18.1 kB, 700 18.2 kB; DM Sans 500 14.3 kB, 700 14.3 kB (woff2, from `npm pack`). The four weights in use total about 65 kB, fetched in parallel, cached with the hashed assets, and not counted in the JS bundle.
   - Google Fonts means a request to Google's servers with the visitor's IP address before consent. Self-hosting keeps visitor data on our origin, which fits the Data Privacy Act posture of this app (RA 10173) and removes a render-blocking third-party connection.
+- **Decided in T11.3:** static weights. `@fontsource-variable/fraunces` with the optical-size axis is 67 kB for the latin subset against 36 kB for the two static weights, for a small gain at the sizes headings use here. The `@fontsource/*` CSS (weight files, `font-display: swap`) lists latin, latin-ext and other subsets with `unicode-range`; browsers fetch only the subsets a page uses. DM Sans's latin-ext file is needed for the peso sign (U+20B1), so it loads on every page (+7 kB each for 500 and 700). No preload links: the hashed file names aren't known in `index.html`.
 - **Caveat:** plotline-site loads Fraunces with the optical-size axis (`opsz 9..144`); static `@fontsource/fraunces` files drop it, so large headings look slightly less refined than the reference site. T11.3 compares with `@fontsource-variable/fraunces` (weight + opsz) and picks it only if its size is acceptable.
 - **Recommendation:** self-host with `@fontsource/*/{weight}.css` imports for exactly those four weights (latin only), `font-display: swap`. Preload the two most-used files (DM Sans 500 and Fraunces 700) from `index.html` and use a metric-matched fallback stack (`Georgia` for Fraunces, `system-ui` for DM Sans) with `size-adjust` fallbacks only if the Lighthouse CLS check shows a shift. Measure the bundle with `.env` present in T11.3.
 - **Sources:** fontsource package contents; DM Sans and Fraunces as used by plotline-site.
@@ -1051,7 +1052,7 @@ Researched 2026-10-27 (T11.1). Contrast ratios were computed with the WCAG formu
 
   | Preset | Light ink / fill (text) | Dark ink = fill (text) | Notes |
   | --- | --- | --- | --- |
-  | `plotline` (default) | `#56703f` / sage `#B7C4A8` (brown) | sage (brown) | the brand |
+  | `plotline` (default) | `#4c6b3c` / sage `#B7C4A8` (brown) | sage (brown) | the brand |
   | `court-green` | `#0f7a55` / `#0f7a55` (white) | `#34c48b` (`#08140f`) | today's palette |
   | `ocean` | `#1b6a9c` / same (white) | `#7cc0ea` (`#0b1a24`) | |
   | `plum` | `#7a3b7d` / same (white) | `#d9a6dc` (`#2a132b`) | |

@@ -6,21 +6,27 @@ import css from '../index.css?raw'
 import { themeChecks, type Tokens } from './themeChecks'
 
 /** The custom properties declared directly in a block, keyed in camelCase. */
-function tokensIn(block: string): Partial<Tokens> {
-  const entries = [...block.matchAll(/--([a-z-]+):\s*([^;]+);/g)].map(([, name, value]) => [
-    name.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase()),
-    value.trim(),
-  ])
-  return Object.fromEntries(entries)
+function declarations(block: string): Record<string, string> {
+  return Object.fromEntries([...block.matchAll(/--([a-z-]+):\s*([^;]+);/g)].map(([, name, value]) => [name, value.trim().replace(/\s*\/\*.*$/, '')]))
 }
 
-const light = tokensIn(css.match(/^:root\s*{([^}]*)}/m)![1]) as Tokens
-const dark = { ...light, ...tokensIn(css.match(/@media \(prefers-color-scheme: dark\)\s*{\s*:root\s*{([^}]*)}/)![1]) }
+const camel = (name: string) => name.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase())
+const lightRaw = declarations(css.match(/^:root\s*{([^}]*)}/m)![1])
+const darkRaw = { ...lightRaw, ...declarations(css.match(/@media \(prefers-color-scheme: dark\)\s*{\s*:root\s*{([^}]*)}/)![1]) }
+
+/** A mode's tokens with `var(--x)` references followed, keyed in camelCase. */
+function tokensOf(raw: Record<string, string>): Tokens {
+  const resolve = (value: string): string => value.replace(/^var\(--([a-z-]+)\)$/, (_, n: string) => resolve(raw[n]))
+  return Object.fromEntries(Object.entries(raw).map(([name, value]) => [camel(name), resolve(value)])) as unknown as Tokens
+}
+
+const light = tokensOf(lightRaw)
+const dark = tokensOf(darkRaw)
 
 describe('shipped theme (src/index.css)', () => {
   it('declares every theme token in light mode', () => {
-    for (const key of ['bg', 'surface', 'text', 'muted', 'border', 'accent', 'accentHover', 'accentContrast',
-      'accentSoft', 'danger', 'dangerContrast'] as const) {
+    for (const key of ['bg', 'surface', 'field', 'text', 'muted', 'border', 'borderStrong', 'accent', 'accentSoft',
+      'btn', 'btnHover', 'btnText', 'danger', 'dangerContrast', 'pendingBg', 'highlight', 'openPlay', 'slotFreeBorder'] as const) {
       expect(light[key], key).toBeTruthy()
     }
   })
@@ -28,11 +34,10 @@ describe('shipped theme (src/index.css)', () => {
   it('still uses the color-mix formulas that themeChecks measures', () => {
     // themeChecks copies these weights; if one changes in index.css, update themeChecks to match.
     for (const formula of [
-      'color-mix(in srgb, var(--accent) 70%, var(--border))', // free-slot outline
+      'color-mix(in srgb, var(--open-play) 12%, var(--surface))', // open-play slot
       'color-mix(in srgb, var(--text) 10%, var(--surface))', // booked slot
       'color-mix(in srgb, var(--danger) 85%, black)', // danger button hover
       'color-mix(in srgb, var(--danger) 12%, transparent)', // cancelled badge
-      'color-mix(in srgb, #f5b400 25%, transparent)', // pending badge
       'color-mix(in srgb, var(--danger) 10%, transparent)', // error alert
     ]) {
       expect(css, formula).toContain(formula)
