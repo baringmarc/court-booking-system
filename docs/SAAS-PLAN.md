@@ -1,12 +1,13 @@
 # Plotline SaaS plan
 
-> Status: **planning, not approved scope** (last updated 2026-10-26). Once it's agreed, turn each phase into a milestone in TASKS.md (research → migrations → UI → close out), the way M3–M9 were run, starting with M12 (M10 and M11 come first, §7a and §7b). Prices and landing page copy aren't final.
+> Status: **planning, not approved scope** (last updated 2026-10-27). Once it's agreed, turn each phase into a milestone in TASKS.md (research → migrations → UI → close out), the way M3–M9 were run, starting with M12 (M10 and M11 come first, §7a and §7b). Prices and landing page copy aren't final.
 
 ## 1. Product and business model
 
 - **Plotline** is a court booking platform for venues in the Philippines.
   - `court-booking-system` is the product, today a single-venue demo (Claudex Courts).
   - `plotline-site` is the marketing site.
+  - How the two repos share one database and depend on each other: [PLATFORM.md](PLATFORM.md). This repo owns all schema and Edge Functions.
 - **No self-serve signup and no free trial.** Interested owners fill in a contact form on the marketing site. We talk with them, then set up their venue and invite them.
 - **Pricing (2026-10-26; amount not final):** a **₱10 booking fee per transaction, paid by the player**. A transaction is a booking a player makes on the site that gets confirmed, whatever its length, court or sport.
   - The fee is shown before the player pays (court price + booking fee = total) and is collected by the venue together with the court price.
@@ -24,17 +25,17 @@
 
 | Host | What | Runs on |
 | --- | --- | --- |
-| `plotline.ph` (+ `www`) | Marketing site (`plotline-site`) | Cloudflare Workers, static assets (free) |
-| `<slug>.plotline.ph` | A venue's booking site; `/admin` is its staff area | Cloudflare Workers, the `court-booking-system` build, through the wildcard route `*.plotline.ph/*` (free) |
-| `app.plotline.ph` | Platform console (us): venues, owners, invoices | Same build as the venues; the hostname decides the mode |
-| `claudex.plotline.ph` | Venue #1: Claudex Courts, the demo venue on production, demo data reset nightly (`demo.` can redirect to it) | Same build |
+| `plotline.fit` (+ `www`) | Marketing site (`plotline-site`) | Cloudflare Workers, static assets (free) |
+| `<slug>.plotline.fit` | A venue's booking site; `/admin` is its staff area | Cloudflare Workers, the `court-booking-system` build, through the wildcard route `*.plotline.fit/*` (free) |
+| `app.plotline.fit` | Platform console (us): venues, owners, invoices | Same build as the venues; the hostname decides the mode |
+| `claudex-courts.plotline.fit` | Venue #1: Claudex Courts, the demo venue on production, demo data reset nightly (`demo.` can redirect to it) | Same build |
 | Supabase **production** | New project, Singapore (`ap-southeast-1`). App data plus the marketing site's leads and reviews | Free until the first paying venue, then Pro |
 | Supabase **staging** | The current `court-booking-system` project (Singapore) | Free |
 | Email | Auth emails and booking emails from our domain | Resend or Brevo free tier, through custom SMTP |
-| DNS and TLS | Cloudflare DNS, with a proxied wildcard record `*.plotline.ph`; Universal SSL covers the root and `*.plotline.ph` | Free |
+| DNS and TLS | Cloudflare DNS, with a proxied wildcard record `*.plotline.fit`; Universal SSL covers the root and `*.plotline.fit` | Free |
 | Backups | Nightly `pg_dump` of production, kept outside Supabase | GitHub Action (free) |
 
-- **Domain:** not bought yet. First choice `plotline.ph`, then `plotline.app`, then `plotlinecourts.com` or `getplotline.com`. Buy it at any registrar and point the nameservers to Cloudflare. Note: a funded company already uses the Plotline name at plotline.so, in another industry.
+- **Domain: `plotline.fit`** (chosen 2026-10-27). Buy it at any registrar and point the nameservers to Cloudflare. `.fit` is less familiar to owners than `.ph` or `.com`, so spell it out on posters and in chats. Note: a funded company already uses the Plotline name at plotline.so, in another industry.
 - **Reserved subdomains:** `www`, `app`, `api`, `admin`, `demo`, `staging`, `mail`, `help`, `blog`, `status`, `support`.
 - **Why not Vercel:** the Hobby plan is non-commercial only, and Plotline both takes payments and advertises a product. Pro is about $20 a month per member. Cloudflare's free plan allows commercial use.
 - **Why not Supabase Free long-term:** no backups or point-in-time recovery, 500 MB database and 1 GB storage (payment proofs and photos add up), and inactive projects pause. Our own nightly dump covers backups until we upgrade.
@@ -45,7 +46,7 @@
 | Date | Decision |
 | --- | --- |
 | 2026-10-24 | One shared database with a `venue_id` on every row, enforced by RLS. No project per venue. The tenant table is `venues`. |
-| 2026-10-24 | Venue URLs are subdomains (`smash-arena.plotline.ph`) from the start. The root domain is the marketing site. |
+| 2026-10-24 | Venue URLs are subdomains (`smash-arena.plotline.fit`) from the start. The root domain is the marketing site. |
 | 2026-10-24 | Host on Cloudflare (free). Supabase production in Singapore. The current project becomes staging and demo. |
 | 2026-10-24 | Supabase Pro from the first paying venue. |
 | 2026-10-24 | No self-serve signup and no free trial. A contact form, then we set up the venue and invite the owner. |
@@ -78,6 +79,10 @@
 | 2026-10-26 | **The booking fee is built before the SaaS work, in M11**, for the single venue: `platform_pricing`, `bookings.booking_fee`, the fee in the amount due, at checkout, in PayMongo and in emails, and the dashboard's total revenue, owner earnings and Plotline fees. Phase 1 adds `venue_id`, `confirmed_at`, the `billing_charges` ledger and invoices on top. |
 | 2026-10-26 | Walk-ins are hidden behind a code flag, off by default (M11), not removed. |
 | 2026-10-26 | The product follows the Plotline brand (`docs/BRAND.md`, M11). Each venue picks one of a few color presets for its site; fonts and the logo stay Plotline's. |
+| 2026-10-27 | Domain `plotline.fit`: the marketing site on the apex, venues on `<slug>.plotline.fit`, our console on `app.plotline.fit`. The demo venue's slug is `claudex-courts`. |
+| 2026-10-27 | Two repos, one database. court-booking-system is the **platform repo**: it owns every migration and Edge Function for every shared Supabase project. plotline-site is frontend only. Shared facts and the contract between them live in one file, [PLATFORM.md](PLATFORM.md). Not a monorepo for now. |
+| 2026-10-27 | plotline-site's backend moves here in Phase 5: `venue_signups` → `leads` (no account), `reviews` stays, `register` → `site-contact`, `feedback` → `site-review`, validation → `_shared/siteForms.ts` with an exact copy in plotline-site for instant feedback. |
+| 2026-10-27 | PayMongo per venue, hardened (Phase 4): every use of a venue's key is logged, the code uses keys only to create checkouts, register our webhook and refund late payments, a daily health check hides "Pay online" when a venue's key or webhook stops working, and each venue's setup is proven with one small live payment and refund during onboarding. |
 
 ## 4. Open questions
 
@@ -85,8 +90,9 @@
    - what a venue needs to open a PayMongo account (sole proprietor, corporation, an individual without DTI?) and how long KYC takes, so we can tell owners up front;
    - whether there's a safer way for a venue to grant access than pasting its secret key (restricted keys or an OAuth-style connect);
    - limits on webhooks per account, and creating ours on the venue's account through the Webhooks API.
-2. Domain: `.ph` or `.app`, after checking availability.
-3. Demo slug: `claudex` only, or `demo` as well, redirecting to it?
+2. ~~Domain~~ Settled on 2026-10-27: `plotline.fit`.
+3. ~~Demo slug~~ Settled on 2026-10-27: `claudex-courts`. Whether `demo.plotline.fit` also redirects to it is a Phase 2 detail.
+6. **Holding venues' PayMongo keys** (Phase 4): what our terms say about how we store and use them, and what we do if one leaks (rotate, tell the venue, review the key-use log).
 4. ~~**Walk-ins:** hide the form (kept for us and old data) or remove it?~~ Settled on 2026-10-26: hidden behind a code flag, off by default (M11, T11.2). Existing walk-in bookings on Claudex Courts stay as history. Still open: whether Phase 1 also refuses `create_walk_in` in the database, per venue. Note that a free blackout could still be used to hold a court for an offline customer; we accept that, as it hides the slot from players and costs the venue bookings.
 5. **Tax treatment of the fee:** the venue collects the ₱10 and passes it on to us. Ask an accountant how the venue and Plotline should each record and receipt it, before the first real invoice.
 
@@ -151,7 +157,7 @@ Every charge is collected on the venue's monthly invoice.
   - The router has no venue concept.
   - `features/*/api.ts` read the singleton and every row.
   - `AdminGuard` checks the global role.
-  - `GoogleButton` builds `redirectTo` from `window.location.origin`, which works with subdomains once Supabase allows `https://*.plotline.ph/**`.
+  - `GoogleButton` builds `redirectTo` from `window.location.origin`, which works with subdomains once Supabase allows `https://*.plotline.fit/**`.
 - **Ops.** Vercel-specific `vercel.json`. Previews share production data. SPEC §1 lists multiple venues as a non-goal.
 - **Already in place and kept:**
   - RLS everywhere with a coverage test
@@ -182,7 +188,7 @@ Also on the single-venue app (approved 2026-10-26; breakdown in TASKS.md M11). P
 - walk-ins behind a code flag, hidden by default.
 
 ### Phase 0: Accounts and groundwork (no code)
-- [ ] Choose and buy the domain. Move its nameservers to Cloudflare.
+- [ ] Buy `plotline.fit`. Move its nameservers to Cloudflare.
 - [ ] Create the Supabase production project in Singapore. Keep the current project as staging.
 - [ ] Set up the email sender on the domain (SPF, DKIM, DMARC). Set it as custom SMTP on both projects.
 - [ ] Turn on Cloudflare Turnstile for the contact form.
@@ -201,7 +207,7 @@ Expand-then-contract migrations, as the M9 contract migration did.
   - Add it to every venue-owned table, and denormalize it onto `bookings`, `payments`, `court_rates`, `court_photos`, `open_play_courts`, `paymongo_checkouts` and `email_outbox`.
   - Use composite foreign keys (`(venue_id, court_id) → courts (venue_id, id)`) so a child row can't cross venues.
   - Rekey the venue-wide tables, e.g. `operating_hours` PK `(venue_id, day_of_week)`.
-  - Backfill everything to Claudex Courts, which becomes venue `claudex` on staging and on production.
+  - Backfill everything to Claudex Courts, which becomes venue `claudex-courts` on staging and on production.
 - [ ] **RLS rewrite.**
   - Public reads only active venues.
   - Writes need `is_venue_admin(venue_id)`.
@@ -226,7 +232,7 @@ Expand-then-contract migrations, as the M9 contract migration did.
 
 ### Phase 2: Subdomains and Cloudflare hosting
 - [ ] **`getVenueSlug()`.**
-  - Production: the subdomain of `*.plotline.ph`, ignoring the reserved names.
+  - Production: the subdomain of `*.plotline.fit`, ignoring the reserved names.
   - Locally: `smash-arena.localhost:5173` (Chrome resolves `*.localhost`).
   - Staging and previews: a `?venue=` override, saved for the session.
 - [ ] **`VenueProvider`.**
@@ -234,34 +240,34 @@ Expand-then-contract migrations, as the M9 contract migration did.
   - Shows "venue not found" and "not taking bookings" pages.
   - Every `api.ts` function takes `venueId`, and every query key includes it.
 - [ ] **Host modes.**
-  - `app.plotline.ph` loads the platform console (lazy-loaded, like admin today).
+  - `app.plotline.fit` loads the platform console (lazy-loaded, like admin today).
   - The apex and `www` never reach this build.
 - [ ] **Admin access.** `AdminGuard` checks `venue_members` for this venue. Owners with several venues get a switcher that links to the other subdomains.
 - [ ] **Auth.**
-  - Add `https://*.plotline.ph/**` to the Supabase redirect URLs.
+  - Add `https://*.plotline.fit/**` to the Supabase redirect URLs.
   - Login is per subdomain: localStorage is per origin, so a player logs in again at another venue.
   - My bookings shows only the current venue.
-- [ ] **Edge Functions.** The PayMongo return-URL and CORS checks accept `https://<slug>.plotline.ph` for an existing venue slug, instead of an exact list. Email links use the venue's subdomain.
+- [ ] **Edge Functions.** The PayMongo return-URL and CORS checks accept `https://<slug>.plotline.fit` for an existing venue slug, instead of an exact list. Email links use the venue's subdomain.
 - [ ] **Cloudflare deploy.**
   - A `wrangler` config with SPA fallback replaces `vercel.json`.
-  - The route is `*.plotline.ph/*`, plus a proxied wildcard DNS record.
+  - The route is `*.plotline.fit/*`, plus a proxied wildcard DNS record.
   - Preview deployments point to staging.
-- [ ] **Redirects.** The old Vercel demo URL redirects to `claudex.plotline.ph`.
+- [ ] **Redirects.** The old Vercel demo URL redirects to `claudex-courts.plotline.fit`.
 - [ ] **e2e.** Run under a venue subdomain, and add a two-venue isolation flow.
 
-### Phase 3: Platform console (`app.plotline.ph`, us only)
+### Phase 3: Platform console (`app.plotline.fit`, us only)
 - [ ] **Leads.** Contact form submissions from the marketing site, with a status (`new` → `talking` → `won` / `lost`) and notes.
 - [ ] **Create a venue from a lead.**
   - Set the slug, name, timezone, and how the venue collects payments (PayMongo or manual).
   - The venue starts as `draft`.
-  - Owners are invited by email (Supabase invite through a service-role Edge Function). The invite lands on `<slug>.plotline.ph/admin`.
+  - Owners are invited by email (Supabase invite through a service-role Edge Function). The invite lands on `<slug>.plotline.fit/admin`.
 - [ ] **Set up together.**
   - We, or the owner, add courts, rates, hours, payment details and photos.
   - A setup checklist in the venue dashboard.
   - "Publish" sets the venue to `active`.
 - [ ] **Venues list.** Status, PayMongo status, this month's transactions and running total, open invoices. Suspend or reactivate.
 - [ ] **Invoices.** Review the monthly drafts, mark them sent and paid. A printable invoice page. Overdue invoices past the grace period are flagged for suspension.
-- [ ] **Demo venue.** A nightly job resets `claudex` to its seed data.
+- [ ] **Demo venue.** A nightly job resets `claudex-courts` to its seed data.
 - [ ] **Venue showcase.** A public, opt-in list of active venues (name, city, logo, link) that the marketing site's venue slider reads, instead of hard-coded placeholders.
 
 ### Phase 4: PayMongo per venue and emails
@@ -271,11 +277,14 @@ Expand-then-contract migrations, as the M9 contract migration did.
   - In the venue's admin area, the owner enters the secret key. An Edge Function checks it against PayMongo, creates our webhook on the venue's account (pointing at our endpoint with the venue id) and stores the returned webhook secret.
   - Secrets are stored encrypted (Supabase Vault or an equivalent), keyed by `venue_id`, and read only by Edge Functions. They're never sent back to the browser: the admin sees "connected", the key's last 4 characters, and buttons to replace or disconnect.
   - Test-mode keys are refused in production, and live keys in staging.
+  - **Key safety.** The code uses a venue's key only to create checkouts, register our webhook and refund late payments. Every use is logged (`paymongo_key_uses`: venue, action, booking, when, outcome; never the key). Only the owner role can replace or disconnect it, and doing so is logged too. Our terms say how keys are stored and used.
 - [ ] **Checkout.** `create-paymongo-checkout` loads the booking's venue and uses that venue's key, so the player pays the venue directly, booking fee included. Only venues with `paymongo_status = active` show "Pay online."
 - [ ] **Webhook.**
   - One function. It takes the venue from the URL, verifies the signature with that venue's webhook secret, and checks that the booking belongs to that venue.
   - Billing needs nothing extra: confirming the booking writes its `billing_charges` row, as for any other method.
   - Refunds for late payments use the venue's key. Other refunds the venue does in its own PayMongo dashboard.
+- [ ] **Health check.** A daily job checks each connected venue: the key still authenticates and our webhook still exists and is enabled. On failure, `paymongo_status` drops to `connected` (not `active`), "Pay online" disappears (manual proofs keep working), and the owner and we get an alert. Reconnecting runs the same checks.
+- [ ] **Onboarding test payment.** Before a venue goes live with PayMongo, we make one small live payment through its booking page and refund it from its dashboard. Recorded in the runbook.
 - [ ] **Live mode.** Accept live signatures, and test GCash, Maya and card for real.
 - [ ] **Emails on in production.**
   - The sender name is the venue's name; replies go to the venue's email.
@@ -285,25 +294,29 @@ Expand-then-contract migrations, as the M9 contract migration did.
 - [ ] **Contact form.**
   - Replace the owner sign-up and trial with a lead form: name, phone, email, venue, location, courts, message. No auth account.
   - A Turnstile check, then an insert into `leads` in the production project. We get an email alert.
-- [ ] **Move to production.** Move `reviews` and `leads` into the production Supabase project. Drop plotline-site's own project.
+- [ ] **Move the backend to this repo** (drafts prepared and tested on 2026-10-27 in `docs/drafts/phase5-site-backend/`; PLATFORM.md §5):
+  - a migration for `leads` (status and notes, admin-only) and `reviews` (anon reads approved rows; admins approve);
+  - the Edge Functions `site-contact` (Turnstile, honeypot, timing check) and `site-review`, with `SITE_ORIGINS` for CORS;
+  - `_shared/siteForms.ts` with Vitest, and pgTAP for both tables.
+  - Then plotline-site uses a copy of `siteForms.ts`, calls the new functions, generates types from the shared project, and deletes its own `supabase/migrations`, `functions` and `tests`. Its local-only project is dropped.
 - [ ] **Copy.** Remove the free-trial wording. Explain the pricing: free for venues, a ₱10 booking fee per online booking paid by the player. Match the feature list to what ships, or schedule the gaps:
   - open play slots, waitlist and skill levels
   - reminders
   - pay at the venue
   - a venue logo
-- [ ] **Links and deploy.** Real links (support email, Messenger, demo at `claudex.plotline.ph`), a real Terms page, and a Privacy page covering the Data Privacy Act. Deploy on Cloudflare.
+- [ ] **Links and deploy.** Real links (support email, Messenger, demo at `claudex-courts.plotline.fit`), a real Terms page, and a Privacy page covering the Data Privacy Act. Deploy on Cloudflare.
 
 ### Phase 6: Launch readiness
 - [ ] Nightly backups of production, with one restore tested on staging.
 - [ ] Sentry free tier, for both sites and the Edge Functions.
-- [ ] Uptime check on `claudex.plotline.ph` and the Supabase API.
+- [ ] Uptime check on `claudex-courts.plotline.fit` and the Supabase API.
 - [ ] Supabase Pro when the first venue pays.
-- [ ] A runbook: onboarding a venue (manual and PayMongo), monthly invoicing and reconciliation, suspending a venue, restoring a backup.
+- [ ] A runbook: onboarding a venue (manual and PayMongo, including the test payment), monthly invoicing and reconciliation, suspending a venue, restoring a backup, a leaked or broken PayMongo key.
 
 ## 8. Later, only when needed
 
 - Custom domains for venues (`book.smasharena.ph`) through Cloudflare for SaaS.
-- Logging in once across all venue subdomains: a shared auth host, or cookie storage on `.plotline.ph`.
+- Logging in once across all venue subdomains: a shared auth host, or cookie storage on `.plotline.fit`.
 - A dedicated database as a premium plan.
 - Automated invoice payments.
 - Finding courts across venues for players.
