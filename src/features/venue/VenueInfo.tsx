@@ -1,13 +1,14 @@
-import { AtSign, Globe, MapPin, MessageCircle, type LucideIcon } from 'lucide-react'
+import { MapPin } from 'lucide-react'
 import { useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
+import { SocialIcon } from '../../components/BrandIcons'
 import { SimpleMarkdown } from '../../components/SimpleMarkdown'
 import { shownAmenities } from './amenities'
 import type { Amenity, InfoSection, SocialLink } from './api'
 import { useAmenities, useInfoSections, useSocialLinks } from './hooks'
 import { MAPS_EMBED_KEY, mapEmbedUrl, mapQueryOf, mapsSearchUrl } from './map'
 import { infoSectionAnchor } from './sections'
-import { SOCIAL_PLATFORMS, type SocialPlatform } from './social'
+import { SOCIAL_PLATFORMS } from './social'
 
 // Player-side venue info (T9.11i). Each part renders nothing while loading, on error or when empty: it's
 // extra information around the booking flow, never something that blocks it.
@@ -30,14 +31,14 @@ export function AmenityList({ rows }: { rows: Amenity[] }) {
   )
 }
 
-/** The address, an embedded map (lazy) and "Open in Google Maps", plus the social links. Hidden with no address. */
+/** The address, an embedded map (lazy) and "Open in Google Maps". Hidden with no address. The social links are in
+    the footer's "Stay connected" band (T11.4). */
 export function VenueLocation({ venueName, address, mapsQuery }: { venueName: string; address: string; mapsQuery: string }) {
-  const socials = useSocialLinks()
   const query = mapQueryOf({ address, maps_query: mapsQuery })
   if (!query) return null
   return (
     <section className="card stack venue-block" aria-labelledby="location-title">
-      <h2 id="location-title">Location</h2>
+      <h2 id="location-title" className="card-head">Location</h2>
       {address.trim() && (
         <p className="venue-address"><MapPin className="amenity-icon" aria-hidden="true" /><span className="pre-line">{address.trim()}</span></p>
       )}
@@ -47,38 +48,39 @@ export function VenueLocation({ venueName, address, mapsQuery }: { venueName: st
           Open in Google Maps{' '}<span className="sr-only">(opens in a new tab)</span>
         </a>
       </div>
-      {socials.data && socials.data.length > 0 && <SocialLinkList links={socials.data} />}
     </section>
   )
 }
 
-const SOCIAL_ICONS: Record<SocialPlatform, LucideIcon> = {
-  facebook: AtSign, instagram: AtSign, tiktok: AtSign, youtube: AtSign, x: AtSign, messenger: MessageCircle, website: Globe,
-}
-
-/** Labelled links in the platforms' fixed order (brand logos aren't used: generic icons, readable names). */
-export function SocialLinkList({ links, className = 'social-links' }: { links: SocialLink[]; className?: string }) {
+/** A card per link in the platforms' fixed order: the platform's logo in a round chip, then its name. */
+export function SocialLinkList({ links }: { links: SocialLink[] }) {
   const shown = SOCIAL_PLATFORMS.filter(({ platform }) => links.some((l) => l.platform === platform))
   return (
-    <ul className={className} aria-label="Social links">
-      {shown.map(({ platform, label }) => {
-        const Icon = SOCIAL_ICONS[platform]
-        return (
-          <li key={platform}>
-            <a href={links.find((l) => l.platform === platform)!.url} target="_blank" rel="noopener noreferrer">
-              <Icon className="social-icon" aria-hidden="true" />{label}{' '}<span className="sr-only">(opens in a new tab)</span>
-            </a>
-          </li>
-        )
-      })}
+    <ul className="social-cards" aria-label="Social links">
+      {shown.map(({ platform, label }) => (
+        <li key={platform}>
+          <a className="social-card" href={links.find((l) => l.platform === platform)!.url} target="_blank" rel="noopener noreferrer">
+            <span className="social-chip"><SocialIcon platform={platform} className="social-icon" /></span>
+            {label}{' '}<span className="sr-only">(opens in a new tab)</span>
+          </a>
+        </li>
+      ))}
     </ul>
   )
 }
 
-/** The footer's social links, on every public page. */
-export function FooterSocials() {
+/** The "Stay connected" band at the top of the footer, on every public page (T11.4). Nothing without links. */
+export function StayConnected() {
   const socials = useSocialLinks()
-  return socials.data && socials.data.length > 0 ? <SocialLinkList links={socials.data} className="social-links footer-socials" /> : null
+  if (!socials.data || socials.data.length === 0) return null
+  return (
+    <section className="connect" aria-labelledby="connect-title">
+      <p className="connect-eyebrow">Stay connected</p>
+      <h2 id="connect-title">Connect with us</h2>
+      <p className="connect-lead">Follow us on social media for schedules, events, announcements and community updates.</p>
+      <SocialLinkList links={socials.data} />
+    </section>
+  )
 }
 
 export function InfoSections() {
@@ -102,7 +104,7 @@ export function InfoSectionList({ sections }: { sections: InfoSection[] }) {
   }, [target])
 
   return (
-    <section className="venue-block stack" aria-labelledby="info-title">
+    <section className="venue-block stack info-list" aria-labelledby="info-title">
       <h2 id="info-title">Good to know</h2>
       {sections.map((s) => {
         const anchor = infoSectionAnchor(s.id)

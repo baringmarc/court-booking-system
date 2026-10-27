@@ -31,6 +31,8 @@ Summary of the Plotline Brand Style Guide (Canva, "Brand Guidelines", design `DA
 | Sand | `#E6D9C6` | Dividers, soft panels |
 | Terracotta | `#7A3F2C` | Highlight words |
 
+**App dark mode departs from the guide (the user's call, 2026-10-27):** the court booking app's dark page is "Espresso" (`#2A2522`, cards `#3F3833`), deeper and less brown than warm brown, because brown page and brown cards read as one surface. The secondary logo still sits on it. plotline-site keeps the guide's warm brown.
+
 Keep backgrounds light and use brown for text. Sage and dusty rose are too light for text or thin outlines on cream: buttons in sage take warm-brown text, and outlines, focus rings and links need darker shades (worked out and contrast-checked in T11.1).
 
 ## Typography

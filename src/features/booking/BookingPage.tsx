@@ -174,7 +174,7 @@ function SaveLinkCard({ prominent }: { prominent: boolean }) {
 
   return (
     <section className={`card stack${prominent ? ' card-highlight' : ''}`}>
-      <h2>Save this link</h2>
+      <h2 className={`card-head${prominent ? ' rose' : ''}`}>Save this link</h2>
       <p className="small">It's the only way to view and pay for this booking without an account. Bookmark it or copy it somewhere safe.</p>
       <div className="copy-row">
         <input readOnly value={url} aria-label="Private booking link" onFocus={(e) => e.target.select()} />

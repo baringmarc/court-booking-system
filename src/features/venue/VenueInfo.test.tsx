@@ -5,7 +5,7 @@ import type { ReactNode } from 'react'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fetchAmenities, fetchInfoSections, fetchSocialLinks, type InfoSection } from './api'
-import { AmenityChips, CancellationPolicyLink, FooterSocials, InfoSections, VenueLocation } from './VenueInfo'
+import { AmenityChips, CancellationPolicyLink, InfoSections, StayConnected, VenueLocation } from './VenueInfo'
 
 vi.mock('./api', async (importOriginal) => ({
   ...(await importOriginal<object>()),
@@ -61,7 +61,7 @@ describe('AmenityChips', () => {
 })
 
 describe('VenueLocation', () => {
-  it('shows the address, a lazy map, "Open in Google Maps" and the social links', async () => {
+  it('shows the address, a lazy map and "Open in Google Maps", with a heading band and no social links', () => {
     renderWith(<VenueLocation venueName="Claudex Courts" address="123 Rizal Ave, Makati" mapsQuery="Claudex Courts Makati" />)
     expect(screen.getByRole('heading', { name: 'Location' })).toBeInTheDocument()
     expect(screen.getByText('123 Rizal Ave, Makati')).toBeInTheDocument()
@@ -71,12 +71,10 @@ describe('VenueLocation', () => {
     const open = screen.getByRole('link', { name: 'Open in Google Maps (opens in a new tab)' })
     expect(open).toHaveAttribute('href', 'https://www.google.com/maps/search/?api=1&query=Claudex%20Courts%20Makati')
     expect(open).toHaveAttribute('rel', 'noopener noreferrer')
-    // Platforms in their fixed order, labelled.
-    const socials = await screen.findByRole('list', { name: 'Social links' })
-    expect(within(socials).getAllByRole('link').map((a) => [a.textContent, a.getAttribute('href')])).toEqual([
-      ['Facebook (opens in a new tab)', 'https://www.facebook.com/claudex'],
-      ['Website (opens in a new tab)', 'https://claudex.example.ph'],
-    ])
+    expect(screen.getByRole('heading', { name: 'Location' })).toHaveClass('card-head')
+    // The social links moved to the footer's "Stay connected" band (T11.4).
+    expect(screen.queryByRole('list', { name: 'Social links' })).not.toBeInTheDocument()
+    expect(fetchSocialLinks).not.toHaveBeenCalled()
   })
 
   it('is hidden without an address or map search', () => {
@@ -85,17 +83,61 @@ describe('VenueLocation', () => {
   })
 })
 
-describe('FooterSocials', () => {
+describe('StayConnected', () => {
+  it('shows the band: fixed text, then a card per link in platform order with its logo', async () => {
+    vi.mocked(fetchSocialLinks).mockResolvedValueOnce([
+      { platform: 'website', url: 'https://claudex.example.ph' },
+      { platform: 'x', url: 'https://x.com/claudex' },
+      { platform: 'messenger', url: 'https://m.me/claudex' },
+      { platform: 'youtube', url: 'https://www.youtube.com/@claudex' },
+      { platform: 'tiktok', url: 'https://www.tiktok.com/@claudex' },
+      { platform: 'instagram', url: 'https://www.instagram.com/claudex' },
+      { platform: 'facebook', url: 'https://www.facebook.com/claudex' },
+    ])
+    renderWith(<StayConnected />)
+    const band = await screen.findByRole('region', { name: 'Connect with us' })
+    expect(within(band).getByText('Stay connected')).toBeInTheDocument()
+    expect(within(band).getByText('Follow us on social media for schedules, events, announcements and community updates.')).toBeInTheDocument()
+    const links = within(within(band).getByRole('list', { name: 'Social links' })).getAllByRole('link')
+    expect(links.map((a) => [a.textContent, a.getAttribute('href')])).toEqual([
+      ['Facebook (opens in a new tab)', 'https://www.facebook.com/claudex'],
+      ['Instagram (opens in a new tab)', 'https://www.instagram.com/claudex'],
+      ['TikTok (opens in a new tab)', 'https://www.tiktok.com/@claudex'],
+      ['YouTube (opens in a new tab)', 'https://www.youtube.com/@claudex'],
+      ['X (opens in a new tab)', 'https://x.com/claudex'],
+      ['Messenger (opens in a new tab)', 'https://m.me/claudex'],
+      ['Website (opens in a new tab)', 'https://claudex.example.ph'],
+    ])
+    for (const a of links) {
+      expect(a).toHaveAttribute('target', '_blank')
+      expect(a).toHaveAttribute('rel', 'noopener noreferrer')
+    }
+    // Each brand shows its own logo (decorative); the website keeps a plain globe.
+    const platforms = links.map((a) => a.querySelector('svg')?.getAttribute('data-platform') ?? null)
+    expect(platforms).toEqual(['facebook', 'instagram', 'tiktok', 'youtube', 'x', 'messenger', null])
+    for (const a of links) expect(a.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
+  })
+
+  it('shows only the platforms that have a link', async () => {
+    // The default mock: website and Facebook, stored out of order.
+    renderWith(<StayConnected />)
+    const list = await screen.findByRole('list', { name: 'Social links' })
+    const links = within(list).getAllByRole('link')
+    expect(links.map((a) => a.textContent)).toEqual(['Facebook (opens in a new tab)', 'Website (opens in a new tab)'])
+    expect(links[0].querySelector('svg')).toHaveAttribute('data-platform', 'facebook')
+    expect(links[1].querySelector('svg')).not.toHaveAttribute('data-platform')
+  })
+
   it('renders nothing when the links fail to load', async () => {
     vi.mocked(fetchSocialLinks).mockRejectedValueOnce(new Error('boom'))
-    const { container } = renderWith(<FooterSocials />)
+    const { container } = renderWith(<StayConnected />)
     await vi.waitFor(() => expect(fetchSocialLinks).toHaveBeenCalled())
     expect(container).toBeEmptyDOMElement()
   })
 
   it('renders nothing when there are no links', async () => {
     vi.mocked(fetchSocialLinks).mockResolvedValueOnce([])
-    const { container } = renderWith(<FooterSocials />)
+    const { container } = renderWith(<StayConnected />)
     await vi.waitFor(() => expect(fetchSocialLinks).toHaveBeenCalled())
     expect(container).toBeEmptyDOMElement()
   })

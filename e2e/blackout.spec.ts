@@ -2,7 +2,7 @@
 // sees the court closed then. The pickers are checked with axe, light and dark, with the calendar open.
 import { AxeBuilder } from '@axe-core/playwright'
 import { expect, test, type Page } from '@playwright/test'
-import { createAdmin, E2E_PREFIX, logInAdmin, pickDate, serviceClient, venueDate } from './support/helpers.ts'
+import { createAdmin, E2E_PREFIX, logInAdmin, pickDate, serviceClient, venueDate, setColorScheme } from './support/helpers.ts'
 
 const date = venueDate(23)
 
@@ -10,7 +10,7 @@ const date = venueDate(23)
 async function axeViolations(page: Page) {
   const found: string[] = []
   for (const colorScheme of ['light', 'dark'] as const) {
-    await page.emulateMedia({ colorScheme })
+    await setColorScheme(page, colorScheme)
     const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
     found.push(...results.violations
       .filter((v) => v.impact === 'serious' || v.impact === 'critical')

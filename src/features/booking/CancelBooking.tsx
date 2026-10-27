@@ -36,7 +36,7 @@ export function CancelBooking({ check, timeZone, paid, pending, error, onCancel 
 
   return (
     <section className="card stack" aria-labelledby="cancel-heading">
-      <h2 id="cancel-heading">Need to cancel?</h2>
+      <h2 id="cancel-heading" className="card-head">Need to cancel?</h2>
       <p className="small muted">You can cancel online until {deadline}.</p>
       {error != null && <div className="alert alert-error" role="alert"><p>{bookingErrorMessage(error)}</p></div>}
       {confirming ? (

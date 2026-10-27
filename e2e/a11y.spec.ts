@@ -2,7 +2,7 @@
 // pages, in light and dark mode, and no page scrolls sideways at 360px or at 200% zoom.
 import { AxeBuilder } from '@axe-core/playwright'
 import { expect, test, type Page } from '@playwright/test'
-import { createAdmin, createPlayer, E2E_PREFIX, logInAdmin, pickFirstFreeSlot, venueDate } from './support/helpers.ts'
+import { createAdmin, createPlayer, E2E_PREFIX, logInAdmin, pickFirstFreeSlot, venueDate, setColorScheme } from './support/helpers.ts'
 
 async function axeViolations(page: Page) {
   const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
@@ -14,7 +14,7 @@ async function axeViolations(page: Page) {
 /** Runs axe in both colour schemes and checks the page reflows (no sideways page scroll). */
 async function checkPage(page: Page, name: string) {
   for (const colorScheme of ['light', 'dark'] as const) {
-    await page.emulateMedia({ colorScheme })
+    await setColorScheme(page, colorScheme)
     expect(await axeViolations(page), `${name} (${colorScheme})`).toEqual([])
   }
   await page.emulateMedia({ colorScheme: null })

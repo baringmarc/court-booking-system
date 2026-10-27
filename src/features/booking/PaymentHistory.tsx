@@ -12,7 +12,7 @@ export function PaymentHistory({ payments, timeZone, currency }: { payments: Pay
   if (payments.length === 0) return null
   return (
     <section className="card" aria-labelledby="payments-heading">
-      <h2 id="payments-heading">Payments</h2>
+      <h2 id="payments-heading" className="card-head">Payments</h2>
       <ul className="list">
         {payments.map((p) => {
           const replaced = isReplacedByOnlinePayment(p, payments)

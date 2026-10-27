@@ -26,7 +26,8 @@ const dark = tokensOf(darkRaw)
 describe('shipped theme (src/index.css)', () => {
   it('declares every theme token in light mode', () => {
     for (const key of ['bg', 'surface', 'field', 'text', 'muted', 'border', 'borderStrong', 'accent', 'accentSoft',
-      'btn', 'btnHover', 'btnText', 'danger', 'dangerContrast', 'pendingBg', 'highlight', 'openPlay', 'slotFreeBorder'] as const) {
+      'btn', 'btnHover', 'btnText', 'danger', 'dangerContrast', 'pendingBg', 'highlight', 'openPlay', 'slotFreeBorder',
+      'tintSage', 'tintRose', 'bandBg', 'bandCard', 'bandChip', 'bandText', 'bandMuted', 'bandAccent'] as const) {
       expect(light[key], key).toBeTruthy()
     }
   })

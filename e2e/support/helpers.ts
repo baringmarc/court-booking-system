@@ -148,3 +148,14 @@ export async function uploadProof(page: Page) {
   await page.getByRole('button', { name: 'Submit proof of payment' }).click()
   await expect(page.getByText(/We're checking your payment/)).toBeVisible()
 }
+
+/**
+ * Switches the colour scheme for an axe check and waits until no transition is running. Colours ease over 150 ms
+ * since T11.4, so axe right after the switch would read a half-faded colour that no one sees at rest.
+ */
+export async function setColorScheme(page: Page, colorScheme: 'light' | 'dark') {
+  await page.emulateMedia({ colorScheme })
+  // A string, because the e2e tsconfig has no DOM types.
+  // Only transitions: an endless animation (a loading spinner) never stops running.
+  await page.waitForFunction("document.getAnimations().filter((a) => a instanceof CSSTransition).every((a) => a.playState !== 'running')")
+}

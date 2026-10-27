@@ -22,6 +22,9 @@ export function HomePage() {
     <section className="page">
       <HomeBanner />
       <div className="hero">
+        <div className="hero-shapes" aria-hidden="true">
+          <span className="shape-ring" /><span className="shape-dot" /><span className="shape-leaf" />
+        </div>
         <h1>Book a court at {venueName}</h1>
         <p className="lead">
           Pick a court and a time, then pay with GCash, Maya or a bank transfer.
@@ -66,7 +69,7 @@ function SportGroup({ title, courts, currency }: { title: string; courts: CourtW
   const minRate = Math.min(...courts.map((c) => c.default_hourly_rate))
   return (
     <section className="card">
-      <div className="sport-head">
+      <div className="sport-head card-head">
         <h3>{title}</h3>
         <span className="muted">
           {courts.length} {courts.length === 1 ? 'court' : 'courts'} · from {formatMoney(minRate, currency)}/hr

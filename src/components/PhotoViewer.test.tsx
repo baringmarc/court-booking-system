@@ -60,6 +60,20 @@ describe('PhotoViewer', () => {
     expect(screen.getByRole('dialog')).toHaveAttribute('tabindex', '-1')
   })
 
+  it('keeps focus inside when a button reaches an end and disables itself, so the arrow keys still work', async () => {
+    renderViewer(1)
+    const dialog = screen.getByRole('dialog')
+    await userEvent.click(screen.getByRole('button', { name: 'Previous photo' }))
+    expect(screen.getByText('1 of 3')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Previous photo' })).toBeDisabled()
+    expect(dialog).toHaveFocus()
+    await userEvent.keyboard('{ArrowRight}')
+    expect(screen.getByText('2 of 3')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Next photo' }))
+    expect(screen.getByText('3 of 3')).toBeInTheDocument()
+    expect(dialog).toHaveFocus()
+  })
+
   it('closes from its button with the photo on screen', async () => {
     const onClose = renderViewer(2)
     await userEvent.click(screen.getByRole('button', { name: 'Close' }))

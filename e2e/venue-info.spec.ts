@@ -3,7 +3,7 @@
 import { AxeBuilder } from '@axe-core/playwright'
 import { createClient } from '@supabase/supabase-js'
 import { expect, test } from '@playwright/test'
-import { createAdmin, E2E_PREFIX, logInAdmin, serviceClient } from './support/helpers.ts'
+import { createAdmin, E2E_PREFIX, logInAdmin, serviceClient, setColorScheme } from './support/helpers.ts'
 import { localSupabase } from './support/local.ts'
 
 type Snapshot = {
@@ -93,14 +93,17 @@ test('an admin sets an amenity, an info section and a social link, and anyone ca
   await expect(where.locator('iframe')).toHaveAttribute('loading', 'lazy')
   await expect(where.getByRole('link', { name: /Open in Google Maps/ }))
     .toHaveAttribute('href', 'https://www.google.com/maps/search/?api=1&query=Ayala%20Triangle%20Gardens%2C%20Makati')
-  await expect(where.getByRole('link', { name: /^TikTok/ })).toHaveAttribute('href', 'https://www.tiktok.com/@claudexcourts')
-  await expect(home.locator('footer').getByRole('link', { name: /^TikTok/ })).toBeVisible()
+  // Social links are in the footer's "Stay connected" band now, not the location card (T11.4).
+  await expect(where.getByRole('link', { name: /^TikTok/ })).toHaveCount(0)
+  const band = home.getByRole('region', { name: 'Connect with us' })
+  await expect(band.getByRole('link', { name: /^TikTok/ })).toHaveAttribute('href', 'https://www.tiktok.com/@claudexcourts')
+  await expect(band.getByRole('link', { name: /^TikTok/ }).locator('svg[data-platform="tiktok"]')).toBeVisible()
   const panel = home.locator('details').filter({ hasText: title })
   await panel.getByText(title).click()
   await expect(panel.getByText('Gate closes at 11 PM.')).toBeVisible()
   // The Google map is a third-party frame: check our page, not Google's.
   for (const colorScheme of ['light', 'dark'] as const) {
-    await home.emulateMedia({ colorScheme })
+    await setColorScheme(home, colorScheme)
     const axe = await new AxeBuilder({ page: home }).exclude('.map-frame').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
     expect(axe.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical').map((v) => v.id), colorScheme).toEqual([])
   }
