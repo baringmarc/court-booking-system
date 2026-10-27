@@ -1114,7 +1114,7 @@ Researched 2026-10-27 (T11.1). Contrast ratios were computed with the WCAG formu
 ### Walk-in feature flag
 - **Status:** Decided (SPEC §10, 2026-10-27)
 - **Recommendation:**
-  - `src/lib/features.ts`: `export const WALK_INS_ENABLED = import.meta.env.VITE_FEATURE_WALK_INS === 'true'`. Off unless the build sets it. Because it is a compile-time constant, Rollup drops `if (!WALK_INS_ENABLED)` branches and, with the `WalkInForm` import behind `WALK_INS_ENABLED && ...` (lazy), the form leaves the production bundle. `.env.example` lists it as `VITE_FEATURE_WALK_INS=false`; Vercel leaves it unset.
+  - The flag is read inline as `import.meta.env.VITE_FEATURE_WALK_INS === 'true'` where the `WalkInSection` is lazy-imported (T11.2 measured: a constant exported from a `features.ts` module was not folded by Rolldown and left the chunk in `dist/`; the inline check removes it). Off unless the build sets it. `.env.example` lists it as `VITE_FEATURE_WALK_INS=false`; Vercel leaves it unset.
   - The `create_walk_in` RPC stays in the database (a per-venue server-side ban comes with SaaS Phase 1). Existing walk-in bookings, labels, filters and earnings are untouched.
   - **e2e:** the Playwright `webServer.env` sets `VITE_FEATURE_WALK_INS=true`, so the existing walk-in specs run. The "hidden when off" check is a component test with the flag mocked (the e2e server runs a single mode).
 - **Sources:** Vite env docs (`import.meta.env` values are replaced statically at build time).

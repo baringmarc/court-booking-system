@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { lazy, Suspense } from 'react'
 import { Link } from 'react-router-dom'
 import { ErrorMessage } from '../../components/ErrorMessage'
 import { PageLoader } from '../../components/PageLoader'
@@ -6,17 +6,22 @@ import { formatHour } from '../../lib/format'
 import { addDays, formatDateLabel, hourInZone, zonedLocalToISO } from '../../lib/time'
 import { useAvailability } from '../booking/hooks'
 import { useUpcomingOpenPlay } from '../openPlay/hooks'
-import type { Slot } from '../booking/selection'
 import { displayStatus, STATUS_LABELS } from '../booking/status'
 import { useNow } from '../booking/useNow'
 import type { Court, OperatingHours, VenueSettings } from '../catalog/api'
 import { useCourts, useOperatingHours, useVenueSettings } from '../catalog/hooks'
 import { isAfterMidnight, operatingDayRange, operatingToday } from '../catalog/hours'
 import { operatingDayBookings } from './dashboard'
-import { useAdminBookings, useCreateWalkIn, useProofQueueCount } from './hooks'
+import { useAdminBookings, useProofQueueCount } from './hooks'
 import { DayView } from './DayView'
 import { EarningsSection } from './EarningsSection'
-import { WalkInForm } from './WalkInForm'
+
+// Walk-ins are off unless the build sets VITE_FEATURE_WALK_INS=true. The flag is read inline here, not through a
+// shared constant: only an inline `import.meta.env` check is folded at build time, which drops the WalkInSection
+// chunk from the bundle (a constant exported from another module left the chunk in dist/).
+const WalkInSection = import.meta.env.VITE_FEATURE_WALK_INS === 'true'
+  ? lazy(() => import('./WalkInSection').then((m) => ({ default: m.WalkInSection })))
+  : null
 
 export function DashboardPage() {
   const settings = useVenueSettings()
@@ -60,8 +65,6 @@ function Dashboard({ settings, courts, hours }: { settings: VenueSettings; court
   const availability = useAvailability(today)
   const openPlay = useUpcomingOpenPlay({ enabled: !!availability.data?.some((s) => s.status === 'open_play') })
   const queue = useProofQueueCount()
-  const [showWalkIn, setShowWalkIn] = useState(false)
-  const [lastWalkIn, setLastWalkIn] = useState<string | null>(null)
 
   const schedulePending = schedule.isPending || (pastMidnight && scheduleNext.isPending)
   const scheduleError = schedule.error ?? (pastMidnight ? scheduleNext.error : null)
@@ -87,19 +90,11 @@ function Dashboard({ settings, courts, hours }: { settings: VenueSettings; court
         </section>
       </div>
 
-      <section className="card stack">
-        <div className="page-head">
-          <h2>Walk-in</h2>
-          <button type="button" className="btn btn-small" aria-expanded={showWalkIn} onClick={() => setShowWalkIn((v) => !v)}>
-            {showWalkIn ? 'Close' : '+ Walk-in'}
-          </button>
-        </div>
-        {lastWalkIn && <div className="alert alert-info" role="status"><p>Walk-in {lastWalkIn} recorded and confirmed.</p></div>}
-        {showWalkIn && (
-          <WalkInPanel today={today} courts={courts} now={now} timeZone={tz} currency={currency}
-            onRecorded={(ref) => { setLastWalkIn(ref); setShowWalkIn(false) }} />
-        )}
-      </section>
+      {WalkInSection && (
+        <Suspense fallback={<PageLoader />}>
+          <WalkInSection today={today} courts={courts} now={now} timeZone={tz} currency={currency} />
+        </Suspense>
+      )}
 
       <EarningsSection today={today} timeZone={tz} currency={currency} />
 
@@ -139,33 +134,5 @@ function Dashboard({ settings, courts, hours }: { settings: VenueSettings; court
         )}
       </section>
     </div>
-  )
-}
-
-type WalkInPanelProps = {
-  today: string
-  courts: Court[]
-  now: Date
-  timeZone: string
-  currency: string
-  onRecorded: (referenceCode: string) => void
-}
-
-function WalkInPanel({ today, courts, now, timeZone, currency, onRecorded }: WalkInPanelProps) {
-  const availability = useAvailability(today)
-  const create = useCreateWalkIn()
-  const slotsByCourt = useMemo(() => {
-    const map = new Map<string, Slot[]>()
-    for (const s of availability.data ?? []) map.set(s.court_id, [...(map.get(s.court_id) ?? []), s])
-    return map
-  }, [availability.data])
-
-  if (availability.isPending) return <PageLoader />
-  if (availability.isError) return <ErrorMessage error={availability.error} onRetry={() => availability.refetch()} />
-  if (courts.length === 0 || availability.data.length === 0) return <p className="muted">The venue is closed today.</p>
-  return (
-    <WalkInForm courts={courts} slotsByCourt={slotsByCourt} now={now} timeZone={timeZone} currency={currency} date={today}
-      pending={create.isPending} error={create.isError ? create.error : null}
-      onSubmit={(input) => create.mutate(input, { onSuccess: (r) => onRecorded(r.referenceCode) })} />
   )
 }

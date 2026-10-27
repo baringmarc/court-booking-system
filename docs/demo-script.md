@@ -38,7 +38,7 @@ A walkthrough of Claudex Courts, about 4 to 5 minutes. Record it at 1080p, with 
 
 **On screen:**
 - The dashboard: today's courts with full names (a booking is one block over its hours), the proofs to review, and the earnings. Switch between Today, This week and This month, point at the collected total per method, the change from the period before, the occupancy table and the daily bars, then use "Export bookings (CSV)" and "Export payments (CSV)".
-- "+ Walk-in": record one.
+- "+ Walk-in": record one. (Since T11.2 this is hidden in production builds unless `VITE_FEATURE_WALK_INS=true`; skip it on the Vercel site, or show it locally. T11.16 rewrites this script.)
 - Open play: create a session, and show the error when it overlaps a booking.
 - Schedule: set a day that closes at 2 AM, and point out "closes next day".
 - Settings: tick an amenity.

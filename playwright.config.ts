@@ -35,6 +35,8 @@ export default defineConfig({
     env: {
       VITE_SUPABASE_URL: supabase.url,
       VITE_SUPABASE_PUBLISHABLE_KEY: supabase.publishableKey,
+      // Walk-ins are hidden in production builds (T11.2); the walk-in specs need them.
+      VITE_FEATURE_WALK_INS: 'true',
     },
   },
 })
