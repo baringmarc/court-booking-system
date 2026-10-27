@@ -612,3 +612,43 @@ details[open]::details-content { block-size: auto; }
   .dialog[open], .dialog[open]::backdrop { animation: none; }
   .btn:active:not(:disabled) { transform: none; }
 }
+
+/* /book date strip (T11.4a): the day as a heading, ‹ › and "Jump to date", then up to 10 day tiles. On a phone the
+   tiles scroll sideways inside the strip (snap), never the page. */
+.date-strip { display: flex; flex-direction: column; gap: 12px; margin-bottom: 0; min-width: 0; }
+.date-strip-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.date-strip-day { display: flex; flex-direction: column; margin: 0; flex: 1 1 auto; min-width: 0; order: 1; }
+.date-strip-head > .icon-btn:first-child { order: 0; }
+.date-strip-head > .icon-btn:last-child { order: 3; }
+.date-strip-jump { order: 2; }
+.date-strip-word { font-family: var(--serif); font-weight: 700; font-size: clamp(1.4rem, 4vw, 1.9rem); line-height: 1.15; }
+.date-strip-full { color: var(--muted); font-family: var(--sans); font-size: 1rem; font-weight: 500; line-height: 1.5; }
+.date-strip-month { margin: 0; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+.date-strip-days {
+  display: grid; grid-auto-flow: column; grid-auto-columns: minmax(60px, 1fr); gap: 8px;
+  overflow-x: auto; scroll-snap-type: x proximity; padding: 2px 2px 6px; margin: -2px; scrollbar-width: thin;
+}
+.date-tile {
+  scroll-snap-align: start; position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  min-height: 64px; padding: 8px 4px 12px; border-radius: 14px; border: 1px solid var(--border-strong);
+  background: var(--surface); color: var(--text); font: inherit; cursor: pointer;
+  transition: background-color var(--dur-fast) ease-out, border-color var(--dur-fast) ease-out, color var(--dur-fast) ease-out;
+}
+.date-tile:hover:not(:disabled) { background: var(--accent-soft); }
+.date-tile:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.date-tile-weekday { font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.date-tile-day { font-size: 1.35rem; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.date-tile[aria-pressed='true'] { background: var(--btn); border-color: var(--accent); color: var(--btn-text); }
+.date-tile[aria-pressed='true'] .date-tile-weekday { color: var(--btn-text); }
+.date-tile.is-today::after { content: ''; position: absolute; bottom: 5px; width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
+.date-tile[aria-pressed='true'].is-today::after { background: var(--btn-text); }
+/* Closed: hatched like a closed slot, and its words say "closed" to screen readers. */
+.date-tile:disabled {
+  cursor: not-allowed; color: var(--muted); border-style: dashed;
+  background: repeating-linear-gradient(135deg, transparent 0 5px, var(--slot-closed-stripe) 5px 9px);
+}
+@media (max-width: 560px) {
+  .date-strip-head { gap: 8px; }
+  .date-strip-day { flex-basis: calc(100% - 120px); }
+  .date-strip-jump { order: 4; width: 100%; }
+}

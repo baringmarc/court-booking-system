@@ -105,12 +105,13 @@ export function venueDate(days: number) {
 }
 
 /**
- * Picks `date` (YYYY-MM-DD) in the DatePicker named `label` inside `scope` (T10.3): opens its calendar dialog, goes
- * forward month by month until the day shows, and clicks it. The dialog closes on a pick.
+ * Picks `date` (YYYY-MM-DD) in the DatePicker named `label` inside `scope` (T10.3), or in /book's date strip (its
+ * group is "Date", T11.4a): opens the calendar dialog ("Choose a date…" or "Jump to date"), goes forward month by
+ * month until the day shows, and clicks it. The dialog closes on a pick.
  */
 export async function pickDate(page: Page, scope: Page | Locator, label: string, date: string) {
-  await scope.getByRole('group', { name: label }).getByRole('button', { name: /^Choose a date/ }).click()
-  const dialog = page.getByRole('dialog', { name: label })
+  await scope.getByRole('group', { name: label }).getByRole('button', { name: /^(Choose a date|Jump to date)/ }).click()
+  const dialog = page.getByRole('dialog').filter({ has: page.getByRole('grid') })
   await expect(dialog.getByRole('grid')).toBeVisible()
   const [y, m, d] = date.split('-').map(Number)
   const month = new Date(Date.UTC(y, m - 1, d)).toLocaleString('en-US', { month: 'long', timeZone: 'UTC' })

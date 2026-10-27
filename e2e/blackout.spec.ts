@@ -68,7 +68,7 @@ test('an admin adds a blackout with the pickers, and a guest picking that date i
   const guestContext = await browser.newContext({ ...test.info().project.use })
   const guest = await guestContext.newPage()
   await guest.goto('/book?sport=badminton')
-  await expect(guest.getByRole('group', { name: 'Date' }).getByRole('button', { name: 'Today' })).toHaveAttribute('aria-pressed', 'true')
+  await expect(guest.getByRole('group', { name: 'Date' }).getByRole('button', { name: /, today$/ })).toHaveAttribute('aria-pressed', 'true')
   await pickDate(guest, guest, 'Date', date)
   await expect(guest).toHaveURL(new RegExp(`date=${date}`))
   // One merged cell for the whole blackout (T10.5).
