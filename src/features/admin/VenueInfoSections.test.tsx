@@ -8,8 +8,9 @@ import { updateVenueSettings, type VenueSettings } from '../catalog/api'
 import { fetchAmenities, fetchInfoSections, fetchSocialLinks, type InfoSection } from '../venue/api'
 import { AmenitiesSection } from './AmenitiesSection'
 import {
-  addCustomAmenity, deleteInfoSection, moveInfoSection, removeAmenity, saveInfoSection, saveSocialLinks, setBuiltinAmenity,
+  addCustomAmenity, deleteInfoSection, removeAmenity, reorderInfoSections, saveInfoSection, saveSocialLinks, setBuiltinAmenity,
 } from './api'
+import { menuMove, openMoveMenu } from '../../test/reorder'
 import { InfoSectionsSection } from './InfoSectionsSection'
 import { LocationSection } from './LocationSection'
 import { SocialLinksSection } from './SocialLinksSection'
@@ -26,7 +27,7 @@ vi.mock('./api', async (importOriginal) => ({
   saveSocialLinks: vi.fn(),
   saveInfoSection: vi.fn(),
   deleteInfoSection: vi.fn(),
-  moveInfoSection: vi.fn(),
+  reorderInfoSections: vi.fn(),
   setBuiltinAmenity: vi.fn(),
   addCustomAmenity: vi.fn(),
   removeAmenity: vi.fn(),
@@ -48,7 +49,7 @@ beforeEach(() => {
     { id: 'a1', builtin_key: 'wifi', custom_name: null, created_at: '2030-01-01' },
     { id: 'a2', builtin_key: null, custom_name: 'Massage chairs', created_at: '2030-01-02' },
   ])
-  for (const fn of [saveSocialLinks, deleteInfoSection, moveInfoSection, setBuiltinAmenity, addCustomAmenity, removeAmenity]) {
+  for (const fn of [saveSocialLinks, deleteInfoSection, reorderInfoSections, setBuiltinAmenity, addCustomAmenity, removeAmenity]) {
     vi.mocked(fn).mockResolvedValue(undefined)
   }
   vi.mocked(saveInfoSection).mockResolvedValue({ id: 's9' })
@@ -102,11 +103,11 @@ describe('SocialLinksSection', () => {
 describe('InfoSectionsSection', () => {
   it('lists sections in order, moves, edits, adds and deletes them', async () => {
     renderWithClient(<InfoSectionsSection />)
-    const list = await screen.findByRole('list')
+    const list = await screen.findByRole('list', { name: 'Info sections in order' })
     expect(within(list).getAllByRole('listitem').map((li) => li.querySelector('strong')?.textContent)).toEqual(['Waiver', 'House rules'])
-    expect(screen.getByRole('button', { name: 'Move Waiver up' })).toBeDisabled()
-    await userEvent.click(screen.getByRole('button', { name: 'Move Waiver down' }))
-    expect(moveInfoSection).toHaveBeenCalledWith('s1', 1)
+    expect((await openMoveMenu('Waiver')).getByRole('button', { name: 'Move up' })).toBeDisabled()
+    await menuMove('Waiver', 'Move down')
+    expect(reorderInfoSections).toHaveBeenCalledWith(['s2', 's1'])
 
     await userEvent.click(screen.getByRole('button', { name: 'Edit House rules' }))
     const edit = screen.getByRole('form', { name: 'Edit House rules' })

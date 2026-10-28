@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../../lib/queryClient'
 import type { CourtPhotoRow, CourtWithPhotos } from '../catalog/api'
 import { addCourtPhoto, removeCourtPhoto, reorderCourtPhotos } from './api'
+import { menuMove, openMoveMenu } from '../../test/reorder'
 import { CourtPhotosSection } from './CourtPhotosSection'
 import { downscaleImage } from './imageResize'
 
@@ -113,14 +114,14 @@ describe('CourtPhotosSection', () => {
     renderSection(court([photo(1), photo(2), photo(3)]))
     await userEvent.click(screen.getByRole('button', { name: 'Remove photo 3' }))
     // While a removal runs, the order can't change (its photo list would be out of date).
-    expect(screen.getByRole('button', { name: 'Move photo 1 down' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Reorder photo 1' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Make cover: photo 2' })).toBeDisabled()
     finishRemove()
 
     let finishReorder = () => {}
     vi.mocked(reorderCourtPhotos).mockImplementation(() => new Promise<void>((resolve) => { finishReorder = resolve }))
-    await vi.waitFor(() => expect(screen.getByRole('button', { name: 'Move photo 1 down' })).toBeEnabled())
-    await userEvent.click(screen.getByRole('button', { name: 'Move photo 1 down' }))
+    await vi.waitFor(() => expect(screen.getByRole('button', { name: 'Reorder photo 1' })).toBeEnabled())
+    await menuMove('photo 1', 'Move down')
     // While a reorder is saving, photos can't be added or removed.
     expect(screen.getByLabelText('Add photos')).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Remove photo 1' })).toBeDisabled()
@@ -128,10 +129,23 @@ describe('CourtPhotosSection', () => {
     await vi.waitFor(() => expect(screen.getByLabelText('Add photos')).toBeEnabled())
   })
 
-  it('moves a photo with the arrows', async () => {
+  it('moves the photos themselves in a keyboard preview, saving on the drop', async () => {
     renderSection(court([photo(1), photo(2), photo(3)]))
-    expect(screen.getByRole('button', { name: 'Move photo 1 up' })).toBeDisabled()
-    await userEvent.click(screen.getByRole('button', { name: 'Move photo 1 down' }))
+    const srcs = () => screen.getAllByRole('img').map((img) => img.getAttribute('src'))
+    const before = srcs()
+    screen.getByRole('button', { name: 'Reorder photo 1' }).focus()
+    await userEvent.keyboard('[Space][ArrowRight]')
+    expect(srcs()).toEqual([before[1], before[0], before[2]]) // the images move, not just the handles
+    expect(reorderCourtPhotos).not.toHaveBeenCalled()
+    await userEvent.keyboard('[Space]')
     expect(reorderCourtPhotos).toHaveBeenCalledWith('c1', ['p2', 'p1', 'p3'])
+  })
+
+  it("moves a photo from its handle's menu, in a grid of tiles", async () => {
+    renderSection(court([photo(1), photo(2), photo(3)]))
+    expect(screen.getByRole('list', { name: 'Photos of Badminton 1, in order' })).toHaveClass('sortable-grid')
+    expect((await openMoveMenu('photo 1')).getByRole('button', { name: 'Move up' })).toBeDisabled()
+    await menuMove('photo 3', 'Move to top')
+    expect(reorderCourtPhotos).toHaveBeenCalledWith('c1', ['p3', 'p1', 'p2'])
   })
 })

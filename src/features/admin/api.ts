@@ -131,9 +131,9 @@ export async function reviewPayment(bookingId: string, approve: boolean, note: s
   return rows[0]?.status
 }
 
-/** Swaps a court with its neighbour in its sport (-1 up, 1 down) and renumbers that sport (move_court, SPEC §6). */
-export async function moveCourt(courtId: string, direction: -1 | 1) {
-  unwrap(await supabase.rpc('move_court', { p_court_id: courtId, p_direction: direction }))
+/** Stores a sport's courts in this order, archived ones included (reorder_courts, T11.5a). */
+export async function reorderCourts(sport: Enums<'sport'>, ids: string[]) {
+  unwrap(await supabase.rpc('reorder_courts', { p_sport: sport, p_ids: ids }))
 }
 
 /** Staff cancel by booking id (the session path, so cancel_booking checks is_admin) with a required reason. */
@@ -467,8 +467,9 @@ export async function deleteInfoSection(id: string) {
   unwrap(await supabase.from('venue_info_sections').delete().eq('id', id))
 }
 
-export async function moveInfoSection(id: string, direction: -1 | 1) {
-  unwrap(await supabase.rpc('move_info_section', { p_id: id, p_direction: direction }))
+/** Stores every info section in this order (reorder_info_sections, T11.5a). */
+export async function reorderInfoSections(ids: string[]) {
+  unwrap(await supabase.rpc('reorder_info_sections', { p_ids: ids }))
 }
 
 /** Switches a built-in amenity on (a row) or off (no row). */

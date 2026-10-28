@@ -2,11 +2,10 @@ import { useState, type ChangeEvent } from 'react'
 import { ErrorMessage } from '../../components/ErrorMessage'
 import type { CourtWithPhotos } from '../catalog/api'
 import { mediaUrl } from '../catalog/media'
-import { moveItem } from '../catalog/sportOrder'
 import { useAddCourtPhoto, useRemoveCourtPhoto, useReorderCourtPhotos } from './hooks'
 import { downscaleImage } from './imageResize'
 import { ACCEPTED_IMAGE_TYPES, checkImageFile, COURT_PHOTO_MAX_WIDTH, MAX_UPLOAD_BYTES } from './mediaInput'
-import { MoveButtons } from './MoveButtons'
+import { SortableList } from './SortableList'
 
 export const MAX_COURT_PHOTOS = 6 // the database enforces the same limit (too_many_photos)
 
@@ -83,17 +82,25 @@ export function CourtPhotosSection({ court }: { court: CourtWithPhotos }) {
       {photos.length === 0 ? (
         <p className="muted">No photos yet. Players see a placeholder for the sport.</p>
       ) : (
-        <ol className="list photo-list">
-          {photos.map((photo, i) => (
-            <li key={photo.id} className="photo-row">
+        // A grid of tiles, dragged in both directions (T11.5a). The first is the cover.
+        <SortableList
+          layout="grid"
+          className="photo-grid"
+          label={`Photos of ${court.name}, in order`}
+          items={photos.map((photo, i) => ({ ...photo, label: `photo ${i + 1}` }))}
+          disabled={busy}
+          onReorder={(order) => reorder.mutate(order)}
+          renderItem={(item, i) => {
+            // The item, not photos[i]: during a keyboard pick-up `i` is the place in the preview order.
+            const photo = photos.find((p) => p.id === item.id)!
+            return (
+            <div className="photo-tile">
               <img className="photo-thumb" src={mediaUrl(photo.path)} alt={`Photo ${i + 1} of ${court.name}`}
                 width={160} height={90} />
               <span className="photo-row-label">
                 {i === 0 ? <span className="badge status-confirmed">Cover</span> : <span className="muted small">Photo {i + 1}</span>}
               </span>
               <span className="photo-row-actions">
-                <MoveButtons label={`photo ${i + 1}`} position={i} canMoveUp={i > 0} canMoveDown={i < photos.length - 1}
-                  disabled={busy} onMove={(direction) => reorder.mutate(moveItem(ids, i, direction))} />
                 {i > 0 && (
                   // aria-label starts with the visible words (label in name, WCAG 2.5.3) and says which photo.
                   <button type="button" className="btn btn-small btn-outline" aria-label={`Make cover: photo ${i + 1}`}
@@ -106,9 +113,10 @@ export function CourtPhotosSection({ court }: { court: CourtWithPhotos }) {
                   Remove
                 </button>
               </span>
-            </li>
-          ))}
-        </ol>
+            </div>
+            )
+          }}
+        />
       )}
 
       <div className="field">

@@ -4,8 +4,8 @@ import { PageLoader } from '../../components/PageLoader'
 import { errorMessage } from '../../lib/errors'
 import type { InfoSection } from '../venue/api'
 import { useInfoSections } from '../venue/hooks'
-import { useDeleteInfoSection, useMoveInfoSection, useSaveInfoSection } from './hooks'
-import { MoveButtons } from './MoveButtons'
+import { useDeleteInfoSection, useReorderInfoSections, useSaveInfoSection } from './hooks'
+import { SortableList } from './SortableList'
 
 const TITLE_MAX = 80
 const BODY_MAX = 5000
@@ -16,7 +16,7 @@ export function InfoSectionsSection() {
   const save = useSaveInfoSection()
   const add = useSaveInfoSection() // its own, so an open edit form never shows the add form's state
   const remove = useDeleteInfoSection()
-  const move = useMoveInfoSection()
+  const move = useReorderInfoSections()
   const [editingId, setEditingId] = useState<string | null>(null)
   const [addKey, setAddKey] = useState(0) // bumped after adding, so the add form empties
 
@@ -45,31 +45,29 @@ export function InfoSectionsSection() {
           {sections.data.length === 0 ? (
             <p className="muted">No info sections yet.</p>
           ) : (
-            <ol className="list order-list">
-              {sections.data.map((s, i) => (
-                <li key={s.id} className="order-row info-section-row">
-                  {editingId === s.id ? (
-                    <SectionForm key={s.id} initial={s} label={`Edit ${s.title}`} saving={save.isPending} error={save.error}
-                      onCancel={() => startEdit(null)}
-                      onSave={(input) => save.mutate({ id: s.id, input }, { onSuccess: () => setEditingId(null) })} />
-                  ) : (
-                    <>
-                      <span className="list-row">
-                        <strong>{s.title}</strong>
-                        <span className="list-row-end">
-                          <button type="button" className="btn btn-small btn-outline" aria-label={`Edit ${s.title}`}
-                            onClick={() => startEdit(s.id)}>Edit</button>
-                          <button type="button" className="btn btn-small btn-ghost" aria-label={`Delete ${s.title}`}
-                            disabled={remove.isPending} onClick={() => handleDelete(s)}>Delete</button>
-                        </span>
-                      </span>
-                      <MoveButtons label={s.title} position={i} canMoveUp={i > 0} canMoveDown={i < sections.data.length - 1}
-                        disabled={move.isPending} onMove={(direction) => move.mutate({ id: s.id, direction })} />
-                    </>
-                  )}
-                </li>
-              ))}
-            </ol>
+            <SortableList
+              className="list order-list"
+              label="Info sections in order"
+              items={sections.data.map((s) => ({ ...s, label: s.title }))}
+              // Not while a section is being edited: its form would move under the cursor.
+              disabled={editingId !== null}
+              onReorder={(ids) => move.mutate(ids)}
+              renderItem={(s) => editingId === s.id ? (
+                <SectionForm key={s.id} initial={s} label={`Edit ${s.title}`} saving={save.isPending} error={save.error}
+                  onCancel={() => startEdit(null)}
+                  onSave={(input) => save.mutate({ id: s.id, input }, { onSuccess: () => setEditingId(null) })} />
+              ) : (
+                <span className="list-row">
+                  <strong>{s.title}</strong>
+                  <span className="list-row-end">
+                    <button type="button" className="btn btn-small btn-outline" aria-label={`Edit ${s.title}`}
+                      onClick={() => startEdit(s.id)}>Edit</button>
+                    <button type="button" className="btn btn-small btn-ghost" aria-label={`Delete ${s.title}`}
+                      disabled={remove.isPending} onClick={() => handleDelete(s)}>Delete</button>
+                  </span>
+                </span>
+              )}
+            />
           )}
           {(remove.error || move.error) && <p className="form-error" role="alert">{errorMessage(remove.error ?? move.error)}</p>}
           <h3>Add a section</h3>
