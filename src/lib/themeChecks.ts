@@ -23,6 +23,14 @@ export type Tokens = {
   highlight: string
   openPlay: string
   slotFreeBorder: string
+  tintSage: string
+  tintRose: string
+  bandBg: string
+  bandCard: string
+  bandChip: string
+  bandText: string
+  bandMuted: string
+  bandAccent: string
 }
 
 export type Check = { label: string; ratio: number; min: number; pass: boolean }
@@ -62,6 +70,21 @@ export function themeChecks(t: Tokens): Check[] {
     ['Open-play bar on page', contrast(t.openPlay, t.bg), 3],
     ['Focus ring on page', contrast(t.accent, t.bg), 3],
     ['Focus ring on card', contrast(t.accent, t.surface), 3],
+    // Card heading bands (T11.4): headings and the sport line on sage, the pay countdown (accent) on rose.
+    ['Heading on sage band', contrast(t.text, t.tintSage), 4.5],
+    ['Muted text on sage band', contrast(t.muted, t.tintSage), 4.5],
+    ['Heading on rose band', contrast(t.text, t.tintRose), 4.5],
+    ['Countdown on rose band', contrast(t.accent, t.tintRose), 4.5],
+    // The current page's nav tab: btn-text on btn is checked above; its ink edge against the header.
+    ['Active tab edge on header', contrast(t.accent, t.surface), 3],
+    // The footer's "Stay connected" band (T11.4).
+    ['Band text', contrast(t.bandText, t.bandBg), 4.5],
+    ['Band muted text', contrast(t.bandMuted, t.bandBg), 4.5],
+    ['Band eyebrow', contrast(t.bandAccent, t.bandBg), 4.5],
+    ['Social card label', contrast(t.bandText, t.bandCard), 4.5],
+    ['Social card label on hover', contrast(t.bandText, t.bandChip), 4.5],
+    ['Social logo on its chip', contrast(t.bandText, t.bandChip), 3],
+    ['Focus ring in the band', contrast(t.bandText, t.bandBg), 3],
   ]
   return pairs.map(([label, ratio, min]) => ({ label, ratio, min, pass: ratio >= min }))
 }

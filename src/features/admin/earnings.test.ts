@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  hourBar,
   barShares, change, formatHours, formatShare, occupancy, parseEarnings, periodRange, previousLabel, rangeDays,
   rangeProblem, weekStart,
 } from './earnings'
@@ -100,5 +101,26 @@ describe('figures', () => {
     expect(barShares([0, 50, 100])).toEqual([0, 0.5, 1])
     expect(barShares([0, 0])).toEqual([0, 0])
     expect(barShares([])).toEqual([])
+  })
+})
+
+describe('hourBar (T11.5)', () => {
+  const h = (openHours: number, blackoutHours: number, soldHours: number, openPlayHours: number) =>
+    ({ openHours, blackoutHours, soldHours, openPlayHours })
+
+  it('splits the bookable hours into booked and open play', () => {
+    expect(hourBar(h(84, 0, 52, 8))).toEqual({ booked: 52 / 84, openPlay: 8 / 84, bookable: 84 })
+  })
+
+  it('leaves out blackout hours, and caps the two shares at the whole bar', () => {
+    expect(hourBar(h(16, 4, 6, 0))).toEqual({ booked: 0.5, openPlay: 0, bookable: 12 })
+    // 3 sold of 2 bookable (a booking under a blackout): full, with no room for open play.
+    expect(hourBar(h(16, 14, 3, 1))).toEqual({ booked: 1, openPlay: 0, bookable: 2 })
+    expect(hourBar(h(10, 0, 6, 8))).toEqual({ booked: 0.6, openPlay: 0.4, bookable: 10 })
+  })
+
+  it('is null when nothing was bookable', () => {
+    expect(hourBar(h(0, 0, 0, 0))).toBeNull()
+    expect(hourBar(h(8, 8, 0, 0))).toBeNull()
   })
 })

@@ -104,7 +104,7 @@ function Checkout({ choice, settings, court, hours }: { choice: CheckoutParams; 
   return (
     <div className="stack">
       <section className="card">
-        <h2>{court?.name}</h2>
+        <h2 className="card-head">{court?.name}</h2>
         <dl className="facts">
           <div><dt>Sport</dt><dd>{court ? SPORT_LABELS[court.sport] : ''}</dd></div>
           {/* The real calendar date: a 1 AM slot is on the next date, though it's listed under the operating day. */}
@@ -129,7 +129,7 @@ function Checkout({ choice, settings, court, hours }: { choice: CheckoutParams; 
       )}
 
       <section className="card stack">
-        <h2>Your details</h2>
+        <h2 className="card-head">Your details</h2>
         {isGuest && (
           <p className="muted small">
             Booking as a guest.{' '}

@@ -30,6 +30,20 @@ describe('renderEmail', () => {
     expect(html).toContain('Badminton 1')
   })
 
+  it('uses the Plotline palette with web-safe font fallbacks, headed by the venue (T11.4)', () => {
+    for (const kind of KINDS) {
+      const { html } = renderEmail({ kind, data, site, forGuest: false })
+      expect(html).toContain('background:#f5efe6') // cream page
+      expect(html).toContain('color:#3b2f2a') // brown text
+      expect(html).toContain("Georgia,'Times New Roman',serif")
+      expect(html).toContain('Arial,sans-serif')
+      expect(html).toContain('background:#b7c4a8;color:#3b2f2a;border:1.5px solid #4c6b3c') // the sage button
+      expect(html).toMatch(/font-weight:700">Claudex Courts<\/p>/)
+      expect(html).toContain('Powered by Plotline')
+      expect(html).not.toContain('#0f7a55') // the old green
+    }
+  })
+
   it("links a player's emails to the booking page, which needs their session", () => {
     for (const kind of KINDS) {
       const { text } = renderEmail({ kind, data, site, forGuest: false })

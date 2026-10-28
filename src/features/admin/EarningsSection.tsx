@@ -1,4 +1,4 @@
-import { useId, useState, type ReactNode } from 'react'
+import { useId, useState } from 'react'
 import { DatePicker } from '../../components/DatePicker'
 import { ErrorMessage } from '../../components/ErrorMessage'
 import { PageLoader } from '../../components/PageLoader'
@@ -8,7 +8,7 @@ import { addDays, formatDateLabel, zonedLocalToISO } from '../../lib/time'
 import { METHOD_LABELS } from '../booking/proofInput'
 import { SPORT_LABELS } from '../catalog/api'
 import {
-  barShares, change, formatHours, formatShare, occupancy, parseEarnings, periodRange, previousLabel, rangeDays,
+  barShares, change, formatHours, formatShare, hourBar, occupancy, parseEarnings, periodRange, previousLabel, rangeDays,
   rangeProblem, type DateRange, type Earnings, type HourTotals, type Period,
 } from './earnings'
 import { bookingsCsv, downloadCsv, paymentsCsv } from './csv'
@@ -135,7 +135,13 @@ function EarningsBody({ earnings, period, days, currency, timeZone }: BodyProps)
   )
 }
 
+/**
+ * Booked hours (T11.5, the user's "split bars"): a row per court, grouped by sport, then all courts. Each row has a bar
+ * of its bookable hours split into booked, open play and free, and the same numbers as text, so nothing relies on
+ * the bar or its colors.
+ */
 function HoursTable({ earnings }: { earnings: Earnings }) {
+  const titleId = useId()
   const total: HourTotals = earnings.courts.reduce(
     (t, c) => ({
       openHours: t.openHours + c.openHours, blackoutHours: t.blackoutHours + c.blackoutHours,
@@ -144,53 +150,62 @@ function HoursTable({ earnings }: { earnings: Earnings }) {
     { openHours: 0, blackoutHours: 0, soldHours: 0, openPlayHours: 0 },
   )
   if (earnings.courts.length === 0) return <p className="muted">No active courts.</p>
-  const cells = (h: HourTotals) => (
-    <>
-      <td>{formatHours(h.soldHours)}</td>
-      <td>{formatShare(occupancy(h))}</td>
-      <td>{formatHours(h.openPlayHours)}</td>
-    </>
-  )
+  const several = earnings.sports.length > 1
 
   return (
-    <section>
-      <h3>Booked hours</h3>
-      <div className="table-scroll" tabIndex={0} role="region" aria-label="Booked hours by court">
-        <table className="data-table">
-          <thead>
-            <tr><th scope="col">Court</th><th scope="col">Booked</th><th scope="col">Occupancy</th><th scope="col">Open play</th></tr>
-          </thead>
-          <tbody>
-            {earnings.sports.map((s) => (
-              <SportRows key={s.sport} sport={s} courts={earnings.courts.filter((c) => c.sport === s.sport)} cells={cells}
-                showTotal={earnings.sports.length > 1} />
-            ))}
-          </tbody>
-          <tfoot>
-            <tr><th scope="row">All courts</th>{cells(total)}</tr>
-          </tfoot>
-        </table>
-      </div>
+    <section className="hours" aria-labelledby={titleId}>
+      <h3 id={titleId}>Booked hours</h3>
+      <ul className="hours-legend" aria-hidden="true">
+        <li><i className="key-booked" />Booked</li>
+        <li><i className="key-open-play" />Open play</li>
+        <li><i className="key-free" />Free</li>
+      </ul>
+      {earnings.sports.map((s) => {
+        const label = SPORT_LABELS[s.sport] ?? s.sport
+        return (
+          <div key={s.sport} className="hours-group">
+            <div className="hours-head">
+              <h4>{label}</h4>
+              {several && <span className="hours-figures">{figures(s)}</span>}
+            </div>
+            <ul className="booked-list" aria-label={`${label} courts`}>
+              {earnings.courts.filter((c) => c.sport === s.sport).map((c) => (
+                <li key={c.courtId} className="booked-row">
+                  <span className="hours-name">{c.name}</span>
+                  <HoursBar hours={c} />
+                  <span className="hours-figures">{figures(c)}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )
+      })}
+      <p className="booked-row hours-total">
+        <span className="hours-name">All courts</span>
+        <HoursBar hours={total} />
+        <span className="hours-figures">{figures(total)}</span>
+      </p>
       <p className="muted small">
-        Occupancy is booked hours out of the hours open, minus blackouts. Open play is shown apart and isn't counted as booked. Only courts open for booking now are counted.
+        Each bar is a court's open hours, minus blackouts. Occupancy is the booked share of those hours. Open play is shown apart and isn't counted as booked. Only courts open for booking now are counted.
       </p>
     </section>
   )
 }
 
-type SportRowsProps = {
-  sport: Earnings['sports'][number]
-  courts: Earnings['courts']
-  cells: (h: HourTotals) => ReactNode
-  showTotal: boolean
+/** "52 h booked · 62% · 8 h open play". */
+function figures(h: HourTotals) {
+  return `${formatHours(h.soldHours)} booked · ${formatShare(occupancy(h))} · ${formatHours(h.openPlayHours)} open play`
 }
 
-function SportRows({ sport, courts, cells, showTotal }: SportRowsProps) {
+function HoursBar({ hours }: { hours: HourTotals }) {
+  const bar = hourBar(hours)
+  const pct = (share: number) => `${Math.round(share * 1000) / 10}%`
   return (
-    <>
-      {courts.map((c) => <tr key={c.courtId}><th scope="row">{c.name}</th>{cells(c)}</tr>)}
-      {showTotal && <tr className="subtotal"><th scope="row">All {SPORT_LABELS[sport.sport]?.toLowerCase() ?? sport.sport}</th>{cells(sport)}</tr>}
-    </>
+    <span className="hours-bar" role="img"
+      aria-label={bar ? `Out of ${formatHours(bar.bookable)} open` : 'No open hours'}>
+      {bar && <span className="hours-booked" style={{ width: pct(bar.booked) }} />}
+      {bar && <span className="hours-open-play" style={{ width: pct(bar.openPlay) }} />}
+    </span>
   )
 }
 

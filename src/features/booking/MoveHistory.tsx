@@ -16,7 +16,7 @@ export function MoveHistory({ booking, timeZone }: Props) {
   const partLink = (ref: string) => ({ pathname: `/booking/${ref}`, hash })
   return (
     <section className="card stack" aria-labelledby="moves-heading">
-      <h2 id="moves-heading">Schedule changes</h2>
+      <h2 id="moves-heading" className="card-head">Schedule changes</h2>
       {parent && (
         <p className="small">
           This is the moved part of <Link to={partLink(parent)}>{parent}</Link>. It's covered by that booking's payment.

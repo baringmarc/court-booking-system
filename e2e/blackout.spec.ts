@@ -2,7 +2,7 @@
 // sees the court closed then. The pickers are checked with axe, light and dark, with the calendar open.
 import { AxeBuilder } from '@axe-core/playwright'
 import { expect, test, type Page } from '@playwright/test'
-import { createAdmin, E2E_PREFIX, logInAdmin, pickDate, serviceClient, venueDate } from './support/helpers.ts'
+import { createAdmin, E2E_PREFIX, logInAdmin, pickDate, serviceClient, venueDate, setColorScheme } from './support/helpers.ts'
 
 const date = venueDate(23)
 
@@ -10,7 +10,7 @@ const date = venueDate(23)
 async function axeViolations(page: Page) {
   const found: string[] = []
   for (const colorScheme of ['light', 'dark'] as const) {
-    await page.emulateMedia({ colorScheme })
+    await setColorScheme(page, colorScheme)
     const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
     found.push(...results.violations
       .filter((v) => v.impact === 'serious' || v.impact === 'critical')
@@ -68,7 +68,7 @@ test('an admin adds a blackout with the pickers, and a guest picking that date i
   const guestContext = await browser.newContext({ ...test.info().project.use })
   const guest = await guestContext.newPage()
   await guest.goto('/book?sport=badminton')
-  await expect(guest.getByRole('group', { name: 'Date' }).getByRole('button', { name: 'Today' })).toHaveAttribute('aria-pressed', 'true')
+  await expect(guest.getByRole('group', { name: 'Date' }).getByRole('button', { name: /, today$/ })).toHaveAttribute('aria-pressed', 'true')
   await pickDate(guest, guest, 'Date', date)
   await expect(guest).toHaveURL(new RegExp(`date=${date}`))
   // One merged cell for the whole blackout (T10.5).

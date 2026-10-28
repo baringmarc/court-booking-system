@@ -32,6 +32,24 @@
   --danger-contrast: #ffffff;
   --highlight: var(--terracotta);
   --pending-bg: #f6e4dd;
+  /* Card and section heading bands (T11.4): sage by default, rose where the player has something to do. */
+  --tint-sage: #e5ebdd;
+  --tint-rose: #f6e4dd;
+  /* The footer's "Stay connected" band (T11.4): espresso with cream text in light mode, a lighter step in dark. */
+  --band-bg: #2a2522;
+  --band-card: #3a332e;
+  --band-chip: #4c433d;
+  --band-border: #574d46;
+  --band-text: var(--cream);
+  --band-muted: var(--sand);
+  --band-accent: var(--rose);
+  /* Brand shapes beside the hero: decorative only. */
+  --shape-ring: var(--sand);
+  --shape-dot: var(--rose);
+  --shape-leaf: var(--sage);
+  /* Motion (T11.4): short ease-outs, all off under prefers-reduced-motion. */
+  --dur-fast: 150ms;
+  --dur: 220ms;
   --radius: 18px;
   --shadow: 0 12px 34px rgba(59, 47, 42, 0.1);
   --serif: 'Fraunces', Georgia, 'Times New Roman', serif;
@@ -45,21 +63,33 @@
   --slot-open-bg: color-mix(in srgb, var(--open-play) 12%, var(--surface));
 
   color-scheme: light dark;
+  interpolate-size: allow-keywords; /* lets <details> animate to its natural height where supported */
   font: 500 16px/1.5 var(--sans);
   color: var(--text);
   background: var(--bg);
   -webkit-font-smoothing: antialiased;
 }
 
+/* Dark is "Espresso" (the user's pick, 2026-10-27): a deeper, nearly neutral page than the brand's warm brown, so
+   cards stand apart (1.32:1 against 1.13 before) and sage and rose read as colors. */
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: var(--brown);
-    --surface: #45372f;
-    --field: #2f2521;
+    --bg: #2a2522;
+    --surface: #3f3833;
+    --field: #211d1b;
     --text: var(--cream);
     --muted: var(--sand);
-    --border: var(--brown-soft);
-    --border-strong: #9c8878;
+    --border: #574d46;
+    --border-strong: #968779;
+    --tint-sage: #4b5245;
+    --tint-rose: #5e4843;
+    --band-bg: #3f3833;
+    --band-card: #4b433d;
+    --band-chip: #5a514a;
+    --band-border: #61574f;
+    --shape-ring: #4b433d;
+    --shape-dot: #8a6a60;
+    --shape-leaf: #6d7563;
     --accent: var(--sage);
     --accent-soft: rgba(183, 196, 168, 0.1);
     --btn-hover: #c9d4bc;
@@ -103,7 +133,9 @@ img, svg { display: block; }
 .nav { display: flex; gap: 4px; order: 3; width: 100%; overflow-x: auto; }
 .nav a { color: var(--muted); text-decoration: none; padding: 6px 10px; border-radius: 8px; white-space: nowrap; }
 .nav a:hover { color: var(--text); }
-.nav a.active { color: var(--accent); background: var(--accent-soft); }
+/* The current page's tab is filled like a primary button (sage, brown text), with the ink edge so it reads as a shape. */
+.nav a.active { color: var(--btn-text); background: var(--btn); box-shadow: inset 0 0 0 1.5px var(--accent); font-weight: 700; }
+.venue-name { font-family: var(--serif); font-size: 1.15rem; letter-spacing: -0.01em; }
 .auth-area { margin-left: auto; display: flex; align-items: center; gap: 8px; min-width: 0; }
 .user-name { color: var(--muted); font-size: 0.875rem; max-width: 40vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
@@ -114,8 +146,57 @@ img, svg { display: block; }
 /* Admin shell */
 .admin-header { border-bottom: 2px solid var(--accent); }
 .admin-header .brand .badge { background: var(--accent-soft); color: var(--accent); }
+.admin-brand { gap: 10px; }
+/* Admin cards (T11.5): a heading that opens a card gets the same tinted band as .card-head on the public site. */
+.admin .card > :is(h2, h3):first-child, .admin .card > .page-head:first-child {
+  margin: -20px -20px 16px; padding: 12px 20px; background: var(--tint-sage); color: var(--text);
+  border-bottom: 1px solid var(--border); border-radius: calc(var(--radius) - 1px) calc(var(--radius) - 1px) 0 0;
+}
+.admin .card.stack > :is(h2, h3):first-child, .admin .card.stack > .page-head:first-child { margin-bottom: 2px; }
+.admin .card > .page-head:first-child :is(h2, h3) { margin: 0; }
+.admin .card > .page-head:first-child .badge { background: var(--surface); box-shadow: inset 0 0 0 1px currentColor; }
 
-.site-footer { border-top: 1px solid var(--border); padding: 16px 0; font-size: 0.875rem; }
+/* Footer (T11.4): a band in its own colors: "Stay connected" (when the venue has social links), then the copyright
+   and "Powered by Plotline". */
+.site-footer { background: var(--band-bg); color: var(--band-text); font-size: 0.875rem; }
+.connect { display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; padding: 48px 0 40px; }
+.connect-eyebrow { margin: 0; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; color: var(--band-accent); }
+.connect h2 { margin: 0; font-size: clamp(1.6rem, 4vw, 2.2rem); color: var(--band-text); text-wrap: balance; }
+.connect-lead { margin: 0 0 14px; max-width: 40rem; font-size: 1rem; color: var(--band-muted); }
+.social-cards { list-style: none; margin: 0; padding: 0; width: 100%; display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
+.social-cards > li { flex: 1 1 148px; max-width: 220px; }
+.social-card {
+  display: flex; align-items: center; gap: 12px; min-height: 64px; padding: 10px 16px; border-radius: 16px;
+  background: var(--band-card); border: 1px solid var(--band-border); color: var(--band-text);
+  font-size: 1rem; font-weight: 700; text-decoration: none;
+}
+.social-card:hover { background: var(--band-chip); border-color: var(--band-muted); }
+.social-card:focus-visible { outline: 2px solid var(--band-text); outline-offset: 2px; }
+.social-chip { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: var(--band-chip); flex-shrink: 0; }
+.social-card:hover .social-chip { background: var(--band-card); }
+.social-icon { width: 20px; height: 20px; }
+@media (max-width: 400px) {
+  .social-card { gap: 10px; padding: 10px 12px; }
+  .social-chip { width: 36px; height: 36px; }
+}
+.footer-row {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px;
+  padding: 16px 0; border-top: 1px solid var(--band-border); color: var(--band-muted);
+}
+.powered-by { display: inline-flex; align-items: center; gap: 6px; }
+.powered-by .plotline-wordmark { color: var(--band-text); font-size: 1rem; }
+
+/* Card heading bands (T11.4): a heading (or head row) that opens a card gets a tinted strip across the card's top,
+   sage by default and rose where the player has something to do, so sections read apart by color, not spacing alone. */
+.card > .card-head:first-child {
+  margin: -20px -20px 16px; padding: 12px 20px; background: var(--tint-sage); color: var(--text);
+  border-bottom: 1px solid var(--border); border-radius: calc(var(--radius) - 1px) calc(var(--radius) - 1px) 0 0;
+}
+.card.stack > .card-head:first-child { margin-bottom: 2px; } /* the stack's gap adds the rest */
+.card > .card-head.rose:first-child { background: var(--tint-rose); }
+.card-head h2, .card-head h3 { margin: 0; }
+/* A tinted badge on a tinted band would stack the tints and lose contrast: plain surface, outlined instead. */
+.card > .card-head .badge { background: var(--surface); box-shadow: inset 0 0 0 1px currentColor; } /* beats .badge.status-* */
 
 /* Pages */
 .page.narrow { max-width: 420px; margin: 0 auto; }
@@ -241,7 +322,23 @@ a.list-row:hover { background: var(--accent-soft); }
   border: 1px solid var(--border-strong); background: var(--field); color: var(--text);
 }
 .field textarea { resize: vertical; }
+/* Even rows (T11.5): a form's fields wrap into columns that divide them evenly, never leaving one field alone on a
+   row. The column count follows the grid's own width (the 999 multiplier switches a term on below a width:
+   4 × 200px + 3 gaps = 842px, 3 × 200px + 2 gaps = 628px, 2 × 200px + 1 gap = 414px):
+   3 and 5 fields: 3 (3 + 2) or 1. 4 and 8: 4, 2 or 1. 6: 3, 2 or 1. 7: 4 (4 + 3) or 1. Two fields wrap at 200px. */
 .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; }
+.form-grid:is(:has(> :nth-child(4):last-child), :has(> :nth-child(8):last-child)) {
+  grid-template-columns: repeat(auto-fill, minmax(max(25% - 11px, min(50% - 8px, (842px - 100%) * 999), min(100%, (414px - 100%) * 999)), 1fr));
+}
+.form-grid:is(:has(> :nth-child(3):last-child), :has(> :nth-child(5):last-child)) {
+  grid-template-columns: repeat(auto-fill, minmax(max(33.333% - 10px, min(100%, (628px - 100%) * 999)), 1fr));
+}
+.form-grid:has(> :nth-child(6):last-child) {
+  grid-template-columns: repeat(auto-fill, minmax(max(33.333% - 10px, min(50% - 8px, (628px - 100%) * 999), min(100%, (414px - 100%) * 999)), 1fr));
+}
+.form-grid:has(> :nth-child(7):last-child) {
+  grid-template-columns: repeat(auto-fill, minmax(max(25% - 11px, min(100%, (842px - 100%) * 999)), 1fr));
+}
 .form-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .check { display: flex; align-items: center; gap: 8px; cursor: pointer; }
 .check input { width: 18px; height: 18px; accent-color: var(--accent); }
@@ -475,13 +572,21 @@ fieldset.field legend { padding: 0; margin-bottom: 6px; }
   border: 1px solid var(--slot-free-border); background: var(--surface); font-size: 0.9rem;
 }
 .venue-address { display: flex; gap: 8px; align-items: flex-start; margin: 0; }
-.social-links { list-style: none; display: flex; flex-wrap: wrap; gap: 8px 16px; padding: 0; margin: 0; }
-.social-links a { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; }
-.social-icon { width: 18px; height: 18px; flex-shrink: 0; }
-.footer-socials { margin-top: 8px; }
-.info-panel { scroll-margin-top: 16px; }
-.info-panel summary { cursor: pointer; font-weight: 700; min-height: 28px; }
-.info-panel .info-body { margin-top: 12px; }
+/* Good to know (T11.4, option b): one card per section, tighter, with a chevron that turns as it opens. */
+.info-list { gap: 8px; }
+.info-panel { scroll-margin-top: 16px; padding: 12px 16px; margin-bottom: 0; border-radius: 14px; }
+.info-panel summary {
+  cursor: pointer; font-weight: 700; min-height: 28px; list-style: none;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+}
+.info-panel summary::-webkit-details-marker { display: none; }
+.info-panel summary::after {
+  content: ''; flex-shrink: 0; width: 8px; height: 8px; margin: 0 4px 4px 0;
+  border-right: 2px solid var(--accent); border-bottom: 2px solid var(--accent); transform: rotate(45deg);
+  transition: transform var(--dur) ease-out, margin var(--dur) ease-out;
+}
+.info-panel[open] > summary::after { transform: rotate(-135deg); margin: 4px 4px 0 0; }
+.info-panel .info-body { padding-top: 10px; }
 .info-panel .info-body p:last-child { margin-bottom: 0; }
 
 /* Earnings (T10.7): a plain data table, and a bar per day with its label and amount as text. */
@@ -495,3 +600,114 @@ fieldset.field legend { padding: 0; margin-bottom: 6px; }
 .bar-track { height: 12px; border-radius: 6px; background: var(--accent-soft); overflow: hidden; }
 .bar { display: block; height: 100%; background: var(--accent); }
 .bar-value { white-space: nowrap; text-align: right; }
+
+/* Brand shapes beside the home hero (T11.4): flat circles in the palette, decorative, wide screens only, kept to
+   the right of the text (never behind it). */
+.hero { position: relative; }
+.hero-shapes { display: none; }
+@media (min-width: 900px) {
+  .hero { padding-right: 300px; }
+  .hero-shapes { display: block; position: absolute; top: 24px; right: 0; width: 260px; height: 220px; pointer-events: none; }
+  .hero-shapes span { position: absolute; display: block; border-radius: 50%; }
+  .shape-ring { top: 0; right: 20px; width: 190px; height: 190px; border: 36px solid var(--shape-ring); }
+  .shape-dot { bottom: 0; left: 10px; width: 104px; height: 104px; background: var(--shape-dot); }
+  .shape-leaf { top: 18px; left: 40px; width: 56px; height: 56px; background: var(--shape-leaf); border-radius: 0 100% 0 100%; }
+}
+
+/* Motion (T11.4): hover and press ease, panels that open, dialogs that rise in. Off under reduced motion. */
+.btn, .nav a, .slot, .choice > span, .day, .row-button, a.list-row, .social-card, .social-chip, .photo-open, .amenity-chip {
+  transition: background-color var(--dur-fast) ease-out, border-color var(--dur-fast) ease-out,
+    color var(--dur-fast) ease-out, box-shadow var(--dur-fast) ease-out, transform var(--dur-fast) ease-out;
+}
+.btn:active:not(:disabled) { transform: scale(0.97); }
+/* A <details> grows to its height instead of jumping open (::details-content with interpolate-size; browsers
+   without them open at once). Its own rule: an unknown pseudo-element would void a whole selector list. */
+details::details-content {
+  block-size: 0; overflow: clip; overflow-clip-margin: 4px;
+  transition: block-size var(--dur) ease-out, content-visibility var(--dur) ease-out allow-discrete;
+}
+details[open]::details-content { block-size: auto; }
+.dialog[open] { animation: dialog-in var(--dur) ease-out; }
+.dialog[open]::backdrop { animation: fade-in var(--dur) ease-out; }
+@keyframes dialog-in { from { opacity: 0; transform: translateY(12px) scale(0.98); } }
+@keyframes fade-in { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; }
+  details::details-content { transition: none !important; }
+  .dialog[open], .dialog[open]::backdrop { animation: none; }
+  .btn:active:not(:disabled) { transform: none; }
+}
+
+/* /book date strip (T11.4a): the day as a heading, ‹ › and "Jump to date", then up to 10 day tiles. On a phone the
+   tiles scroll sideways inside the strip (snap), never the page. */
+.date-strip { display: flex; flex-direction: column; gap: 12px; margin-bottom: 0; min-width: 0; }
+.date-strip-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.date-strip-day { display: flex; flex-direction: column; margin: 0; flex: 1 1 auto; min-width: 0; order: 1; }
+.date-strip-head > .icon-btn:first-child { order: 0; }
+.date-strip-head > .icon-btn:last-child { order: 3; }
+.date-strip-jump { order: 2; }
+.date-strip-word { font-family: var(--serif); font-weight: 700; font-size: clamp(1.4rem, 4vw, 1.9rem); line-height: 1.15; }
+.date-strip-full { color: var(--muted); font-family: var(--sans); font-size: 1rem; font-weight: 500; line-height: 1.5; }
+.date-strip-month { margin: 0; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+.date-strip-days {
+  display: grid; grid-auto-flow: column; grid-auto-columns: minmax(60px, 1fr); gap: 8px;
+  overflow-x: auto; scroll-snap-type: x proximity; padding: 2px 2px 6px; margin: -2px; scrollbar-width: thin;
+}
+.date-tile {
+  scroll-snap-align: start; position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  min-height: 64px; padding: 8px 4px 12px; border-radius: 14px; border: 1px solid var(--border-strong);
+  background: var(--surface); color: var(--text); font: inherit; cursor: pointer;
+  transition: background-color var(--dur-fast) ease-out, border-color var(--dur-fast) ease-out, color var(--dur-fast) ease-out;
+}
+.date-tile:hover:not(:disabled) { background: var(--accent-soft); }
+.date-tile:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.date-tile-weekday { font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.date-tile-day { font-size: 1.35rem; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.date-tile[aria-pressed='true'] { background: var(--btn); border-color: var(--accent); color: var(--btn-text); }
+.date-tile[aria-pressed='true'] .date-tile-weekday { color: var(--btn-text); }
+.date-tile.is-today::after { content: ''; position: absolute; bottom: 5px; width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
+.date-tile[aria-pressed='true'].is-today::after { background: var(--btn-text); }
+/* Closed: hatched like a closed slot, and its words say "closed" to screen readers. */
+.date-tile:disabled {
+  cursor: not-allowed; color: var(--muted); border-style: dashed;
+  background: repeating-linear-gradient(135deg, transparent 0 5px, var(--slot-closed-stripe) 5px 9px);
+}
+@media (max-width: 560px) {
+  .date-strip-head { gap: 8px; }
+  .date-strip-day { flex-basis: calc(100% - 120px); }
+  .date-strip-jump { order: 4; width: 100%; }
+}
+
+/* Booked hours (T11.5, split bars): a row per court with its bar (booked, open play, free) and the figures as text.
+   On a phone the bar goes under the name. */
+.hours { display: flex; flex-direction: column; gap: 6px; margin-top: 24px; }
+.hours > h3 { margin-bottom: 8px; }
+.hours-legend { list-style: none; display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 0; margin: 0 0 4px; font-size: 0.8rem; color: var(--muted); }
+.hours-legend li { display: inline-flex; align-items: center; gap: 6px; }
+.hours-legend i { width: 12px; height: 12px; border-radius: 3px; display: block; }
+.key-booked, .hours-booked { background: var(--accent); }
+.key-open-play, .hours-open-play { background: var(--open-play); }
+.key-free { background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--border-strong); }
+.hours-head { display: flex; justify-content: space-between; align-items: baseline; gap: 4px 12px; flex-wrap: wrap; padding: 10px 0 2px; }
+.hours-head h4 { margin: 0; font-family: var(--serif); font-size: 1rem; font-weight: 600; }
+.booked-list { list-style: none; margin: 0; padding: 0; }
+.booked-row {
+  display: grid; grid-template-columns: minmax(7rem, 11rem) minmax(0, 1fr) 17.5em; align-items: center; gap: 4px 14px;
+  margin: 0; padding: 8px 0; border-top: 1px solid var(--border); font-size: 0.875rem;
+}
+.hours-total { border-top: 2px solid var(--text); font-weight: 700; }
+.hours-name { min-width: 0; overflow-wrap: anywhere; }
+.hours-figures { color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; }
+.hours-head .hours-figures { font-size: 0.875rem; }
+.hours-total .hours-figures { color: var(--text); }
+.hours-bar {
+  display: flex; height: 12px; border-radius: 999px; overflow: hidden;
+  background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+@media (max-width: 640px) {
+  /* Stacked: the name, its figures, then the bar across the full width. */
+  .booked-row { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .booked-row .hours-figures { text-align: left; }
+  .booked-row .hours-bar { grid-row: 3; margin-top: 4px; }
+}
+.admin-login-logo { margin-bottom: 16px; }

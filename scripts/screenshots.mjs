@@ -276,6 +276,14 @@ async function main() {
       await adminPage.getByRole('navigation', { name: 'Admin' }).waitFor()
       await adminPage.getByRole('heading', { name: "Today's courts" }).waitFor()
       await shoot(adminPage, 'admin-dashboard', kind)
+      // Earnings (T10.7) with the split-bar booked hours (T11.5), from the section's heading down.
+      // "This month", so the demo bookings later in the month fill the bars.
+      const earnings = adminPage.getByRole('region', { name: 'Earnings' })
+      await earnings.getByRole('button', { name: 'This month' }).click()
+      await earnings.getByRole('list', { name: 'Collected per day' }).waitFor()
+      const hoursHeading = kind === 'phone' ? earnings.getByRole('heading', { name: 'Booked hours' }) : earnings
+      await hoursHeading.evaluate((el) => el.scrollIntoView({ block: 'start' }))
+      await shoot(adminPage, 'admin-earnings', kind)
       await adminPage.goto(`${BASE}/admin/bookings?status=all&date=${day}`)
       await adminPage.getByRole('button', { name: new RegExp(toMove[0].reference_code) }).click()
       await adminPage.getByRole('button', { name: 'Reschedule' }).click()

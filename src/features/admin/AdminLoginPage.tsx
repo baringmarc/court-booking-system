@@ -1,8 +1,10 @@
 import { useState, type FormEvent } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 import { PageLoader } from '../../components/PageLoader'
+import { PlotlineLogo } from '../../components/PlotlineLogo'
 import { signInWithPassword } from '../auth/api'
 import { useAuth } from '../auth/useAuth'
+import { useVenueSettings } from '../catalog/hooks'
 import { AccountLoadError, AdminsOnly } from './AdminGuard'
 
 /** Staff sign-in: email + password only. There is no admin sign-up; admins are promoted in the database (SPEC §2). */
@@ -10,6 +12,7 @@ export function AdminLoginPage() {
   const { user, isAdmin, loading, profileError } = useAuth()
   const location = useLocation()
   const from = (location.state as { from?: string } | null)?.from ?? '/admin'
+  const venueName = useVenueSettings().data?.name ?? ''
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -37,8 +40,9 @@ export function AdminLoginPage() {
 
   return (
     <section className="page narrow">
+      <div className="admin-login-logo"><PlotlineLogo size={40} /></div>
       <h1>Admin log in</h1>
-      <p className="muted">For Claudex Courts staff.</p>
+      <p className="muted">{venueName ? `For ${venueName} staff.` : 'For venue staff.'}</p>
 
       <form className="card stack" onSubmit={handleSubmit}>
         <label className="field">

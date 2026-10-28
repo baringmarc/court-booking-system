@@ -230,18 +230,25 @@ export function renderEmail(input: RenderInput): RenderedEmail {
   ].join('\n')
 
   const e = escapeHtml
+  // The Plotline palette (T11.4, docs/BRAND.md): cream page, warm-white card, brown text, a sage button with an ink
+  // edge. Web fonts don't load reliably in mail apps, so DM Sans and Fraunces fall back to system and Georgia.
+  const sans = `'DM Sans',system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif`
+  const serif = `'Fraunces',Georgia,'Times New Roman',serif`
   const html = `<!doctype html>
-<html><body style="margin:0;padding:24px;background:#f7f8f6;font-family:system-ui,'Segoe UI',Roboto,sans-serif;color:#1c2321">
-<div style="max-width:520px;margin:0 auto;background:#ffffff;border:1px solid #dfe4e1;border-radius:10px;padding:24px">
+<html><body style="margin:0;padding:24px;background:#f5efe6;font-family:${sans};color:#3b2f2a">
+<div style="max-width:520px;margin:0 auto;background:#fffcf7;border:1px solid #e6d9c6;border-radius:18px;padding:24px">
+<p style="margin:0 0 16px;font-family:${serif};font-size:20px;font-weight:700">${e(venue)}</p>
 <p style="margin:0 0 16px">${e(greeting)}</p>
 ${block.paragraphs.map((p) => `<p style="margin:0 0 16px">${e(p)}</p>`).join('\n')}
-<table style="border-collapse:collapse;margin:0 0 16px">${block.facts
-    .map(([k, v]) => `<tr><td style="padding:2px 16px 2px 0;color:#5e6b66">${e(k)}</td><td style="padding:2px 0;font-weight:600">${e(v)}</td></tr>`)
+<table style="border-collapse:collapse;margin:0 0 16px;width:100%;background:#e5ebdd;border-radius:12px">${block.facts
+    .map(([k, v]) => `<tr><td style="padding:4px 16px 4px 12px;color:#5a4a42">${e(k)}</td><td style="padding:4px 12px 4px 0;font-weight:700">${e(v)}</td></tr>`)
     .join('')}</table>
-${block.link ? `<p style="margin:0 0 16px"><a href="${e(block.link.href)}" style="display:inline-block;background:#0f7a55;color:#ffffff;padding:10px 16px;border-radius:8px;text-decoration:none">${e(block.link.label)}</a></p>` : ''}
-${block.footer.map((p) => `<p style="margin:0 0 16px;color:#5e6b66;font-size:14px">${e(p)}</p>`).join('\n')}
-<p style="margin:0;color:#5e6b66">— ${e(venue)}</p>
-</div></body></html>`
+${block.link ? `<p style="margin:0 0 16px"><a href="${e(block.link.href)}" style="display:inline-block;background:#b7c4a8;color:#3b2f2a;border:1.5px solid #4c6b3c;padding:10px 20px;border-radius:999px;font-weight:700;text-decoration:none">${e(block.link.label)}</a></p>` : ''}
+${block.footer.map((p) => `<p style="margin:0 0 16px;color:#5a4a42;font-size:14px">${e(p)}</p>`).join('\n')}
+<p style="margin:0;color:#5a4a42">— ${e(venue)}</p>
+</div>
+<p style="max-width:520px;margin:12px auto 0;text-align:center;color:#5a4a42;font-size:12px">Powered by Plotline</p>
+</body></html>`
 
   return { subject, html, text }
 }

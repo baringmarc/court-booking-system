@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { DatePicker } from '../../components/DatePicker'
 import { ErrorMessage } from '../../components/ErrorMessage'
 import { PageLoader } from '../../components/PageLoader'
 import { closedDaysOfWeek } from '../../components/pickerHours'
@@ -17,6 +16,7 @@ import { useAvailability } from './hooks'
 import { reconcileSelection, summarizeSelection, toggleSlot, type Selection, type Slot } from './selection'
 import { SelectionBar } from './SelectionBar'
 import { SlotGrid } from './SlotGrid'
+import { DateStrip } from './DateStrip'
 
 export function BookPage() {
   const settings = useVenueSettings()
@@ -102,9 +102,9 @@ function BookingBoard({ settings, courts, hours }: { settings: VenueSettings; co
 
   return (
     <div className="stack">
+      <DateStrip value={date} today={today} lastDay={lastDay} closedDays={closedDaysOfWeek(hours)}
+        onChange={(d) => update({ date: clampDate(d, today, lastDay) })} />
       <div className="book-controls">
-        <DatePicker label="Date" hideLabel stepper value={date} today={today} min={today} max={lastDay}
-          closedDays={closedDaysOfWeek(hours)} timeZone={tz} onChange={(d) => update({ date: clampDate(d, today, lastDay) })} />
         {sports.length > 1 && (
           <div className="day-picker" role="group" aria-label="Sport">
             {sports.map((s) => (

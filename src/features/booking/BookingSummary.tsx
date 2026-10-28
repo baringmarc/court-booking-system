@@ -38,7 +38,7 @@ export function BookingSummary({ booking, paymentInstructions, timeZone, currenc
   return (
     <div className="stack">
       <section className="card">
-        <div className="page-head">
+        <div className="page-head card-head">
           <h2>{booking.court_name}</h2>
           <span className={`badge status-${status}`}>{STATUS_LABELS[status]}</span>
         </div>
@@ -62,7 +62,7 @@ export function BookingSummary({ booking, paymentInstructions, timeZone, currenc
 
       {awaitingPayment && booking.expires_at && (
         <section className="card stack" aria-labelledby="pay-heading">
-          <h2 id="pay-heading">Pay within <span className="countdown" role="timer">{formatRemaining(Date.parse(booking.expires_at) - now.getTime())}</span></h2>
+          <h2 id="pay-heading" className="card-head rose">Pay within <span className="countdown" role="timer">{formatRemaining(Date.parse(booking.expires_at) - now.getTime())}</span></h2>
           <p className="muted small">
             We hold these times until the timer runs out. Pay {formatMoney(booking.total_amount, currency)} using one of the
             options below, with <strong>{booking.reference_code}</strong> as the payment note.

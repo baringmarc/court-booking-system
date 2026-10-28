@@ -1,12 +1,20 @@
 # CLAUDE.md
 
-Court booking web app for a single venue (portfolio project).
+Plotline's product: the court booking app that every Plotline venue runs on. Today it serves one venue (Claudex Courts, the demo); the SaaS milestones make it multi-venue (`docs/SAAS-PLAN.md`).
+
+This repo is also **the platform repo**: it owns the database schema, all Edge Functions, the plan and the brand for both Plotline repositories. The marketing site lives in [`plotline-site`](https://github.com/baringmarc/plotline-site) (locally `../plotline-site`). **[docs/PLATFORM.md](docs/PLATFORM.md) maps how the two fit together.**
 
 ## Guide docs
 - **[SPEC.md](SPEC.md)**: what the product does (requirements, data model, booking lifecycle, decisions log). Update it whenever behavior changes.
 - **[TASKS.md](TASKS.md)**: what to build next. Read its **Handoff** section first and update it before you stop. A task is done only when its acceptance criteria hold, `npm run verify` passes and the `reviewer` agent has no blocking issues.
 - **Workflow:** run `/implement` to work on the next task (`/implement T3.4` for a specific task, `/implement milestone` for the whole milestone). It goes orient → research → plan gate (risky DB or security work waits for approval) → build → verify → `reviewer` agent → tick the task and update the handoff → commit (never push) once verify passes and the reviewer signs off.
 - **[RESEARCH.md](RESEARCH.md)**: technical findings, with sources, gathered before a milestone is built. Research first, then implement. Accepted recommendations go into SPEC §10.
+
+## Platform (two repos, one database)
+- **[docs/PLATFORM.md](docs/PLATFORM.md)** is the single source of truth for what's shared with `plotline-site`: domains, Supabase projects, and the contract the marketing site depends on (the `site-contact` and `site-review` functions, the `reviews` and `public_venues` reads). Read it before touching any of those.
+- **All migrations and Edge Functions for every shared Supabase project are made here**, never in plotline-site. Two repos pushing migrations to one database break each other's migration history.
+- **Contract changes are backward compatible:** update PLATFORM.md first, build and deploy here, then update plotline-site, then remove the old (PLATFORM.md §7). If `_shared/siteForms.ts` changes, plotline-site's copy (`src/lib/siteForms.ts`) must be updated to match.
+- To work on both at once: `claude --add-dir ../plotline-site`.
 
 ## Stack
 - Vite 8, React 19, TypeScript 6 (strict), React Router 7

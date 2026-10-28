@@ -76,7 +76,7 @@ export function DatePicker({ label, value, onChange, today, min, max, closedDays
 type DialogProps = CalendarProps & { title: string; onClose: () => void }
 
 /** A native modal <dialog>, like OpenPlayDialog: the browser traps focus, Escape closes, focus returns to the opener. */
-function CalendarDialog({ title, onClose, onSelect, ...calendar }: DialogProps) {
+export function CalendarDialog({ title, onClose, onSelect, ...calendar }: DialogProps) {
   const ref = useRef<HTMLDialogElement>(null)
   const titleId = useId()
   // Whatever had focus before the first render (the date button), so a StrictMode re-run can't swap it.

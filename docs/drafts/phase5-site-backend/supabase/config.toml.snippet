@@ -1,0 +1,10 @@
+# Add these two blocks to supabase/config.toml, next to the other [functions.*] blocks.
+
+[functions.site-contact]
+# Called by the marketing site (plotline-site) with the publishable key, which is not a JWT, so the platform JWT
+# check must be off. The function checks the origin (SITE_ORIGINS), a honeypot, a timing check and Turnstile.
+verify_jwt = false
+
+[functions.site-review]
+# Same caller and auth model as site-contact (no Turnstile; reviews are stored unapproved).
+verify_jwt = false

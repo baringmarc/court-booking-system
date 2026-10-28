@@ -39,6 +39,13 @@ export function PhotoViewer({ photos, start, label, onClose }: Props) {
 
   const go = (next: number) => setIndex(Math.min(Math.max(next, 0), total - 1))
 
+  // The button that reaches the first or last photo disables itself, and a disabled button drops focus to <body>,
+  // outside the dialog, so the arrow keys would stop working (the court-photo e2e flake, T11.4). Focus the dialog first.
+  function press(next: number) {
+    if (next <= 0 || next >= total - 1) ref.current?.focus()
+    go(next)
+  }
+
   function handleKeyDown(e: KeyboardEvent) {
     if (e.key === 'ArrowRight') go(current + 1)
     else if (e.key === 'ArrowLeft') go(current - 1)
@@ -78,10 +85,10 @@ export function PhotoViewer({ photos, start, label, onClose }: Props) {
       </div>
       {total > 1 && (
         <div className="viewer-nav">
-          <button type="button" className="viewer-btn" aria-label="Previous photo" disabled={current === 0} onClick={() => go(current - 1)}>
+          <button type="button" className="viewer-btn" aria-label="Previous photo" disabled={current === 0} onClick={() => press(current - 1)}>
             <span aria-hidden="true">‹</span>
           </button>
-          <button type="button" className="viewer-btn" aria-label="Next photo" disabled={current === total - 1} onClick={() => go(current + 1)}>
+          <button type="button" className="viewer-btn" aria-label="Next photo" disabled={current === total - 1} onClick={() => press(current + 1)}>
             <span aria-hidden="true">›</span>
           </button>
         </div>

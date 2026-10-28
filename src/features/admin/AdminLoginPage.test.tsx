@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
@@ -8,10 +9,15 @@ import { AuthContext, type AuthState } from '../auth/AuthContext'
 import { AdminLoginPage } from './AdminLoginPage'
 
 vi.mock('../auth/api', () => ({ signInWithPassword: vi.fn() }))
+vi.mock('../catalog/api', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  fetchVenueSettings: vi.fn().mockResolvedValue({ name: 'Rally Point' }),
+}))
 const signIn = vi.mocked(signInWithPassword)
 
 function renderLogin(auth: AuthState, from?: string) {
   render(
+    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
     <AuthContext.Provider value={auth}>
       <MemoryRouter initialEntries={[{ pathname: '/admin/login', state: from ? { from } : null }]}>
         <Routes>
@@ -20,7 +26,8 @@ function renderLogin(auth: AuthState, from?: string) {
           <Route path="/admin/bookings" element={<p>Bookings page</p>} />
         </Routes>
       </MemoryRouter>
-    </AuthContext.Provider>,
+    </AuthContext.Provider>
+    </QueryClientProvider>,
   )
 }
 
@@ -40,6 +47,12 @@ describe('AdminLoginPage', () => {
     expect(screen.getByRole('heading', { name: 'Admin log in' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /google/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: /sign up/i })).not.toBeInTheDocument()
+  })
+
+  it("shows the Plotline logo and names the venue's staff (T11.5)", async () => {
+    renderLogin(authState('anon'))
+    expect(screen.getByText('plotline')).toBeInTheDocument()
+    expect(await screen.findByText('For Rally Point staff.')).toBeInTheDocument()
   })
 
   it('signs in with the entered credentials', async () => {
