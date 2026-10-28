@@ -56,19 +56,49 @@ beforeEach(() => {
 })
 
 describe('LocationSection', () => {
-  it('saves the trimmed address and map search, and previews the map from them', async () => {
-    renderWithClient(<LocationSection settings={{ address: '', maps_query: '' }} />)
-    expect(screen.getByText(/Add an address to see the map/)).toBeInTheDocument()
+  const linkField = (form: HTMLElement) => within(form).getByLabelText(/Google Maps link/)
+
+  it('saves the trimmed address and the pasted link', async () => {
+    vi.mocked(updateVenueSettings).mockResolvedValue({} as VenueSettings)
+    renderWithClient(<LocationSection settings={{ address: '', maps_url: '' }} />)
     const form = screen.getByRole('form', { name: 'Location' })
+    expect(within(form).queryByTitle(/Map/)).not.toBeInTheDocument()
     await userEvent.type(within(form).getByLabelText('Address'), ' 123 Rizal Ave, Makati ')
-    fireEvent.blur(within(form).getByLabelText('Address'))
-    expect(screen.getByTitle('Map preview: 123 Rizal Ave, Makati')).toHaveAttribute(
-      'src', 'https://www.google.com/maps?q=123%20Rizal%20Ave%2C%20Makati&output=embed')
-    await userEvent.type(within(form).getByLabelText(/Map search/), 'Claudex Courts')
+    await userEvent.type(linkField(form), ' https://maps.app.goo.gl/AbC123 ')
     await userEvent.click(within(form).getByRole('button', { name: 'Save location' }))
-    expect(vi.mocked(updateVenueSettings).mock.calls[0][0]).toEqual({ address: '123 Rizal Ave, Makati', maps_query: 'Claudex Courts' })
-    expect(screen.getByTitle('Map preview: Claudex Courts')).toBeInTheDocument()
+    expect(vi.mocked(updateVenueSettings).mock.calls[0][0]).toEqual({ address: '123 Rizal Ave, Makati', maps_url: 'https://maps.app.goo.gl/AbC123' })
     expect(await screen.findByText('Saved')).toBeInTheDocument()
+  })
+
+  it('refuses a link that is not Google Maps, and saves nothing', async () => {
+    renderWithClient(<LocationSection settings={{ address: '12 Rizal Ave', maps_url: '' }} />)
+    const form = screen.getByRole('form', { name: 'Location' })
+    await userEvent.type(linkField(form), 'https://maps.google.com.evil.test/x')
+    await userEvent.click(within(form).getByRole('button', { name: 'Save location' }))
+    expect(screen.getByRole('alert')).toHaveTextContent(/Paste a Google Maps link/)
+    expect(linkField(form)).toHaveAttribute('aria-invalid', 'true')
+    expect(linkField(form)).toHaveAccessibleDescription(/Paste a Google Maps link/)
+    expect(updateVenueSettings).not.toHaveBeenCalled()
+    await userEvent.type(linkField(form), 'x')
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument() // editing clears the message
+  })
+
+  it("pre-fills an empty address from a long link's place name, but never overwrites one", async () => {
+    renderWithClient(<LocationSection settings={{ address: '', maps_url: '' }} />)
+    const form = screen.getByRole('form', { name: 'Location' })
+    fireEvent.change(linkField(form), { target: { value: 'https://www.google.com/maps/place/Claudex+Courts,+Makati/@14.55,121.02,17z' } })
+    expect(within(form).getByLabelText('Address')).toHaveValue('Claudex Courts, Makati')
+    fireEvent.change(linkField(form), { target: { value: 'https://www.google.com/maps/place/Somewhere+Else/' } })
+    expect(within(form).getByLabelText('Address')).toHaveValue('Claudex Courts, Makati')
+  })
+
+  it('clears the link when the field is emptied', async () => {
+    vi.mocked(updateVenueSettings).mockResolvedValue({} as VenueSettings)
+    renderWithClient(<LocationSection settings={{ address: '12 Rizal Ave', maps_url: 'https://maps.app.goo.gl/Old' }} />)
+    const form = screen.getByRole('form', { name: 'Location' })
+    await userEvent.clear(linkField(form))
+    await userEvent.click(within(form).getByRole('button', { name: 'Save location' }))
+    expect(vi.mocked(updateVenueSettings).mock.calls[0][0]).toEqual({ address: '12 Rizal Ave', maps_url: '' })
   })
 })
 

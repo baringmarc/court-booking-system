@@ -91,7 +91,7 @@ async function addCourtPhotos(page) {
 // --- Demo data ----------------------------------------------------------------------------------------------
 
 async function snapshotVenueInfo() {
-  const { data: settings } = await service.from('venue_settings').select('address, maps_query').single().throwOnError()
+  const { data: settings } = await service.from('venue_settings').select('address, maps_url').single().throwOnError()
   const { data: socials } = await service.from('venue_social_links').select('platform, url').throwOnError()
   const { data: amenities } = await service.from('venue_amenities').select('id, builtin_key, custom_name, created_at').throwOnError()
   return { settings, socials, amenities }
@@ -107,7 +107,7 @@ async function restoreVenueInfo({ settings, socials, amenities }) {
 
 async function setDemoVenueInfo() {
   await service.from('venue_settings')
-    .update({ address: '123 Rizal Ave, Makati City', maps_query: 'Ayala Triangle Gardens, Makati' }).eq('id', true).throwOnError()
+    .update({ address: '123 Rizal Ave, Makati City', maps_url: 'https://www.google.com/maps/search/?api=1&query=Ayala%20Triangle%20Gardens%2C%20Makati' }).eq('id', true).throwOnError()
   await service.from('venue_social_links').delete().not('url', 'is', null).throwOnError()
   await service.from('venue_social_links').insert([
     { platform: 'facebook', url: 'https://www.facebook.com/claudexcourts' },
@@ -235,9 +235,6 @@ async function main() {
       const page = await player.newPage()
       await page.goto(`${BASE}/`)
       await page.getByRole('heading', { name: 'Location' }).waitFor()
-      // The map is lazy: bring it into view and give Google's frame time to draw.
-      await page.locator('.map-frame').scrollIntoViewIfNeeded()
-      await page.waitForTimeout(8000)
       if (kind === 'phone') {
         await page.getByRole('heading', { name: 'Location' }).evaluate((el) => el.scrollIntoView({ block: 'start' }))
         await shoot(page, 'location', kind)

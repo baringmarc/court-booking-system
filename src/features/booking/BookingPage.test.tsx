@@ -2,7 +2,7 @@
 // polling, timeout), starting a checkout, and who gets the button. The api.ts functions are mocked; everything
 // else (hooks, React Query, router, paymongoReturn, sessionStorage) is real.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -27,7 +27,7 @@ vi.mock('./paymongoReturn', async (importOriginal) => ({ ...(await importOrigina
 const REF = 'CB-7KQ2XD'
 const TOKEN = 'secret-token'
 const settings = {
-  timezone: 'Asia/Manila', currency: 'PHP', payment_instructions: '**GCash**: 0917 000 0000', cancel_cutoff_hours: 1,
+  timezone: 'Asia/Manila', currency: 'PHP', payment_instructions: '**GCash**: 0917 000 0000', cancel_cutoff_hours: 1, address: '123 Rizal Ave, Makati', maps_url: 'https://maps.app.goo.gl/AbC123',
 } as VenueSettings
 
 const paymongoPayment = (review_status: PaymentAttempt['review_status']): PaymentAttempt => ({
@@ -200,5 +200,13 @@ describe('BookingPage: starting an online payment', () => {
     renderPage(`/booking/${REF}`, authState('admin'))
     expect(await screen.findByText('Pickleball 2')).toBeInTheDocument()
     expect(payButton()).not.toBeInTheDocument()
+  })
+})
+
+describe('BookingPage: where to play', () => {
+  it("shows the venue's address, linked to its Google Maps page", async () => {
+    renderPage(`/booking/${REF}#token=${TOKEN}`)
+    const where = await screen.findByRole('region', { name: 'Location' })
+    expect(within(where).getByRole('link', { name: /123 Rizal Ave, Makati/ })).toHaveAttribute('href', 'https://maps.app.goo.gl/AbC123')
   })
 })

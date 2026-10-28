@@ -1,22 +1,24 @@
-// The venue map (T9.11g): built from stored text fields only, never from a pasted iframe or URL.
+// The venue's Google Maps link (T11.8, T11.9): pasted by the admin, never built into an embedded map.
 
-/** The official Maps Embed API with a referrer-restricted browser key, or the keyless embed without one. */
-export function mapEmbedUrl(query: string, apiKey?: string) {
-  const q = encodeURIComponent(query.trim())
-  return apiKey
-    ? `https://www.google.com/maps/embed/v1/place?key=${encodeURIComponent(apiKey)}&q=${q}`
-    : `https://www.google.com/maps?q=${q}&output=embed`
+export const MAPS_URL_MAX = 1000
+/** Mirrors the venue_settings_maps_url_link check: https on one of four Maps hosts, then `/ ? #` or the end. */
+const MAPS_URL = /^https:\/\/(www\.google\.com\/maps|maps\.google\.com|maps\.app\.goo\.gl|goo\.gl\/maps)([/?#]\S*)?$/
+
+/** Why a pasted link can't be saved, or null when it can (empty means no link). */
+export function mapsUrlProblem(url: string): string | null {
+  if (url === '') return null
+  if (url.length > MAPS_URL_MAX) return `The link must be at most ${MAPS_URL_MAX} characters.`
+  if (!MAPS_URL.test(url)) return 'Paste a Google Maps link (https://maps.app.goo.gl/… or https://www.google.com/maps/…).'
+  return null
 }
 
-/** "Open in Google Maps": Maps URLs, no key needed. */
-export function mapsSearchUrl(query: string) {
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query.trim())}`
+/** The place name in a long link's `/maps/place/<name>/`, to pre-fill an empty address. Short links have none. */
+export function placeNameFromMapsUrl(url: string): string {
+  const match = url.match(/^https:\/\/(?:www|maps)\.google\.com\/maps\/place\/([^/?#]+)/)
+  if (!match) return ''
+  try {
+    return decodeURIComponent(match[1].replace(/\+/g, ' ')).trim().slice(0, 300)
+  } catch {
+    return '' // a malformed %-escape
+  }
 }
-
-/** What the map searches: the map query, or the address when there's none. Empty means no map. */
-export function mapQueryOf(settings: { address: string; maps_query: string }) {
-  return settings.maps_query.trim() || settings.address.trim()
-}
-
-/** The embed key from the environment (optional; see .env.example). */
-export const MAPS_EMBED_KEY: string | undefined = import.meta.env.VITE_GOOGLE_MAPS_EMBED_KEY || undefined

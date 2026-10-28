@@ -61,24 +61,33 @@ describe('AmenityChips', () => {
 })
 
 describe('VenueLocation', () => {
-  it('shows the address, a lazy map and "Open in Google Maps", with a heading band and no social links', () => {
-    renderWith(<VenueLocation venueName="Claudex Courts" address="123 Rizal Ave, Makati" mapsQuery="Claudex Courts Makati" />)
-    expect(screen.getByRole('heading', { name: 'Location' })).toBeInTheDocument()
-    expect(screen.getByText('123 Rizal Ave, Makati')).toBeInTheDocument()
-    const map = screen.getByTitle('Map of Claudex Courts')
-    expect(map).toHaveAttribute('loading', 'lazy')
-    expect(map).toHaveAttribute('src', 'https://www.google.com/maps?q=Claudex%20Courts%20Makati&output=embed')
-    const open = screen.getByRole('link', { name: 'Open in Google Maps (opens in a new tab)' })
-    expect(open).toHaveAttribute('href', 'https://www.google.com/maps/search/?api=1&query=Claudex%20Courts%20Makati')
-    expect(open).toHaveAttribute('rel', 'noopener noreferrer')
+  it('shows the address with a pin as a link to the pasted Maps URL (new tab), with no embedded map or social links', () => {
+    const { container } = renderWith(<VenueLocation address=" 123 Rizal Ave, Makati " mapsUrl="https://maps.app.goo.gl/AbC123" />)
     expect(screen.getByRole('heading', { name: 'Location' })).toHaveClass('card-head')
-    // The social links moved to the footer's "Stay connected" band (T11.4).
+    const link = screen.getByRole('link', { name: /^123 Rizal Ave, Makati\s+\(opens Google Maps in a new tab\)$/ })
+    expect(link).toHaveAttribute('href', 'https://maps.app.goo.gl/AbC123')
+    expect(link).toHaveAttribute('target', '_blank')
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer')
+    expect(link.querySelector('svg[aria-hidden="true"]')).not.toBeNull()
+    expect(container.querySelector('iframe')).toBeNull()
     expect(screen.queryByRole('list', { name: 'Social links' })).not.toBeInTheDocument()
     expect(fetchSocialLinks).not.toHaveBeenCalled()
   })
 
-  it('is hidden without an address or map search', () => {
-    const { container } = renderWith(<VenueLocation venueName="Claudex Courts" address=" " mapsQuery="" />)
+  it('shows the address without a link when there is no link', () => {
+    renderWith(<VenueLocation address="123 Rizal Ave" mapsUrl="" />)
+    expect(screen.getByText('123 Rizal Ave')).toBeInTheDocument()
+    expect(screen.queryByRole('link')).not.toBeInTheDocument()
+  })
+
+  it('never links a stored URL that fails the Maps check', () => {
+    renderWith(<VenueLocation address="123 Rizal Ave" mapsUrl="javascript:alert(1)" />)
+    expect(screen.getByText('123 Rizal Ave')).toBeInTheDocument()
+    expect(screen.queryByRole('link')).not.toBeInTheDocument()
+  })
+
+  it('shows nothing without an address, even with a link', () => {
+    const { container } = renderWith(<VenueLocation address=" " mapsUrl="https://maps.app.goo.gl/AbC123" />)
     expect(container).toBeEmptyDOMElement()
   })
 })

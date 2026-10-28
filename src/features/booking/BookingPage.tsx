@@ -4,6 +4,7 @@ import { ErrorMessage } from '../../components/ErrorMessage'
 import { PageLoader } from '../../components/PageLoader'
 import { useAuth } from '../auth/useAuth'
 import { useVenueSettings } from '../catalog/hooks'
+import { VenueLocation } from '../venue/VenueInfo'
 import { BookingSummary } from './BookingSummary'
 import { CancelBooking } from './CancelBooking'
 import { playerCancel } from './cancellation'
@@ -100,6 +101,7 @@ export function BookingPage() {
                 cutoffHours={settings.data.cancel_cutoff_hours} now={now} />
             }
           />
+          <VenueLocation address={settings.data.address} mapsUrl={settings.data.maps_url} />
         </div>
       ) : null}
     </section>

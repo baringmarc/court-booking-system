@@ -1,15 +1,14 @@
 // T9.11h/i: an admin edits the venue info in /admin/settings; the public API serves it to anyone, and players see it
 // on the home page (and checkout links the cancellation policy). Everything is restored afterwards.
-import { AxeBuilder } from '@axe-core/playwright'
 import { createClient } from '@supabase/supabase-js'
 import { expect, test } from '@playwright/test'
-import { axeBothSchemes, createAdmin, E2E_PREFIX, logInAdmin, serviceClient, setColorScheme } from './support/helpers.ts'
+import { axeBothSchemes, createAdmin, E2E_PREFIX, logInAdmin, serviceClient } from './support/helpers.ts'
 import { localSupabase } from './support/local.ts'
 
 type Snapshot = {
   socials: { platform: string; url: string }[]
   amenities: { id: string; builtin_key: string | null; custom_name: string | null; created_at: string }[]
-  location: { address: string; maps_query: string }
+  location: { address: string; maps_url: string }
 }
 let before: Snapshot
 
@@ -18,7 +17,7 @@ test.beforeEach(async () => {
   const { data: socials, error: e1 } = await service.from('venue_social_links').select('platform, url')
   // Ids and dates too, so restoring keeps the amenities' order.
   const { data: amenities, error: e2 } = await service.from('venue_amenities').select('id, builtin_key, custom_name, created_at')
-  const { data: location, error: e3 } = await service.from('venue_settings').select('address, maps_query').single()
+  const { data: location, error: e3 } = await service.from('venue_settings').select('address, maps_url').single()
   if (e1 || e2 || e3) throw e1 ?? e2 ?? e3
   before = { socials: socials ?? [], amenities: amenities ?? [], location: location! }
 })
@@ -99,7 +98,11 @@ test('an admin sets an amenity, an info section and a social link, and anyone ca
   // T9.11i: the location, then the home page as a player (same device size, signed out).
   const location = page.getByRole('form', { name: 'Location' })
   await location.getByLabel('Address', { exact: true }).fill('123 Rizal Ave, Makati City')
-  await location.getByLabel(/Map search/).fill('Ayala Triangle Gardens, Makati')
+  // A link that isn't Google Maps is refused before saving.
+  await location.getByLabel(/Google Maps link/).fill('https://maps.google.com.evil.test/x')
+  await location.getByRole('button', { name: 'Save location' }).click()
+  await expect(location.getByRole('alert')).toContainText('Paste a Google Maps link')
+  await location.getByLabel(/Google Maps link/).fill('https://maps.app.goo.gl/E2eAyalaTriangle')
   await location.getByRole('button', { name: 'Save location' }).click()
   await expect(location.getByText('Saved')).toBeVisible()
 
@@ -109,9 +112,11 @@ test('an admin sets an amenity, an info section and a social link, and anyone ca
   await expect(home.getByRole('list').filter({ has: home.getByText(amenityLabel, { exact: true }) })).toBeVisible()
   const where = home.getByRole('region', { name: 'Location' })
   await expect(where.getByText('123 Rizal Ave, Makati City')).toBeVisible()
-  await expect(where.locator('iframe')).toHaveAttribute('loading', 'lazy')
-  await expect(where.getByRole('link', { name: /Open in Google Maps/ }))
-    .toHaveAttribute('href', 'https://www.google.com/maps/search/?api=1&query=Ayala%20Triangle%20Gardens%2C%20Makati')
+  // T11.9: no embedded map; the address itself links to the pasted URL, in a new tab.
+  await expect(home.locator('iframe')).toHaveCount(0)
+  const mapLink = where.getByRole('link', { name: /123 Rizal Ave, Makati City/ })
+  await expect(mapLink).toHaveAttribute('href', 'https://maps.app.goo.gl/E2eAyalaTriangle')
+  await expect(mapLink).toHaveAttribute('target', '_blank')
   // Social links are in the footer's "Stay connected" band now, not the location card (T11.4).
   await expect(where.getByRole('link', { name: /^TikTok/ })).toHaveCount(0)
   const band = home.getByRole('region', { name: 'Connect with us' })
@@ -120,11 +125,6 @@ test('an admin sets an amenity, an info section and a social link, and anyone ca
   const panel = home.locator('details').filter({ hasText: title })
   await panel.getByText(title).click()
   await expect(panel.getByText('Gate closes at 11 PM.')).toBeVisible()
-  // The Google map is a third-party frame: check our page, not Google's.
-  for (const colorScheme of ['light', 'dark'] as const) {
-    await setColorScheme(home, colorScheme)
-    const axe = await new AxeBuilder({ page: home }).exclude('.map-frame').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
-    expect(axe.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical').map((v) => v.id), colorScheme).toEqual([])
-  }
+  expect(await axeBothSchemes(home)).toEqual([])
   await player.close()
 })

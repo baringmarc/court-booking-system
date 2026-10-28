@@ -577,7 +577,6 @@ fieldset.field legend { padding: 0; margin-bottom: 6px; }
 .alert-busy { display: flex; align-items: flex-start; gap: 10px; }
 .alert-busy .spinner-inline { margin-top: 0.25em; }
 /* Venue info admin (T9.11h). */
-.map-frame { display: block; width: 100%; aspect-ratio: 16 / 9; border: 1px solid var(--border); border-radius: 8px; background: var(--accent-soft); }
 .amenity-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px 16px; font-weight: 400; }
 .amenity-check { display: inline-flex; align-items: center; gap: 8px; }
 .amenity-icon { width: 20px; height: 20px; color: var(--accent); flex-shrink: 0; }
@@ -593,6 +592,10 @@ fieldset.field legend { padding: 0; margin-bottom: 6px; }
   border: 1px solid var(--slot-free-border); background: var(--surface); font-size: 0.9rem;
 }
 .venue-address { display: flex; gap: 8px; align-items: flex-start; margin: 0; }
+/* The address as a link to Google Maps (T11.9): text color with an ink underline, a 44px tap target. */
+a.venue-address { color: var(--text); text-decoration: underline; text-decoration-color: var(--accent); text-underline-offset: 3px; min-height: 44px; align-items: center; }
+a.venue-address:hover { color: var(--accent); }
+a.venue-address:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
 /* Good to know (T11.4, option b): one card per section, tighter, with a chevron that turns as it opens. */
 .info-list { gap: 8px; }
 .info-panel { scroll-margin-top: 16px; padding: 12px 16px; margin-bottom: 0; border-radius: 14px; }
