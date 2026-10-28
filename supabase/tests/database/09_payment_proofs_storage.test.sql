@@ -18,15 +18,16 @@ insert into public.bookings (id, reference_code, court_id, user_id, guest_name, 
 
 -- The Storage API enforces storage.objects policies, so clients can write only where a write policy exists.
 -- The only client write policies allowed are the three admin-only venue-media ones (M6, tested in
--- 17_venue_media), listed by exact name so that any other write policy, including a bucket-agnostic one
+-- 17_venue_media) and the two payment-qr ones (T11.10, tested in 34_payment_accounts), listed by exact name so that any other write policy, including a bucket-agnostic one
 -- (e.g. "with check (true)") that would open payment-proofs too, fails this check.
 -- (Direct SQL deletes are blocked by Storage itself, so delete is checked through the policy list.)
 select is_empty(
   $$ select policyname from pg_policies
      where schemaname = 'storage' and tablename = 'objects'
        and cmd in ('INSERT', 'UPDATE', 'DELETE', 'ALL')
-       and policyname not in ('Admins upload venue media', 'Admins update venue media', 'Admins delete venue media') $$,
-  'no insert, update, delete or all policy lets clients write to storage, except the venue-media admin policies'
+       and policyname not in ('Admins upload venue media', 'Admins update venue media', 'Admins delete venue media',
+                              'Admins upload payment QR codes', 'Admins delete payment QR codes') $$,
+  'no insert, update, delete or all policy lets clients write to storage, except the venue-media and payment-qr admin policies'
 );
 select results_eq(
   $$ select public, file_size_limit, allowed_mime_types from storage.buckets where id = 'payment-proofs' $$,
