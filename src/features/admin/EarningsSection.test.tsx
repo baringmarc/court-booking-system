@@ -62,14 +62,35 @@ describe('EarningsSection', () => {
     expect(methods.map((li) => li.textContent)).toEqual(['Cash (2)₱1,000', 'PayMongo (1)₱500'])
     expect(screen.getByText('confirmed bookings not played yet, worth ₱1,300.')).toBeInTheDocument()
 
-    const table = within(screen.getByRole('table'))
-    expect(table.getByRole('row', { name: 'Badminton 1 4 h 25% 2 h' })).toBeInTheDocument()
-    // 3 sold of 2 bookable hours (a booking under a blackout) is capped at 100%.
-    expect(table.getByRole('row', { name: 'Tennis Court 3 h 100% 0 h' })).toBeInTheDocument()
-    expect(table.getByRole('row', { name: 'All badminton 4 h 25% 2 h' })).toBeInTheDocument()
-    expect(table.getByRole('row', { name: 'All courts 7 h 39% 2 h' })).toBeInTheDocument()
+    // Booked hours as split bars (T11.5): a row per court, each with its figures as text and a bar of its open hours.
+    const hours = within(screen.getByRole('region', { name: 'Booked hours' }))
+    const badminton = within(hours.getByRole('list', { name: 'Badminton courts' })).getAllByRole('listitem')
+    expect(badminton.map((li) => li.textContent)).toEqual(['Badminton 14 h booked · 25% · 2 h open play'])
+    expect(within(badminton[0]).getByRole('img', { name: 'Out of 16 h open' })).toBeInTheDocument()
+    // 3 sold of 2 bookable hours (a booking under a blackout) is capped at 100%; the bar is full.
+    const tennis = within(hours.getByRole('list', { name: 'Tennis courts' })).getByRole('listitem')
+    expect(tennis).toHaveTextContent('Tennis Court3 h booked · 100% · 0 h open play')
+    expect(within(tennis).getByRole('img', { name: 'Out of 2 h open' }).querySelector('.hours-booked')).toHaveStyle({ width: '100%' })
+    // Sport headings carry their totals when there are several sports, then all courts.
+    expect(hours.getByRole('heading', { name: 'Badminton' }).parentElement).toHaveTextContent('Badminton4 h booked · 25% · 2 h open play')
+    expect(hours.getByText('All courts').parentElement).toHaveTextContent('All courts7 h booked · 39% · 2 h open play')
     // One day: no chart.
     expect(screen.queryByRole('list', { name: 'Collected per day' })).toBeNull()
+  })
+
+  it('with one sport, its heading carries no totals (the all-courts row has them)', async () => {
+    vi.mocked(fetchEarnings).mockResolvedValue(result({
+      courts: [{ court_id: 'A', name: 'Badminton 1', sport: 'badminton', open_hours: 10, blackout_hours: 0, sold_hours: 5, open_play_hours: 0 }],
+      sports: [{ sport: 'badminton', open_hours: 10, blackout_hours: 0, sold_hours: 5, open_play_hours: 0 }],
+    }))
+    renderSection()
+    const hours = within(await screen.findByRole('region', { name: 'Booked hours' }))
+    expect(hours.getByRole('heading', { name: 'Badminton' }).parentElement).toHaveTextContent(/^Badminton$/)
+    expect(hours.getByText('All courts').parentElement).toHaveTextContent('All courts5 h booked · 50% · 0 h open play')
+    // No open play: only the booked part of the bar is drawn.
+    const bar = hours.getAllByRole('img', { name: 'Out of 10 h open' })[0]
+    expect(bar.querySelector('.hours-booked')).toHaveStyle({ width: '50%' })
+    expect(bar.querySelector('.hours-open-play')).toHaveStyle({ width: '0%' })
   })
 
   it('switches to this week (Monday to Sunday) and draws a labelled bar per day', async () => {

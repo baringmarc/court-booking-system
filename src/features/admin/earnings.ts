@@ -111,6 +111,18 @@ export function parseEarnings(json: Json): Earnings {
 }
 
 /**
+ * The split bar for booked hours (T11.5): the shares of the bookable hours (open minus blackouts) that were booked and
+ * that were open play, never more than the whole bar between them. Null when nothing was bookable.
+ */
+export function hourBar({ openHours, blackoutHours, soldHours, openPlayHours }: HourTotals) {
+  const bookable = openHours - blackoutHours
+  if (bookable <= 0) return null
+  const booked = Math.min(1, Math.max(0, soldHours / bookable))
+  const openPlay = Math.min(1 - booked, Math.max(0, openPlayHours / bookable))
+  return { booked, openPlay, bookable }
+}
+
+/**
  * Booked share of the bookable hours: sold ÷ (open − blackout), from 0 to 1. Null when nothing was bookable. Capped
  * at 1, since blackouts aren't checked against bookings (a booking under one counts as both).
  */

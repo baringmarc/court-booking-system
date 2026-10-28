@@ -146,6 +146,15 @@ img, svg { display: block; }
 /* Admin shell */
 .admin-header { border-bottom: 2px solid var(--accent); }
 .admin-header .brand .badge { background: var(--accent-soft); color: var(--accent); }
+.admin-brand { gap: 10px; }
+/* Admin cards (T11.5): a heading that opens a card gets the same tinted band as .card-head on the public site. */
+.admin .card > :is(h2, h3):first-child, .admin .card > .page-head:first-child {
+  margin: -20px -20px 16px; padding: 12px 20px; background: var(--tint-sage); color: var(--text);
+  border-bottom: 1px solid var(--border); border-radius: calc(var(--radius) - 1px) calc(var(--radius) - 1px) 0 0;
+}
+.admin .card.stack > :is(h2, h3):first-child, .admin .card.stack > .page-head:first-child { margin-bottom: 2px; }
+.admin .card > .page-head:first-child :is(h2, h3) { margin: 0; }
+.admin .card > .page-head:first-child .badge { background: var(--surface); box-shadow: inset 0 0 0 1px currentColor; }
 
 /* Footer (T11.4): a band in its own colors: "Stay connected" (when the venue has social links), then the copyright
    and "Powered by Plotline". */
@@ -313,7 +322,23 @@ a.list-row:hover { background: var(--accent-soft); }
   border: 1px solid var(--border-strong); background: var(--field); color: var(--text);
 }
 .field textarea { resize: vertical; }
+/* Even rows (T11.5): a form's fields wrap into columns that divide them evenly, never leaving one field alone on a
+   row. The column count follows the grid's own width (the 999 multiplier switches a term on below a width:
+   4 × 200px + 3 gaps = 842px, 3 × 200px + 2 gaps = 628px, 2 × 200px + 1 gap = 414px):
+   3 and 5 fields: 3 (3 + 2) or 1. 4 and 8: 4, 2 or 1. 6: 3, 2 or 1. 7: 4 (4 + 3) or 1. Two fields wrap at 200px. */
 .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; }
+.form-grid:is(:has(> :nth-child(4):last-child), :has(> :nth-child(8):last-child)) {
+  grid-template-columns: repeat(auto-fill, minmax(max(25% - 11px, min(50% - 8px, (842px - 100%) * 999), min(100%, (414px - 100%) * 999)), 1fr));
+}
+.form-grid:is(:has(> :nth-child(3):last-child), :has(> :nth-child(5):last-child)) {
+  grid-template-columns: repeat(auto-fill, minmax(max(33.333% - 10px, min(100%, (628px - 100%) * 999)), 1fr));
+}
+.form-grid:has(> :nth-child(6):last-child) {
+  grid-template-columns: repeat(auto-fill, minmax(max(33.333% - 10px, min(50% - 8px, (628px - 100%) * 999), min(100%, (414px - 100%) * 999)), 1fr));
+}
+.form-grid:has(> :nth-child(7):last-child) {
+  grid-template-columns: repeat(auto-fill, minmax(max(25% - 11px, min(100%, (842px - 100%) * 999)), 1fr));
+}
 .form-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .check { display: flex; align-items: center; gap: 8px; cursor: pointer; }
 .check input { width: 18px; height: 18px; accent-color: var(--accent); }
@@ -652,3 +677,37 @@ details[open]::details-content { block-size: auto; }
   .date-strip-day { flex-basis: calc(100% - 120px); }
   .date-strip-jump { order: 4; width: 100%; }
 }
+
+/* Booked hours (T11.5, split bars): a row per court with its bar (booked, open play, free) and the figures as text.
+   On a phone the bar goes under the name. */
+.hours { display: flex; flex-direction: column; gap: 6px; margin-top: 24px; }
+.hours > h3 { margin-bottom: 8px; }
+.hours-legend { list-style: none; display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 0; margin: 0 0 4px; font-size: 0.8rem; color: var(--muted); }
+.hours-legend li { display: inline-flex; align-items: center; gap: 6px; }
+.hours-legend i { width: 12px; height: 12px; border-radius: 3px; display: block; }
+.key-booked, .hours-booked { background: var(--accent); }
+.key-open-play, .hours-open-play { background: var(--open-play); }
+.key-free { background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--border-strong); }
+.hours-head { display: flex; justify-content: space-between; align-items: baseline; gap: 4px 12px; flex-wrap: wrap; padding: 10px 0 2px; }
+.hours-head h4 { margin: 0; font-family: var(--serif); font-size: 1rem; font-weight: 600; }
+.booked-list { list-style: none; margin: 0; padding: 0; }
+.booked-row {
+  display: grid; grid-template-columns: minmax(7rem, 11rem) minmax(0, 1fr) 17.5em; align-items: center; gap: 4px 14px;
+  margin: 0; padding: 8px 0; border-top: 1px solid var(--border); font-size: 0.875rem;
+}
+.hours-total { border-top: 2px solid var(--text); font-weight: 700; }
+.hours-name { min-width: 0; overflow-wrap: anywhere; }
+.hours-figures { color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; }
+.hours-head .hours-figures { font-size: 0.875rem; }
+.hours-total .hours-figures { color: var(--text); }
+.hours-bar {
+  display: flex; height: 12px; border-radius: 999px; overflow: hidden;
+  background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+@media (max-width: 640px) {
+  /* Stacked: the name, its figures, then the bar across the full width. */
+  .booked-row { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .booked-row .hours-figures { text-align: left; }
+  .booked-row .hours-bar { grid-row: 3; margin-top: 4px; }
+}
+.admin-login-logo { margin-bottom: 16px; }

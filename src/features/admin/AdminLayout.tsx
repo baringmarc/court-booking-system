@@ -1,4 +1,5 @@
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { PlotlineLogo } from '../../components/PlotlineLogo'
 import { useMainFocus } from '../../components/useMainFocus'
 import { useAuth } from '../auth/useAuth'
 
@@ -28,8 +29,9 @@ export function AdminLayout() {
       <a href="#main" className="skip-link" onClick={skipToMain}>Skip to main content</a>
       <header className="site-header admin-header">
         <div className="container header-inner">
-          <Link to="/admin" className="brand">
-            <span className="brand-mark" aria-hidden="true">◆</span> Claudex Courts <span className="badge">Admin</span>
+          {/* Plotline's own logo heads the admin area (RESEARCH M11); the public site shows the venue's name instead. */}
+          <Link to="/admin" className="brand admin-brand">
+            <PlotlineLogo size={30} /><span className="badge">Admin</span>
           </Link>
 
           {isAdmin && (

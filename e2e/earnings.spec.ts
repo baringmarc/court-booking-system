@@ -65,7 +65,7 @@ async function checkEarnings(page: Page, before: number, reference: string) {
   await expect(total).toHaveText(/₱/)
   await expect.poll(async () => pesos(await total.textContent())).toBe(before + 1234)
   await expect(earnings.getByRole('list', { name: 'Collected by method' })).toContainText('Cash')
-  await expect(earnings.getByRole('table')).toContainText('All courts')
+  await expect(earnings.getByRole('region', { name: 'Booked hours' })).toContainText('All courts')
   expect(await axeViolations(page), 'earnings, today').toEqual([])
 
   // CSV export (T10.8): today's bookings by play date, and today's payments; UTF-8 with a BOM, CRLF lines.
