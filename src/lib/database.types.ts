@@ -737,6 +737,7 @@ export type Database = {
           currency: string
           id: boolean
           maps_query: string
+          maps_url: string
           max_rejections: number
           name: string
           payment_hold_minutes: number
@@ -756,6 +757,7 @@ export type Database = {
           currency?: string
           id?: boolean
           maps_query?: string
+          maps_url?: string
           max_rejections?: number
           name: string
           payment_hold_minutes?: number
@@ -775,6 +777,7 @@ export type Database = {
           currency?: string
           id?: boolean
           maps_query?: string
+          maps_url?: string
           max_rejections?: number
           name?: string
           payment_hold_minutes?: number
