@@ -162,6 +162,7 @@ venue_settings    id (singleton), name, timezone, currency, slot_minutes (60), b
                   banner_path (nullable), banner_alt (nullable)   -- M6; CHECK banner_path under 'banner/'; set together;
                                                                   -- alt stored trimmed, 1–200 chars
                   sport_order sport[] (M9: every sport exactly once; defaults to the enum order)
+                  theme text not null default 'plotline' (M11, T11.6: one of plotline, court-green, ocean, plum, sunset)
 courts            id, name, sport, description, default_hourly_rate numeric, is_active, sort_order, created_at
                   -- photos live in court_photos (M9); the M6 photo_path column was dropped in T9.11
 court_photos (M9) id, court_id (on delete cascade), path unique (CHECK under 'courts/{court_id}/'), sort_order,

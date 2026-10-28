@@ -743,6 +743,7 @@ export type Database = {
           payment_instructions: string
           slot_minutes: number
           sport_order: Database["public"]["Enums"]["sport"][]
+          theme: string
           timezone: string
           updated_at: string
         }
@@ -761,6 +762,7 @@ export type Database = {
           payment_instructions?: string
           slot_minutes?: number
           sport_order?: Database["public"]["Enums"]["sport"][]
+          theme?: string
           timezone?: string
           updated_at?: string
         }
@@ -779,6 +781,7 @@ export type Database = {
           payment_instructions?: string
           slot_minutes?: number
           sport_order?: Database["public"]["Enums"]["sport"][]
+          theme?: string
           timezone?: string
           updated_at?: string
         }
