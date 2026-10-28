@@ -12,6 +12,8 @@ import type { OpenPlayInput } from '../openPlay/api'
 import type { SocialPlatform } from '../venue/social'
 import type { AmenityKey } from '../venue/amenities'
 import { newMediaPath, storageErrorMessage } from './mediaInput'
+import { qrStorageMessage } from './qrImage'
+import { PAYMENT_QR_BUCKET } from '../venue/api'
 import { clearStoredMedia, replaceStoredMedia } from './mediaReplace'
 
 export type AdminPayment = {
@@ -496,4 +498,62 @@ export async function addCustomAmenity(name: string) {
 
 export async function removeAmenity(id: string) {
   unwrap(await supabase.from('venue_amenities').delete().eq('id', id))
+}
+
+// --- payment accounts and their QR codes (T11.11; the public `payment-qr` bucket, admin-only writes) ---------------
+
+export type PaymentAccountInput = { label: string; account_name: string; account_number: string }
+/** What happens to an account's QR code on save. */
+export type QrChange = { kind: 'keep' } | { kind: 'set'; image: Blob } | { kind: 'clear' }
+
+async function uploadPaymentQr(image: Blob) {
+  const path = `${crypto.randomUUID()}.png`
+  const { error } = await supabase.storage
+    .from(PAYMENT_QR_BUCKET)
+    .upload(path, image, { contentType: 'image/png', cacheControl: '31536000', upsert: false })
+  if (error) throw new ApiError(qrStorageMessage(error))
+  return path
+}
+
+async function removePaymentQr(path: string) {
+  const { data, error } = await supabase.storage.from(PAYMENT_QR_BUCKET).remove([path])
+  if (error) throw new ApiError(qrStorageMessage(error))
+  if (!data?.length) throw new ApiError(`The file ${path} was not deleted.`)
+}
+
+/**
+ * Adds an account (it goes last) or updates one. A new QR is uploaded first and saved after; a replaced or cleared
+ * one is removed after the row is saved (best effort), so a row never points at a missing image. `position` is never
+ * sent: only reorder_payment_accounts sets it.
+ */
+export async function savePaymentAccount(existing: { id: string; qr_path: string | null } | null, input: PaymentAccountInput, qr: QrChange) {
+  const insert = async (qr_path: string | null) =>
+    unwrap(await supabase.from('venue_payment_accounts').insert({ ...input, qr_path }).select('id').single())
+  const update = async (patch: { qr_path?: string | null }) =>
+    unwrap(await supabase.from('venue_payment_accounts').update({ ...input, ...patch }).eq('id', existing!.id).select('id').single())
+
+  if (!existing) {
+    if (qr.kind !== 'set') return insert(null)
+    return replaceStoredMedia({ oldPath: null, upload: () => uploadPaymentQr(qr.image), save: insert, remove: removePaymentQr })
+  }
+  if (qr.kind === 'set') {
+    return replaceStoredMedia({
+      oldPath: existing.qr_path, upload: () => uploadPaymentQr(qr.image), save: (qr_path) => update({ qr_path }), remove: removePaymentQr,
+    })
+  }
+  if (qr.kind === 'clear' && existing.qr_path) {
+    return clearStoredMedia({ oldPath: existing.qr_path, save: () => update({ qr_path: null }), remove: removePaymentQr })
+  }
+  return update({})
+}
+
+/** Deletes the account, then its QR image (best effort: a leftover file is an orphan, never a broken link). */
+export async function deletePaymentAccount(account: { id: string; qr_path: string | null }) {
+  unwrap(await supabase.from('venue_payment_accounts').delete().eq('id', account.id))
+  if (account.qr_path) await removePaymentQr(account.qr_path).catch(() => {})
+}
+
+/** Stores every account in this order (reorder_payment_accounts, T11.10). */
+export async function reorderPaymentAccounts(ids: string[]) {
+  unwrap(await supabase.rpc('reorder_payment_accounts', { p_ids: ids }))
 }

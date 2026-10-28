@@ -23,6 +23,11 @@ import {
   saveInfoSection,
   deleteInfoSection,
   reorderInfoSections,
+  savePaymentAccount,
+  deletePaymentAccount,
+  reorderPaymentAccounts,
+  type PaymentAccountInput,
+  type QrChange,
   setBuiltinAmenity,
   addCustomAmenity,
   removeAmenity,
@@ -38,7 +43,7 @@ import { setCourtOrder } from '../catalog/sportOrder'
 import { accountKeys } from '../account/hooks'
 import { bookingKeys } from '../booking/hooks'
 import { openPlayKeys, type OpenPlayInput } from '../openPlay/api'
-import { venueKeys, type Amenity, type InfoSection } from '../venue/api'
+import { venueKeys, type Amenity, type InfoSection, type PaymentAccount } from '../venue/api'
 import type { AmenityKey } from '../venue/amenities'
 import type { SocialPlatform } from '../venue/social'
 import type { BookingFilters } from './bookingFilters'
@@ -420,5 +425,50 @@ export function useRemoveAmenity() {
   return useMutation({
     mutationFn: (id: string) => removeAmenity(id),
     onSettled: () => qc.invalidateQueries({ queryKey: venueKeys.amenities }),
+  })
+}
+
+export function useSavePaymentAccount() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ existing, input, qr }: { existing: PaymentAccount | null; input: PaymentAccountInput; qr: QrChange }) =>
+      savePaymentAccount(existing, input, qr),
+    onSettled: () => qc.invalidateQueries({ queryKey: venueKeys.paymentAccounts }),
+  })
+}
+
+export function useDeletePaymentAccount() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (account: PaymentAccount) => deletePaymentAccount(account),
+    onSettled: () => qc.invalidateQueries({ queryKey: venueKeys.paymentAccounts }),
+  })
+}
+
+const REORDER_ACCOUNTS_KEY = ['reorder-payment-accounts'] as const
+
+/** As useReorderInfoSections: shown at once, saved one at a time, and only the last pending save refreshes or rolls back. */
+export function useReorderPaymentAccounts() {
+  const qc = useQueryClient()
+  const isLast = () => qc.isMutating({ mutationKey: REORDER_ACCOUNTS_KEY }) <= 1
+  return useMutation({
+    mutationKey: REORDER_ACCOUNTS_KEY,
+    scope: { id: 'reorder-payment-accounts' },
+    mutationFn: (ids: string[]) => reorderPaymentAccounts(ids),
+    onMutate: (ids) => {
+      const previous = qc.getQueryData<PaymentAccount[]>(venueKeys.paymentAccounts)
+      if (previous) {
+        const byId = new Map(previous.map((a) => [a.id, a]))
+        qc.setQueryData(venueKeys.paymentAccounts, ids.flatMap((id, i) => (byId.has(id) ? [{ ...byId.get(id)!, position: i }] : [])))
+      }
+      void qc.cancelQueries({ queryKey: venueKeys.paymentAccounts }, { revert: false })
+      return { previous }
+    },
+    onError: (_error, _ids, context) => {
+      if (isLast() && context?.previous) qc.setQueryData(venueKeys.paymentAccounts, context.previous)
+    },
+    onSettled: () => {
+      if (isLast()) return qc.invalidateQueries({ queryKey: venueKeys.paymentAccounts })
+    },
   })
 }

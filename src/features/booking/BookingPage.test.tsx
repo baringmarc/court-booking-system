@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { authState } from '../../test/authState'
 import type { AuthState } from '../auth/AuthContext'
 import { AuthContext } from '../auth/AuthContext'
+import { fetchPaymentAccounts } from '../venue/api'
 import { fetchVenueSettings, type VenueSettings } from '../catalog/api'
 import { fetchGuestBooking, fetchOwnBooking, startPaymongoCheckout, type BookingDetail, type PaymentAttempt } from './api'
 import { BookingPage } from './BookingPage'
@@ -21,6 +22,7 @@ vi.mock('./api', async (importOriginal) => ({
   startPaymongoCheckout: vi.fn(),
 }))
 vi.mock('../catalog/api', async (importOriginal) => ({ ...(await importOriginal<object>()), fetchVenueSettings: vi.fn() }))
+vi.mock('../venue/api', async (importOriginal) => ({ ...(await importOriginal<object>()), fetchPaymentAccounts: vi.fn() }))
 // jsdom can't leave the page; the rest of paymongoReturn stays real.
 vi.mock('./paymongoReturn', async (importOriginal) => ({ ...(await importOriginal<object>()), goToCheckout: vi.fn() }))
 
@@ -74,6 +76,7 @@ const payButton = () => screen.queryByRole('button', { name: 'Pay online with Pa
 beforeEach(() => {
   sessionStorage.clear()
   vi.mocked(fetchVenueSettings).mockReset().mockResolvedValue(settings)
+  vi.mocked(fetchPaymentAccounts).mockReset().mockResolvedValue([])
   vi.mocked(fetchGuestBooking).mockReset().mockResolvedValue(booking())
   vi.mocked(fetchOwnBooking).mockReset().mockResolvedValue(booking())
   vi.mocked(startPaymongoCheckout).mockReset()
@@ -208,5 +211,16 @@ describe('BookingPage: where to play', () => {
     renderPage(`/booking/${REF}#token=${TOKEN}`)
     const where = await screen.findByRole('region', { name: 'Location' })
     expect(within(where).getByRole('link', { name: /123 Rizal Ave, Makati/ })).toHaveAttribute('href', 'https://maps.app.goo.gl/AbC123')
+  })
+
+  it('lists the payment accounts in the pay section, above the instructions', async () => {
+    vi.mocked(fetchPaymentAccounts).mockResolvedValue([
+      { id: 'a1', label: 'GCash', account_name: 'Claudex Courts', account_number: '0917 000 0000', qr_path: null, position: 0 },
+    ])
+    renderPage(`/booking/${REF}#token=${TOKEN}`)
+    const pay = await screen.findByRole('region', { name: /Pay within/ })
+    const accounts = await within(pay).findByRole('list', { name: 'Payment accounts' })
+    expect(within(accounts).getByText('0917 000 0000')).toBeInTheDocument()
+    expect(accounts.nextElementSibling).toHaveClass('instructions')
   })
 })

@@ -18,6 +18,8 @@ type Props = {
   now: Date
   /** Rendered while the booking is waiting for a proof (the page owns the upload mutation). */
   proofForm?: ReactNode
+  /** The venue's payment accounts and QR codes (T11.11), above the free-text instructions. */
+  paymentAccounts?: ReactNode
   /** "Pay online with PayMongo", shown above the manual instructions while payable (the page owns the checkout). */
   payOnline?: ReactNode
   /** The PayMongo return message, shown under the booking details. */
@@ -26,7 +28,7 @@ type Props = {
   cancelSection?: ReactNode
 }
 
-export function BookingSummary({ booking, paymentInstructions, timeZone, currency, now, proofForm, payOnline, paymentNotice, cancelSection }: Props) {
+export function BookingSummary({ booking, paymentInstructions, timeZone, currency, now, proofForm, paymentAccounts, payOnline, paymentNotice, cancelSection }: Props) {
   const status = displayStatus(booking, now)
   const date = todayInZone(timeZone, new Date(booking.slot_start))
   const hours = Math.round((Date.parse(booking.slot_end) - Date.parse(booking.slot_start)) / 3_600_000)
@@ -80,6 +82,7 @@ export function BookingSummary({ booking, paymentInstructions, timeZone, currenc
               <h3>Or pay manually</h3>
             </>
           )}
+          {paymentAccounts}
           <div className="instructions"><SimpleMarkdown text={paymentInstructions} /></div>
           <h3>Upload your proof</h3>
           {proofForm}
