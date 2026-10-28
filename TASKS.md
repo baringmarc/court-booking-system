@@ -7,7 +7,7 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
 > Update this section at the end of every session or task. Keep it short; it's the first thing the next session reads.
 
 - **Current milestone:** M11 Plotline brand and venue upgrades (**approved by the user on 2026-10-26**; breakdown below, brand in `docs/BRAND.md`). M10 ✅ done on 2026-10-26 and M9 on 2026-10-23 (M1–M10 all done). After M11 come the SaaS milestones (M12+, `docs/SAAS-PLAN.md`), each with its own breakdown and approval.
-- **Next task:** T11.12 Migration: booking fee (a DB task: stops at its plan gate). New since 2026-10-28: T11.16–T11.21 (phones, waiver, admin alert; SPEC §10), and the close-out is now T11.22. Still the user's: run `npm run smoke:prod -- --links-only` and record the demo video from `docs/demo-script.md`.
+- **Next task:** T11.12 Migration: booking fee (a DB task: stops at its plan gate). New since 2026-10-28: T11.16–T11.21 (phones, waiver, admin alert) and T11.22–T11.24 (an online payments switch controlled by Plotline, the address and quick facts in the home hero; SPEC §10), and the close-out is now T11.25. Still the user's: run `npm run smoke:prod -- --links-only` and record the demo video from `docs/demo-script.md`.
 - **State:** M11: T11.1–T11.11 done (2026-10-28; T11.11: payment accounts with QR codes in settings, and on the booking page while paying; T11.10: `venue_payment_accounts`, `reorder_payment_accounts` and the `payment-qr` bucket (1 MB, PNG) live on the linked project; T11.9: admins paste a Maps link, and players see the address with a pin linked to it on `/` and `/booking/:ref`; no embedded map; T11.15 needs T11.9 deployed to production first; T11.8: `venue_settings.maps_url` live on the linked project, backfilled from the map search; T11.7: venue color presets with the "Website colors" picker, applied for every visitor without a flash, five accents nudged for AA; T11.6: `venue_settings.theme` live on the linked project; T11.5b: bookings search and sort; T11.5a: drag to reorder, `reorder_courts`/`reorder_info_sections` live on the linked project; T11.5: admin restyle, split-bar booked hours, even form rows; T11.4a: the /book date strip; T11.4 restyled the public site and emails: Espresso dark, heading bands, Stay connected band, motion). The user's feedback of 2026-10-27 is folded in: T11.4 (Espresso dark palette, heading tints, transitions, Good to know spacing, the "Stay connected" band with brand logos), a new T11.4a (the date strip on `/book`), T11.5 (split-bar booked hours, even form rows), T11.11 ("Download QR"), and two new tasks, T11.5a (drag to reorder) and T11.5b (bookings search and sort). The picks were made on the preview page https://claude.ai/artifact/YVwmkpskANhbzAacUa55Jo (SPEC §10, 2026-10-27). The walk-in card is hidden unless `VITE_FEATURE_WALK_INS=true` (e2e server sets it). M10 done: T10.1–T10.11 (2026-10-26). Rescheduling works end to end on `develop`: `reschedule_booking`, `booking_changes` and the extended `get_guest_booking` are live on the linked project, and the UI and the `booking_rescheduled` email are built (the `send-emails` Edge Function is redeployed to the linked project). The pickers, merged grid blocks, dashboard earnings and CSV export are on `develop`. On the linked project, `get_availability.block_key` and `get_earnings` are live (expand only). M8 deploy: https://court-booking-system-ashen.vercel.app.
 - **Blockers / notes:**
   - **Flaky pgTAP `30_reschedule` test 66** (found on 2026-10-28, about 1 run in 3): `get_guest_booking` orders a booking's change history by `changed_at` alone (`20261026131753_guest_booking_changes_chain.sql:50`), and two moves in one test transaction share `now()`, so they tie. A real bug in ordering, not the test: the fix is a migration (a tiebreaker such as an insertion sequence, or `clock_timestamp()` for `changed_at`) and needs the user's approval. Until then, rerun verify when only that test fails.
@@ -1454,7 +1454,7 @@ Goal: the user's 2026-10-26 requests, built on the single-venue app after M10 an
 - **Walk-ins:** one flag in the code, **hidden by default**. Existing walk-in bookings still show normally.
 - **Logo:** no SVG export is available (the guide is on a free Canva account), so T11.3 optimizes the existing plotline-site tile SVG (`docs/BRAND.md`) and uses a live-text wordmark. The "km" node stays, as in the guide.
 
-**Added on 2026-10-28 (the user's calls, SPEC §10):** T11.16–T11.21 cover phone numbers (optional for everyone, stored as `09XXXXXXXXX`), a venue waiver at checkout (not for walk-ins) and a live new-booking alert in the admin tab (counting only proofs that come in and online payments). The close-out moved to T11.22.
+**Added on 2026-10-28 (the user's calls, SPEC §10):** T11.16–T11.21 cover phone numbers (optional for everyone, stored as `09XXXXXXXXX`), a venue waiver at checkout (not for walk-ins) and a live new-booking alert in the admin tab (counting only proofs that come in and online payments). Later that day, T11.22–T11.24 added a Plotline-controlled switch for online payments (manual is always on) and the address with quick facts in the home page hero. The close-out moved to T11.25.
 
 Out of scope for M11: multiple venues, the billing ledger, invoices and statements (SaaS Phase 1), custom theme colors, a player light/dark toggle (the system setting decides, as today), refunds of the booking fee in the app, a server-side ban on walk-ins (SaaS Phase 1, per venue).
 
@@ -1610,7 +1610,7 @@ Out of scope for M11: multiple venues, the billing ledger, invoices and statemen
   - Nothing shows when there's no address.
 - **Acceptance:** component tests (with and without an address or link, a refused link); the `venue-info` e2e updated (no map frame; the link has the pasted URL); axe clean.
 - **Notes:** Done on 2026-10-28. `venue/map.ts` is now `mapsUrlProblem` (it mirrors `venue_settings_maps_url_link`; the reviewer found the client equal or stricter in every case) and `placeNameFromMapsUrl`. `LocationSection` has the address and a pasted "Google Maps link" field. A refused link shows an alert, marks the field invalid and saves nothing. A long `/maps/place/` link fills an empty address but never overwrites one. The map search field and preview are gone. `VenueLocation` shows the address with a pin, and the address is the link (new tab, sr-only "(opens Google Maps in a new tab)", 44px target). A stored link that fails the check shows as plain text, and nothing shows without an address. The card is on `/` and `/booking/:ref`. Removed: the iframe, `.map-frame`, `mapEmbedUrl`/`mapQueryOf`/`mapsSearchUrl`, `VITE_GOOGLE_MAPS_EMBED_KEY` (`vite-env.d.ts`, `.env.example`, README, Handoff), and the screenshot script's map wait. The frontend no longer reads or writes `maps_query`. Tests: `venue.test.ts` (accepted and refused links, place names), `VenueInfo.test.tsx` (4), `VenueInfoSections.test.tsx` (4), `BookingPage.test.tsx` ("where to play"), e2e `venue-info.spec.ts` (a refused link, no iframe, the pasted URL in a new tab, `axeBothSchemes`). verify passes (713); full e2e 62 passed, 2 skipped. Reviewer: PASS; its two minors are fixed (a leftover type comment, "at most 1000").
-- **Follow-ups:** the README location screenshot still shows the old map; regenerate it in T11.22. Axe runs on the card on `/` only (the same component is on `/booking/:ref`). Deploy this to production before T11.15 drops `maps_query`.
+- **Follow-ups:** the README location screenshot still shows the old map; regenerate it in T11.25. Axe runs on the card on `/` only (the same component is on `/booking/:ref`). Deploy this to production before T11.15 drops `maps_query`.
 
 ### [x] T11.10 Migration: payment accounts and QR codes
 - **Depends:** T11.1
@@ -1725,8 +1725,35 @@ Out of scope for M11: multiple venues, the billing ledger, invoices and statemen
   - **Admin (lazy chunk only):** `AdminLayout` subscribes once. Every event invalidates the admin booking and dashboard queries. Only a change into `payment_submitted`, or into `confirmed` from `pending_payment`, adds to the count. The title reads "(2) New bookings · <venue>" while the tab is hidden and resets when it's visible again; the Bookings nav link shows the count (with an accessible label) until that page is opened. Refetch on reconnect.
 - **Acceptance:** pgTAP: the trigger's messages (which changes send what, no contact data) and that only admins can receive the topic. Vitest for the counting rule and the title. e2e: with the admin page open, a guest uploads a proof in another context; the bookings list updates without a reload and the nav count shows 1. axe clean.
 
-### [ ] T11.22 Close out M11
-- **Depends:** T11.2–T11.21
+### [ ] T11.22 Migration: online payments switch
+- **Depends:** T11.10
+- **Do (the user's calls, 2026-10-28; SPEC §10):**
+  - `venue_settings.online_payments_enabled boolean not null default false`. Manual proof upload is always on; this only adds "Pay online with PayMongo".
+  - **Plotline only:** a `private` trigger refuses any change to the column unless it comes from the service role or `postgres` (venue admins keep updating every other setting through the existing policy). Plotline sets it with `npx supabase db query --linked` for now; SaaS gets a Plotline control.
+  - **Backfill:** `true` for the existing venue (Claudex Courts), so the live site and the PayMongo e2e and smoke tests keep working. New venues start off.
+  - `proof_target` (or the checkout's own read) exposes the flag to `create-paymongo-checkout`, which refuses with a readable error (`online_payments_off`) when it's off. The webhook is unchanged: a checkout started before a switch-off still confirms its booking. Redeploy the function after `db:push` (expand first: the deployed frontend only hides the button once T11.23 ships).
+- **Acceptance:** pgTAP: the default, the backfill, an admin's update of the column refused (and of another column still allowed), anon and players unable to change it, the service role able to; the checkout refuses with the flag off (smoke test against the local stack, `npm run smoke:paymongo`). `db:push` and `db:types` have been run.
+
+### [ ] T11.23 Online payments switch in the UI
+- **Depends:** T11.22
+- **Do:**
+  - `/booking/:ref`: "Pay online with PayMongo" (and the "Pay online / Or pay manually" headings) only when the venue has it on; otherwise the manual instructions, payment accounts and proof upload as today.
+  - The home page lead ("pay with GCash, Maya or a bank transfer") follows the setting (mentions card and online payment only when it's on).
+  - `/admin/settings`: a read-only line, "Online payments (PayMongo): On / Off. Managed by Plotline."
+  - T11.13 (the fee as a PayMongo line item) applies only when it's on; the manual amount due includes the fee either way.
+- **Acceptance:** component tests (on and off for the booking page, the lead and the settings line); the PayMongo e2e still passes (flag on); a new e2e turns it off with the service role, checks a guest sees no "Pay online" and can still upload a proof, and restores it in teardown. axe clean.
+
+### [ ] T11.24 Home page hero: address and quick facts
+- **Depends:** T11.9
+- **Do (the user's calls, 2026-10-28; the reference image from that day):**
+  - Under the venue name in the hero: the address with the pin, linked to the venue's Maps URL in a new tab (the T11.9 link: plain text when there's no valid link, nothing without an address), then a line of quick facts with icons: the number of active courts and the slot length (e.g. "3 courts · 60-min slots"). The opening hours summary stays.
+  - The address wraps in full on phones (never truncated).
+  - The "Location" card is removed from the home page; it stays on `/booking/:ref`.
+  - Facts come from data already loaded (`useCourts`, `venue_settings.slot_minutes`); each is hidden while loading or on error, and the courts fact when there are none.
+- **Acceptance:** component tests (address with and without a link, no address, the facts, one court vs several); the `venue-info` e2e updated (address and link in the hero, no Location card on `/`); no sideways scroll at 360px; axe clean in light and dark; screenshots regenerated in the close-out.
+
+### [ ] T11.25 Close out M11
+- **Depends:** T11.2–T11.24
 - **Do:**
   - Update the README (the new look, features and screenshots) and `docs/demo-script.md`.
   - Update `docs/SAAS-PLAN.md` with what M11 built (the fee, the walk-in flag, themes).
