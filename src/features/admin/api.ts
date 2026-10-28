@@ -5,7 +5,7 @@ import { supabase } from '../../lib/supabase'
 import { ApiError, unwrap } from '../../lib/queryClient'
 import { parseTstzRange } from '../../lib/time'
 import type { Enums } from '../../lib/database.types'
-import { dayRangeLiteral, type BookingFilters } from './bookingFilters'
+import { dayRangeLiteral, effectiveSort, parseSearch, type BookingFilters } from './bookingFilters'
 import { VENUE_MEDIA_BUCKET } from '../catalog/media'
 import type { CourtPhotoRow, VenueSettings } from '../catalog/api'
 import type { OpenPlayInput } from '../openPlay/api'
@@ -73,19 +73,30 @@ const SELECT = 'id, reference_code, court_id, during, status, source, total_amou
 
 export const ADMIN_LIST_LIMIT = 200
 
-/** A day view reads in time order; otherwise the newest bookings come first so nothing recent is cut off. */
+/**
+ * The bookings list. Sorted on the server (effectiveSort: a day in time order, otherwise the latest play time first,
+ * or as chosen; ties by id), so the 200-row cap keeps the most relevant rows. A search (T11.5b) looks through every
+ * booking: the status, source and date filters are set aside while it's active.
+ */
 export async function fetchAdminBookings(
   filters: BookingFilters,
   timeZone: string,
 ): Promise<{ bookings: AdminBooking[]; truncated: boolean }> {
+  const sort = effectiveSort(filters)
+  const search = parseSearch(filters.q)
   let query = supabase
     .from('bookings')
     .select(SELECT)
-    .order('during', { ascending: filters.date !== null })
+    .order(sort.startsWith('play') ? 'during' : 'created_at', { ascending: sort.endsWith('asc') })
+    .order('id')
     .limit(ADMIN_LIST_LIMIT + 1)
-  if (filters.status !== 'all') query = query.eq('status', filters.status)
-  if (filters.source !== 'all') query = query.eq('source', filters.source)
-  if (filters.date) query = query.overlaps('during', dayRangeLiteral(filters.date, timeZone))
+  if (search.kind === 'text') {
+    query = query.or(search.filter)
+  } else {
+    if (filters.status !== 'all') query = query.eq('status', filters.status)
+    if (filters.source !== 'all') query = query.eq('source', filters.source)
+    if (filters.date) query = query.overlaps('during', dayRangeLiteral(filters.date, timeZone))
+  }
   const all = unwrap(await query)
   const rows = all.slice(0, ADMIN_LIST_LIMIT)
   const bookings = rows.map((row) => {
