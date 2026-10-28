@@ -10,8 +10,8 @@ import { adminCanCancel } from '../booking/cancellation'
 import { ADMIN_LIST_LIMIT, hasApprovedPayment, pendingPayment, type AdminBooking } from './api'
 import { hasPaidOnline, paymentFlags } from './paymentFlags'
 import { AdminCancelForm } from './AdminCancelForm'
-import { filtersFromParams, filtersToParams, type BookingFilters } from './bookingFilters'
-import { BookingFiltersBar } from './BookingFiltersBar'
+import { filtersFromParams, filtersToParams, parseSearch, type BookingFilters } from './bookingFilters'
+import { BookingFiltersBar, BookingSearchForm } from './BookingFiltersBar'
 import { useActiveMovedParts, useAdminBookings, useAdminCancelBooking, useProofUrl, useReviewPayment } from './hooks'
 import { RescheduleSection } from './RescheduleSection'
 import { ReviewPanel, type ProofLink } from './ReviewPanel'
@@ -28,8 +28,12 @@ export function AdminBookingsPage() {
 
   const tz = settings.data?.timezone ?? 'Asia/Manila'
   const currency = settings.data?.currency ?? 'PHP'
-  // Derived, not synced: a booking that leaves the current filter (e.g. just approved) closes its panel.
-  const selected = bookings.data?.bookings.find((b) => b.id === selectedId) ?? null
+  const search = parseSearch(filters.q)
+  const searching = search.kind === 'text'
+  // Derived, not synced: a booking that leaves the current filter (e.g. just approved) closes its panel. A search for
+  // a whole reference code opens that booking (T11.5b) until another one is picked.
+  const codeMatch = search.kind === 'text' && search.code ? bookings.data?.bookings.find((b) => b.reference_code === search.code) : undefined
+  const selected = bookings.data?.bookings.find((b) => b.id === selectedId) ?? (selectedId === null ? codeMatch ?? null : null)
 
   function changeFilters(next: BookingFilters) {
     setParams(filtersToParams(next), { replace: true })
@@ -41,6 +45,13 @@ export function AdminBookingsPage() {
   return (
     <section className="page">
       <h1>Bookings</h1>
+      <BookingSearchForm key={filters.q} value={filters.q} onSearch={(q) => changeFilters({ ...filters, q })} />
+      {searching ? (
+        <div className="alert alert-info search-note" role="status">
+          <p>Searching all bookings for “{filters.q}”. The status, source and date filters are set aside.</p>
+          <button type="button" className="btn btn-small btn-outline" onClick={() => changeFilters({ ...filters, q: '' })}>Clear search</button>
+        </div>
+      ) : null}
       <BookingFiltersBar filters={filters} onChange={changeFilters} />
       {lastReview && (
         <div className="alert alert-info" role="status"><p>{reviewOutcome(lastReview.ref, lastReview.status)}</p></div>
@@ -53,7 +64,9 @@ export function AdminBookingsPage() {
       ) : bookings.isError ? (
         <ErrorMessage error={bookings.error} onRetry={() => bookings.refetch()} />
       ) : bookings.data.bookings.length === 0 ? (
-        <p className="muted">{filters.status === 'payment_submitted' ? 'No proofs are waiting for review.' : 'No bookings match these filters.'}</p>
+        <p className="muted">
+          {searching ? `No bookings match “${filters.q}”.` : filters.status === 'payment_submitted' ? 'No proofs are waiting for review.' : 'No bookings match these filters.'}
+        </p>
       ) : (
         <div className="admin-split">
           <div>
@@ -63,8 +76,8 @@ export function AdminBookingsPage() {
           <ul className="list card flush" aria-label="Bookings">
             {bookings.data.bookings.map((b) => (
               <li key={b.id}>
-                <button type="button" className={`list-row row-button${b.id === selectedId ? ' selected' : ''}`}
-                  aria-pressed={b.id === selectedId} onClick={() => setSelectedId(b.id)}>
+                <button type="button" className={`list-row row-button${b.id === selected?.id ? ' selected' : ''}`}
+                  aria-pressed={b.id === selected?.id} onClick={() => setSelectedId(b.id)}>
                   <BookingRow booking={b} timeZone={tz} currency={currency} />
                 </button>
               </li>

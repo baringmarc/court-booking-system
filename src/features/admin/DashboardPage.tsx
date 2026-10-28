@@ -59,9 +59,9 @@ function Dashboard({ settings, courts, hours }: { settings: VenueSettings; court
   const open = operatingDayRange(hours, today, tz)
   const pastMidnight = !!open && open.end > dayEnd
 
-  const schedule = useAdminBookings({ status: 'all', source: 'all', date: today }, tz)
+  const schedule = useAdminBookings({ status: 'all', source: 'all', date: today, q: '', sort: null }, tz)
   // An overnight day also has bookings on the next calendar date.
-  const scheduleNext = useAdminBookings({ status: 'all', source: 'all', date: addDays(today, 1) }, pastMidnight ? tz : undefined)
+  const scheduleNext = useAdminBookings({ status: 'all', source: 'all', date: addDays(today, 1), q: '', sort: null }, pastMidnight ? tz : undefined)
   const availability = useAvailability(today)
   const openPlay = useUpcomingOpenPlay({ enabled: !!availability.data?.some((s) => s.status === 'open_play') })
   const queue = useProofQueueCount()

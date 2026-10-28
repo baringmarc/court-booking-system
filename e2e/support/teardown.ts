@@ -1,5 +1,6 @@
 // Removes everything the E2E run created in the LOCAL database: tagged bookings (payments cascade),
-// their proof files, tagged courts with their photos, an E2E banner, tagged blackouts and open play sessions, and the e2e-* users.
+// their proof files, tagged courts with their photos, an E2E banner, tagged blackouts and open play sessions, tagged
+// payment accounts with their QR codes, and the e2e-* users.
 import { E2E_PREFIX, serviceClient } from './helpers.ts'
 
 export default async function teardown() {
@@ -51,6 +52,13 @@ export default async function teardown() {
   // Tagged open play sessions (their court rows cascade).
   const { error: sessionsError } = await service.from('open_play_sessions').delete().like('title', `${E2E_PREFIX}%`)
   if (sessionsError) throw sessionsError
+
+  // Tagged payment accounts and their QR codes (T11.11).
+  const { data: accounts } = await service.from('venue_payment_accounts').select('qr_path').like('label', `${E2E_PREFIX}%`)
+  const qrPaths = (accounts ?? []).flatMap((a) => (a.qr_path ? [a.qr_path] : []))
+  if (qrPaths.length) await service.storage.from('payment-qr').remove(qrPaths)
+  const { error: accountsError } = await service.from('venue_payment_accounts').delete().like('label', `${E2E_PREFIX}%`)
+  if (accountsError) throw accountsError
 
   const { data: users } = await service.auth.admin.listUsers({ perPage: 1000 })
   for (const user of users?.users ?? []) {

@@ -727,6 +727,39 @@ export type Database = {
         }
         Relationships: []
       }
+      venue_payment_accounts: {
+        Row: {
+          account_name: string
+          account_number: string
+          created_at: string
+          id: string
+          label: string
+          position: number
+          qr_path: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_name?: string
+          account_number?: string
+          created_at?: string
+          id?: string
+          label: string
+          position?: number
+          qr_path?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_name?: string
+          account_number?: string
+          created_at?: string
+          id?: string
+          label?: string
+          position?: number
+          qr_path?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       venue_settings: {
         Row: {
           address: string
@@ -737,12 +770,14 @@ export type Database = {
           currency: string
           id: boolean
           maps_query: string
+          maps_url: string
           max_rejections: number
           name: string
           payment_hold_minutes: number
           payment_instructions: string
           slot_minutes: number
           sport_order: Database["public"]["Enums"]["sport"][]
+          theme: string
           timezone: string
           updated_at: string
         }
@@ -755,12 +790,14 @@ export type Database = {
           currency?: string
           id?: boolean
           maps_query?: string
+          maps_url?: string
           max_rejections?: number
           name: string
           payment_hold_minutes?: number
           payment_instructions?: string
           slot_minutes?: number
           sport_order?: Database["public"]["Enums"]["sport"][]
+          theme?: string
           timezone?: string
           updated_at?: string
         }
@@ -773,12 +810,14 @@ export type Database = {
           currency?: string
           id?: boolean
           maps_query?: string
+          maps_url?: string
           max_rejections?: number
           name?: string
           payment_hold_minutes?: number
           payment_instructions?: string
           slot_minutes?: number
           sport_order?: Database["public"]["Enums"]["sport"][]
+          theme?: string
           timezone?: string
           updated_at?: string
         }
@@ -1000,6 +1039,10 @@ export type Database = {
         Returns: undefined
       }
       reorder_info_sections: { Args: { p_ids: string[] }; Returns: undefined }
+      reorder_payment_accounts: {
+        Args: { p_ids: string[] }
+        Returns: undefined
+      }
       reschedule_booking: {
         Args: {
           p_booking_id: string

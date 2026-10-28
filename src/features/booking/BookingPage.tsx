@@ -4,6 +4,8 @@ import { ErrorMessage } from '../../components/ErrorMessage'
 import { PageLoader } from '../../components/PageLoader'
 import { useAuth } from '../auth/useAuth'
 import { useVenueSettings } from '../catalog/hooks'
+import { VenueLocation } from '../venue/VenueInfo'
+import { PaymentAccountList } from './PaymentAccountList'
 import { BookingSummary } from './BookingSummary'
 import { CancelBooking } from './CancelBooking'
 import { playerCancel } from './cancellation'
@@ -91,6 +93,7 @@ export function BookingPage() {
             payOnline={returnState === 'confirming' || (isAdmin && token === null && booking.data.user_id !== user?.id)
               ? undefined
               : <PayOnlineButton reference={booking.data.reference_code} token={token} />}
+            paymentAccounts={<PaymentAccountList />}
             proofForm={
               // A new attempt round (after a rejection) remounts this, clearing any earlier upload error.
               <ProofUpload key={booking.data.payments.length} booking={booking.data} token={token} currency={settings.data.currency} />
@@ -100,6 +103,7 @@ export function BookingPage() {
                 cutoffHours={settings.data.cancel_cutoff_hours} now={now} />
             }
           />
+          <VenueLocation address={settings.data.address} mapsUrl={settings.data.maps_url} />
         </div>
       ) : null}
     </section>

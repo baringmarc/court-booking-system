@@ -32,7 +32,7 @@ export function DayView({ date, courts, slots, bookings, timeZone, sessionTitle 
   // Each reference opens that booking: its own calendar date's list (an after-midnight booking is on the next
   // date, which is how /admin/bookings filters), with the booking preselected.
   const linkTo = (id: string, start: string) => {
-    const params = filtersToParams({ status: 'all', source: 'all', date: todayInZone(timeZone, new Date(start)) })
+    const params = filtersToParams({ status: 'all', source: 'all', date: todayInZone(timeZone, new Date(start)), q: '', sort: null })
     params.set('booking', id)
     return `/admin/bookings?${params}`
   }

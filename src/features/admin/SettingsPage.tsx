@@ -8,8 +8,10 @@ import { AmenitiesSection } from './AmenitiesSection'
 import { BannerSection } from './BannerSection'
 import { InfoSectionsSection } from './InfoSectionsSection'
 import { LocationSection } from './LocationSection'
+import { PaymentAccountsSection } from './PaymentAccountsSection'
 import { SocialLinksSection } from './SocialLinksSection'
 import { SportOrderSection } from './SportOrderSection'
+import { ThemePicker } from './ThemePicker'
 
 export function SettingsPage() {
   const settings = useVenueSettings()
@@ -25,6 +27,8 @@ export function SettingsPage() {
         // Separate forms with their own Save buttons: keep clear space between them.
         <div className="page-sections">
           <SettingsForm initial={settings.data} />
+          <PaymentAccountsSection />
+          <ThemePicker settings={settings.data} />
           <SportOrderSection settings={settings.data} />
           <BannerSection settings={settings.data} />
           <LocationSection settings={settings.data} />

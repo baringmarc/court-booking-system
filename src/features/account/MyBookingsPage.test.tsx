@@ -18,7 +18,7 @@ const settings = { timezone: 'Asia/Manila', currency: 'PHP' } as VenueSettings
 const booking = (ref: string, startIso: string, overrides: Partial<MyBooking> = {}): MyBooking => ({
   id: ref, reference_code: ref, court_name: 'Badminton 1', sport: 'badminton',
   slot_start: startIso, slot_end: new Date(Date.parse(startIso) + 3_600_000).toISOString(),
-  status: 'confirmed', expires_at: null, total_amount: 450, parent_booking_id: null, ...overrides,
+  status: 'confirmed', expires_at: null, total_amount: 450, parent_booking_id: null, created_at: '2030-01-01T00:00:00Z', ...overrides,
 })
 const confirmedPlayer = () => authState('player', {
   user: { id: 'player-id', email: 'player@example.com', email_confirmed_at: '2030-01-01T00:00:00Z' } as User,
@@ -40,6 +40,20 @@ describe('MyBookingsPage', () => {
     vi.mocked(fetchVenueSettings).mockReset().mockResolvedValue(settings)
     vi.mocked(fetchMyBookings).mockReset()
     vi.mocked(claimGuestBookings).mockReset().mockResolvedValue(0)
+  })
+
+  it('sorts by when they were booked from the "Sort by" select (T11.5b)', async () => {
+    vi.mocked(fetchMyBookings).mockResolvedValue([
+      booking('CB-SOONAA', '2099-01-08T10:00:00.000Z', { created_at: '2030-01-05T00:00:00Z' }),
+      booking('CB-LATEAA', '2099-01-09T10:00:00.000Z', { created_at: '2030-01-07T00:00:00Z' }),
+    ])
+    renderPage()
+    const refs = () => within(screen.getByRole('list', { name: 'Upcoming bookings' })).getAllByRole('link').map((a) => a.textContent?.match(/CB-\w+/)?.[0])
+    await screen.findByRole('list', { name: 'Upcoming bookings' })
+    expect(screen.getByLabelText('Sort by')).toHaveValue('play')
+    expect(refs()).toEqual(['CB-SOONAA', 'CB-LATEAA'])
+    await userEvent.selectOptions(screen.getByLabelText('Sort by'), 'booked-desc')
+    expect(refs()).toEqual(['CB-LATEAA', 'CB-SOONAA'])
   })
 
   it('shows a loader while bookings load', () => {

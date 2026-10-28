@@ -6,7 +6,7 @@ import { SimpleMarkdown } from '../../components/SimpleMarkdown'
 import { shownAmenities } from './amenities'
 import type { Amenity, InfoSection, SocialLink } from './api'
 import { useAmenities, useInfoSections, useSocialLinks } from './hooks'
-import { MAPS_EMBED_KEY, mapEmbedUrl, mapQueryOf, mapsSearchUrl } from './map'
+import { mapsUrlProblem } from './map'
 import { infoSectionAnchor } from './sections'
 import { SOCIAL_PLATFORMS } from './social'
 
@@ -31,23 +31,23 @@ export function AmenityList({ rows }: { rows: Amenity[] }) {
   )
 }
 
-/** The address, an embedded map (lazy) and "Open in Google Maps". Hidden with no address. The social links are in
-    the footer's "Stay connected" band (T11.4). */
-export function VenueLocation({ venueName, address, mapsQuery }: { venueName: string; address: string; mapsQuery: string }) {
-  const query = mapQueryOf({ address, maps_query: mapsQuery })
-  if (!query) return null
+/** The address with a pin, as a link to the venue's Google Maps page when it has one (new tab). Hidden with no
+    address: it's what players read. The social links are in the footer's "Stay connected" band (T11.4). */
+export function VenueLocation({ address, mapsUrl }: { address: string; mapsUrl: string }) {
+  const text = address.trim()
+  if (!text) return null
+  const href = mapsUrl && mapsUrlProblem(mapsUrl) === null ? mapsUrl : null
+  const content = <><MapPin className="amenity-icon" aria-hidden="true" /><span className="pre-line">{text}</span></>
   return (
     <section className="card stack venue-block" aria-labelledby="location-title">
       <h2 id="location-title" className="card-head">Location</h2>
-      {address.trim() && (
-        <p className="venue-address"><MapPin className="amenity-icon" aria-hidden="true" /><span className="pre-line">{address.trim()}</span></p>
-      )}
-      <iframe className="map-frame" title={`Map of ${venueName}`} src={mapEmbedUrl(query, MAPS_EMBED_KEY)} loading="lazy" />
-      <div className="form-actions">
-        <a className="btn btn-outline" href={mapsSearchUrl(query)} target="_blank" rel="noopener noreferrer">
-          Open in Google Maps{' '}<span className="sr-only">(opens in a new tab)</span>
+      {href ? (
+        <a className="venue-address" href={href} target="_blank" rel="noopener noreferrer">
+          {content}{' '}<span className="sr-only">(opens Google Maps in a new tab)</span>
         </a>
-      </div>
+      ) : (
+        <p className="venue-address">{content}</p>
+      )}
     </section>
   )
 }

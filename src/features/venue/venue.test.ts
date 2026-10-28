@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { shownAmenities } from './amenities'
 import type { Amenity } from './api'
-import { mapEmbedUrl, mapQueryOf, mapsSearchUrl } from './map'
+import { mapsUrlProblem, placeNameFromMapsUrl } from './map'
 import { socialUrlProblem } from './social'
 
 const row = (id: string, created_at: string, patch: Partial<Amenity>): Amenity =>
@@ -19,17 +19,35 @@ describe('shownAmenities', () => {
   })
 })
 
-describe('map URLs', () => {
-  it('uses the official embed with a key and the keyless one without', () => {
-    expect(mapEmbedUrl('Claudex Courts, Makati', 'k&1')).toBe('https://www.google.com/maps/embed/v1/place?key=k%261&q=Claudex%20Courts%2C%20Makati')
-    expect(mapEmbedUrl(' Claudex Courts ')).toBe('https://www.google.com/maps?q=Claudex%20Courts&output=embed')
-    expect(mapsSearchUrl('123 Rizal Ave')).toBe('https://www.google.com/maps/search/?api=1&query=123%20Rizal%20Ave')
+describe('mapsUrlProblem', () => {
+  it('accepts the four Maps hosts and empty, like the database check', () => {
+    for (const url of ['', 'https://maps.app.goo.gl/AbC123', 'https://goo.gl/maps/AbC123', 'https://maps.google.com/?q=Claudex',
+      'https://www.google.com/maps/place/Claudex+Courts/@14.55,121.02,17z', 'https://www.google.com/maps?q=x', 'https://www.google.com/maps']) {
+      expect(mapsUrlProblem(url), url).toBeNull()
+    }
   })
 
-  it('searches the map query, or the address when there is none', () => {
-    expect(mapQueryOf({ address: '123 Rizal Ave', maps_query: ' ' })).toBe('123 Rizal Ave')
-    expect(mapQueryOf({ address: '123 Rizal Ave', maps_query: 'Claudex Courts' })).toBe('Claudex Courts')
-    expect(mapQueryOf({ address: '', maps_query: '' })).toBe('')
+  it('refuses http, other hosts, lookalikes, tricks, whitespace and over-long links', () => {
+    for (const url of ['http://maps.app.goo.gl/x', 'https://www.example.com/maps', 'https://www.google.com/search?q=x',
+      'https://www.google.com/mapsfoo', 'https://maps.google.com.evil.test/x', 'https://maps.app.goo.gl@evil.test/x',
+      'javascript:alert(1)', 'https://maps.app.goo.gl/a b', 'HTTPS://maps.app.goo.gl/x']) {
+      expect(mapsUrlProblem(url), url).toMatch(/Paste a Google Maps link/)
+    }
+    expect(mapsUrlProblem(`https://maps.app.goo.gl/${'a'.repeat(1000 - 24)}`)).toBeNull()
+    expect(mapsUrlProblem(`https://maps.app.goo.gl/${'a'.repeat(1001 - 24)}`)).toMatch(/at most 1000/)
+  })
+})
+
+describe('placeNameFromMapsUrl', () => {
+  it("reads a long link's place name, decoding + and %-escapes", () => {
+    expect(placeNameFromMapsUrl('https://www.google.com/maps/place/Claudex+Courts,+Makati/@14.55,121.02,17z')).toBe('Claudex Courts, Makati')
+    expect(placeNameFromMapsUrl('https://maps.google.com/maps/place/Para%C3%B1aque%20Courts?entry=ttu')).toBe('Parañaque Courts')
+  })
+
+  it('gives nothing for short links, search links or a broken escape', () => {
+    expect(placeNameFromMapsUrl('https://maps.app.goo.gl/AbC123')).toBe('')
+    expect(placeNameFromMapsUrl('https://www.google.com/maps/search/?api=1&query=x')).toBe('')
+    expect(placeNameFromMapsUrl('https://www.google.com/maps/place/%E0%A4%A/')).toBe('')
   })
 })
 

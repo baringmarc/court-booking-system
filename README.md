@@ -85,7 +85,7 @@ cp supabase/functions/.env.example supabase/functions/.env   # PayMongo in stub 
 npm run dev                        # http://localhost:5173
 ```
 
-Only publishable keys go in the frontend. PayMongo and email secrets are Edge Function secrets. `VITE_GOOGLE_MAPS_EMBED_KEY` is optional: without it, the venue map uses Google's keyless embed. Sign-up emails arrive in Mailpit at http://127.0.0.1:54324. To make yourself an admin, set your profile's `role` to `admin` in Supabase Studio (http://127.0.0.1:54323).
+Only publishable keys go in the frontend. PayMongo and email secrets are Edge Function secrets. Sign-up emails arrive in Mailpit at http://127.0.0.1:54324. To make yourself an admin, set your profile's `role` to `admin` in Supabase Studio (http://127.0.0.1:54323).
 
 ## Tests
 

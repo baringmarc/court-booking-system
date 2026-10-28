@@ -2,13 +2,14 @@
 // polling, timeout), starting a checkout, and who gets the button. The api.ts functions are mocked; everything
 // else (hooks, React Query, router, paymongoReturn, sessionStorage) is real.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { authState } from '../../test/authState'
 import type { AuthState } from '../auth/AuthContext'
 import { AuthContext } from '../auth/AuthContext'
+import { fetchPaymentAccounts } from '../venue/api'
 import { fetchVenueSettings, type VenueSettings } from '../catalog/api'
 import { fetchGuestBooking, fetchOwnBooking, startPaymongoCheckout, type BookingDetail, type PaymentAttempt } from './api'
 import { BookingPage } from './BookingPage'
@@ -21,13 +22,14 @@ vi.mock('./api', async (importOriginal) => ({
   startPaymongoCheckout: vi.fn(),
 }))
 vi.mock('../catalog/api', async (importOriginal) => ({ ...(await importOriginal<object>()), fetchVenueSettings: vi.fn() }))
+vi.mock('../venue/api', async (importOriginal) => ({ ...(await importOriginal<object>()), fetchPaymentAccounts: vi.fn() }))
 // jsdom can't leave the page; the rest of paymongoReturn stays real.
 vi.mock('./paymongoReturn', async (importOriginal) => ({ ...(await importOriginal<object>()), goToCheckout: vi.fn() }))
 
 const REF = 'CB-7KQ2XD'
 const TOKEN = 'secret-token'
 const settings = {
-  timezone: 'Asia/Manila', currency: 'PHP', payment_instructions: '**GCash**: 0917 000 0000', cancel_cutoff_hours: 1,
+  timezone: 'Asia/Manila', currency: 'PHP', payment_instructions: '**GCash**: 0917 000 0000', cancel_cutoff_hours: 1, address: '123 Rizal Ave, Makati', maps_url: 'https://maps.app.goo.gl/AbC123',
 } as VenueSettings
 
 const paymongoPayment = (review_status: PaymentAttempt['review_status']): PaymentAttempt => ({
@@ -74,6 +76,7 @@ const payButton = () => screen.queryByRole('button', { name: 'Pay online with Pa
 beforeEach(() => {
   sessionStorage.clear()
   vi.mocked(fetchVenueSettings).mockReset().mockResolvedValue(settings)
+  vi.mocked(fetchPaymentAccounts).mockReset().mockResolvedValue([])
   vi.mocked(fetchGuestBooking).mockReset().mockResolvedValue(booking())
   vi.mocked(fetchOwnBooking).mockReset().mockResolvedValue(booking())
   vi.mocked(startPaymongoCheckout).mockReset()
@@ -200,5 +203,24 @@ describe('BookingPage: starting an online payment', () => {
     renderPage(`/booking/${REF}`, authState('admin'))
     expect(await screen.findByText('Pickleball 2')).toBeInTheDocument()
     expect(payButton()).not.toBeInTheDocument()
+  })
+})
+
+describe('BookingPage: where to play', () => {
+  it("shows the venue's address, linked to its Google Maps page", async () => {
+    renderPage(`/booking/${REF}#token=${TOKEN}`)
+    const where = await screen.findByRole('region', { name: 'Location' })
+    expect(within(where).getByRole('link', { name: /123 Rizal Ave, Makati/ })).toHaveAttribute('href', 'https://maps.app.goo.gl/AbC123')
+  })
+
+  it('lists the payment accounts in the pay section, above the instructions', async () => {
+    vi.mocked(fetchPaymentAccounts).mockResolvedValue([
+      { id: 'a1', label: 'GCash', account_name: 'Claudex Courts', account_number: '0917 000 0000', qr_path: null, position: 0 },
+    ])
+    renderPage(`/booking/${REF}#token=${TOKEN}`)
+    const pay = await screen.findByRole('region', { name: /Pay within/ })
+    const accounts = await within(pay).findByRole('list', { name: 'Payment accounts' })
+    expect(within(accounts).getByText('0917 000 0000')).toBeInTheDocument()
+    expect(accounts.nextElementSibling).toHaveClass('instructions')
   })
 })

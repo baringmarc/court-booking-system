@@ -58,7 +58,7 @@ export function HomePage() {
       )}
 
       {settings.data && (
-        <VenueLocation venueName={venueName} address={settings.data.address} mapsQuery={settings.data.maps_query} />
+        <VenueLocation address={settings.data.address} mapsUrl={settings.data.maps_url} />
       )}
       <InfoSections />
     </section>

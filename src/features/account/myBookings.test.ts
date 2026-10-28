@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import type { MyBooking } from './api'
-import { splitMyBookings } from './myBookings'
+import { mySortFromParams, splitMyBookings } from './myBookings'
 
 const now = new Date('2030-01-07T08:00:00.000Z')
 const row = (ref: string, startIso: string, overrides: Partial<MyBooking> = {}): MyBooking => ({
   id: ref, reference_code: ref, court_name: 'Court', sport: 'tennis',
   slot_start: startIso, slot_end: new Date(Date.parse(startIso) + 3_600_000).toISOString(),
-  status: 'confirmed', expires_at: null, total_amount: 500, parent_booking_id: null, ...overrides,
+  status: 'confirmed', expires_at: null, total_amount: 500, parent_booking_id: null, created_at: '2030-01-01T00:00:00.000Z', ...overrides,
 })
 
 describe('splitMyBookings', () => {
@@ -35,5 +35,30 @@ describe('splitMyBookings', () => {
     ], now)
     expect(upcoming).toEqual([])
     expect(past.map((b) => b.reference_code)).toEqual(['CANCELLED', 'REJECTED', 'STALE', 'EXPIRED', 'DONE'])
+  })
+
+  it('sorts both lists by when they were booked, newest or oldest first (T11.5b)', () => {
+    const rows = [
+      row('UP-A', '2030-01-08T10:00:00.000Z', { created_at: '2030-01-03T00:00:00.000Z' }),
+      row('UP-B', '2030-01-09T10:00:00.000Z', { created_at: '2030-01-05T00:00:00.000Z' }),
+      row('PAST-A', '2030-01-05T10:00:00.000Z', { created_at: '2030-01-02T00:00:00.000Z' }),
+      row('PAST-B', '2030-01-04T10:00:00.000Z', { created_at: '2030-01-04T00:00:00.000Z' }),
+    ]
+    const newest = splitMyBookings(rows, now, 'booked-desc')
+    expect(newest.upcoming.map((b) => b.reference_code)).toEqual(['UP-B', 'UP-A'])
+    expect(newest.past.map((b) => b.reference_code)).toEqual(['PAST-B', 'PAST-A'])
+    const oldest = splitMyBookings(rows, now, 'booked-asc')
+    expect(oldest.upcoming.map((b) => b.reference_code)).toEqual(['UP-A', 'UP-B'])
+    expect(oldest.past.map((b) => b.reference_code)).toEqual(['PAST-A', 'PAST-B'])
+    // Play time is the default: upcoming soonest first, past most recent first.
+    const play = splitMyBookings(rows, now)
+    expect(play.upcoming.map((b) => b.reference_code)).toEqual(['UP-A', 'UP-B'])
+    expect(play.past.map((b) => b.reference_code)).toEqual(['PAST-A', 'PAST-B'])
+  })
+
+  it('reads the sort from the URL, defaulting to play time', () => {
+    expect(mySortFromParams(new URLSearchParams('sort=booked-asc'))).toBe('booked-asc')
+    expect(mySortFromParams(new URLSearchParams('sort=price'))).toBe('play')
+    expect(mySortFromParams(new URLSearchParams())).toBe('play')
   })
 })

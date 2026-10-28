@@ -7,14 +7,15 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
 > Update this section at the end of every session or task. Keep it short; it's the first thing the next session reads.
 
 - **Current milestone:** M11 Plotline brand and venue upgrades (**approved by the user on 2026-10-26**; breakdown below, brand in `docs/BRAND.md`). M10 ✅ done on 2026-10-26 and M9 on 2026-10-23 (M1–M10 all done). After M11 come the SaaS milestones (M12+, `docs/SAAS-PLAN.md`), each with its own breakdown and approval.
-- **Next task:** T11.5b Bookings search and sort. Still the user's: run `npm run smoke:prod -- --links-only` and record the demo video from `docs/demo-script.md`. Skip the optional Maps Embed API key: M11 (T11.9) removes the embedded map.
-- **State:** M11: T11.1–T11.5a done (2026-10-28; T11.5a: drag to reorder, `reorder_courts`/`reorder_info_sections` live on the linked project; T11.5: admin restyle, split-bar booked hours, even form rows; T11.4a: the /book date strip; T11.4 restyled the public site and emails: Espresso dark, heading bands, Stay connected band, motion). The user's feedback of 2026-10-27 is folded in: T11.4 (Espresso dark palette, heading tints, transitions, Good to know spacing, the "Stay connected" band with brand logos), a new T11.4a (the date strip on `/book`), T11.5 (split-bar booked hours, even form rows), T11.11 ("Download QR"), and two new tasks, T11.5a (drag to reorder) and T11.5b (bookings search and sort). The picks were made on the preview page https://claude.ai/artifact/YVwmkpskANhbzAacUa55Jo (SPEC §10, 2026-10-27). The walk-in card is hidden unless `VITE_FEATURE_WALK_INS=true` (e2e server sets it). M10 done: T10.1–T10.11 (2026-10-26). Rescheduling works end to end on `develop`: `reschedule_booking`, `booking_changes` and the extended `get_guest_booking` are live on the linked project, and the UI and the `booking_rescheduled` email are built (the `send-emails` Edge Function is redeployed to the linked project). The pickers, merged grid blocks, dashboard earnings and CSV export are on `develop`. On the linked project, `get_availability.block_key` and `get_earnings` are live (expand only). M8 deploy: https://court-booking-system-ashen.vercel.app.
+- **Next task:** T11.12 Migration: booking fee (a DB task: stops at its plan gate). New since 2026-10-28: T11.16–T11.21 (phones, waiver, admin alert) and T11.22–T11.24 (an online payments switch controlled by Plotline, the address and quick facts in the home hero; SPEC §10), and the close-out is now T11.25. Still the user's: run `npm run smoke:prod -- --links-only` and record the demo video from `docs/demo-script.md`.
+- **State:** M11: T11.1–T11.11 done (2026-10-28; T11.11: payment accounts with QR codes in settings, and on the booking page while paying; T11.10: `venue_payment_accounts`, `reorder_payment_accounts` and the `payment-qr` bucket (1 MB, PNG) live on the linked project; T11.9: admins paste a Maps link, and players see the address with a pin linked to it on `/` and `/booking/:ref`; no embedded map; T11.15 needs T11.9 deployed to production first; T11.8: `venue_settings.maps_url` live on the linked project, backfilled from the map search; T11.7: venue color presets with the "Website colors" picker, applied for every visitor without a flash, five accents nudged for AA; T11.6: `venue_settings.theme` live on the linked project; T11.5b: bookings search and sort; T11.5a: drag to reorder, `reorder_courts`/`reorder_info_sections` live on the linked project; T11.5: admin restyle, split-bar booked hours, even form rows; T11.4a: the /book date strip; T11.4 restyled the public site and emails: Espresso dark, heading bands, Stay connected band, motion). The user's feedback of 2026-10-27 is folded in: T11.4 (Espresso dark palette, heading tints, transitions, Good to know spacing, the "Stay connected" band with brand logos), a new T11.4a (the date strip on `/book`), T11.5 (split-bar booked hours, even form rows), T11.11 ("Download QR"), and two new tasks, T11.5a (drag to reorder) and T11.5b (bookings search and sort). The picks were made on the preview page https://claude.ai/artifact/YVwmkpskANhbzAacUa55Jo (SPEC §10, 2026-10-27). The walk-in card is hidden unless `VITE_FEATURE_WALK_INS=true` (e2e server sets it). M10 done: T10.1–T10.11 (2026-10-26). Rescheduling works end to end on `develop`: `reschedule_booking`, `booking_changes` and the extended `get_guest_booking` are live on the linked project, and the UI and the `booking_rescheduled` email are built (the `send-emails` Edge Function is redeployed to the linked project). The pickers, merged grid blocks, dashboard earnings and CSV export are on `develop`. On the linked project, `get_availability.block_key` and `get_earnings` are live (expand only). M8 deploy: https://court-booking-system-ashen.vercel.app.
 - **Blockers / notes:**
+  - **Flaky pgTAP `30_reschedule` test 66** (found on 2026-10-28, about 1 run in 3): `get_guest_booking` orders a booking's change history by `changed_at` alone (`20261026131753_guest_booking_changes_chain.sql:50`), and two moves in one test transaction share `now()`, so they tie. A real bug in ordering, not the test: the fix is a migration (a tiebreaker such as an insertion sequence, or `clock_timestamp()` for `changed_at`) and needs the user's approval. Until then, rerun verify when only that test fails.
   - **Never run two test runs at once** (found on 2026-10-26). `npm run verify`, `npm run test:e2e` and the Stop hook's own gate (`.claude/hooks/verify-gate.mjs`) share the local database, port 5179 and `test-results/`, so overlapping runs gave a false `30_reschedule` pgTAP failure, "port 5179 is already used" and `ENOENT` trace errors. Before running tests, check `pgrep -fl "[v]erify-gate|[p]laywright test"` is empty (the brackets keep `pgrep` from matching itself). Full e2e on 2026-10-26 once idle: 49 passed, 3 skipped (`court-photo` flaked once earlier that day, see T10.10).
   - **Screenshots:** regenerated in T11.5 (2026-10-28) on a freshly reset local database (`npm run db:reset:local`, then `npm run screenshots`), including the new `admin-earnings-*` shot. Always reset first: leftover e2e or smoke rows show up in the dashboard shots.
   - Emails locally: `supabase/functions/.env` must keep `EMAIL_TRANSPORT=mailpit`, `MAILPIT_URL` and `EMAIL_WORKER_SECRET` (see `.env.example`) for smoke and e2e. Restart the stack after changing it. Your PayMongo test key is commented out there; uncomment it only for real local test payments, and expect `pay-online` e2e and `smoke:paymongo` to fail while it's active.
   - Scope added on 2026-10-19 (SPEC §9, §10, §11): slot status colors are in T8.5, the settings spacing fix is in T8.4, and M9 is outlined at the end of this file. The README moved there. Booker names are **first name only** in public. A court can be deleted only if it was never booked.
-  - Bundle size: always measure with `.env` present. Baseline after T11.5: public `index` 100.53 kB (32.23 kB gzip), `index.css` 37.57 kB (8.34 kB gzip); after T11.4a: public `index` 104.57 kB (33.31 kB gzip), `index.css` 34.61 kB (7.85 kB gzip); after T11.4: public `index` 100.92 kB (32.24 kB gzip), `index.css` 32.35 kB (7.47 kB gzip); after T11.3: public `index` 95.99 kB (29.72 kB gzip), `index.css` 27.78 kB (6.38 kB gzip); after T10.10: 95.96 kB (29.69 kB gzip); the lazy `Calendar` chunk is 67.6 kB (19.9 kB gzip). Without it, `lib/supabase.ts` throws at load time and the build drops supabase-js, which makes the bundle look about 330 kB smaller (SPEC §10, 2026-10-20).
+  - Bundle size: always measure with `.env` present. Baseline after T11.11: public `index` 105.34 kB (33.41 kB gzip), `index.css` 43.62 kB (9.49 kB gzip). After T11.9: public `index` 102.62 kB (32.70 kB gzip), `index.css` 42.44 kB (9.31 kB gzip). After T11.7: public `index` 102.54 kB (32.62 kB gzip), `index.css` 42.23 kB (9.27 kB gzip). After T11.5: public `index` 100.53 kB (32.23 kB gzip), `index.css` 37.57 kB (8.34 kB gzip); after T11.4a: public `index` 104.57 kB (33.31 kB gzip), `index.css` 34.61 kB (7.85 kB gzip); after T11.4: public `index` 100.92 kB (32.24 kB gzip), `index.css` 32.35 kB (7.47 kB gzip); after T11.3: public `index` 95.99 kB (29.72 kB gzip), `index.css` 27.78 kB (6.38 kB gzip); after T10.10: 95.96 kB (29.69 kB gzip); the lazy `Calendar` chunk is 67.6 kB (19.9 kB gzip). Without it, `lib/supabase.ts` throws at load time and the build drops supabase-js, which makes the bundle look about 330 kB smaller (SPEC §10, 2026-10-20).
   - **Production (2026-10-20):** https://court-booking-system-ashen.vercel.app (Vercel Hobby, project `court-booking-system`, team slug `marc-projects5`, production branch `master`). The user set the Supabase Auth Site URL and redirect URLs and the Google JS origin by hand. `npm run smoke:prod` books a real `E2E Smoke` booking on production. Cancel it afterwards (T8.6 notes), or use `-- --links-only`. The admin account is the user's Google login (no email and password admin on production).
   - M8 emails: no Resend for now (user decision, 2026-10-19). Build and test through Mailpit; production runs `EMAIL_TRANSPORT=disabled`. Never commit the Vault worker secret (or a Resend key, if one is added later).
   - **Flaky 25 s Vitest timeouts** come from this Mac, not the code. Its `HostName` isn't set, so `os.hostname()` sometimes waits about 25 s on a network lookup, and jsdom test files stall on it. Rerun when it's quick (`time node -e "require('os').hostname()"`). The permanent fix needs the user: `sudo scutil --set HostName Eloys-Macbook.local`.
@@ -33,7 +34,6 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
     - a user decision on capping the fresh hold after a rejection at the start time (T4.6)
     - the Edge Function `index.ts` is checked only by smoke and e2e (no Deno type-check)
     - the guest cancel path doesn't check the 30-day link expiry. That's harmless, since a cancel must be before the start (M7 added no token-authorized RPCs, so it's still fine).
-    - Venue map (T9.11g): to use the official Maps Embed API, create a browser key in Google Cloud (Maps Embed API only, HTTP referrers limited to the Vercel domain and localhost) and set `VITE_GOOGLE_MAPS_EMBED_KEY` in Vercel and `.env`. Without it, the keyless embed URL is used.
     - The service role can't insert `open_play_sessions` directly (T9.11d follow-up). Only the RPCs can write.
     - A PayMongo case 4 payment (refund due) sends no email yet (RESEARCH M8 "Retries and the outbox table").
     - M7 carry-overs: only QR Ph was paid for real (GCash, Maya and card are untested); the PHP 20 minimum is an assumption; a replay after a session is replaced returns `unknown_checkout`; the webhook stores an empty `provider_source` as `''`.
@@ -1454,6 +1454,8 @@ Goal: the user's 2026-10-26 requests, built on the single-venue app after M10 an
 - **Walk-ins:** one flag in the code, **hidden by default**. Existing walk-in bookings still show normally.
 - **Logo:** no SVG export is available (the guide is on a free Canva account), so T11.3 optimizes the existing plotline-site tile SVG (`docs/BRAND.md`) and uses a live-text wordmark. The "km" node stays, as in the guide.
 
+**Added on 2026-10-28 (the user's calls, SPEC §10):** T11.16–T11.21 cover phone numbers (optional for everyone, stored as `09XXXXXXXXX`), a venue waiver at checkout (not for walk-ins) and a live new-booking alert in the admin tab (counting only proofs that come in and online payments). Later that day, T11.22–T11.24 added a Plotline-controlled switch for online payments (manual is always on) and the address with quick facts in the home page hero. The close-out moved to T11.25.
+
 Out of scope for M11: multiple venues, the billing ledger, invoices and statements (SaaS Phase 1), custom theme colors, a player light/dark toggle (the system setting decides, as today), refunds of the booking fee in the app, a server-side ban on walk-ins (SaaS Phase 1, per venue).
 
 ### [x] T11.1 Research: M11
@@ -1562,7 +1564,7 @@ Out of scope for M11: multiple venues, the billing ledger, invoices and statemen
 - **Sizes:** dnd-kit is in the lazy `SortableList` admin chunk (46.94 kB, 15.66 kB gzip); public `index` unchanged (100.55 kB).
 - **Follow-ups:** Playwright doesn't exercise real touch dragging (the phone project sends mouse events); `move_court` and `move_info_section` are dropped in T11.15.
 
-### [ ] T11.5b Bookings search and sort
+### [x] T11.5b Bookings search and sort
 - **Depends:** T11.5
 - **Do (the user's request, 2026-10-27):**
   - **Search on `/admin/bookings`:** one search box. A whole reference code (with or without `CB-`, any case) shows just that booking, selected in the panel. Any other text (at least 2 characters) matches part of a reference, the contact name or the contact email (the `guest_name` and `guest_email` snapshot, which every booking has, accounts included), case-insensitive. Phone isn't searched. A search covers **all bookings**: it ignores the status, source and date filters while active (the page says so, with a Clear button). Kept in the URL (`q=`). The text is escaped for PostgREST filter syntax (commas, parentheses, `*`, `%`), or the search goes through an RPC; an RPC or an index is a migration with its own plan gate.
@@ -1570,13 +1572,17 @@ Out of scope for M11: multiple venues, the billing ledger, invoices and statemen
   - **Sort on My bookings:** Play time (today's order: Upcoming soonest first, Past most recent first); Booked on, newest first; Booked on, oldest first. Applied within Upcoming and Past.
   - SPEC §7 (`/admin/bookings`, My bookings) updated.
 - **Acceptance:** Vitest for parsing the search text (a whole code with and without `CB-`, a partial, a name, an email, filter-syntax characters) and the URL round trip for `q` and `sort`; component tests for search (found, nothing found, error) and both sort controls; e2e: an admin finds a booking by its reference, then by its email.
+- **Notes:** No DB change: `parseSearch` in `bookingFilters.ts` builds a PostgREST `or()` over reference, contact name and email (LIKE-escaped, quoted; checked against local PostgREST: `%`, `_`, commas, parentheses and quotes match literally). A whole code (with or without `CB-`) also matches exactly and opens that booking, but still runs the text search, so six-letter names like "Marcus" work (SPEC §10). Under 2 characters the form asks for more. Sort is server-side (`during` or `created_at`, then id); a search defaults to latest first. My bookings: "Sort by" (`?sort=`), `created_at` added to its query. Tests: `bookingFilters.test.ts`, `BookingFiltersBar.test.tsx`, new `AdminBookingsSearch.test.tsx`, `myBookings.test.ts`, `MyBookingsPage.test.tsx`; e2e `booking-search.spec.ts` (reference without `CB-`, email, sort, clear, axe). verify passes; e2e 59 passed, 1 skipped. Reviewer: PASS (its three minors fixed: the §10 row, the 2-character hint, the search's default sort).
+- **Follow-ups:** a trigram index on the searched columns if search gets slow (a migration).
 
-### [ ] T11.6 Migration: venue color theme
+### [x] T11.6 Migration: venue color theme
 - **Depends:** T11.1
 - **Do:** `venue_settings.theme`, one of the preset keys from T11.1 (a check constraint), default `plotline`. Admins write it through the existing `venue_settings` policies; anyone reads it. Expand only.
 - **Acceptance:** pgTAP: the default, the check refuses an unknown key, admins can update it, anon and players can't. `db:push` and `db:types` have been run.
+- **Notes:** Migration `20261028121458_venue_theme.sql`: `venue_settings.theme text not null default 'plotline'` with the named check `venue_settings_theme_preset` (the five T11.1 presets); no new grants or policies (the table-wide update grant and the admin UPDATE policy cover it). pgTAP `32_venue_theme.test.sql` (13). `db:push` and `db:types` run on 2026-10-28 (the user approved). Reviewer: PASS, no findings.
+- **Follow-ups for T11.7:** the generated type is a plain `string`; define the preset keys once in TypeScript and test them against the DB list.
 
-### [ ] T11.7 Theme picker
+### [x] T11.7 Theme picker
 - **Depends:** T11.6, T11.3
 - **Do:**
   - Each preset defined once (light and dark tokens) and applied through `data-theme` on `<html>`, without a flash of the default theme on load (T11.1). The `plotline` preset's dark tokens are T11.4's Espresso; every preset gets the same heading tints, filled active tab and "Stay connected" band, from its own colors.
@@ -1585,32 +1591,61 @@ Out of scope for M11: multiple venues, the billing ledger, invoices and statemen
   - `theme.test.ts` checks every preset's AA pairs, light and dark.
   - Component tests for the picker (loading, error, save).
   - e2e: the admin picks a preset and a signed-out player sees it on `/` (restored in teardown); axe clean with each preset.
+- **Notes:** Done on 2026-10-28. No migration. `src/lib/themes.ts` holds the keys, labels, preview swatches and `applyTheme()` (sets `data-theme` on `<html>`, caches `plotline-theme` in `localStorage`). `src/index.css`: one `[data-theme]` block per non-default preset (accent, button, heading tint `--tint-sage`, footer eyebrow `--band-accent`) plus a dark media block. `index.html`: an inline `<head>` script applies the cached preset before first paint. `ThemeSync` (mounted in `main.tsx`) applies `venue_settings.theme` for every visitor. `ThemePicker` ("Website colors" on `/admin/settings`): a light and a dark preview per card, a tap saves and applies at once, and a failed save rolls back. **The user's calls:** (1) five accents nudged from RESEARCH M11 because the rose-band countdown and the confirmed badge failed AA (court-green light and dark, and ocean, plum and sunset dark; values in SPEC §10); (2) a tap saves at once. Tests: `theme.test.ts` (every preset AA in light and dark, swatches against `index.css`, keys against the T11.6 check constraint and the `index.html` list), `ThemePicker.test.tsx` (5), `ThemeSync.test.tsx` (3), e2e `theme.spec.ts` (an admin picks Ocean and a fresh signed-out context sees it on `/`; with settings blocked, the cached preset is already set at `DOMContentLoaded`; axe on `/` for every preset in both schemes, and on the picker). verify passes (705 Vitest, pgTAP); full e2e 62 passed, 2 skipped. Reviewer: PASS; its 3 minors are fixed (an unasked section reorder reverted, the inline list tested, a parse-time e2e check).
+- **Sizes (with `.env`):** public `index` JS 102.54 kB (32.62 kB gzip), `index.css` 42.23 kB (9.27 kB gzip).
+- **Follow-ups:** a first-ever visit can show Plotline's colors until settings load (accepted in RESEARCH M11); sunset's light heading tint `#f5e7dc` is close to the rose band `#f6e4dd`, so the two bands barely differ in that preset.
 
-### [ ] T11.8 Migration: Google Maps link
+### [x] T11.8 Migration: Google Maps link
 - **Depends:** T11.1
 - **Do:** `venue_settings.maps_url` (https, the hosts T11.1 settles, a length cap of 1000, checked in the database), backfilled from `maps_query` as a Maps search URL. `maps_query` stays until the contract migration (T11.15).
 - **Acceptance:** pgTAP: accepted and refused links (http, other hosts, too long), the backfill, RLS as for the other `venue_settings` columns. `db:push` and `db:types` have been run.
+- **Notes:** Done on 2026-10-28; the user approved the plan, including `db:push`. Migration `20261028133210_maps_url.sql`: `private.url_encode` (percent-encodes every UTF-8 byte outside the unreserved set), `private.maps_search_url` (a Maps search URL, or `''` when blank or over 1000 characters), and `venue_settings.maps_url text not null default ''` with the check `venue_settings_maps_url_link` (empty, or https on the four hosts followed by `/ ? #` or the end, no whitespace, ≤ 1000). It's backfilled from `maps_query`, or from the address when that's blank. No new grants or policies. **The plan's call:** RESEARCH's cap assumed ASCII; a backfilled link over 1000 characters (100+ accented letters) stays `''` rather than raising the cap (SPEC §10). pgTAP `33_maps_url.test.sql` (44): accepted and refused links (lookalike host, userinfo, `/mapsfoo`, `javascript:`, whitespace, 1001 characters), the encoder, the backfill statement (map search first, the address fallback, an existing link kept, the 948-character worst ASCII case, the multibyte skip), function privileges, and RLS for anon, player and admin. `db:push` and `db:types` were run; on the linked project the venue's link was backfilled from its map search. verify passes. Reviewer: PASS; its major (a vacuous backfill check) and two minors (function privileges, the worst ASCII case) are fixed.
+- **Follow-ups:** until T11.9 deploys, admin edits to the old map search don't update `maps_url`. `private.url_encode` is labelled `immutable` but calls `convert_to` (`stable`); that's harmless, but don't index it or use it in a generated column without relabelling it in a new migration.
 
-### [ ] T11.9 Location: paste a link, show the address
+### [x] T11.9 Location: paste a link, show the address
 - **Depends:** T11.8, T11.4
 - **Do:**
   - **Admin:** `LocationSection` takes the address and a pasted Google Maps link (with the same host check in the client, and the address pre-filled from a long link's place name when it's empty). No map preview.
   - **Player:** the address with a pin icon, as a link to the Maps URL (new tab), on the home page and the booking page. The embedded map, `mapEmbedUrl` and the `VITE_GOOGLE_MAPS_EMBED_KEY` code are removed (and from `.env.example` and the Handoff).
   - Nothing shows when there's no address.
 - **Acceptance:** component tests (with and without an address or link, a refused link); the `venue-info` e2e updated (no map frame; the link has the pasted URL); axe clean.
+- **Notes:** Done on 2026-10-28. `venue/map.ts` is now `mapsUrlProblem` (it mirrors `venue_settings_maps_url_link`; the reviewer found the client equal or stricter in every case) and `placeNameFromMapsUrl`. `LocationSection` has the address and a pasted "Google Maps link" field. A refused link shows an alert, marks the field invalid and saves nothing. A long `/maps/place/` link fills an empty address but never overwrites one. The map search field and preview are gone. `VenueLocation` shows the address with a pin, and the address is the link (new tab, sr-only "(opens Google Maps in a new tab)", 44px target). A stored link that fails the check shows as plain text, and nothing shows without an address. The card is on `/` and `/booking/:ref`. Removed: the iframe, `.map-frame`, `mapEmbedUrl`/`mapQueryOf`/`mapsSearchUrl`, `VITE_GOOGLE_MAPS_EMBED_KEY` (`vite-env.d.ts`, `.env.example`, README, Handoff), and the screenshot script's map wait. The frontend no longer reads or writes `maps_query`. Tests: `venue.test.ts` (accepted and refused links, place names), `VenueInfo.test.tsx` (4), `VenueInfoSections.test.tsx` (4), `BookingPage.test.tsx` ("where to play"), e2e `venue-info.spec.ts` (a refused link, no iframe, the pasted URL in a new tab, `axeBothSchemes`). verify passes (713); full e2e 62 passed, 2 skipped. Reviewer: PASS; its two minors are fixed (a leftover type comment, "at most 1000").
+- **Follow-ups:** the README location screenshot still shows the old map; regenerate it in T11.25. Axe runs on the card on `/` only (the same component is on `/booking/:ref`). Deploy this to production before T11.15 drops `maps_query`.
 
-### [ ] T11.10 Migration: payment accounts and QR codes
+### [x] T11.10 Migration: payment accounts and QR codes
 - **Depends:** T11.1
 - **Do:** the model T11.1 settles (proposal: `venue_payment_accounts` with label such as GCash, InstaPay, Maya or a bank, account name, account number, an optional `qr_path` in `venue-media`, and a position, set as a whole order so T11.5a's drag reorder can save it). Anyone reads; admins write. Length checks in the database. Upload policies for the QR folder (images only, a size cap).
 - **Acceptance:** pgTAP: RLS for anon, player and admin; the checks; ordering; storage policies. `db:push` and `db:types` have been run.
+- **Notes:** Done on 2026-10-28; the user approved the plan, including `db:push`. Migration `20261028141030_payment_accounts.sql`:
+  - `venue_payment_accounts`: label 1–40, account name ≤ 80 and number ≤ 60 (all trimmed), `qr_path` null or a `<uuid>.png`, a position, timestamps.
+  - An insert trigger appends each account last and caps the list at 10, serialized by an advisory lock.
+  - Anyone reads; admins write through RLS. Column grants keep `position` out of client inserts and updates.
+  - `reorder_payment_accounts(uuid[])` (security definer, staff only) saves the whole order, as T11.5a.
+  - **The user's call:** QR codes get their own public `payment-qr` bucket (1 MB, PNG only), not a folder in `venue-media`. A local probe showed a storage policy can't see an upload's size or type when it runs, so only a bucket of their own gives a server-side cap. Admins can upload only a top-level `<uuid>.png` (no update policy, no upsert), and can read and delete. `venue-media` is unchanged.
+  - Checked through the real local Storage API: 413 over 1 MB, 415 for JPEG, 403 in a folder, public read 200.
+  - pgTAP `34_payment_accounts.test.sql` (60): grants, the checks, the cap, append and reorder (stale, duplicate, unknown, null), RLS for anon, player and admin, the bucket, and the storage policies (uploads, listing, the delete rule). `09_payment_proofs_storage` lists the two new write policies by exact name.
+  - `db:push` and `db:types` were run; on the linked project the bucket, 3 QR policies and 4 table policies were checked by query. verify passes. Reviewer: PASS; its minor (thin anon delete and storage listing coverage) is fixed.
+- **Follow-ups for T11.11:**
+  - Upload a fresh `<uuid>.png`, then save `qr_path`, and remove the upload if the save fails.
+  - On replace or delete, save the row first, then `remove()` the old object, and check what it returned.
+  - Never send `position` (the generated Insert and Update types still list it; it's refused with 42501). Use `reorder_payment_accounts`.
+  - Map the `too_many` hint to a readable message.
+  - Hide the QR if its image fails to load (there's no foreign key to the object).
 
-### [ ] T11.11 Payment QR codes: admin and player
+### [x] T11.11 Payment QR codes: admin and player
 - **Depends:** T11.10, T11.4, T11.5a
 - **Do:**
   - **Admin (settings, near the payment instructions):** add, edit, delete and reorder payment accounts (T11.5a's drag handle); upload or replace each QR image (kept scannable, T11.1).
   - **Player (where the manual payment instructions show today):** a card per account with the label, account name and number (a copy button), and the QR code, which opens full size on tap and has a **"Download QR"** button (the user's wording, 2026-10-27). On iPhone a download lands in Files, not Photos, so a short hint under it says to press and hold the image to save it to Photos (GCash and bank apps scan from the gallery). The free-text instructions stay below.
   - The amount to send is the amount due, including the booking fee once T11.13 ships.
 - **Acceptance:** component tests for both sides (empty, loading, error, an account without a QR); e2e: an admin adds an account with a QR and a guest sees it while paying (restored in teardown); axe clean; the QR fits a 360px screen.
+- **Notes:** Done on 2026-10-28. No migration.
+  - **Shared:** `venue/api.ts` holds `fetchPaymentAccounts`, `qrImageUrl` and `qrDownloadUrl` (`getPublicUrl(path, { download })`: `<a download>` is ignored across origins).
+  - **Admin:** "Payment accounts" (`PaymentAccountsSection`) sits right after the payment instructions. Accounts are added, edited and deleted in place and reordered with the ☰ handle (`reorder_payment_accounts`, optimistic with rollback). The add form is hidden at 10 accounts. A QR (PNG, JPG or WEBP) is re-encoded by `qrImage.ts` as lossless PNG on white, at most 1200 px on its long side with high-quality smoothing, and refused over 1 MB. The upload, save and cleanup order follows `mediaReplace`, so a row never points at a missing file, and `position` is never sent.
+  - **Player:** `PaymentAccountList` goes in the "Pay within" section above the free-text instructions. Each card has the label, the name, the number with Copy (it announces success or failure, then resets), and the QR on a white tile, which opens full size in `PhotoViewer`. "Download QR" and Copy are 44 px targets. A hint explains saving to Photos on iPhone. A QR that fails to load is hidden, and nothing shows with no accounts.
+  - **Tests:** `qrImage.test.ts` (8), `PaymentAccountsSection.test.tsx` (10), `PaymentAccountList.test.tsx` (8), `BookingPage.test.tsx` (the list's place). e2e `payment-accounts.spec.ts`: an admin adds an account with a QR (stored as `<uuid>.png`); a guest sees it while paying; the image really loads, the download is served as an attachment, the viewer opens, there's no sideways scroll at 360px, and axe passes on both sides. Global teardown removes `E2E` accounts and their files.
+  - verify passes (740); full e2e 63 passed, 3 skipped (time-dependent self-skips). Reviewer: PASS; its three minors are fixed (smoothing on downscale, 44 px player buttons and copy feedback, focus after "Remove QR code" and a reset file input). The e2e's first version read the lazy image before it had loaded (the Stop hook caught it); it now waits for the decoded image.
+- **Follow-ups:** the amount to send becomes the amount due with the fee in T11.13. `payment-qr` has no orphan-listing query (files left by a failed best-effort removal). A label of only spaces gets the database's generic check message.
 
 ### [ ] T11.12 Migration: booking fee
 - **Depends:** T11.1
@@ -1641,8 +1676,84 @@ Out of scope for M11: multiple venues, the billing ledger, invoices and statemen
 - **Do:** drop `venue_settings.maps_query`, `move_court` and `move_info_section` (replaced by `reorder_courts` and `reorder_info_sections` in T11.5a; the frontend no longer calls them), and anything else T11.1–T11.14 left for contraction. Only after the frontend that no longer reads them is live.
 - **Acceptance:** pgTAP updated; `db:push` and `db:types` have been run; the production site still works (`npm run smoke:prod -- --links-only`).
 
-### [ ] T11.16 Close out M11
-- **Depends:** T11.2–T11.15
+### [ ] T11.16 Research: phones, waiver and admin alerts
+- **Depends:** T11.10
+- **Do:** research, then add the findings to RESEARCH M11 and the accepted decisions to SPEC §10:
+  - **Phone:** the PH mobile formats to accept and the exact normalizing rule (SPEC §10, 2026-10-28), shared by SQL and TypeScript. Where phones are written today: `create_booking`, `create_walk_in`, `reschedule_booking`, and the profile trigger. How many existing `bookings.guest_phone` and `profiles.phone` values normalize on the linked project (a read-only count).
+  - **Waiver:** how to add `create_booking`'s acceptance argument without breaking the deployed checkout (the old signature, PostgREST overloads); the text cap; how it reaches the booking page and the email payload.
+  - **Alerts:** Supabase Realtime from current docs: Broadcast from the database (`realtime.broadcast_changes` or `realtime.send` from a trigger), private channels and the RLS on `realtime.messages` that limits a topic to admins, versus Postgres Changes. The payload (ids and statuses only, no contact details), how supabase-js authorizes a private channel, reconnect behavior, and what changes for M12's per-venue topics. Title and visibility handling (`visibilitychange`), and the a11y of a nav count badge.
+- **Acceptance:** RESEARCH M11 has a section with sources for each part; open questions are listed for the user.
+
+### [ ] T11.17 Migration: phone numbers
+- **Depends:** T11.16
+- **Do:**
+  - `private.normalize_ph_mobile(text)`: the rule from T11.16; `null` for blank; an error hint (`invalid_phone`) for anything else.
+  - Every RPC that writes a phone uses it. `create_booking` no longer requires a guest's phone (the deployed checkout still sends one, so this is backward compatible).
+  - Backfill `bookings.guest_phone` and `profiles.phone` where a value normalizes; leave the rest. Add checks (`^09[0-9]{9}$` or null) as `NOT VALID`, so only new rows are checked.
+- **Acceptance:** pgTAP: each accepted format (spaces, dots, dashes, `+63`, `63`, 10 digits), refused ones (landline, too short or long, letters), a guest booking without a phone, the walk-in path, the backfill, the constraints. `db:push` and `db:types` have been run.
+
+### [ ] T11.18 Phone numbers in the UI
+- **Depends:** T11.17
+- **Do:**
+  - A `normalizePhMobile` in `src/lib/` that mirrors the SQL (Vitest over the same cases).
+  - Checkout and the walk-in form: "Mobile number (optional)" for everyone, normalized on submit; the error "Enter an 11-digit mobile number, like 09171234567." A short hint says the venue uses it only to reach you about your booking.
+  - Admin booking panel and dashboard: the number as a `tel:` link.
+- **Acceptance:** Vitest for the helper; component tests (blank, each format, refused); the guest booking e2e books without a phone, and with `+63 917 123 4567` and the admin sees `09171234567`; axe clean.
+
+### [ ] T11.19 Migration: venue waiver
+- **Depends:** T11.16
+- **Do:**
+  - `venue_settings.waiver_text` (default: the text in SPEC §10, 2026-10-28; a length cap from T11.16). `bookings.waiver_accepted_at` and `bookings.waiver_text` (the copy that was accepted).
+  - `create_booking` takes the acceptance (signature from T11.16). When the venue's text isn't blank it refuses without acceptance (`waiver_required` hint) and stores the time and the copy. Walk-ins and `moved` continuations store nothing (a continuation keeps its root's acceptance).
+  - `get_guest_booking` and the email payload include the accepted text.
+  - **Rollout:** the existing venue row gets `''` (no waiver) on production until T11.20 is deployed; then a data change sets the default text (recorded in the Handoff).
+- **Acceptance:** pgTAP: refused without acceptance, accepted (time and copy stored), a blank waiver needs nothing, walk-ins and reschedules, editing the venue text doesn't change existing bookings, RLS for the new columns. `db:push` and `db:types` have been run.
+
+### [ ] T11.20 Waiver in the UI
+- **Depends:** T11.19, T11.4
+- **Do:**
+  - **Admin settings:** a "Waiver" text box with the default text, "Reset to default", and a note that it's the venue's own text and worth having checked. Blank turns the waiver off.
+  - **Checkout:** the text and a required "I have read and accept the waiver" checkbox; Confirm can't submit until it's ticked (with an error message that says why). Nothing shows when the waiver is blank.
+  - The booking page and the confirmation email show the accepted text.
+  - Then set the default text on the linked project (T11.19 rollout).
+- **Acceptance:** component tests (blank waiver, unticked, ticked, admin edit and reset); the guest booking e2e ticks the box; Mailpit shows the text; axe clean; fits 360px.
+
+### [ ] T11.21 New-booking alert in the admin tab
+- **Depends:** T11.16, T11.5
+- **Do:**
+  - **Migration:** the Realtime setup T11.16 settles (proposal: a trigger on `bookings` broadcasting the id, old and new status and source to a private per-venue topic, and an admin-only RLS policy on `realtime.messages`).
+  - **Admin (lazy chunk only):** `AdminLayout` subscribes once. Every event invalidates the admin booking and dashboard queries. Only a change into `payment_submitted`, or into `confirmed` from `pending_payment`, adds to the count. The title reads "(2) New bookings · <venue>" while the tab is hidden and resets when it's visible again; the Bookings nav link shows the count (with an accessible label) until that page is opened. Refetch on reconnect.
+- **Acceptance:** pgTAP: the trigger's messages (which changes send what, no contact data) and that only admins can receive the topic. Vitest for the counting rule and the title. e2e: with the admin page open, a guest uploads a proof in another context; the bookings list updates without a reload and the nav count shows 1. axe clean.
+
+### [ ] T11.22 Migration: online payments switch
+- **Depends:** T11.10
+- **Do (the user's calls, 2026-10-28; SPEC §10):**
+  - `venue_settings.online_payments_enabled boolean not null default false`. Manual proof upload is always on; this only adds "Pay online with PayMongo".
+  - **Plotline only:** a `private` trigger refuses any change to the column unless it comes from the service role or `postgres` (venue admins keep updating every other setting through the existing policy). Plotline sets it with `npx supabase db query --linked` for now; SaaS gets a Plotline control.
+  - **Backfill:** `true` for the existing venue (Claudex Courts), so the live site and the PayMongo e2e and smoke tests keep working. New venues start off.
+  - `proof_target` (or the checkout's own read) exposes the flag to `create-paymongo-checkout`, which refuses with a readable error (`online_payments_off`) when it's off. The webhook is unchanged: a checkout started before a switch-off still confirms its booking. Redeploy the function after `db:push` (expand first: the deployed frontend only hides the button once T11.23 ships).
+- **Acceptance:** pgTAP: the default, the backfill, an admin's update of the column refused (and of another column still allowed), anon and players unable to change it, the service role able to; the checkout refuses with the flag off (smoke test against the local stack, `npm run smoke:paymongo`). `db:push` and `db:types` have been run.
+
+### [ ] T11.23 Online payments switch in the UI
+- **Depends:** T11.22
+- **Do:**
+  - `/booking/:ref`: "Pay online with PayMongo" (and the "Pay online / Or pay manually" headings) only when the venue has it on; otherwise the manual instructions, payment accounts and proof upload as today.
+  - The home page lead ("pay with GCash, Maya or a bank transfer") follows the setting (mentions card and online payment only when it's on).
+  - `/admin/settings`: a read-only line, "Online payments (PayMongo): On / Off. Managed by Plotline."
+  - T11.13 (the fee as a PayMongo line item) applies only when it's on; the manual amount due includes the fee either way.
+- **Acceptance:** component tests (on and off for the booking page, the lead and the settings line); the PayMongo e2e still passes (flag on); a new e2e turns it off with the service role, checks a guest sees no "Pay online" and can still upload a proof, and restores it in teardown. axe clean.
+
+### [ ] T11.24 Home page hero: address and quick facts
+- **Depends:** T11.9
+- **Do (the user's calls, 2026-10-28; the reference image from that day):**
+  - Under the venue name in the hero: the address with the pin, linked to the venue's Maps URL in a new tab (the T11.9 link: plain text when there's no valid link, nothing without an address), then a line of quick facts with icons: the number of active courts and the slot length (e.g. "3 courts · 60-min slots"). The opening hours summary stays.
+  - The address wraps in full on phones (never truncated).
+  - The "Location" card is removed from the home page; it stays on `/booking/:ref`.
+  - Facts come from data already loaded (`useCourts`, `venue_settings.slot_minutes`); each is hidden while loading or on error, and the courts fact when there are none.
+- **Acceptance:** component tests (address with and without a link, no address, the facts, one court vs several); the `venue-info` e2e updated (address and link in the hero, no Location card on `/`); no sideways scroll at 360px; axe clean in light and dark; screenshots regenerated in the close-out.
+
+### [ ] T11.25 Close out M11
+- **Depends:** T11.2–T11.24
 - **Do:**
   - Update the README (the new look, features and screenshots) and `docs/demo-script.md`.
   - Update `docs/SAAS-PLAN.md` with what M11 built (the fee, the walk-in flag, themes).
