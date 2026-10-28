@@ -1,11 +1,11 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../../lib/queryClient'
 import { fetchVenueSettings, updateVenueSettings, type Sport, type VenueSettings } from '../catalog/api'
 import { useVenueSettings } from '../catalog/hooks'
 import { SportOrderSection } from './SportOrderSection'
+import { menuMove, openMoveMenu } from '../../test/reorder'
 
 vi.mock('../catalog/api', async (importOriginal) => ({
   ...(await importOriginal<object>()),
@@ -40,18 +40,18 @@ describe('SportOrderSection', () => {
     renderSection()
     expect(await screen.findByRole('heading', { name: 'Sport order' })).toBeInTheDocument()
     expect(order()).toEqual(['Badminton', 'Pickleball', 'Basketball', 'Tennis'])
-    expect(screen.getByRole('button', { name: 'Move Badminton up' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Move Tennis down' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Move Pickleball up' })).toBeEnabled()
+    expect((await openMoveMenu('Badminton')).getByRole('button', { name: 'Move up' })).toBeDisabled()
+    expect((await openMoveMenu('Tennis')).getByRole('button', { name: 'Move down' })).toBeDisabled()
+    expect((await openMoveMenu('Pickleball')).getByRole('button', { name: 'Move up' })).toBeEnabled()
   })
 
   it('saves the new order right away and shows it', async () => {
     renderSection()
-    await userEvent.click(await screen.findByRole('button', { name: 'Move Tennis up' }))
+    await menuMove('Tennis', 'Move up')
     expect(updateVenueSettings).toHaveBeenCalledWith({ sport_order: ['badminton', 'pickleball', 'tennis', 'basketball'] })
     expect(order()).toEqual(['Badminton', 'Pickleball', 'Tennis', 'Basketball'])
     expect(await screen.findByText('Saved')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Move Tennis up' })).toHaveFocus()
+    expect(screen.getByRole('button', { name: 'Reorder Tennis' })).toHaveFocus()
   })
 
   it('keeps two quick moves in order: saved one at a time, no jumping back, focus kept', async () => {
@@ -60,16 +60,15 @@ describe('SportOrderSection', () => {
       (v) => new Promise((resolve) => pending.push(() => resolve(settings(v.sport_order!)))),
     )
     renderSection()
-    const up = await screen.findByRole('button', { name: 'Move Tennis up' })
-    await userEvent.click(up)
-    await userEvent.click(screen.getByRole('button', { name: 'Move Tennis up' }))
+    await menuMove('Tennis', 'Move up')
+    await menuMove('Tennis', 'Move up')
     expect(order()).toEqual(['Badminton', 'Tennis', 'Pickleball', 'Basketball'])
     expect(updateVenueSettings).toHaveBeenCalledTimes(1) // the second save waits for the first
 
     pending[0]() // the first save returns the older order…
     await vi.waitFor(() => expect(updateVenueSettings).toHaveBeenCalledTimes(2))
     expect(order()).toEqual(['Badminton', 'Tennis', 'Pickleball', 'Basketball']) // …which doesn't overwrite the newer one
-    expect(screen.getByRole('button', { name: 'Move Tennis up' })).toHaveFocus()
+    expect(screen.getByRole('button', { name: 'Reorder Tennis' })).toHaveFocus()
 
     pending[1]()
     expect(await screen.findByText('Saved')).toBeInTheDocument()
@@ -83,7 +82,7 @@ describe('SportOrderSection', () => {
   it('puts the order back and shows the error when saving fails', async () => {
     vi.mocked(updateVenueSettings).mockRejectedValue(new ApiError('You do not have permission to do that.', '42501'))
     renderSection()
-    await userEvent.click(await screen.findByRole('button', { name: 'Move Tennis up' }))
+    await menuMove('Tennis', 'Move up')
     expect(await screen.findByRole('alert')).toBeInTheDocument()
     expect(order()).toEqual(['Badminton', 'Pickleball', 'Basketball', 'Tennis'])
   })

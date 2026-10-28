@@ -28,22 +28,17 @@ export function sportsOf(courts: readonly Pick<Court, 'sport'>[]): Sport[] {
 }
 
 /**
- * The sorted list after moving one court up (-1) or down (1) within its sport, with that sport renumbered
- * 0..n-1 like move_court does. Unchanged at the edges or for an unknown id.
+ * The sorted list with one sport's courts put in the order of `ids` (all of that sport's ids) and renumbered 0..n-1,
+ * like reorder_courts does (T11.5a). Other sports keep their places. Unchanged when `ids` doesn't match the sport.
  */
-export function moveCourtInList<T extends Orderable>(courts: readonly T[], id: string, direction: -1 | 1): T[] {
-  const court = courts.find((c) => c.id === id)
-  if (!court) return [...courts]
-  const group = courts.filter((c) => c.sport === court.sport)
-  const from = group.indexOf(court)
-  const to = from + direction
-  if (to < 0 || to >= group.length) return [...courts]
-  const moved = [...group]
-  ;[moved[from], moved[to]] = [moved[to], moved[from]]
-  const renumbered = new Map(moved.map((c, i) => [c.id, { ...c, sort_order: i }]))
-  // Keep the other sports where they are; refill this sport's positions in its new order.
+export function setCourtOrder<T extends Orderable>(courts: readonly T[], sport: Sport, ids: readonly string[]): T[] {
+  const group = courts.filter((c) => c.sport === sport)
+  const byId = new Map(group.map((c) => [c.id, c]))
+  if (ids.length !== group.length || new Set(ids).size !== ids.length || !ids.every((id) => byId.has(id))) return [...courts]
+  const ordered = ids.map((id, i) => ({ ...byId.get(id)!, sort_order: i }))
+  // Refill this sport's positions in its new order.
   let next = 0
-  return courts.map((c) => (c.sport === court.sport ? renumbered.get(moved[next++].id)! : c))
+  return courts.map((c) => (c.sport === sport ? ordered[next++] : c))
 }
 
 /** One past the highest sort_order in a sport, so a new court goes last. */
@@ -51,11 +46,3 @@ export function nextSortOrder(courts: readonly Pick<Court, 'sport' | 'sort_order
   return Math.max(-1, ...courts.filter((c) => c.sport === sport).map((c) => c.sort_order)) + 1
 }
 
-/** A list with the item at `index` swapped with its neighbour; unchanged at the edges. */
-export function moveItem<T>(list: readonly T[], index: number, direction: -1 | 1): T[] {
-  const to = index + direction
-  if (index < 0 || index >= list.length || to < 0 || to >= list.length) return [...list]
-  const next = [...list]
-  ;[next[index], next[to]] = [next[to], next[index]]
-  return next
-}

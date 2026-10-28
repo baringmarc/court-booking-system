@@ -1,11 +1,11 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../../lib/queryClient'
 import { fetchCourts, fetchVenueSettings, type Court, type CourtWithPhotos, type VenueSettings } from '../catalog/api'
-import { moveCourt } from './api'
+import { reorderCourts } from './api'
+import { menuMove, openMoveMenu } from '../../test/reorder'
 import { CourtsPage } from './CourtsPage'
 
 vi.mock('../catalog/api', async (importOriginal) => ({
@@ -13,7 +13,7 @@ vi.mock('../catalog/api', async (importOriginal) => ({
   fetchCourts: vi.fn(),
   fetchVenueSettings: vi.fn(),
 }))
-vi.mock('./api', () => ({ moveCourt: vi.fn() }))
+vi.mock('./api', () => ({ reorderCourts: vi.fn() }))
 
 const court = (id: string, name: string, sport: Court['sport'], sort_order: number, is_active = true) =>
   ({ id, name, sport, sort_order, is_active, default_hourly_rate: 350, court_photos: [] as CourtWithPhotos['court_photos'] }) as CourtWithPhotos
@@ -41,7 +41,7 @@ describe('CourtsPage ordering', () => {
   beforeEach(() => {
     vi.mocked(fetchCourts).mockReset().mockResolvedValue(courts)
     vi.mocked(fetchVenueSettings).mockReset().mockResolvedValue({ currency: 'PHP' } as VenueSettings)
-    vi.mocked(moveCourt).mockReset().mockResolvedValue()
+    vi.mocked(reorderCourts).mockReset().mockResolvedValue()
   })
 
   it('groups courts by sport in display order, archived ones included', async () => {
@@ -52,55 +52,56 @@ describe('CourtsPage ordering', () => {
     expect(within(screen.getByRole('region', { name: 'Badminton' })).getByText('Archived')).toBeInTheDocument()
   })
 
-  it('disables moving past the edges of a sport', async () => {
+  it('has a reorder handle per court whose menu stops at the edges of its sport', async () => {
     renderPage()
-    expect(await screen.findByRole('button', { name: 'Move Badminton 1 up' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Move Badminton 1 down' })).toBeEnabled()
-    expect(screen.getByRole('button', { name: 'Move Badminton 3 down' })).toBeDisabled()
+    let menu = await openMoveMenu('Badminton 1')
+    expect(menu.getByRole('button', { name: 'Move up' })).toBeDisabled()
+    expect(menu.getByRole('button', { name: 'Move to top' })).toBeDisabled()
+    expect(menu.getByRole('button', { name: 'Move down' })).toBeEnabled()
+    menu = await openMoveMenu('Badminton 3')
+    expect(menu.getByRole('button', { name: 'Move to bottom' })).toBeDisabled()
     // A sport with one court can't move at all.
-    expect(screen.getByRole('button', { name: 'Move Tennis Court up' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Move Tennis Court down' })).toBeDisabled()
+    menu = await openMoveMenu('Tennis Court')
+    for (const name of ['Move up', 'Move down', 'Move to top', 'Move to bottom']) expect(menu.getByRole('button', { name })).toBeDisabled()
   })
 
-  it('moves a court at once, saves it, and keeps keyboard focus on its buttons', async () => {
+  it('moves a court at once, saves the whole order, and keeps focus on its handle', async () => {
     // After the save, the refetch returns the server's new order.
-    const moved = [courts[0], { ...courts[2], sort_order: 0 }, { ...courts[1], sort_order: 1 }, courts[3]]
+    const moved = [courts[0], { ...courts[3], sort_order: 0 }, { ...courts[1], sort_order: 1 }, { ...courts[2], sort_order: 2 }]
     vi.mocked(fetchCourts).mockResolvedValueOnce(courts).mockResolvedValue(moved)
     renderPage()
-    await userEvent.click(await screen.findByRole('button', { name: 'Move Badminton 2 up' }))
-    expect(moveCourt).toHaveBeenCalledWith('b2', -1)
-    expect(rowNames('Badminton')).toEqual(['Badminton 2', 'Badminton 1', 'Badminton 3'])
-    // It's now first, so "up" is disabled: focus moves to its "down" button instead of being lost.
-    expect(screen.getByRole('button', { name: 'Move Badminton 2 up' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Move Badminton 2 down' })).toHaveFocus()
+    await menuMove('Badminton 3', 'Move to top')
+    expect(reorderCourts).toHaveBeenCalledWith('badminton', ['b3', 'b1', 'b2'])
+    expect(rowNames('Badminton')).toEqual(['Badminton 3', 'Badminton 1', 'Badminton 2'])
+    expect(screen.getByRole('button', { name: 'Reorder Badminton 3' })).toHaveFocus()
   })
 
-  it('keeps two quick moves in order: saved one at a time, no jumping back, focus kept', async () => {
+  it('keeps two quick moves in order: saved one at a time, no jumping back', async () => {
     const pending: (() => void)[] = []
-    vi.mocked(moveCourt).mockImplementation(() => new Promise<void>((resolve) => pending.push(resolve)))
+    vi.mocked(reorderCourts).mockImplementation(() => new Promise<void>((resolve) => pending.push(resolve)))
     const final = [courts[0], { ...courts[3], sort_order: 0 }, { ...courts[1], sort_order: 1 }, { ...courts[2], sort_order: 2 }]
     // Only the last move refetches, and by then the server has both moves.
     vi.mocked(fetchCourts).mockResolvedValueOnce(courts).mockResolvedValue(final)
     renderPage()
 
-    await userEvent.click(await screen.findByRole('button', { name: 'Move Badminton 3 up' }))
-    await userEvent.click(screen.getByRole('button', { name: 'Move Badminton 3 up' }))
+    await menuMove('Badminton 3', 'Move up')
+    await menuMove('Badminton 3', 'Move up')
     expect(rowNames('Badminton')).toEqual(['Badminton 3', 'Badminton 1', 'Badminton 2'])
-    expect(moveCourt).toHaveBeenCalledTimes(1) // the second move waits for the first
+    expect(reorderCourts).toHaveBeenCalledTimes(1) // the second save waits for the first
 
     pending[0]()
-    await vi.waitFor(() => expect(moveCourt).toHaveBeenCalledTimes(2))
+    await vi.waitFor(() => expect(reorderCourts).toHaveBeenCalledTimes(2))
+    expect(reorderCourts).toHaveBeenLastCalledWith('badminton', ['b3', 'b1', 'b2'])
     expect(rowNames('Badminton')).toEqual(['Badminton 3', 'Badminton 1', 'Badminton 2']) // no refetch of the older order
     pending[1]()
     await vi.waitFor(() => expect(fetchCourts).toHaveBeenCalledTimes(2)) // one refetch, after the last move
     expect(rowNames('Badminton')).toEqual(['Badminton 3', 'Badminton 1', 'Badminton 2'])
-    expect(screen.getByRole('button', { name: 'Move Badminton 3 down' })).toHaveFocus()
   })
 
-  it('puts the order back and says why when the move fails', async () => {
-    vi.mocked(moveCourt).mockRejectedValue(new ApiError('Only staff can reorder courts.', 'P0001', 'forbidden'))
+  it('puts the order back and says why when the save fails', async () => {
+    vi.mocked(reorderCourts).mockRejectedValue(new ApiError('Only staff can reorder courts.', 'P0001', 'forbidden'))
     renderPage()
-    await userEvent.click(await screen.findByRole('button', { name: 'Move Badminton 2 up' }))
+    await menuMove('Badminton 2', 'Move up')
     expect(await screen.findByText('Only staff can reorder courts.')).toBeInTheDocument()
     expect(rowNames('Badminton')).toEqual(['Badminton 1', 'Badminton 2', 'Badminton 3'])
   })

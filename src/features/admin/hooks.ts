@@ -11,7 +11,7 @@ import {
   fetchProofQueueCount,
   fetchProofUrl,
   deleteCourt,
-  moveCourt,
+  reorderCourts,
   removeBanner,
   removeCourtPhoto,
   addCourtPhoto,
@@ -22,7 +22,7 @@ import {
   saveSocialLinks,
   saveInfoSection,
   deleteInfoSection,
-  moveInfoSection,
+  reorderInfoSections,
   setBuiltinAmenity,
   addCustomAmenity,
   removeAmenity,
@@ -34,11 +34,11 @@ import {
   type WalkInInput,
 } from './api'
 import { catalogKeys, updateVenueSettings, type Court, type CourtPhotoRow, type CourtWithPhotos, type Sport, type VenueSettings } from '../catalog/api'
-import { moveCourtInList } from '../catalog/sportOrder'
+import { setCourtOrder } from '../catalog/sportOrder'
 import { accountKeys } from '../account/hooks'
 import { bookingKeys } from '../booking/hooks'
 import { openPlayKeys, type OpenPlayInput } from '../openPlay/api'
-import { venueKeys, type Amenity } from '../venue/api'
+import { venueKeys, type Amenity, type InfoSection } from '../venue/api'
 import type { AmenityKey } from '../venue/amenities'
 import type { SocialPlatform } from '../venue/social'
 import type { BookingFilters } from './bookingFilters'
@@ -157,20 +157,20 @@ const MOVE_COURT_KEY = ['move-court'] as const
 const SPORT_ORDER_KEY = ['save-sport-order'] as const
 
 /**
- * Moves a court up or down within its sport. The admin list (all courts) is reordered at once, then refetched;
- * public lists and the /book grid refetch too.
+ * Saves a sport's courts in a new order (a drag or a menu move, T11.5a). The admin list (all courts) is reordered at
+ * once, then refetched; public lists and the /book grid refetch too.
  */
-export function useMoveCourt() {
+export function useReorderCourts() {
   const qc = useQueryClient()
   const key = catalogKeys.courts(true)
   const isLast = () => qc.isMutating({ mutationKey: MOVE_COURT_KEY }) <= 1
   return useMutation({
     mutationKey: MOVE_COURT_KEY,
     scope: { id: 'move-court' },
-    mutationFn: ({ id, direction }: { id: string; direction: -1 | 1 }) => moveCourt(id, direction),
-    onMutate: ({ id, direction }) => {
+    mutationFn: ({ sport, ids }: { sport: Sport; ids: string[] }) => reorderCourts(sport, ids),
+    onMutate: ({ sport, ids }) => {
       const previous = qc.getQueryData<Court[]>(key)
-      if (previous) qc.setQueryData(key, moveCourtInList(previous, id, direction))
+      if (previous) qc.setQueryData(key, setCourtOrder(previous, sport, ids))
       void qc.cancelQueries({ queryKey: key }, { revert: false })
       return { previous }
     },
@@ -263,7 +263,7 @@ export function useRemoveCourtPhoto(courtId: string) {
 }
 
 /**
- * Reorders the gallery (the first photo is the cover). Same pattern as useMoveCourt: the page updates at once
+ * Reorders the gallery (the first photo is the cover). Same pattern as useReorderCourts: the page updates at once
  * (synchronous onMutate), saves run one at a time, and only the last pending one refetches or rolls back.
  */
 export function useReorderCourtPhotos(courtId: string) {
@@ -361,11 +361,34 @@ export function useDeleteInfoSection() {
   })
 }
 
-export function useMoveInfoSection() {
+const REORDER_SECTIONS_KEY = ['reorder-info-sections'] as const
+
+/**
+ * Saves the sections in a new order (T11.5a): shown at once, back to the old order if saving fails. Saves queue one
+ * at a time and only the last one rolls back or refetches (the T9.4 pattern above), so quick moves can't overtake.
+ */
+export function useReorderInfoSections() {
   const qc = useQueryClient()
+  const isLast = () => qc.isMutating({ mutationKey: REORDER_SECTIONS_KEY }) <= 1
   return useMutation({
-    mutationFn: ({ id, direction }: { id: string; direction: -1 | 1 }) => moveInfoSection(id, direction),
-    onSettled: () => qc.invalidateQueries({ queryKey: venueKeys.sections }),
+    mutationKey: REORDER_SECTIONS_KEY,
+    scope: { id: 'reorder-info-sections' },
+    mutationFn: (ids: string[]) => reorderInfoSections(ids),
+    onMutate: (ids) => {
+      const previous = qc.getQueryData<InfoSection[]>(venueKeys.sections)
+      if (previous) {
+        const byId = new Map(previous.map((s) => [s.id, s]))
+        qc.setQueryData(venueKeys.sections, ids.flatMap((id, i) => (byId.has(id) ? [{ ...byId.get(id)!, sort_order: i }] : [])))
+      }
+      void qc.cancelQueries({ queryKey: venueKeys.sections }, { revert: false })
+      return { previous }
+    },
+    onError: (_error, _ids, context) => {
+      if (isLast() && context?.previous) qc.setQueryData(venueKeys.sections, context.previous)
+    },
+    onSettled: () => {
+      if (isLast()) return qc.invalidateQueries({ queryKey: venueKeys.sections })
+    },
   })
 }
 

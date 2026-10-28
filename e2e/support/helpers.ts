@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { createClient } from '@supabase/supabase-js'
+import { AxeBuilder } from '@axe-core/playwright'
 import { expect, type Locator, type Page } from '@playwright/test'
 import { localSupabase } from './local.ts'
 
@@ -159,4 +160,23 @@ export async function setColorScheme(page: Page, colorScheme: 'light' | 'dark') 
   // A string, because the e2e tsconfig has no DOM types.
   // Only transitions: an endless animation (a loading spinner) never stops running.
   await page.waitForFunction("document.getAnimations().filter((a) => a instanceof CSSTransition).every((a) => a.playState !== 'running')")
+}
+
+/**
+ * Serious and critical WCAG 2.1 A/AA violations on the page (or inside `include`), in light and dark mode (T11.5a).
+ * Returns "scheme rule: targets" lines; an empty list means clean.
+ */
+export async function axeBothSchemes(page: Page, include?: string) {
+  const found: string[] = []
+  for (const colorScheme of ['light', 'dark'] as const) {
+    await setColorScheme(page, colorScheme)
+    let builder = new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
+    if (include) builder = builder.include(include)
+    const results = await builder.analyze()
+    for (const v of results.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical')) {
+      found.push(`${colorScheme} ${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`)
+    }
+  }
+  await page.emulateMedia({ colorScheme: null })
+  return found
 }

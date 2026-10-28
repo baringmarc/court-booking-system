@@ -3,7 +3,7 @@
 import { AxeBuilder } from '@axe-core/playwright'
 import { createClient } from '@supabase/supabase-js'
 import { expect, test } from '@playwright/test'
-import { createAdmin, E2E_PREFIX, logInAdmin, serviceClient, setColorScheme } from './support/helpers.ts'
+import { axeBothSchemes, createAdmin, E2E_PREFIX, logInAdmin, serviceClient, setColorScheme } from './support/helpers.ts'
 import { localSupabase } from './support/local.ts'
 
 type Snapshot = {
@@ -55,7 +55,26 @@ test('an admin sets an amenity, an info section and a social link, and anyone ca
   await add.getByLabel('Text').fill('Free parking for players.\n\n**Gate closes at 11 PM.**')
   await add.getByRole('button', { name: 'Add section' }).click()
   await expect(sections.getByText(title)).toBeVisible()
-  await sections.getByRole('button', { name: `Move ${title} up` }).click()
+  // Reorder with the handle's tap menu (T11.5a; a way without dragging).
+  await sections.getByRole('button', { name: `Reorder ${title}` }).click()
+  await sections.getByRole('group', { name: `Move ${title}` }).getByRole('button', { name: 'Move up' }).click()
+  // Then drag it by its handle to the top of the list.
+  const list = sections.getByRole('list', { name: 'Info sections in order' })
+  const handle = list.getByRole('button', { name: `Reorder ${title}` })
+  const first = list.getByRole('listitem').first()
+  const from = (await handle.boundingBox())!
+  const top = (await first.boundingBox())!
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(from.x + from.width / 2, top.y + 4, { steps: 15 })
+  await page.mouse.up()
+  await expect(list.getByRole('listitem').first()).toContainText(title)
+  // The section list's handles and an open move menu are accessible in both colour schemes (T11.5a).
+  await sections.getByRole('button', { name: `Reorder ${title}` }).click()
+  await expect(sections.getByRole('group', { name: `Move ${title}` })).toBeVisible()
+  expect(await axeBothSchemes(page, '[aria-label="Info sections in order"]'), 'info sections with a menu open').toEqual([])
+  await page.keyboard.press('Escape')
+  expect(await axeBothSchemes(page, '[aria-label="Info sections in order"]'), 'info sections').toEqual([])
 
   // A social link: a wrong host is refused before saving, then a right one saves.
   const socials = page.getByRole('form', { name: 'Social links' })
@@ -73,7 +92,7 @@ test('an admin sets an amenity, an info section and a social link, and anyone ca
   expect(links).toEqual([{ platform: 'tiktok', url: 'https://www.tiktok.com/@claudexcourts' }])
   const { data: rows } = await anon.from('venue_info_sections').select('title, sort_order').order('sort_order')
   const titles = (rows ?? []).map((r) => r.title)
-  expect(titles.indexOf(title)).toBe(titles.length - 2) // added last, then moved up one
+  expect(titles.indexOf(title)).toBe(0) // added last, moved up one, then dragged to the top
   const { count } = await anon.from('venue_amenities').select('id', { count: 'exact', head: true })
   expect(count).toBe(before.amenities.length + 1)
 

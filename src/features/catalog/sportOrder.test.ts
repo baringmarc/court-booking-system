@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Sport } from './api'
-import { moveCourtInList, moveItem, nextSortOrder, orderedSports, sortCourts, sportsOf } from './sportOrder'
+import { nextSortOrder, orderedSports, setCourtOrder, sortCourts, sportsOf } from './sportOrder'
 
 const court = (id: string, sport: Sport, sort_order: number, name = id) => ({ id, sport, sort_order, name })
 const TENNIS_FIRST: Sport[] = ['tennis', 'basketball', 'pickleball', 'badminton']
@@ -42,34 +42,28 @@ describe('sortCourts and sportsOf', () => {
   })
 })
 
-describe('moveCourtInList', () => {
+describe('setCourtOrder (T11.5a)', () => {
   const list = [court('b1', 'badminton', 3), court('b2', 'badminton', 7), court('b3', 'badminton', 9), court('t1', 'tennis', 0)]
 
-  it('swaps with the neighbour in the same sport and renumbers that sport like move_court', () => {
-    expect(moveCourtInList(list, 'b3', -1)).toEqual([
-      court('b1', 'badminton', 0), court('b3', 'badminton', 1), court('b2', 'badminton', 2), court('t1', 'tennis', 0),
+  it("puts the sport's courts in the given order and renumbers them like reorder_courts", () => {
+    expect(setCourtOrder(list, 'badminton', ['b3', 'b1', 'b2'])).toEqual([
+      court('b3', 'badminton', 0), court('b1', 'badminton', 1), court('b2', 'badminton', 2), court('t1', 'tennis', 0),
     ])
   })
 
-  it('leaves the list alone at the edges, across sports, or for an unknown id', () => {
-    expect(moveCourtInList(list, 'b1', -1)).toEqual(list)
-    expect(moveCourtInList(list, 'b3', 1)).toEqual(list) // the next court is tennis: not a neighbour
-    expect(moveCourtInList(list, 'nope', 1)).toEqual(list)
+  it('leaves the list alone when the ids are missing one, have extras, a duplicate or another sport', () => {
+    expect(setCourtOrder(list, 'badminton', ['b3', 'b1'])).toEqual(list)
+    expect(setCourtOrder(list, 'badminton', ['b3', 'b1', 'b2', 't1'])).toEqual(list)
+    expect(setCourtOrder(list, 'badminton', ['b3', 'b3', 'b2'])).toEqual(list)
+    expect(setCourtOrder(list, 'badminton', ['b3', 't1', 'b2'])).toEqual(list)
   })
 })
 
-describe('nextSortOrder and moveItem', () => {
+describe('nextSortOrder', () => {
   it('puts a new court after the last one in its sport', () => {
     const list = [court('b1', 'badminton', 3), court('b2', 'badminton', 7), court('t1', 'tennis', 0)]
     expect(nextSortOrder(list, 'badminton')).toBe(8)
     expect(nextSortOrder(list, 'tennis')).toBe(1)
     expect(nextSortOrder(list, 'pickleball')).toBe(0)
-  })
-
-  it('swaps an item with its neighbour, unchanged at the edges', () => {
-    expect(moveItem(['a', 'b', 'c'], 1, -1)).toEqual(['b', 'a', 'c'])
-    expect(moveItem(['a', 'b', 'c'], 1, 1)).toEqual(['a', 'c', 'b'])
-    expect(moveItem(['a', 'b', 'c'], 0, -1)).toEqual(['a', 'b', 'c'])
-    expect(moveItem(['a', 'b', 'c'], 2, 1)).toEqual(['a', 'b', 'c'])
   })
 })

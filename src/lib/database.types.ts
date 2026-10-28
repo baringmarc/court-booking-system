@@ -995,6 +995,11 @@ export type Database = {
         Args: { p_court_id: string; p_ids: string[] }
         Returns: undefined
       }
+      reorder_courts: {
+        Args: { p_ids: string[]; p_sport: Database["public"]["Enums"]["sport"] }
+        Returns: undefined
+      }
+      reorder_info_sections: { Args: { p_ids: string[] }; Returns: undefined }
       reschedule_booking: {
         Args: {
           p_booking_id: string

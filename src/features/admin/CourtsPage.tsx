@@ -5,13 +5,13 @@ import { useCourts, useVenueSettings } from '../catalog/hooks'
 import { SPORT_LABELS } from '../catalog/api'
 import { sportsOf } from '../catalog/sportOrder'
 import { formatMoney } from '../../lib/format'
-import { useMoveCourt } from './hooks'
-import { MoveButtons } from './MoveButtons'
+import { useReorderCourts } from './hooks'
+import { SortableList } from './SortableList'
 
 export function CourtsPage() {
   const courts = useCourts({ includeInactive: true })
   const currency = useVenueSettings().data?.currency
-  const move = useMoveCourt()
+  const move = useReorderCourts()
 
   return (
     <section className="page">
@@ -38,26 +38,21 @@ export function CourtsPage() {
             return (
               <section key={sport} aria-labelledby={`sport-${sport}`}>
                 <h2 id={`sport-${sport}`} className="list-group-title">{SPORT_LABELS[sport]}</h2>
-                <ul className="list card flush">
-                  {group.map((court, i) => (
-                    <li key={court.id} className="order-row">
-                      <Link to={`/admin/courts/${court.id}`} className="list-row">
-                        <strong>{court.name}</strong>
-                        <span className="list-row-end">
-                          <span>{formatMoney(court.default_hourly_rate, currency)}/hr</span>
-                          {!court.is_active && <span className="badge">Archived</span>}
-                        </span>
-                      </Link>
-                      <MoveButtons
-                        label={court.name}
-                        position={i}
-                        canMoveUp={i > 0}
-                        canMoveDown={i < group.length - 1}
-                        onMove={(direction) => move.mutate({ id: court.id, direction })}
-                      />
-                    </li>
-                  ))}
-                </ul>
+                <SortableList
+                  className="list card flush"
+                  label={`${SPORT_LABELS[sport]} courts`}
+                  items={group.map((c) => ({ ...c, label: c.name }))}
+                  onReorder={(ids) => move.mutate({ sport, ids })}
+                  renderItem={(court) => (
+                    <Link to={`/admin/courts/${court.id}`} className="list-row">
+                      <strong>{court.name}</strong>
+                      <span className="list-row-end">
+                        <span>{formatMoney(court.default_hourly_rate, currency)}/hr</span>
+                        {!court.is_active && <span className="badge">Archived</span>}
+                      </span>
+                    </Link>
+                  )}
+                />
               </section>
             )
           })}
