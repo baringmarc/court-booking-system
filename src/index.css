@@ -744,3 +744,65 @@ details[open]::details-content { block-size: auto; }
 .search-note { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
 .search-note p { margin: 0; }
 .my-sort { max-width: 260px; }
+
+/* Venue color presets (T11.7, RESEARCH M11; the keys are in src/lib/themes.ts). `plotline` is :root above; the others
+   change only the accent family: ink, button, the heading band and the footer's eyebrow. Accents were nudged from
+   RESEARCH's table so the countdown on the rose band and the confirmed badge stay AA (SPEC §10, 2026-10-28). */
+[data-theme='court-green'] {
+  --accent: #0f7652; --accent-soft: rgba(15, 118, 82, 0.12); --btn: #0f7652; --btn-hover: #0b5c40; --btn-text: #ffffff;
+  --tint-sage: #e2ece3; --band-accent: #63d2a6;
+}
+[data-theme='ocean'] {
+  --accent: #1b6a9c; --accent-soft: rgba(27, 106, 156, 0.12); --btn: #1b6a9c; --btn-hover: #14507a; --btn-text: #ffffff;
+  --tint-sage: #e4eaec; --band-accent: #86c5ec;
+}
+[data-theme='plum'] {
+  --accent: #7a3b7d; --accent-soft: rgba(122, 59, 125, 0.12); --btn: #7a3b7d; --btn-hover: #5e2d61; --btn-text: #ffffff;
+  --tint-sage: #efe5e8; --band-accent: #ddafe0;
+}
+[data-theme='sunset'] {
+  --accent: #a84a12; --accent-soft: rgba(168, 74, 18, 0.12); --btn: #a84a12; --btn-hover: #86390d; --btn-text: #ffffff;
+  --tint-sage: #f5e7dc; --band-accent: #f2af80;
+}
+@media (prefers-color-scheme: dark) {
+  [data-theme='court-green'] {
+    --accent: #63d2a6; --accent-soft: rgba(99, 210, 166, 0.1); --btn: #63d2a6; --btn-hover: #85dcb9; --btn-text: #08140f;
+    --tint-sage: #455448;
+  }
+  [data-theme='ocean'] {
+    --accent: #86c5ec; --accent-soft: rgba(134, 197, 236, 0.1); --btn: #86c5ec; --btn-hover: #a5d4f1; --btn-text: #0b1a24;
+    --tint-sage: #4c5154;
+  }
+  [data-theme='plum'] {
+    --accent: #ddafe0; --accent-soft: rgba(221, 175, 224, 0.1); --btn: #ddafe0; --btn-hover: #e7c6e9; --btn-text: #2a132b;
+    --tint-sage: #5b4d52;
+  }
+  [data-theme='sunset'] {
+    --accent: #f2af80; --accent-soft: rgba(242, 175, 128, 0.1); --btn: #f2af80; --btn-hover: #f5c3a0; --btn-text: #2a1305;
+    --tint-sage: #5f4d41;
+  }
+}
+
+/* "Website colors" picker (T11.7): each card previews its preset in light and dark from fixed swatches. */
+.theme-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); gap: 12px; }
+.theme-card {
+  display: flex; flex-direction: column; gap: 8px; padding: 10px; font: inherit; color: var(--text); cursor: pointer;
+  background: var(--surface); border: 1.5px solid var(--border-strong); border-radius: 14px; text-align: left;
+}
+.theme-card:hover { border-color: var(--accent); }
+.theme-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.theme-card[aria-pressed='true'] { border-color: var(--accent); box-shadow: inset 0 0 0 1.5px var(--accent); }
+.theme-grid[aria-busy='true'] .theme-card { cursor: progress; }
+.theme-name { font-weight: 700; display: flex; align-items: center; gap: 6px; }
+.theme-check { color: var(--accent); }
+.theme-previews { display: grid; grid-template-columns: 1fr 1fr; border-radius: 10px; overflow: hidden; border: 1px solid var(--border); }
+.theme-preview { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 8px; font-size: 0.7rem; font-weight: 700; }
+.theme-preview.light { background: #fffcf7; color: #3b2f2a; }
+.theme-preview.dark { background: #3f3833; color: #f5efe6; }
+.p-btn { padding: 2px 10px; border-radius: 999px; background: var(--p-btn); color: var(--p-btn-text); box-shadow: inset 0 0 0 1px var(--p-accent); }
+.p-badge { padding: 1px 6px; border-radius: 999px; color: var(--p-accent); background: color-mix(in srgb, var(--p-accent) 12%, transparent); }
+.p-slots { display: flex; gap: 4px; }
+.p-slot { width: 16px; height: 12px; border-radius: 3px; }
+.p-slot.free { border: 1.5px solid var(--p-accent); }
+.p-slot.selected { background: var(--p-btn); border: 1.5px solid var(--p-accent); }
+.p-slot.booked { background: color-mix(in srgb, currentColor 18%, transparent); }

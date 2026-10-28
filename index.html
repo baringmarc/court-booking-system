@@ -10,6 +10,14 @@
     <!-- Guest booking links carry a private token in the URL: never send it in a Referer header. -->
     <meta name="referrer" content="no-referrer" />
     <title>Claudex Courts</title>
+    <!-- The venue's color preset (T11.7): the last one seen, set before first paint so the default never flashes.
+         The app sets the live value once venue settings load. Keys: src/lib/themes.ts. -->
+    <script>
+      try {
+        var theme = localStorage.getItem('plotline-theme')
+        if (['court-green', 'ocean', 'plum', 'sunset'].indexOf(theme) >= 0) document.documentElement.dataset.theme = theme
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

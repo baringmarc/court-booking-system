@@ -4,6 +4,11 @@ import { describe, expect, it } from 'vitest'
 // The stylesheet's source text. vitest.config.ts lets index.css through Vite (Vitest stubs CSS as empty otherwise).
 import css from '../index.css?raw'
 import { themeChecks, type Tokens } from './themeChecks'
+import { DEFAULT_THEME, THEME_PRESETS, THEME_SWATCHES } from './themes'
+// The T11.6 migration, so the TypeScript keys can't drift from the check constraint.
+// index.html's inline script names the non-default presets itself (it runs before any module loads).
+import indexHtml from '../../index.html?raw'
+import migration from '../../supabase/migrations/20261028121458_venue_theme.sql?raw'
 
 /** The custom properties declared directly in a block, keyed in camelCase. */
 function declarations(block: string): Record<string, string> {
@@ -22,6 +27,13 @@ function tokensOf(raw: Record<string, string>): Tokens {
 
 const light = tokensOf(lightRaw)
 const dark = tokensOf(darkRaw)
+
+/** A preset's tokens as the cascade builds them: its first block applies in both modes, its second (in the dark media query) on top. */
+function presetTokens(preset: string): { light: Tokens; dark: Tokens } {
+  const blocks = [...css.matchAll(new RegExp(`\\[data-theme='${preset}'\\]\\s*{([^}]*)}`, 'g'))].map((m) => declarations(m[1]))
+  expect(blocks, `${preset} needs a light and a dark block`).toHaveLength(2)
+  return { light: tokensOf({ ...lightRaw, ...blocks[0] }), dark: tokensOf({ ...darkRaw, ...blocks[0], ...blocks[1] }) }
+}
 
 describe('shipped theme (src/index.css)', () => {
   it('declares every theme token in light mode', () => {
@@ -51,4 +63,42 @@ describe('shipped theme (src/index.css)', () => {
       expect(failing.map((c) => `${c.label}: ${c.ratio.toFixed(2)} < ${c.min}`)).toEqual([])
     })
   }
+
+  it('declares the default preset on :root, with no attribute block of its own', () => {
+    expect(css).not.toContain(`[data-theme='${DEFAULT_THEME}']`)
+  })
+
+  for (const preset of THEME_PRESETS.filter((p) => p !== DEFAULT_THEME)) {
+    const tokens = presetTokens(preset)
+    for (const scheme of ['light', 'dark'] as const) {
+      it(`preset ${preset} meets WCAG AA for every checked pair in ${scheme} mode`, () => {
+        const failing = themeChecks(tokens[scheme]).filter((c) => !c.pass)
+        expect(failing.map((c) => `${c.label}: ${c.ratio.toFixed(2)} < ${c.min}`)).toEqual([])
+      })
+    }
+  }
+
+  it("the picker's preview swatches match each preset's tokens", () => {
+    for (const preset of THEME_PRESETS) {
+      const tokens = preset === DEFAULT_THEME ? { light, dark } : presetTokens(preset)
+      for (const scheme of ['light', 'dark'] as const) {
+        const t = tokens[scheme]
+        expect({ accent: t.accent, btn: t.btn, btnText: t.btnText }, `${preset} ${scheme}`).toEqual(
+          Object.fromEntries(Object.entries(THEME_SWATCHES[preset][scheme]).map(([k, v]) => [k, expect.stringMatching(new RegExp(`^${v}$`, 'i'))])),
+        )
+      }
+    }
+  })
+})
+
+describe('theme preset keys', () => {
+  it('match the venue_settings_theme_preset check in the database', () => {
+    const list = migration.match(/check \(theme in \(([^)]*)\)\)/)![1]
+    expect([...list.matchAll(/'([a-z-]+)'/g)].map((m) => m[1])).toEqual([...THEME_PRESETS])
+  })
+
+  it("match the list in index.html's inline script", () => {
+    const list = indexHtml.match(/\[([^\]]*)\]\.indexOf\(theme\)/)![1]
+    expect([...list.matchAll(/'([a-z-]+)'/g)].map((m) => m[1])).toEqual(THEME_PRESETS.filter((p) => p !== DEFAULT_THEME))
+  })
 })
