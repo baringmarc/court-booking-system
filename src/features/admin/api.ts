@@ -10,6 +10,7 @@ import { VENUE_MEDIA_BUCKET } from '../catalog/media'
 import type { CourtPhotoRow, VenueSettings } from '../catalog/api'
 import type { OpenPlayInput } from '../openPlay/api'
 import type { SocialPlatform } from '../venue/social'
+import type { BookingChange } from './bookingAlerts'
 import type { AmenityKey } from '../venue/amenities'
 import { newMediaPath, storageErrorMessage } from './mediaInput'
 import { qrStorageMessage } from './qrImage'
@@ -566,4 +567,34 @@ export async function deletePaymentAccount(account: { id: string; qr_path: strin
 /** Stores every account in this order (reorder_payment_accounts, T11.10). */
 export async function reorderPaymentAccounts(ids: string[]) {
   unwrap(await supabase.rpc('reorder_payment_accounts', { p_ids: ids }))
+}
+
+/**
+ * Booking changes for open admin tabs (T11.21): the private Realtime topic admin:bookings, which only admins can
+ * join (RLS on realtime.messages). onReconnect runs when the channel comes back after a drop, so lists are refetched
+ * in case an event was missed. Returns the unsubscribe.
+ */
+export function subscribeToBookingChanges({ onChange, onReconnect }: { onChange: (change: BookingChange) => void; onReconnect: () => void }) {
+  let dropped = false
+  let channel: ReturnType<typeof supabase.channel> | null = null
+  let closed = false
+  // The private channel is authorized with the user's JWT, which Realtime must have before joining.
+  void supabase.realtime.setAuth().then(() => {
+    if (closed) return
+    channel = supabase
+      .channel('admin:bookings', { config: { private: true } })
+      .on('broadcast', { event: 'booking_changed' }, ({ payload }) => onChange(payload as BookingChange))
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          if (dropped) onReconnect()
+          dropped = false
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          dropped = true
+        }
+      })
+  })
+  return () => {
+    closed = true
+    if (channel) void supabase.removeChannel(channel)
+  }
 }

@@ -1,14 +1,17 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { authState } from '../../test/authState'
 import { AuthContext } from '../auth/AuthContext'
 import { AdminLayout } from './AdminLayout'
 
+vi.mock('./api', async (importOriginal) => ({ ...(await importOriginal<object>()), subscribeToBookingChanges: () => () => {} }))
+
 function renderAdmin() {
   render(
-    <AuthContext.Provider value={authState('admin')}>
+    <QueryClientProvider client={new QueryClient()}><AuthContext.Provider value={authState('admin')}>
       <MemoryRouter initialEntries={['/admin']}>
         <Routes>
           <Route path="/admin" element={<AdminLayout />}>
@@ -17,7 +20,7 @@ function renderAdmin() {
           </Route>
         </Routes>
       </MemoryRouter>
-    </AuthContext.Provider>,
+    </AuthContext.Provider></QueryClientProvider>,
   )
 }
 

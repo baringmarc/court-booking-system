@@ -266,6 +266,8 @@ h3 { font-size: 1.05rem; margin: 0; }
 .alert p { margin: 0 0 8px; }
 .alert-error { background: color-mix(in srgb, var(--danger) 10%, transparent); color: var(--danger); }
 .badge { display: inline-block; font-size: 0.75rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: var(--border); color: var(--muted); }
+/* New bookings on the admin nav (T11.21): the ink accent is AA on the surface, so the reverse is too. */
+.nav-count { display: inline-block; min-width: 1.4em; margin-left: 6px; padding: 0 6px; border-radius: 999px; background: var(--accent); color: var(--surface); font-size: 0.75rem; font-weight: 700; line-height: 1.5; text-align: center; }
 .save-ok { color: var(--accent); font-weight: 700; font-size: 0.9rem; }
 
 /* Home */
