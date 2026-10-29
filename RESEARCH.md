@@ -1119,3 +1119,69 @@ Researched 2026-10-27 (T11.1). Contrast ratios were computed with the WCAG formu
   - The `create_walk_in` RPC stays in the database (a per-venue server-side ban comes with SaaS Phase 1). Existing walk-in bookings, labels, filters and earnings are untouched.
   - **e2e:** the Playwright `webServer.env` sets `VITE_FEATURE_WALK_INS=true`, so the existing walk-in specs run. The "hidden when off" check is a component test with the flag mocked (the e2e server runs a single mode).
 - **Sources:** Vite env docs (`import.meta.env` values are replaced statically at build time).
+
+### Phone numbers (T11.16)
+- **Status:** Decided (SPEC §10, 2026-10-29, T11.16)
+- **Findings:**
+  - **Where phones are written today** (latest definitions): `create_booking` (`20261022140512_open_play_sessions.sql`; the same checks as `20261021001821_overnight_hours.sql:401-424`) and `create_walk_in` (`20261017034910_create_walk_in.sql:122-145`) trim the value, **require** it for guests and accept anything with at least 7 digits and up to 30 characters. `reschedule_booking` copies `guest_phone` onto a moved part (`20261026130654_rescheduling.sql:345-349`). `profiles.phone` is written only through the column grant `grant update (full_name, phone) on public.profiles to authenticated` (`20261016154902_profiles_and_roles.sql:84`). `private.handle_new_user` copies only the name, and no app screen edits the profile phone today. Client: `src/features/booking/contact.ts:24-25` (the same 7-digit rule, required for guests), `CheckoutForm.tsx`, `WalkInForm.tsx`.
+  - **Linked project, read-only count** (2026-10-29, a `select … group by` over `bookings.guest_phone` and `profiles.phone`, counts only):
+
+    | Table | Already `09` + 9 digits | Normalizable (`+63`/`63` + 10 digits, or `9` + 9 digits) | Blank | Invalid |
+    |---|---|---|---|---|
+    | bookings | 6 | 6 | 30 | 0 |
+    | profiles | 0 | 0 | 2 | 0 |
+
+- **Recommendation:**
+  - **One SQL helper, the same rule in TypeScript.** `private.normalize_ph_mobile(p text) returns text`, `immutable`, `set search_path = ''`. Blank or null returns null. Otherwise it drops spaces, dots, dashes and brackets (`regexp_replace(p, '[\s.()-]', '', 'g')`), then maps `^\+?63(9\d{9})$` and `^(9\d{9})$` to `0` + the 10 digits, keeps `^09\d{9}$` as is, and raises `P0001` with hint `invalid_phone` ("Please enter a PH mobile number, like 0917 123 4567.") for anything else. `src/lib/phone.ts` holds `normalizePhMobile(input): string | null | 'invalid'` with a shared table of test cases. Vitest and pgTAP both run that table, so the two can't drift.
+  - **Enforce it on the table, not in each RPC.** Add `BEFORE INSERT OR UPDATE OF guest_phone` on `bookings` and `BEFORE INSERT OR UPDATE OF phone` on `profiles` triggers that call the helper. That covers `create_booking`, `create_walk_in`, the reschedule copy and the direct profile update with no change to their bodies (the same pattern as `private.set_booking_fee`). Add a `check (guest_phone ~ '^09[0-9]{9}$')` constraint (and one for `profiles.phone`) `NOT VALID`, as SPEC says.
+  - **Backfill in the same migration:** update the rows the helper can normalize. With today's data that leaves no invalid row (0 on the linked project), so the migration can `validate constraint` straight after. Local or test data can differ, so validate only when nothing invalid is left, and leave the constraint `NOT VALID` otherwise.
+  - **Make the phone optional:** remove the "required for guests" branch from `create_booking` and `create_walk_in` (a new definition of each in the migration), and from `contact.ts`. The old deployed checkout still sends a phone, which the trigger then normalizes. An old client sending an invalid phone gets the new error, which it already shows as text.
+- **Sources:** the migrations above; the query recorded here; Postgres docs on `ALTER TABLE … ADD CONSTRAINT … NOT VALID` and `VALIDATE CONSTRAINT` (https://www.postgresql.org/docs/current/sql-altertable.html).
+
+### Venue waiver (T11.16)
+- **Status:** Decided (SPEC §10, 2026-10-29, T11.16)
+- **Findings:**
+  - The live `create_booking(p_court_id uuid, p_start timestamptz, p_slots integer, p_guest_name text default null, p_guest_email text default null, p_guest_phone text default null)` is in `20261022140512_open_play_sessions.sql`. The client calls it with named arguments (`src/features/booking/api.ts:136-143`).
+  - **PostgREST picks a function by the named arguments it receives.** Two overloads that both match one call fail with `PGRST203` ("Could not choose the best candidate function"). So `create or replace` with an extra argument would add a second function, and every old call would become ambiguous (https://docs.postgrest.org/en/v12/references/api/functions.html, "Overloaded functions").
+  - Text caps already used for venue text: `address` 300, `info_sections.body` 5000 (`20261022151141_venue_info.sql`).
+- **Recommendation:**
+  - **Replace the signature, don't overload it.** In one migration, `drop function public.create_booking(uuid, timestamptz, integer, text, text, text)`, then `create function public.create_booking(…, p_waiver_accepted boolean default false)`, re-grant `execute` to `anon, authenticated` and comment it. Calls without the new argument still resolve (it has a default), so the deployed checkout keeps working while the waiver is blank.
+  - **Storage:** `venue_settings.waiver_text text not null default '' check (char_length(waiver_text) <= 2000)`, plus `bookings.waiver_accepted_at timestamptz` and `bookings.waiver_text text` (the copy accepted). When `btrim(waiver_text) <> ''` and `p_waiver_accepted` isn't true, `create_booking` raises `P0001` with hint `waiver_required`. Walk-ins and moved parts get nulls.
+  - **Reads:** `get_guest_booking` gains `waiver_text, waiver_accepted_at`; its return type changes, so drop and recreate it with the same grants, as T11.12 did. `fetchOwnBooking` selects the two columns. `private.booking_email_data` adds them, and only the `booking_created` email prints the text, under "You accepted".
+  - **Rollout:** same as the fee. The migration leaves the live venue's `waiver_text` blank, so the old checkout, which sends no acceptance, still books. After the T11.20 frontend is deployed (merge to `master`), a data change sets the default text, and from then on the server enforces it. If the default text were set in the migration, every online booking on production would be refused until the merge.
+- **Sources:** PostgREST functions reference (above); `20261029132323_booking_fee.sql` (drop and recreate of `get_guest_booking` and `proof_target`).
+
+### Admin alerts with Realtime (T11.16)
+- **Status:** Decided (SPEC §10, 2026-10-29, T11.16)
+- **Findings:**
+  - **Broadcast from the database:** `realtime.send(payload jsonb, event text, topic text, private boolean default true)` inserts into `realtime.messages`, and Realtime fans it out to the topic's subscribers. `realtime.broadcast_changes(topic, event, operation, table, schema, new, old)` sends the whole `NEW` and `OLD` records (https://supabase.com/docs/guides/realtime/broadcast). Private messages reach only private channels.
+  - **Read from the local stack** (`pg_get_functiondef('realtime.send(jsonb,text,text,boolean)')`):
+    - The insert is wrapped in `EXCEPTION WHEN OTHERS THEN RAISE WARNING 'WarnSendingBroadcastMessage: %'`, so a failed send can never roll back the booking change.
+    - If the payload has an `id` key, that value becomes the message's primary key. Two events for the same booking would then collide, and the second would be dropped with only a warning. **The payload must not use `id`.**
+  - **Authorization:** RLS on `realtime.messages`. `select` lets a client receive and `insert` lets it send. `realtime.topic()` is the topic being joined, and `extension` is `'broadcast'` or `'presence'`. "The validation is done when the user connects", policies "are cached for the duration of the connection", and they are re-checked when a new JWT is sent. The client is disconnected when its JWT expires unless a new one is sent (https://supabase.com/docs/guides/realtime/authorization).
+  - **Client:** `supabase.channel(topic, { config: { private: true } })`, after `await supabase.realtime.setAuth()` (present in the installed `@supabase/realtime-js`, `RealtimeClient.d.ts:265-278`). supabase-js passes refreshed sessions on to Realtime, and the channel rejoins by itself after a drop (`rejoinTimer`).
+  - **Postgres Changes:**
+    - It "authorizes every event against each subscriber", runs on a single thread, and needs the table added to the `supabase_realtime` publication (https://supabase.com/docs/guides/realtime/postgres-changes).
+    - It sends the whole row, with names, emails and phones.
+    - It gives no old status without `replica identity full`, so "became `payment_submitted`" can't be told apart from other updates.
+- **Recommendation:**
+  - **Broadcast from a trigger, not Postgres Changes.** Add `private.broadcast_booking_change()`, `security definer`, `set search_path = ''`, as `AFTER INSERT OR UPDATE OF status ON bookings FOR EACH ROW`.
+  - It calls `realtime.send(jsonb_build_object('booking_id', new.id, 'status', new.status, 'old_status', old.status, 'alert', <rule>), 'booking_changed', 'admin:bookings', true)`.
+  - `alert` is true only when the status becomes `payment_submitted`, or goes from `pending_payment` to `confirmed` (SPEC §10). Inserts send `alert = false`, so lists still refresh for new holds and walk-ins.
+  - The payload holds ids and statuses only, no contact details. Messages sit in `realtime.messages` for about 3 days, readable only under the policy below.
+  - **RLS:** `create policy "Admins receive booking changes" on realtime.messages for select to authenticated using (private.is_admin() and realtime.topic() = 'admin:bookings' and realtime.messages.extension = 'broadcast')`. Add no `insert` policy, so no client can send on the topic. pgTAP covers the trigger payload for each transition, a player and anon getting no rows under the policy, and a booking change still succeeding when the send fails.
+  - **Client** (`src/features/admin/useBookingAlerts.ts`, mounted once in the admin layout):
+    - Subscribe on mount. On `SUBSCRIBED` after an earlier `CHANNEL_ERROR` or `TIMED_OUT` (a reconnect), invalidate the admin queries.
+    - On each `booking_changed` event, invalidate them too.
+    - When `alert` is true, increase the count. Clear it when the admin opens Bookings, and for the title when `document.visibilityState` returns to `visible` (the `visibilitychange` event, https://developer.mozilla.org/en-US/docs/Web/API/Document/visibilitychange_event).
+    - The title is `(n) ` plus the base title while hidden.
+  - **Nav badge a11y:** the count is in the link text with an accessible phrase (`Bookings <span aria-hidden="true">2</span><span class="sr-only">, 2 new</span>`). Use no `aria-live` region, so a busy venue doesn't flood screen readers. The badge must still meet the T9.2 contrast checks.
+  - **M12 (per-venue):** the topic becomes `venue:<venue_id>:bookings`, and the policy checks membership with `split_part(realtime.topic(), ':', 2)::uuid` against the admin's venues. Only the topic string and the policy change, not the client.
+- **Sources:** the Supabase docs linked above (fetched 2026-10-29); `realtime.send` from the local Supabase stack (CLI 2.121.0).
+
+### Open questions for the user (T11.16)
+Answered by the user on 2026-10-29: all three as recommended (blank waiver, then the text after the T11.20 merge; turn "Allow public access" off; 2000 characters).
+
+1. **Waiver rollout:** leave the venue's waiver blank in the migration and set the default text as a data change after the T11.20 merge, as with the fee (recommended)? Or set it in the migration, which would refuse every online booking on production until the merge?
+2. **Realtime "Allow public access":** the private channel works either way. Turning that setting off in the Supabase dashboard (Realtime settings) also blocks any public channel on the project. Nothing uses public channels, so turning it off is recommended. It's a dashboard step for the user.
+3. **Waiver cap:** 2000 characters (recommended; the default text is about 230).
