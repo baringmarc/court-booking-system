@@ -185,6 +185,8 @@ export type Database = {
           total_amount: number
           updated_at: string
           user_id: string | null
+          waiver_accepted_at: string | null
+          waiver_text: string | null
         }
         Insert: {
           amount_due?: number
@@ -211,6 +213,8 @@ export type Database = {
           total_amount: number
           updated_at?: string
           user_id?: string | null
+          waiver_accepted_at?: string | null
+          waiver_text?: string | null
         }
         Update: {
           amount_due?: number
@@ -237,6 +241,8 @@ export type Database = {
           total_amount?: number
           updated_at?: string
           user_id?: string | null
+          waiver_accepted_at?: string | null
+          waiver_text?: string | null
         }
         Relationships: [
           {
@@ -801,6 +807,7 @@ export type Database = {
           theme: string
           timezone: string
           updated_at: string
+          waiver_text: string
         }
         Insert: {
           address?: string
@@ -821,6 +828,7 @@ export type Database = {
           theme?: string
           timezone?: string
           updated_at?: string
+          waiver_text?: string
         }
         Update: {
           address?: string
@@ -841,6 +849,7 @@ export type Database = {
           theme?: string
           timezone?: string
           updated_at?: string
+          waiver_text?: string
         }
         Relationships: []
       }
@@ -909,6 +918,7 @@ export type Database = {
           p_guest_phone?: string
           p_slots: number
           p_start: string
+          p_waiver_accepted?: boolean
         }
         Returns: {
           guest_token: string
@@ -990,6 +1000,8 @@ export type Database = {
           sport: Database["public"]["Enums"]["sport"]
           status: Database["public"]["Enums"]["booking_status"]
           total_amount: number
+          waiver_accepted_at: string
+          waiver_text: string
         }[]
       }
       move_court: {

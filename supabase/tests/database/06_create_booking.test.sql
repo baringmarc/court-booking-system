@@ -165,8 +165,8 @@ select is(
 );
 
 -- Access
-select ok(has_function_privilege('anon', 'public.create_booking(uuid, timestamptz, integer, text, text, text)', 'execute'), 'anon can call create_booking');
-select ok(has_function_privilege('authenticated', 'public.create_booking(uuid, timestamptz, integer, text, text, text)', 'execute'), 'authenticated can call create_booking');
+select ok(has_function_privilege('anon', 'public.create_booking(uuid, timestamptz, integer, text, text, text, boolean)', 'execute'), 'anon can call create_booking');
+select ok(has_function_privilege('authenticated', 'public.create_booking(uuid, timestamptz, integer, text, text, text, boolean)', 'execute'), 'authenticated can call create_booking');
 select ok(not has_function_privilege('anon', 'private.new_reference_code()', 'execute'), 'anon cannot call private.new_reference_code');
 
 select * from finish();
