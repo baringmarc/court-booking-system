@@ -152,7 +152,7 @@ describe('EarningsSection', () => {
     const booking: ExportBooking = {
       reference_code: 'CB-ABC234', court_name: 'Badminton 1', sport: 'badminton',
       slot_start: '2026-10-25T06:00:00.000Z', slot_end: '2026-10-25T07:00:00.000Z', status: 'confirmed', source: 'online',
-      expires_at: null, guest_name: 'Ana Santos', guest_phone: '0917 000 0000', guest_email: 'ana@example.com', total_amount: 350,
+      expires_at: null, guest_name: 'Ana Santos', guest_phone: '0917 000 0000', guest_email: 'ana@example.com', total_amount: 350, booking_fee: 0, amount_due: 350,
     }
 
     beforeEach(() => {

@@ -14,7 +14,11 @@ export type EmailData = {
   sport?: string
   starts_at: string
   ends_at: string
+  /** The court price. */
   total_amount: number | string
+  /** Plotline's booking fee and what the player pays (T11.12). Absent in emails queued before the fee. */
+  booking_fee?: number | string
+  amount_due?: number | string
   status?: string
   expires_at?: string | null
   name?: string | null
@@ -95,11 +99,14 @@ function content(input: RenderInput): { subject: string; block: Block } {
   const tz = data.timezone || 'Asia/Manila'
   const ref = data.reference_code
   const when = whenLabel(data.starts_at, data.ends_at, tz)
+  const fee = Number(data.booking_fee ?? 0)
   const facts: [string, string][] = [
     ['Reference', ref],
     ['Court', data.court_name],
     ['When', when],
-    ['Total', money(data.total_amount)],
+    ['Court price', money(data.total_amount)],
+    ...(fee > 0 ? [['Booking fee', money(fee)] as [string, string]] : []),
+    ['Total', money(data.amount_due ?? data.total_amount)],
   ]
   const token = kind === 'booking_created' && forGuest ? input.guestToken : null
   const canLink = !forGuest || !!token

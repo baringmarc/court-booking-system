@@ -125,6 +125,12 @@ export type NewBooking = {
 
 export type CreatedBooking = { id: string; referenceCode: string; guestToken: string | null }
 
+/** Plotline's current booking fee, added to every new online booking (T11.12). The server snapshots it on insert. */
+export async function fetchPlatformFee(): Promise<number> {
+  const row = unwrap(await supabase.from('platform_pricing').select('booking_fee').maybeSingle())
+  return Number(row?.booking_fee ?? 0)
+}
+
 /** The price is never sent: the server computes it (SPEC §5.4). */
 export async function createBooking({ courtId, start, slots, contact }: NewBooking): Promise<CreatedBooking> {
   const rows = unwrap(
@@ -153,7 +159,12 @@ export type BookingDetail = {
   slot_start: string
   slot_end: string
   status: BookingStatus
+  /** The court price. */
   total_amount: number
+  /** Plotline's booking fee (T11.12), 0 for walk-ins, moved parts and bookings made before the fee. */
+  booking_fee: number
+  /** What the player pays: the court price plus the fee. */
+  amount_due: number
   expires_at: string | null
   rejection_count: number
   guest_name: string
@@ -191,6 +202,8 @@ export async function fetchGuestBooking(referenceCode: string, token: string): P
     slot_end: row.slot_end,
     status: row.status,
     total_amount: Number(row.total_amount),
+    booking_fee: Number(row.booking_fee),
+    amount_due: Number(row.amount_due),
     expires_at: row.expires_at,
     rejection_count: row.rejection_count,
     guest_name: row.guest_name,
@@ -212,7 +225,7 @@ export async function fetchOwnBooking(referenceCode: string): Promise<BookingDet
   const row = unwrap(
     await supabase
       .from('bookings')
-      .select(`id, reference_code, court_id, user_id, during, status, total_amount, expires_at, rejection_count, guest_name, guest_email, created_at, cancelled_at, cancel_reason, cancelled_by_venue, parent_booking_id, courts(name, sport), payments(${PAYMENT_FIELDS})`)
+      .select(`id, reference_code, court_id, user_id, during, status, total_amount, booking_fee, amount_due, expires_at, rejection_count, guest_name, guest_email, created_at, cancelled_at, cancel_reason, cancelled_by_venue, parent_booking_id, courts(name, sport), payments(${PAYMENT_FIELDS})`)
       .eq('reference_code', referenceCode.trim().toUpperCase())
       .maybeSingle(),
   )
@@ -230,6 +243,8 @@ export async function fetchOwnBooking(referenceCode: string): Promise<BookingDet
     slot_end: end,
     status: row.status,
     total_amount: Number(row.total_amount),
+    booking_fee: Number(row.booking_fee),
+    amount_due: Number(row.amount_due),
     expires_at: row.expires_at,
     rejection_count: row.rejection_count,
     guest_name: row.guest_name,

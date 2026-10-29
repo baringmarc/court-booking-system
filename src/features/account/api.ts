@@ -14,7 +14,8 @@ export type MyBooking = {
   slot_end: string
   status: BookingStatus
   expires_at: string | null
-  total_amount: number
+  /** What the player pays: the court price plus the booking fee (T11.12). */
+  amount_due: number
   /** Set on a moved part (T10.9): the booking it was split from. */
   parent_booking_id: string | null
   /** When it was booked (the "Booked on" sort, T11.5b). */
@@ -31,7 +32,7 @@ export async function fetchMyBookings(userId: string): Promise<MyBooking[]> {
   const rows = unwrap(
     await supabase
       .from('bookings')
-      .select('id, reference_code, during, status, expires_at, total_amount, parent_booking_id, created_at, courts(name, sport)')
+      .select('id, reference_code, during, status, expires_at, amount_due, parent_booking_id, created_at, courts(name, sport)')
       .eq('user_id', userId)
       .order('during', { ascending: false })
       .limit(MY_BOOKINGS_LIMIT),
@@ -48,7 +49,7 @@ export async function fetchMyBookings(userId: string): Promise<MyBooking[]> {
       slot_end: end,
       status: row.status,
       expires_at: row.expires_at,
-      total_amount: Number(row.total_amount),
+      amount_due: Number(row.amount_due),
       parent_booking_id: row.parent_booking_id,
       created_at: row.created_at,
     }

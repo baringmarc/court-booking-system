@@ -76,7 +76,7 @@ async function checkEarnings(page: Page, before: number, reference: string) {
   expect(bookings.text.startsWith('\uFEFF"reference","court","sport","start (Asia/Manila)"')).toBe(true)
   expect(bookings.text).not.toContain('"phone"') // contact details are off by default
   // Confirmed until it has been played (2–3 AM today), then completed.
-  expect(bookings.text).toMatch(new RegExp(`"${reference}","Tennis Court","Tennis","${today} 02:00","${today} 03:00","(Confirmed|Completed)","Walk-in","${E2E_PREFIX} Walk-in cash","1234"\r\n`))
+  expect(bookings.text).toMatch(new RegExp(`"${reference}","Tennis Court","Tennis","${today} 02:00","${today} 03:00","(Confirmed|Completed)","Walk-in","${E2E_PREFIX} Walk-in cash","1234","0"\r\n`))
   const payments = await download(page, 'Export payments (CSV)')
   expect(payments.name).toBe(`payments_${today}_to_${today}.csv`)
   expect(payments.text.split('\r\n')[0]).toBe('\uFEFF"booking reference","method","amount_php","reference number","received (Asia/Manila)","status"')

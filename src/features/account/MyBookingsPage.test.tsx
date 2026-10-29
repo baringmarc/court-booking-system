@@ -18,7 +18,7 @@ const settings = { timezone: 'Asia/Manila', currency: 'PHP' } as VenueSettings
 const booking = (ref: string, startIso: string, overrides: Partial<MyBooking> = {}): MyBooking => ({
   id: ref, reference_code: ref, court_name: 'Badminton 1', sport: 'badminton',
   slot_start: startIso, slot_end: new Date(Date.parse(startIso) + 3_600_000).toISOString(),
-  status: 'confirmed', expires_at: null, total_amount: 450, parent_booking_id: null, created_at: '2030-01-01T00:00:00Z', ...overrides,
+  status: 'confirmed', expires_at: null, amount_due: 450, parent_booking_id: null, created_at: '2030-01-01T00:00:00Z', ...overrides,
 })
 const confirmedPlayer = () => authState('player', {
   user: { id: 'player-id', email: 'player@example.com', email_confirmed_at: '2030-01-01T00:00:00Z' } as User,

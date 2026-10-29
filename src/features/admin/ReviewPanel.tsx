@@ -53,7 +53,9 @@ export function ReviewPanel({ booking, timeZone, currency, proof, pending, error
           <dt>When</dt>
           <dd>{formatDateLabel(date, timeZone)}, {formatHour(hourInZone(booking.slot_start, timeZone))}–{formatHour(hourInZone(booking.slot_end, timeZone))}</dd>
         </div>
-        <div><dt>Total</dt><dd>{formatMoney(booking.total_amount, currency)}</dd></div>
+        <div><dt>Court price</dt><dd>{formatMoney(booking.total_amount, currency)}</dd></div>
+        {booking.booking_fee > 0 && <div><dt>Booking fee</dt><dd>{formatMoney(booking.booking_fee, currency)}</dd></div>}
+        <div><dt>Total</dt><dd>{formatMoney(booking.amount_due, currency)}</dd></div>
         <div><dt>Customer</dt><dd>{booking.guest_name}</dd></div>
         {booking.guest_phone && <div><dt>Phone</dt><dd>{booking.guest_phone}</dd></div>}
         {booking.guest_email && <div><dt>Email</dt><dd>{booking.guest_email}</dd></div>}
@@ -111,9 +113,9 @@ export function ReviewPanel({ booking, timeZone, currency, proof, pending, error
             {METHOD_LABELS[payment.method]} · {formatMoney(payment.amount, currency)}
             {payment.reference_number ? ` · Ref ${payment.reference_number}` : ''} · {formatDateTimeInZone(payment.submitted_at, timeZone)}
           </p>
-          {amountMismatch(String(payment.amount), booking.total_amount) && (
+          {amountMismatch(String(payment.amount), booking.amount_due) && (
             <p className="form-warning" role="status">
-              Paid {formatMoney(payment.amount, currency)} but the total is {formatMoney(booking.total_amount, currency)}.
+              Paid {formatMoney(payment.amount, currency)} but the total is {formatMoney(booking.amount_due, currency)}.
             </p>
           )}
           <ProofPreview path={payment.storage_path} proof={proof} />

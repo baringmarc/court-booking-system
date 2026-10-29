@@ -12,7 +12,7 @@ import { guestBookingPath } from './guestLink'
 import { parseCheckoutSearch, type CheckoutParams } from './checkoutParams'
 import type { Contact } from './contact'
 import { bookingErrorMessage, isSlotGone } from './errors'
-import { useAvailability, useCreateBooking } from './hooks'
+import { useAvailability, useCreateBooking, usePlatformFee } from './hooks'
 import { CancellationPolicyLink } from '../venue/VenueInfo'
 
 export function CheckoutPage() {
@@ -56,11 +56,13 @@ function Checkout({ choice, settings, court, hours }: { choice: CheckoutParams; 
   // The operating date the run belongs to: a 1 AM slot after a 6 AM–5 AM day is listed under the previous date.
   const date = operatingDateOf(hours, tz, new Date(choice.start))
   const availability = useAvailability(date)
+  const platformFee = usePlatformFee()
   const gridLink = `/book?date=${date}${court ? `&sport=${court.sport}` : ''}`
 
   if (create.isSuccess) return <PageLoader />
-  if (availability.isPending) return <PageLoader />
+  if (availability.isPending || platformFee.isPending) return <PageLoader />
   if (availability.isError) return <ErrorMessage error={availability.error} onRetry={() => availability.refetch()} />
+  if (platformFee.isError) return <ErrorMessage error={platformFee.error} onRetry={() => platformFee.refetch()} />
 
   // Re-check the chosen run against fresh availability and take its prices from the server.
   const courtSlots = availability.data.filter((s) => s.court_id === choice.courtId)
@@ -77,7 +79,8 @@ function Checkout({ choice, settings, court, hours }: { choice: CheckoutParams; 
     )
   }
 
-  const total = run.reduce((sum, s) => sum + s.price, 0)
+  const courtPrice = run.reduce((sum, s) => sum + s.price, 0)
+  const fee = platformFee.data
   const end = run.at(-1)?.slot_end ?? choice.start
   const isGuest = !user
   const initial: Contact = isGuest
@@ -113,7 +116,9 @@ function Checkout({ choice, settings, court, hours }: { choice: CheckoutParams; 
             <dt>Time</dt>
             <dd>{formatHour(hourInZone(choice.start, tz))}–{formatHour(hourInZone(end, tz))} ({choice.slots} {choice.slots === 1 ? 'hour' : 'hours'})</dd>
           </div>
-          <div><dt>Total</dt><dd>{formatMoney(total, settings.currency)}</dd></div>
+          <div><dt>Court price</dt><dd>{formatMoney(courtPrice, settings.currency)}</dd></div>
+          {fee > 0 && <div><dt>Booking fee</dt><dd>{formatMoney(fee, settings.currency)}</dd></div>}
+          <div><dt>Total</dt><dd>{formatMoney(courtPrice + fee, settings.currency)}</dd></div>
         </dl>
         <p className="muted small">
           After you confirm, we hold these times for {settings.payment_hold_minutes} minutes while you pay by GCash, Maya or bank transfer.

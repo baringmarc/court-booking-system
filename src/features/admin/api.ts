@@ -44,7 +44,11 @@ export type AdminBooking = {
   slot_end: string
   status: Enums<'booking_status'>
   source: Enums<'booking_source'>
+  /** The court price. */
   total_amount: number
+  /** Plotline's booking fee (T11.12) and what the player pays (court price + fee). */
+  booking_fee: number
+  amount_due: number
   expires_at: string | null
   rejection_count: number
   guest_name: string
@@ -71,7 +75,7 @@ export const adminKeys = {
 }
 
 // One literal: supabase-js infers the row type from this string.
-const SELECT = 'id, reference_code, court_id, during, status, source, total_amount, expires_at, rejection_count, guest_name, guest_email, guest_phone, created_at, cancelled_at, cancel_reason, cancelled_by_venue, parent_booking_id, courts(name, sport), payments(id, method, amount, reference_number, storage_path, submitted_at, review_status, review_note, reviewed_at, reviewed_by, provider_payment_id, provider_source)' as const
+const SELECT = 'id, reference_code, court_id, during, status, source, total_amount, booking_fee, amount_due, expires_at, rejection_count, guest_name, guest_email, guest_phone, created_at, cancelled_at, cancel_reason, cancelled_by_venue, parent_booking_id, courts(name, sport), payments(id, method, amount, reference_number, storage_path, submitted_at, review_status, review_note, reviewed_at, reviewed_by, provider_payment_id, provider_source)' as const
 
 export const ADMIN_LIST_LIMIT = 200
 
@@ -114,6 +118,8 @@ export async function fetchAdminBookings(
       status: row.status,
       source: row.source,
       total_amount: Number(row.total_amount),
+      booking_fee: Number(row.booking_fee),
+      amount_due: Number(row.amount_due),
       expires_at: row.expires_at,
       rejection_count: row.rejection_count,
       guest_name: row.guest_name,
@@ -241,13 +247,15 @@ export type ExportBooking = {
   guest_phone: string | null
   guest_email: string | null
   total_amount: number
+  booking_fee: number
+  amount_due: number
 }
 
 /** Every booking that starts in [startIso, endIso), by play time (T10.8). */
 export async function fetchBookingsForExport(startIso: string, endIso: string): Promise<ExportBooking[]> {
   const rows = await allPages((from, to) => supabase
     .from('bookings')
-    .select('reference_code, during, status, source, expires_at, guest_name, guest_phone, guest_email, total_amount, courts(name, sport)')
+    .select('reference_code, during, status, source, expires_at, guest_name, guest_phone, guest_email, total_amount, booking_fee, amount_due, courts(name, sport)')
     .overlaps('during', `[${startIso},${endIso})`)
     .order('during')
     .order('id')
@@ -270,6 +278,8 @@ export async function fetchBookingsForExport(startIso: string, endIso: string): 
         guest_phone: row.guest_phone,
         guest_email: row.guest_email,
         total_amount: Number(row.total_amount),
+        booking_fee: Number(row.booking_fee),
+        amount_due: Number(row.amount_due),
       }
     })
     // Overlapping isn't enough: a booking belongs to the range it starts in.

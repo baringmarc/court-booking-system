@@ -99,7 +99,7 @@ function BookingList({ label, rows, now, timeZone, currency, all }: { label: str
                 </span>
               </span>
               <span className="list-row-end">
-                <span>{formatMoney(b.total_amount, currency)}</span>
+                <span>{formatMoney(b.amount_due, currency)}</span>
                 <span className={`badge status-${status}`}>{STATUS_LABELS[status]}</span>
               </span>
             </Link>
