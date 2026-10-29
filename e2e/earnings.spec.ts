@@ -1,5 +1,7 @@
 // T10.7: the dashboard's earnings section. A cash walk-in payment recorded today shows up in today's collected total;
 // the period switch, the hours table and the daily chart read well, with no serious axe violations in light and dark.
+// T11.14: with Plotline's booking fee at ₱10, a confirmed online booking paid today raises Total revenue by the court
+// price plus the fee, Your earnings by the court price and Plotline fees by the fee.
 import { AxeBuilder } from '@axe-core/playwright'
 import { readFile } from 'node:fs/promises'
 import { expect, test, type Page } from '@playwright/test'
@@ -20,6 +22,31 @@ async function axeViolations(page: Page) {
 }
 
 const pesos = (text: string | null) => Number((text ?? '').replace(/[^\d.]/g, ''))
+
+const FEE = 10
+
+// The fee is platform-wide: set it for this file only, and put it back (workers: 1, so nothing else runs meanwhile).
+// Walk-ins carry no fee, so the walk-in test below is unaffected.
+test.beforeAll(async () => {
+  await serviceClient().from('platform_pricing').update({ booking_fee: FEE }).eq('id', true).throwOnError()
+})
+test.afterAll(async () => {
+  await serviceClient().from('platform_pricing').update({ booking_fee: 0 }).eq('id', true).throwOnError()
+})
+
+const SPLIT_LABELS = ['Total revenue', 'Your earnings', 'Plotline fees'] as const
+
+/** The amount on a row of the revenue split (the element whose whole text is a peso amount, not the change line). */
+function splitAmount(page: Page, label: (typeof SPLIT_LABELS)[number]) {
+  return page.getByRole('region', { name: 'Earnings' }).getByRole('list', { name: 'Revenue split' })
+    .getByRole('listitem').filter({ hasText: label }).getByText(/^₱[\d,.]+$/)
+}
+
+async function splitAmounts(page: Page) {
+  const amounts: Record<string, number> = {}
+  for (const label of SPLIT_LABELS) amounts[label] = pesos(await splitAmount(page, label).textContent())
+  return amounts
+}
 
 test('a walk-in paid today shows up in the collected total, and the earnings section reads well', async ({ page }) => {
   const admin = await createAdmin()
@@ -96,3 +123,60 @@ async function checkEarnings(page: Page, before: number, reference: string) {
   await earnings.getByRole('button', { name: 'Custom range' }).click()
   await expect(earnings.getByRole('group', { name: 'From' })).toBeVisible()
 }
+
+test('a confirmed online booking paid today raises total revenue, your earnings and Plotline fees (T11.14)', async ({ page }) => {
+  const admin = await createAdmin()
+  await logInAdmin(page, admin.email, admin.password, '/admin')
+  const earnings = page.getByRole('region', { name: 'Earnings' })
+  const split = earnings.getByRole('list', { name: 'Revenue split' })
+  await expect(split.getByRole('listitem')).toHaveCount(3)
+  for (const label of SPLIT_LABELS) await expect(splitAmount(page, label)).toBeVisible()
+  const before = await splitAmounts(page)
+
+  // An online booking, as create_booking and the PayMongo webhook leave it: the fee snapshotted on insert (the
+  // trigger), confirmed, with an approved PayMongo payment of the amount due received now. Today at 3 AM, outside
+  // opening hours, so it blocks nothing; removed at the end (and by teardown: tagged name).
+  const service = serviceClient()
+  const { data: court } = await service.from('courts').select('id').eq('name', 'Tennis Court').single().throwOnError()
+  const day = venueDate(0)
+  const price = 777
+  const reference = `CB-FEE${String(Date.now() % 1000).padStart(3, '0').replace(/[01]/g, '2')}`
+  const { data: booking } = await service.from('bookings').insert({
+    reference_code: reference, court_id: court!.id,
+    guest_name: `${E2E_PREFIX} Online fee`, guest_email: 'e2e-online-fee@example.com', source: 'online', status: 'confirmed',
+    total_amount: price, during: `[${day}T03:00:00+08:00,${day}T04:00:00+08:00)`,
+  }).select('id, booking_fee, amount_due').single().throwOnError()
+  try {
+    expect(Number(booking!.booking_fee)).toBe(FEE)
+    expect(Number(booking!.amount_due)).toBe(price + FEE)
+    const stamp = Date.now()
+    await service.from('payments').insert({
+      booking_id: booking!.id, method: 'paymongo', amount: price + FEE, review_status: 'approved',
+      reviewed_at: new Date().toISOString(), provider_payment_id: `pay_e2e_fee_${stamp}`, provider_source: 'gcash',
+    }).throwOnError()
+
+    await page.reload()
+    await expect(split.getByRole('listitem')).toHaveCount(3)
+    await expect.poll(async () => pesos(await splitAmount(page, 'Total revenue').textContent())).toBe(before['Total revenue'] + price + FEE)
+    expect(pesos(await splitAmount(page, 'Your earnings').textContent())).toBe(before['Your earnings'] + price)
+    expect(pesos(await splitAmount(page, 'Plotline fees').textContent())).toBe(before['Plotline fees'] + FEE)
+    // Each row says how it compares with yesterday.
+    for (const label of SPLIT_LABELS) {
+      await expect(split.getByRole('listitem').filter({ hasText: label })).toContainText(/(than|as) yesterday/)
+    }
+    // The note explains the fee with the current fee.
+    await expect(earnings.getByText(/₱10 per confirmed online booking, paid by the player/)).toBeVisible()
+
+    expect(await axeViolations(page), 'earnings with the revenue split').toEqual([])
+    const overflow = await page.evaluate<number>('document.documentElement.scrollWidth - document.documentElement.clientWidth')
+    expect(overflow, 'the dashboard scrolls sideways').toBeLessThanOrEqual(0)
+    // Every split row fits inside the card (nothing clipped at 360px).
+    const card = await earnings.getByRole('heading', { name: 'Collected' }).locator('..').boundingBox()
+    for (const label of SPLIT_LABELS) {
+      const row = await split.getByRole('listitem').filter({ hasText: label }).boundingBox()
+      expect(row!.x + row!.width, `${label} fits the card`).toBeLessThanOrEqual(card!.x + card!.width + 1)
+    }
+  } finally {
+    await service.from('bookings').delete().eq('id', booking!.id).throwOnError()
+  }
+})

@@ -8,11 +8,12 @@ import { addDays, formatDateLabel, zonedLocalToISO } from '../../lib/time'
 import { METHOD_LABELS } from '../booking/proofInput'
 import { SPORT_LABELS } from '../catalog/api'
 import {
-  barShares, change, formatHours, formatShare, hourBar, occupancy, parseEarnings, periodRange, previousLabel, rangeDays,
+  barShares, changeText, formatHours, formatShare, hourBar, occupancy, parseEarnings, periodRange, previousLabel, rangeDays,
   rangeProblem, type DateRange, type Earnings, type HourTotals, type Period,
 } from './earnings'
 import { bookingsCsv, downloadCsv, paymentsCsv } from './csv'
 import { useEarnings, useExportRows } from './hooks'
+import { usePlatformFee } from '../booking/hooks'
 
 const PERIODS: { value: Period; label: string }[] = [
   { value: 'today', label: 'Today' },
@@ -84,7 +85,6 @@ type BodyProps = { earnings: Earnings; period: Period; days: number; currency: s
 
 function EarningsBody({ earnings, period, days, currency, timeZone }: BodyProps) {
   const { collected, previous, refundsDue, comingUp } = earnings
-  const delta = change(collected.total, previous.total)
   const before = previousLabel(period, days)
   const money = (n: number) => formatMoney(n, currency)
 
@@ -94,11 +94,7 @@ function EarningsBody({ earnings, period, days, currency, timeZone }: BodyProps)
         <section>
           <h3>Collected</h3>
           <p className="big-number">{money(collected.total)}</p>
-          <p className="small muted">
-            {delta.diff === 0
-              ? `The same as ${before}.`
-              : `${money(Math.abs(delta.diff))} ${delta.diff > 0 ? 'more' : 'less'} than ${before}${delta.percent !== null ? ` (${delta.diff > 0 ? '+' : ''}${delta.percent}%)` : ''}.`}
-          </p>
+          <p className="small muted">{changeText(collected.total, previous.total, before, money)}</p>
           {collected.byMethod.length > 0 ? (
             <ul className="list" aria-label="Collected by method">
               {collected.byMethod.map((m) => (
@@ -117,7 +113,7 @@ function EarningsBody({ earnings, period, days, currency, timeZone }: BodyProps)
               {refundsDue.count === 1 ? 'payment' : 'payments'}). Not in the total; refund outside the app.
             </p>
           )}
-          {/* M11+: the Plotline fees line goes here, under the collected total. */}
+          <RevenueSplitList split={earnings.split} before={before} money={money} />
         </section>
         <section>
           <h3>Coming up</h3>
@@ -131,6 +127,38 @@ function EarningsBody({ earnings, period, days, currency, timeZone }: BodyProps)
       <HoursTable earnings={earnings} />
 
       {days > 1 && <DailyChart earnings={earnings} money={money} timeZone={timeZone} />}
+    </>
+  )
+}
+
+const SPLIT_ROWS = [
+  { key: 'totalRevenue', label: 'Total revenue' },
+  { key: 'ownerEarnings', label: 'Your earnings' },
+  { key: 'plotlineFees', label: 'Plotline fees' },
+] as const
+
+/** T11.14: total revenue, the owner's earnings and Plotline's fees, each against the period before. */
+function RevenueSplitList({ split, before, money }: { split: Earnings['split']; before: string; money: (n: number) => string }) {
+  const fee = usePlatformFee()
+  return (
+    <>
+      <ul className="list" aria-label="Revenue split">
+        {SPLIT_ROWS.map(({ key, label }) => (
+          <li key={key} className="list-row">
+            <span>
+              {label}
+              <span className="small muted block">{changeText(split.current[key], split.previous[key], before, money)}</span>
+            </span>
+            <span>{money(split.current[key])}</span>
+          </li>
+        ))}
+      </ul>
+      {fee.isSuccess && (
+        <p className="small muted">
+          Plotline fees are Plotline's booking fee: {money(fee.data)} per confirmed online booking, paid by the player on
+          top of the court price. Walk-ins carry no fee.
+        </p>
+      )}
     </>
   )
 }
