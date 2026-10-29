@@ -58,7 +58,7 @@ select is(
 );
 select is(
   pg_temp.hint_of($$ select * from public.create_booking('c0000000-0000-0000-0000-000000000001', (select t12 from fx), 1, 'X', null, '0917 333 3333') $$),
-  'invalid_guest', 'guests must give name, email and phone'
+  'invalid_guest', 'guests must give a name and email'
 );
 select is(
   pg_temp.hint_of($$ select * from public.create_booking('c0000000-0000-0000-0000-000000000001', (select t12 from fx), 1, 'X', 'not-an-email', '0917 333 3333') $$),
@@ -66,7 +66,7 @@ select is(
 );
 select is(
   pg_temp.hint_of($$ select * from public.create_booking('c0000000-0000-0000-0000-000000000001', (select t12 from fx), 1, 'X', 'x@example.com', '12') $$),
-  'invalid_guest', 'guest phone must have at least 7 digits'
+  'invalid_phone', 'guest phone must be a PH mobile number (T11.17)'
 );
 
 -- Rule errors, each with its own code
@@ -106,7 +106,7 @@ reset role;
 select results_eq(
   $$ select b.user_id, b.guest_name, b.guest_email, b.guest_phone, b.status::text, b.source::text
      from public.bookings b join results r on r.id = b.id where r.label = 'guest' $$,
-  $$ values (null::uuid, 'Gina Guest', 'gina@example.com', '0917 222 2222', 'pending_payment', 'online') $$,
+  $$ values (null::uuid, 'Gina Guest', 'gina@example.com', '09172222222', 'pending_payment', 'online') $$,
   'guest booking stores a trimmed, lower-cased contact snapshot and no user'
 );
 select ok(
@@ -126,7 +126,7 @@ select ok(
 select results_eq(
   $$ select b.user_id, b.guest_name, b.guest_email, b.guest_phone, b.guest_token_hash is null
      from public.bookings b join results r on r.id = b.id where r.label = 'player' $$,
-  $$ values ('11111111-1111-1111-1111-111111111111'::uuid, 'Pat Player', 'pat@test.local', '0917 111 1111', true) $$,
+  $$ values ('11111111-1111-1111-1111-111111111111'::uuid, 'Pat Player', 'pat@test.local', '09171111111', true) $$,
   'player booking takes user_id from the session and contact details from the profile'
 );
 
