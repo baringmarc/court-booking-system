@@ -87,13 +87,14 @@ function Checkout({ choice, settings, court, hours }: { choice: CheckoutParams; 
     ? { name: '', email: '', phone: '' }
     : { name: profile?.full_name ?? '', email: user.email ?? '', phone: profile?.phone ?? '' }
 
-  function handleSubmit(contact: Contact) {
+  function handleSubmit(contact: Contact, waiverAccepted: boolean) {
     create.mutate(
       {
         courtId: choice.courtId,
         start: choice.start,
         slots: choice.slots,
         contact: isGuest ? contact : { name: contact.name, phone: contact.phone || undefined },
+        waiverAccepted,
       },
       {
         onSuccess: ({ referenceCode, guestToken }) => {
@@ -141,7 +142,8 @@ function Checkout({ choice, settings, court, hours }: { choice: CheckoutParams; 
             <Link to="/login" state={{ from: location.pathname + location.search }}>Log in</Link> to fill this in and keep the booking in your account.
           </p>
         )}
-        <CheckoutForm key={user?.id ?? 'guest'} initial={initial} isGuest={isGuest} pending={create.isPending} onSubmit={handleSubmit} />
+        <CheckoutForm key={user?.id ?? 'guest'} initial={initial} isGuest={isGuest} pending={create.isPending}
+          waiverText={settings.waiver_text} onSubmit={handleSubmit} />
         <CancellationPolicyLink />
       </section>
     </div>

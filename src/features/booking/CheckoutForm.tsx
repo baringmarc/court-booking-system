@@ -7,20 +7,27 @@ type Props = {
   /** Guests type their email; logged-in players see their account email, read-only. */
   isGuest: boolean
   pending: boolean
-  onSubmit: (contact: Contact) => void
+  /** The venue's waiver (T11.20); blank (the default) means none to accept. */
+  waiverText?: string
+  onSubmit: (contact: Contact, waiverAccepted: boolean) => void
 }
 
-export function CheckoutForm({ initial, isGuest, pending, onSubmit }: Props) {
+export function CheckoutForm({ initial, isGuest, pending, waiverText = '', onSubmit }: Props) {
   const [contact, setContact] = useState<Contact>(initial)
   const [errors, setErrors] = useState<ContactErrors>({})
+  const hasWaiver = waiverText.trim() !== ''
+  const [accepted, setAccepted] = useState(false)
+  const [waiverError, setWaiverError] = useState(false)
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
     const next = validateContact(contact, { isGuest })
     setErrors(next)
-    if (Object.keys(next).length === 0) {
+    const waiverMissing = hasWaiver && !accepted
+    setWaiverError(waiverMissing)
+    if (Object.keys(next).length === 0 && !waiverMissing) {
       // validateContact refused 'invalid', so this is the stored 09… form or blank.
-      onSubmit({ name: contact.name.trim(), email: contact.email.trim(), phone: normalizePhMobile(contact.phone) ?? '' })
+      onSubmit({ name: contact.name.trim(), email: contact.email.trim(), phone: normalizePhMobile(contact.phone) ?? '' }, hasWaiver && accepted)
     }
   }
 
@@ -61,6 +68,19 @@ export function CheckoutForm({ initial, isGuest, pending, onSubmit }: Props) {
         </p>
         {error('phone')}
       </div>
+      {hasWaiver && (
+        <section className="stack" aria-labelledby="checkout-waiver-heading">
+          <h3 id="checkout-waiver-heading">Waiver</h3>
+          <p className="prewrap">{waiverText}</p>
+          <label className="check">
+            <input type="checkbox" checked={accepted}
+              aria-invalid={waiverError ? true : undefined} aria-describedby={waiverError ? 'checkout-waiver-error' : undefined}
+              onChange={(e) => { setAccepted(e.target.checked); if (e.target.checked) setWaiverError(false) }} />
+            <span>I have read and accept the waiver</span>
+          </label>
+          {waiverError && <p id="checkout-waiver-error" className="form-error">Tick the box to accept the waiver.</p>}
+        </section>
+      )}
       <button type="submit" className="btn btn-block" disabled={pending}>
         {pending ? 'Reserving…' : 'Confirm booking'}
       </button>

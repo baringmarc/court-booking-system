@@ -19,6 +19,8 @@ export type EmailData = {
   /** Plotline's booking fee and what the player pays (T11.12). Absent in emails queued before the fee. */
   booking_fee?: number | string
   amount_due?: number | string
+  /** The waiver the player accepted at checkout (T11.19); only booking_created prints it. */
+  waiver_text?: string | null
   status?: string
   expires_at?: string | null
   name?: string | null
@@ -123,16 +125,18 @@ function content(input: RenderInput): { subject: string; block: Block } {
   switch (kind) {
     case 'booking_created': {
       const status = input.currentStatus ?? (data.status as BookingStatus | undefined) ?? 'pending_payment'
+      const waiver = data.waiver_text?.trim()
+      const createdFooter = waiver ? ["You accepted the venue's waiver:", waiver, ...footer] : footer
       if (status === 'confirmed') {
         return {
           subject: `Booking ${ref} is confirmed`,
-          block: { paragraphs: [`Thanks for booking with ${data.venue_name}. Your payment is in and the court is yours.`], facts, link, footer },
+          block: { paragraphs: [`Thanks for booking with ${data.venue_name}. Your payment is in and the court is yours.`], facts, link, footer: createdFooter },
         }
       }
       if (status === 'payment_submitted') {
         return {
           subject: `Booking ${ref}: we're checking your payment`,
-          block: { paragraphs: [`Thanks for booking with ${data.venue_name}. We got your proof of payment and will confirm the booking once it's checked.`], facts, link, footer },
+          block: { paragraphs: [`Thanks for booking with ${data.venue_name}. We got your proof of payment and will confirm the booking once it's checked.`], facts, link, footer: createdFooter },
         }
       }
       const due = data.expires_at ? ` by ${timeLabel(data.expires_at, tz)} on ${dateLabel(data.expires_at, tz)}` : ''
@@ -144,7 +148,7 @@ function content(input: RenderInput): { subject: string; block: Block } {
           ],
           facts,
           link,
-          footer,
+          footer: createdFooter,
         },
       }
     }

@@ -120,6 +120,12 @@ export function BookingSummary({ booking, paymentInstructions, timeZone, currenc
       <MoveHistory booking={booking} timeZone={timeZone} />
       {cancelSection}
       <PaymentHistory payments={booking.payments} timeZone={timeZone} currency={currency} />
+      {booking.waiver_text && (
+        <section className="card stack" aria-labelledby="waiver-heading">
+          <h2 id="waiver-heading">Waiver you accepted</h2>
+          <p className="prewrap">{booking.waiver_text}</p>
+        </section>
+      )}
     </div>
   )
 }

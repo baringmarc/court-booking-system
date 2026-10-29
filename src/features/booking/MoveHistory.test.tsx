@@ -8,7 +8,7 @@ import { describeChange, describeContinuation } from './moves'
 const TZ = 'Asia/Manila'
 const base: BookingDetail = {
   id: 'b1', reference_code: 'CB-ROOTAA', court_id: 'c1', court_name: 'Badminton 1', sport: 'badminton',
-  slot_start: '2030-01-07T07:00:00.000Z', slot_end: '2030-01-07T08:00:00.000Z', status: 'confirmed', total_amount: 900, booking_fee: 0, amount_due: 900,
+  slot_start: '2030-01-07T07:00:00.000Z', slot_end: '2030-01-07T08:00:00.000Z', status: 'confirmed', total_amount: 900, booking_fee: 0, amount_due: 900, waiver_text: null, waiver_accepted_at: null,
   expires_at: null, rejection_count: 0, guest_name: 'Gina Guest', guest_email: 'gina@example.com',
   created_at: '2030-01-05T02:00:00.000Z', payments: [], cancelled_at: null, cancel_reason: null, cancelled_by_venue: false,
   user_id: null, parent_reference_code: null, continuations: [], changes: [],

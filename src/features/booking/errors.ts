@@ -15,6 +15,8 @@ const CODES = [
   'open_play', 'invalid_links', 'session_overlap', 'session_started',
   // Rescheduling (M10, T10.9): reschedule_booking.
   'not_confirmed', 'from_past', 'different_sport', 'no_change', 'try_again',
+  // M11: the phone trigger (T11.17) and the venue waiver (T11.19).
+  'invalid_phone', 'waiver_required',
 ] as const
 
 export type BookingErrorCode = (typeof CODES)[number]
@@ -33,6 +35,9 @@ export function isSlotGone(error: unknown) {
 
 /** User-facing text. Booking RPC messages are written for users; anything else gets a generic line. */
 export function bookingErrorMessage(error: unknown) {
-  if (bookingErrorCode(error)) return (error as ApiError).message
+  const code = bookingErrorCode(error)
+  // The checkbox is ours, so the wording is too (an older server sends its own text).
+  if (code === 'waiver_required') return 'Please read and accept the waiver to book.'
+  if (code) return (error as ApiError).message
   return 'Something went wrong. Please check your connection and try again.'
 }

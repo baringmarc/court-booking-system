@@ -12,7 +12,7 @@ const booking: BookingDetail = {
   slot_start: '2030-01-07T09:00:00.000Z', // 5 PM Manila
   slot_end: '2030-01-07T11:00:00.000Z',
   status: 'pending_payment',
-  total_amount: 900, booking_fee: 0, amount_due: 900,
+  total_amount: 900, booking_fee: 0, amount_due: 900, waiver_text: null, waiver_accepted_at: null,
   expires_at: '2030-01-07T03:00:00.000Z',
   rejection_count: 0,
   guest_name: 'Gina Guest',

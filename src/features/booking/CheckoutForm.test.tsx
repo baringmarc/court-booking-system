@@ -23,7 +23,7 @@ describe('CheckoutForm', () => {
     await userEvent.type(screen.getByLabelText('Email'), 'gina@example.com')
     await userEvent.type(screen.getByLabelText('Mobile number (optional)'), '+63 917 222 2222')
     await userEvent.click(screen.getByRole('button', { name: 'Confirm booking' }))
-    expect(onSubmit).toHaveBeenCalledWith({ name: 'Gina Guest', email: 'gina@example.com', phone: '09172222222' })
+    expect(onSubmit).toHaveBeenCalledWith({ name: 'Gina Guest', email: 'gina@example.com', phone: '09172222222' }, false)
   })
 
   it('lets a guest book without a phone number and submits an empty phone', async () => {
@@ -32,7 +32,7 @@ describe('CheckoutForm', () => {
     await userEvent.type(screen.getByLabelText('Name'), 'Gina Guest')
     await userEvent.type(screen.getByLabelText('Email'), 'gina@example.com')
     await userEvent.click(screen.getByRole('button', { name: 'Confirm booking' }))
-    expect(onSubmit).toHaveBeenCalledWith({ name: 'Gina Guest', email: 'gina@example.com', phone: '' })
+    expect(onSubmit).toHaveBeenCalledWith({ name: 'Gina Guest', email: 'gina@example.com', phone: '' }, false)
   })
 
   it('labels the phone field as optional with a privacy hint, for guests and players', () => {
@@ -63,7 +63,7 @@ describe('CheckoutForm', () => {
     )
     expect(screen.getByLabelText('Email')).toHaveAttribute('readonly')
     await userEvent.click(screen.getByRole('button', { name: 'Confirm booking' }))
-    expect(onSubmit).toHaveBeenCalledWith({ name: 'Pat Player', email: 'pat@example.com', phone: '' })
+    expect(onSubmit).toHaveBeenCalledWith({ name: 'Pat Player', email: 'pat@example.com', phone: '' }, false)
   })
 
   it('disables the button while the booking is being created', () => {

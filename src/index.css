@@ -254,6 +254,8 @@ img, svg { display: block; }
 /* Utilities */
 .small { font-size: 0.875rem; }
 .block { display: block; }
+/* Admin-typed text that keeps its line breaks (the waiver, T11.20). */
+.prewrap { white-space: pre-line; overflow-wrap: anywhere; }
 .page-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
 .page-head h1 { margin: 0; }
 h2 { font-size: 1.2rem; }

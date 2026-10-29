@@ -29,7 +29,7 @@ const TOKEN = 'secret-token'
 const booking: BookingDetail = {
   id: 'b1', reference_code: REF, court_id: 'c1', court_name: 'Badminton 1', sport: 'badminton',
   slot_start: '2030-01-07T15:00:00.000Z', slot_end: '2030-01-07T16:00:00.000Z',
-  status: 'pending_payment', total_amount: 900, booking_fee: 10, amount_due: 910,
+  status: 'pending_payment', total_amount: 900, booking_fee: 10, amount_due: 910, waiver_text: null, waiver_accepted_at: null,
   expires_at: '2030-01-07T03:00:00.000Z', rejection_count: 0, guest_name: 'Gina Guest', guest_email: 'gina@example.com',
   created_at: '2030-01-07T02:00:00.000Z', payments: [], cancelled_at: null, cancel_reason: null, cancelled_by_venue: false,
   user_id: null, parent_reference_code: null, continuations: [], changes: [],
