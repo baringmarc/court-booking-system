@@ -161,6 +161,8 @@ export type Database = {
       }
       bookings: {
         Row: {
+          amount_due: number | null
+          booking_fee: number
           cancel_reason: string | null
           cancelled_at: string | null
           cancelled_by: string | null
@@ -185,6 +187,8 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          amount_due?: number | null
+          booking_fee?: number
           cancel_reason?: string | null
           cancelled_at?: string | null
           cancelled_by?: string | null
@@ -209,6 +213,8 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          amount_due?: number | null
+          booking_fee?: number
           cancel_reason?: string | null
           cancelled_at?: string | null
           cancelled_by?: string | null
@@ -652,6 +658,21 @@ export type Database = {
           },
         ]
       }
+      platform_pricing: {
+        Row: {
+          booking_fee: number
+          id: boolean
+        }
+        Insert: {
+          booking_fee: number
+          id?: boolean
+        }
+        Update: {
+          booking_fee?: number
+          id?: boolean
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -945,6 +966,8 @@ export type Database = {
       get_guest_booking: {
         Args: { p_reference_code: string; p_token: string }
         Returns: {
+          amount_due: number
+          booking_fee: number
           cancel_reason: string
           cancelled_at: string
           cancelled_by_venue: boolean
@@ -987,6 +1010,7 @@ export type Database = {
       proof_target: {
         Args: { p_reference_code: string; p_token: string; p_user_id: string }
         Returns: {
+          amount_due: number
           booking_id: string
           total_amount: number
         }[]

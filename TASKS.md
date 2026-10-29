@@ -7,9 +7,10 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
 > Update this section at the end of every session or task. Keep it short; it's the first thing the next session reads.
 
 - **Current milestone:** M11 Plotline brand and venue upgrades (**approved by the user on 2026-10-26**; breakdown below, brand in `docs/BRAND.md`). M10 ✅ done on 2026-10-26 and M9 on 2026-10-23 (M1–M10 all done). After M11 come the SaaS milestones (M12+, `docs/SAAS-PLAN.md`), each with its own breakdown and approval.
-- **Next task:** T11.12 Migration: booking fee (a DB task: stops at its plan gate). New since 2026-10-28: T11.16–T11.21 (phones, waiver, admin alert) and T11.22–T11.24 (an online payments switch controlled by Plotline, the address and quick facts in the home hero; SPEC §10), and the close-out is now T11.25. Still the user's: run `npm run smoke:prod -- --links-only` and record the demo video from `docs/demo-script.md`.
-- **State:** M11: T11.1–T11.11 done (2026-10-28; T11.11: payment accounts with QR codes in settings, and on the booking page while paying; T11.10: `venue_payment_accounts`, `reorder_payment_accounts` and the `payment-qr` bucket (1 MB, PNG) live on the linked project; T11.9: admins paste a Maps link, and players see the address with a pin linked to it on `/` and `/booking/:ref`; no embedded map; T11.15 needs T11.9 deployed to production first; T11.8: `venue_settings.maps_url` live on the linked project, backfilled from the map search; T11.7: venue color presets with the "Website colors" picker, applied for every visitor without a flash, five accents nudged for AA; T11.6: `venue_settings.theme` live on the linked project; T11.5b: bookings search and sort; T11.5a: drag to reorder, `reorder_courts`/`reorder_info_sections` live on the linked project; T11.5: admin restyle, split-bar booked hours, even form rows; T11.4a: the /book date strip; T11.4 restyled the public site and emails: Espresso dark, heading bands, Stay connected band, motion). The user's feedback of 2026-10-27 is folded in: T11.4 (Espresso dark palette, heading tints, transitions, Good to know spacing, the "Stay connected" band with brand logos), a new T11.4a (the date strip on `/book`), T11.5 (split-bar booked hours, even form rows), T11.11 ("Download QR"), and two new tasks, T11.5a (drag to reorder) and T11.5b (bookings search and sort). The picks were made on the preview page https://claude.ai/artifact/YVwmkpskANhbzAacUa55Jo (SPEC §10, 2026-10-27). The walk-in card is hidden unless `VITE_FEATURE_WALK_INS=true` (e2e server sets it). M10 done: T10.1–T10.11 (2026-10-26). Rescheduling works end to end on `develop`: `reschedule_booking`, `booking_changes` and the extended `get_guest_booking` are live on the linked project, and the UI and the `booking_rescheduled` email are built (the `send-emails` Edge Function is redeployed to the linked project). The pickers, merged grid blocks, dashboard earnings and CSV export are on `develop`. On the linked project, `get_availability.block_key` and `get_earnings` are live (expand only). M8 deploy: https://court-booking-system-ashen.vercel.app.
+- **Next task:** T11.13 Booking fee in the UI, PayMongo and emails (it includes a small migration, so it stops at its plan gate). T11.12 done on 2026-10-29: the fee machinery is live on the linked project at **₱0**, and `create-paymongo-checkout` (redeployed) charges `amount_due`. The fee goes to ₱10 only as T11.13's last step. New since 2026-10-28: T11.16–T11.21 (phones, waiver, admin alert) and T11.22–T11.24 (an online payments switch controlled by Plotline, the address and quick facts in the home hero; SPEC §10). New on 2026-10-29: T11.25 (QR full width, iPhone hint behind ⓘ), T11.26 (Resend from `mail.plotline.fit`, with DNS and Auth SMTP steps for the user), T11.27–T11.28 ("Paid with" the payment accounts) and T11.29–T11.30 (a fresh guest link in the re-upload email); the close-out is now T11.31. Still the user's: run `npm run smoke:prod -- --links-only` and record the demo video from `docs/demo-script.md`.
+- **State:** M11: T11.1–T11.12 done (T11.12 on 2026-10-29: `platform_pricing`, the `booking_fee` snapshot trigger, `amount_due` and `get_earnings.split` live on the linked project at a ₱0 fee; T11.1–T11.11 on 2026-10-28; T11.11: payment accounts with QR codes in settings, and on the booking page while paying; T11.10: `venue_payment_accounts`, `reorder_payment_accounts` and the `payment-qr` bucket (1 MB, PNG) live on the linked project; T11.9: admins paste a Maps link, and players see the address with a pin linked to it on `/` and `/booking/:ref`; no embedded map; T11.15 needs T11.9 deployed to production first; T11.8: `venue_settings.maps_url` live on the linked project, backfilled from the map search; T11.7: venue color presets with the "Website colors" picker, applied for every visitor without a flash, five accents nudged for AA; T11.6: `venue_settings.theme` live on the linked project; T11.5b: bookings search and sort; T11.5a: drag to reorder, `reorder_courts`/`reorder_info_sections` live on the linked project; T11.5: admin restyle, split-bar booked hours, even form rows; T11.4a: the /book date strip; T11.4 restyled the public site and emails: Espresso dark, heading bands, Stay connected band, motion). The user's feedback of 2026-10-27 is folded in: T11.4 (Espresso dark palette, heading tints, transitions, Good to know spacing, the "Stay connected" band with brand logos), a new T11.4a (the date strip on `/book`), T11.5 (split-bar booked hours, even form rows), T11.11 ("Download QR"), and two new tasks, T11.5a (drag to reorder) and T11.5b (bookings search and sort). The picks were made on the preview page https://claude.ai/artifact/YVwmkpskANhbzAacUa55Jo (SPEC §10, 2026-10-27). The walk-in card is hidden unless `VITE_FEATURE_WALK_INS=true` (e2e server sets it). M10 done: T10.1–T10.11 (2026-10-26). Rescheduling works end to end on `develop`: `reschedule_booking`, `booking_changes` and the extended `get_guest_booking` are live on the linked project, and the UI and the `booking_rescheduled` email are built (the `send-emails` Edge Function is redeployed to the linked project). The pickers, merged grid blocks, dashboard earnings and CSV export are on `develop`. On the linked project, `get_availability.block_key` and `get_earnings` are live (expand only). M8 deploy: https://court-booking-system-ashen.vercel.app.
 - **Blockers / notes:**
+  - **Local fee tests** (found on 2026-10-29): running `smoke:paymongo` with a non-zero local `platform_pricing.booking_fee` leaves smoke bookings with a fee, and pgTAP `35_booking_fee` test 7 ("existing bookings carry no fee") then fails. Set the fee back to 0 and clear those rows' `booking_fee` (local only), or reset the local database.
   - **Flaky pgTAP `30_reschedule` test 66** (found on 2026-10-28, about 1 run in 3): `get_guest_booking` orders a booking's change history by `changed_at` alone (`20261026131753_guest_booking_changes_chain.sql:50`), and two moves in one test transaction share `now()`, so they tie. A real bug in ordering, not the test: the fix is a migration (a tiebreaker such as an insertion sequence, or `clock_timestamp()` for `changed_at`) and needs the user's approval. Until then, rerun verify when only that test fails.
   - **Never run two test runs at once** (found on 2026-10-26). `npm run verify`, `npm run test:e2e` and the Stop hook's own gate (`.claude/hooks/verify-gate.mjs`) share the local database, port 5179 and `test-results/`, so overlapping runs gave a false `30_reschedule` pgTAP failure, "port 5179 is already used" and `ENOENT` trace errors. Before running tests, check `pgrep -fl "[v]erify-gate|[p]laywright test"` is empty (the brackets keep `pgrep` from matching itself). Full e2e on 2026-10-26 once idle: 49 passed, 3 skipped (`court-photo` flaked once earlier that day, see T10.10).
   - **Screenshots:** regenerated in T11.5 (2026-10-28) on a freshly reset local database (`npm run db:reset:local`, then `npm run screenshots`), including the new `admin-earnings-*` shot. Always reset first: leftover e2e or smoke rows show up in the dashboard shots.
@@ -1454,7 +1455,7 @@ Goal: the user's 2026-10-26 requests, built on the single-venue app after M10 an
 - **Walk-ins:** one flag in the code, **hidden by default**. Existing walk-in bookings still show normally.
 - **Logo:** no SVG export is available (the guide is on a free Canva account), so T11.3 optimizes the existing plotline-site tile SVG (`docs/BRAND.md`) and uses a live-text wordmark. The "km" node stays, as in the guide.
 
-**Added on 2026-10-28 (the user's calls, SPEC §10):** T11.16–T11.21 cover phone numbers (optional for everyone, stored as `09XXXXXXXXX`), a venue waiver at checkout (not for walk-ins) and a live new-booking alert in the admin tab (counting only proofs that come in and online payments). Later that day, T11.22–T11.24 added a Plotline-controlled switch for online payments (manual is always on) and the address with quick facts in the home page hero. The close-out moved to T11.25.
+**Added on 2026-10-28 (the user's calls, SPEC §10):** T11.16–T11.21 cover phone numbers (optional for everyone, stored as `09XXXXXXXXX`), a venue waiver at checkout (not for walk-ins) and a live new-booking alert in the admin tab (counting only proofs that come in and online payments). Later that day, T11.22–T11.24 added a Plotline-controlled switch for online payments (manual is always on) and the address with quick facts in the home page hero. **Added on 2026-10-29:** T11.25–T11.30 cover full-width payment QR codes with the iPhone hint behind an ⓘ, Resend from `mail.plotline.fit`, "Paid with" listing the payment accounts, and a fresh private link in a guest's "upload a new proof" email. The close-out moved to T11.31.
 
 Out of scope for M11: multiple venues, the billing ledger, invoices and statements (SaaS Phase 1), custom theme colors, a player light/dark toggle (the system setting decides, as today), refunds of the booking fee in the app, a server-side ban on walk-ins (SaaS Phase 1, per venue).
 
@@ -1610,7 +1611,7 @@ Out of scope for M11: multiple venues, the billing ledger, invoices and statemen
   - Nothing shows when there's no address.
 - **Acceptance:** component tests (with and without an address or link, a refused link); the `venue-info` e2e updated (no map frame; the link has the pasted URL); axe clean.
 - **Notes:** Done on 2026-10-28. `venue/map.ts` is now `mapsUrlProblem` (it mirrors `venue_settings_maps_url_link`; the reviewer found the client equal or stricter in every case) and `placeNameFromMapsUrl`. `LocationSection` has the address and a pasted "Google Maps link" field. A refused link shows an alert, marks the field invalid and saves nothing. A long `/maps/place/` link fills an empty address but never overwrites one. The map search field and preview are gone. `VenueLocation` shows the address with a pin, and the address is the link (new tab, sr-only "(opens Google Maps in a new tab)", 44px target). A stored link that fails the check shows as plain text, and nothing shows without an address. The card is on `/` and `/booking/:ref`. Removed: the iframe, `.map-frame`, `mapEmbedUrl`/`mapQueryOf`/`mapsSearchUrl`, `VITE_GOOGLE_MAPS_EMBED_KEY` (`vite-env.d.ts`, `.env.example`, README, Handoff), and the screenshot script's map wait. The frontend no longer reads or writes `maps_query`. Tests: `venue.test.ts` (accepted and refused links, place names), `VenueInfo.test.tsx` (4), `VenueInfoSections.test.tsx` (4), `BookingPage.test.tsx` ("where to play"), e2e `venue-info.spec.ts` (a refused link, no iframe, the pasted URL in a new tab, `axeBothSchemes`). verify passes (713); full e2e 62 passed, 2 skipped. Reviewer: PASS; its two minors are fixed (a leftover type comment, "at most 1000").
-- **Follow-ups:** the README location screenshot still shows the old map; regenerate it in T11.25. Axe runs on the card on `/` only (the same component is on `/booking/:ref`). Deploy this to production before T11.15 drops `maps_query`.
+- **Follow-ups:** the README location screenshot still shows the old map; regenerate it in T11.31. Axe runs on the card on `/` only (the same component is on `/booking/:ref`). Deploy this to production before T11.15 drops `maps_query`.
 
 ### [x] T11.10 Migration: payment accounts and QR codes
 - **Depends:** T11.1
@@ -1647,7 +1648,7 @@ Out of scope for M11: multiple venues, the billing ledger, invoices and statemen
   - verify passes (740); full e2e 63 passed, 3 skipped (time-dependent self-skips). Reviewer: PASS; its three minors are fixed (smoothing on downscale, 44 px player buttons and copy feedback, focus after "Remove QR code" and a reset file input). The e2e's first version read the lazy image before it had loaded (the Stop hook caught it); it now waits for the decoded image.
 - **Follow-ups:** the amount to send becomes the amount due with the fee in T11.13. `payment-qr` has no orphan-listing query (files left by a failed best-effort removal). A label of only spaces gets the database's generic check message.
 
-### [ ] T11.12 Migration: booking fee
+### [x] T11.12 Migration: booking fee
 - **Depends:** T11.1
 - **Do:**
   - `platform_pricing` (the fee, as data; no client writes) and `bookings.booking_fee` (snapshotted by `create_booking` for online bookings; ₱0 for walk-ins, `moved` continuations and existing bookings).
@@ -1655,6 +1656,15 @@ Out of scope for M11: multiple venues, the billing ledger, invoices and statemen
   - `get_earnings` returns total revenue, owner earnings and Plotline fees for the range and the previous period (fees of bookings cancelled by the venue excluded).
   - **Rollout:** the fee is ₱0 on production until T11.13 is deployed; then a data change sets it to ₱10 (recorded in the Handoff).
 - **Acceptance:** pgTAP: the snapshot (online, walk-in, moved), changing `platform_pricing` doesn't touch existing bookings, PayMongo and manual amounts include the fee, the earnings split (including a venue cancellation), RLS on `platform_pricing`. `db:push` and `db:types` have been run.
+- **Notes:** Done on 2026-10-29; the user approved the plan, `db:push` and the function redeploy. Migration `20261029132323_booking_fee.sql`:
+  - `platform_pricing` (one row, fee 0, anyone reads, no client writes) and `bookings.booking_fee` plus the generated `amount_due`.
+  - The snapshot is a `BEFORE INSERT` trigger (`private.set_booking_fee`), not an edit to `create_booking`. Online bookings get the platform fee; every other source gets 0, backed by `bookings_fee_online_only`.
+  - `proof_target` returns `amount_due` beside `total_amount`, `record_paymongo_payment` checks against it, and `get_guest_booking` and the email payload carry `booking_fee` and `amount_due`.
+  - `get_earnings.split` holds total revenue, Plotline fees (once per booking, at its first approved payment, venue cancellations left out) and owner earnings, for the range and under `previous`.
+  - `create-paymongo-checkout` charges `amount_due` and is **redeployed** to the linked project. `smoke:paymongo` asserts the amount due.
+  - On the linked project the fee is ₱0 and no booking carries one (checked by query).
+  - Tests: pgTAP `35_booking_fee.test.sql` (61, test-writer). `smoke:paymongo` passed locally at a fee of 10 (charged 360 for a 350 court) and at 0. Full gate passed (e2e included). Reviewer: PASS with one minor (below).
+- **Follow-ups for T11.13:** `amount_due` is nullable in the generated types (a generated column without `not null`), so add `alter column amount_due set not null` in a migration and regenerate the types. `_shared/emailTemplates.ts` still prints `total_amount` as "Total"; switch it to the split before the fee goes to 10. Redeploy `send-emails` before setting the fee.
 
 ### [ ] T11.13 Booking fee in the UI, PayMongo and emails
 - **Depends:** T11.12, T11.4
@@ -1663,7 +1673,8 @@ Out of scope for M11: multiple venues, the billing ledger, invoices and statemen
   - The PayMongo checkout lists the fee as its own line item.
   - Booking emails show the split.
   - Admin booking details and the CSV export show the fee apart from the court price (a `booking_fee_php` column).
-  - Then set the fee to ₱10 on the linked project (T11.12 rollout).
+  - T11.12's follow-ups: `amount_due set not null` (a migration, then `db:types`), and the email "Total" from the split.
+  - Then, once the frontend and `send-emails` are deployed (`create-paymongo-checkout` already charges `amount_due` since T11.12), set the fee to ₱10 on the linked project (T11.12 rollout).
 - **Acceptance:** Vitest and component tests for the totals; the booking e2e (manual proof and PayMongo stub) checks the amounts; `smoke:paymongo` passes; the email shows the fee in Mailpit.
 
 ### [ ] T11.14 Dashboard: revenue, owner earnings and Plotline fees
@@ -1752,8 +1763,58 @@ Out of scope for M11: multiple venues, the billing ledger, invoices and statemen
   - Facts come from data already loaded (`useCourts`, `venue_settings.slot_minutes`); each is hidden while loading or on error, and the courts fact when there are none.
 - **Acceptance:** component tests (address with and without a link, no address, the facts, one court vs several); the `venue-info` e2e updated (address and link in the hero, no Location card on `/`); no sideways scroll at 360px; axe clean in light and dark; screenshots regenerated in the close-out.
 
-### [ ] T11.25 Close out M11
-- **Depends:** T11.2–T11.24
+### [ ] T11.25 Payment QR: full width, iPhone hint on tap
+- **Depends:** T11.11
+- **Do (the user's calls, 2026-10-29; SPEC §10):**
+  - `PaymentAccountList`: the QR tile fills the card's width (`.qr-open` and its image at 100%, still square with `object-fit: contain` on white); it still opens full size on tap.
+  - The iPhone paragraph moves behind an **ⓘ toggletip** next to "Download QR": a 44 px button labelled "How to save to Photos on iPhone" with `aria-expanded`, opening a short bubble below it on tap or click (no hover: phones have none). Escape, the button again or a tap outside closes it, and focus stays on the button. The text is unchanged.
+- **Acceptance:** component tests (the hint hidden at first, opens and closes by click and Escape, `aria-expanded`); `payment-accounts.spec.ts` updated (the QR's width fills the card, the hint opens on tap); no sideways scroll at 360px; axe clean in light and dark.
+
+### [ ] T11.26 Email through Resend
+- **Depends:** T8.3
+- **Do (the user's calls, 2026-10-29; replaces the 2026-10-19 "Emails without a provider" decision):**
+  - **The user, by hand** (the plan lists the exact values): add `mail.plotline.fit` to Resend and its DNS records (SPF, DKIM, the MX for bounces) to the Cloudflare zone; create a sending-only API key; set Supabase Auth's custom SMTP (`smtp.resend.com`, port 465, user `resend`, the key as password, sender `no-reply@mail.plotline.fit`).
+  - Hosted function secrets: `EMAIL_TRANSPORT=resend`, `RESEND_API_KEY`, `EMAIL_FROM` with the From name taken from `venue_settings.venue_name` (`<venue name> <bookings@mail.plotline.fit>`; the From is built per email in `_shared/email.ts`, so it carries over to many venues). No key in the repo; `.env.example` documents the names.
+  - Check Resend's current free-plan limits on signup and note them in the Handoff.
+  - Remove the "confirmation emails aren't sent yet" note from `/signup`, and update PLATFORM.md §2 (`mail` is in use) and SPEC §8.
+  - Emails already queued while it was `disabled` are `skipped` and stay that way (no backfill).
+- **Acceptance:** unit tests for the From built from the venue name (`email.test.ts`); after the switch, one real email of each kind (booking created with the guest link, payment confirmed, proof rejected, cancelled, rescheduled) and an Auth sign-up confirmation reach a real inbox from production, recorded in the Notes; `smoke:prod` passes. Auth and secret changes stop at the plan gate.
+
+### [ ] T11.27 Migration: "Paid with" a payment account
+- **Depends:** T11.10
+- **Do (the user's calls, 2026-10-29):**
+  - `payments.payment_account_id uuid references venue_payment_accounts on delete set null` and `payments.paid_with text` (a copy of the account's label at submit time, ≤ 40), plus a new `payment_method` value `account` (its own migration, before the rest, as in T10.9).
+  - The proof RPC behind `submit-payment-proof` takes an account id: it must be one of the venue's accounts, and then the method is `account` and the label is copied. With no account id it keeps today's `method` (expand: the deployed frontend still sends `method`). A venue with no accounts uses today's list.
+  - `get_earnings` and the admin reads group account payments by `paid_with`; `get_guest_booking` returns it.
+  - Redeploy `submit-payment-proof` after `db:push`. Removing the old `method` path waits for a contract step once T11.28 is live.
+- **Acceptance:** pgTAP: the account id must belong to the venue, the label snapshot survives a rename and a delete (`payment_account_id` becomes null), the old `method` path still works, earnings group by label, RLS unchanged for anon, player and admin. `db:push` and `db:types` have been run.
+
+### [ ] T11.28 "Paid with" in the UI
+- **Depends:** T11.27
+- **Do:**
+  - `ProofForm`: "Paid with" lists the venue's payment accounts (`usePaymentAccounts`, admin order) and sends the account id; with no accounts, today's GCash / Maya / Bank transfer list. Loading and error states as `PaymentAccountList`.
+  - Admin `ReviewPanel`, the Earnings "Collected by method" list and the CSV show `paid_with` for account payments (`METHOD_LABELS` for the rest).
+- **Acceptance:** component tests (accounts listed in order, the fallback with none, the id sent, the label in review and earnings); the proof e2e picks an `E2E` account and the admin sees its label; axe clean; 360px.
+
+### [ ] T11.29 Migration: fresh guest links for the re-upload email
+- **Depends:** T5.5, T8.2
+- **Do (the user's calls, 2026-10-29; reverses part of SPEC §5):**
+  - `guest_link_tokens` (booking_id, token_hash sha256, created_at), RLS on with no client policies. The original `bookings.guest_token_hash` stays valid.
+  - `issue_guest_link(booking_id)`, service role only, security definer: for a guest booking still in its 30-day window, it makes a 256-bit random token, stores its hash and returns the token once.
+  - One `private` helper checks a token against the booking's hash **or** any `guest_link_tokens` hash. `get_guest_booking`, guest `cancel_booking`, the proof RPCs behind `submit-payment-proof` and the PayMongo checkout's lookup all use it. Expiry is unchanged.
+  - Deleting a booking deletes its tokens.
+- **Acceptance:** pgTAP: only the service role can call `issue_guest_link`; an issued token opens, cancels and uploads like the original; both stay valid; a wrong token and an expired booking get the same not-found response; no raw token is stored; no client can read `guest_link_tokens`. `db:push` and `db:types` have been run.
+
+### [ ] T11.30 Re-upload link in the email and the booking page
+- **Depends:** T11.29 (reaches production guests once T11.26 is live)
+- **Do:**
+  - `send-emails`: for a **guest's non-final `proof_rejected`** only (not the final rejection, not other kinds), call `issue_guest_link` right before sending and pass the token to `renderEmail`, in memory only (never in the outbox row, logs or errors). A retry issues a new token, which is fine. The template's link reads "Upload a new proof" and points to `/booking/:ref#token=…`.
+  - `/booking/:ref`: opened on a booking waiting for a new proof, the page scrolls the proof form into view and puts focus on its heading.
+  - SPEC §5 and §8: the guest-link rule names this exception.
+- **Acceptance:** `emailTemplates` tests (the link only in that email, only for guests; signed-in players keep their plain link); the reject → re-upload e2e follows the link from the Mailpit email, uploads a new proof without the original link, and the admin approves it; axe clean; 360px.
+
+### [ ] T11.31 Close out M11
+- **Depends:** T11.2–T11.30
 - **Do:**
   - Update the README (the new look, features and screenshots) and `docs/demo-script.md`.
   - Update `docs/SAAS-PLAN.md` with what M11 built (the fee, the walk-in flag, themes).
