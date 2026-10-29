@@ -11,7 +11,7 @@ test('an admin finds a booking by its reference, then by its email', async ({ pa
   await pickFirstFreeSlot(guestPage, { date: venueDate(13), sport: 'badminton', court: 'Badminton 4' })
   await guestPage.getByLabel('Name').fill(`${E2E_PREFIX} Searcher`)
   await guestPage.getByLabel('Email').fill(email)
-  await guestPage.getByLabel('Phone').fill('0917 000 2468')
+  await guestPage.getByLabel('Mobile number (optional)').fill('0917 000 2468')
   await guestPage.getByRole('button', { name: 'Confirm booking' }).click()
   await expect(guestPage.getByRole('heading', { name: 'Booking reserved' })).toBeVisible()
   const reference = new URL(guestPage.url()).pathname.split('/').pop()!

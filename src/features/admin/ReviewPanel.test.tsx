@@ -14,7 +14,7 @@ const booking: AdminBooking = {
   id: 'b1', reference_code: 'CB-7KQ2XD', court_id: 'c1', court_name: 'Badminton 1', sport: 'badminton',
   slot_start: '2030-01-07T09:00:00.000Z', slot_end: '2030-01-07T11:00:00.000Z',
   status: 'payment_submitted', source: 'online', total_amount: 900, booking_fee: 0, amount_due: 900, expires_at: null, rejection_count: 0,
-  guest_name: 'Gina Guest', guest_email: 'gina@example.com', guest_phone: '0917 222 2222',
+  guest_name: 'Gina Guest', guest_email: 'gina@example.com', guest_phone: '09172222222',
   created_at: '2030-01-07T02:00:00.000Z', payments: [pendingProof],
   cancelled_at: null, cancel_reason: null, cancelled_by_venue: false, parent_booking_id: null,
 }
@@ -36,6 +36,16 @@ describe('ReviewPanel', () => {
     expect(screen.getByText(/GCash · ₱900 · Ref 1234/)).toBeInTheDocument()
     expect(screen.getByRole('img', { name: 'Proof of payment' })).toHaveAttribute('src', 'https://signed/proof')
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
+  it('shows the booking phone as a tel: link', () => {
+    renderPanel()
+    expect(screen.getByRole('link', { name: '09172222222' })).toHaveAttribute('href', 'tel:09172222222')
+  })
+
+  it('shows no phone row when the booking has no phone', () => {
+    renderPanel({ guest_phone: null })
+    expect(screen.queryByText('Phone')).not.toBeInTheDocument()
   })
 
   it('previews PDFs with a fallback link', () => {

@@ -7,7 +7,7 @@ async function bookAsGuest(page: Page, { date, court }: { date: string; court: s
   const slot = await pickFirstFreeSlot(page, { date, sport: 'badminton', court })
   await page.getByLabel('Name').fill(`${E2E_PREFIX} Canceller`)
   await page.getByLabel('Email').fill(`e2e-cancel-${Date.now()}@example.com`)
-  await page.getByLabel('Phone').fill('0917 000 5678')
+  await page.getByLabel('Mobile number (optional)').fill('0917 000 5678')
   await page.getByRole('button', { name: 'Confirm booking' }).click()
   await expect(page.getByRole('heading', { name: 'Booking reserved' })).toBeVisible()
   const url = page.url()

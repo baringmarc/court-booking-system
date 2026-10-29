@@ -53,7 +53,7 @@ test.describe.serial('guest booking and admin review', () => {
     await page.getByLabel('Name').fill(`${E2E_PREFIX} Guest`)
     const guestEmail = `e2e-guest-${Date.now()}@example.com`
     await page.getByLabel('Email').fill(guestEmail)
-    await page.getByLabel('Phone').fill('0917 000 1234')
+    await page.getByLabel('Mobile number (optional)').fill('+63 917 123 4567')
     await page.getByRole('button', { name: 'Confirm booking' }).click()
 
     await expect(page.getByRole('heading', { name: 'Booking reserved' })).toBeVisible()
@@ -66,6 +66,10 @@ test.describe.serial('guest booking and admin review', () => {
 
     bookingUrl = page.url()
     reference = new URL(bookingUrl).pathname.split('/').pop()!
+
+    // The phone is stored normalized (T11.18).
+    const { data: phoneRow } = await serviceClient().from('bookings').select('guest_phone').eq('reference_code', reference).single().throwOnError()
+    expect(phoneRow.guest_phone).toBe('09171234567')
 
     // The booking snapshots the fee, and the booking page shows the split and asks for the amount due.
     const { data: stored } = await serviceClient().from('bookings').select('total_amount, booking_fee, amount_due')
@@ -125,6 +129,7 @@ test.describe.serial('guest booking and admin review', () => {
     await expect(fact(panel, 'Booking fee')).toContainText(peso(FEE))
     await expect(fact(panel, 'Total')).toContainText(peso(courtPrice + FEE))
     await expect(panel.getByText(/but the total is/)).toHaveCount(0)
+    await expect(panel.getByRole('link', { name: '09171234567' })).toHaveAttribute('href', 'tel:09171234567')
     await adminPage.getByRole('button', { name: 'Approve and confirm' }).click()
     await expect(adminPage.getByRole('status').filter({ hasText: `${reference} is confirmed` })).toBeVisible()
 
@@ -133,5 +138,16 @@ test.describe.serial('guest booking and admin review', () => {
     await expect(page.getByText('Accepted', { exact: true })).toBeVisible()
     await expect(page.getByText('Not accepted', { exact: true })).toBeVisible()
     await adminContext.close()
+  })
+
+  test('a guest can book without a mobile number', async ({ page }) => {
+    await pickFirstFreeSlot(page, { date: venueDate(9), sport: 'pickleball', court: 'Pickleball 1' })
+    await page.getByLabel('Name').fill(`${E2E_PREFIX} No Phone`)
+    await page.getByLabel('Email').fill(`e2e-nophone-${Date.now()}@example.com`)
+    await page.getByRole('button', { name: 'Confirm booking' }).click()
+    await expect(page.getByRole('heading', { name: 'Booking reserved' })).toBeVisible()
+    const ref = new URL(page.url()).pathname.split('/').pop()!
+    const { data } = await serviceClient().from('bookings').select('guest_phone').eq('reference_code', ref).single().throwOnError()
+    expect(data.guest_phone).toBeNull()
   })
 })

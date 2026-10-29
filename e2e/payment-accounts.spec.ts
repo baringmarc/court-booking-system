@@ -41,7 +41,7 @@ test('an admin adds a payment account with a QR code, and a guest sees it while 
   await pickFirstFreeSlot(pay, { date: venueDate(9), sport: 'pickleball', court: 'Pickleball 2' })
   await pay.getByLabel('Name').fill(`${E2E_PREFIX} QR Guest`)
   await pay.getByLabel('Email').fill(`e2e-qr-${Date.now()}@example.com`)
-  await pay.getByLabel('Phone').fill('0917 000 2222')
+  await pay.getByLabel('Mobile number (optional)').fill('0917 000 2222')
   await pay.getByRole('button', { name: 'Confirm booking' }).click()
   const section = pay.getByRole('region', { name: /Pay within/ })
   const account = section.getByRole('article', { name: LABEL })

@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import { normalizePhMobile } from '../../lib/phone'
 import { validateContact, type Contact, type ContactErrors } from './contact'
 
 type Props = {
@@ -18,7 +19,8 @@ export function CheckoutForm({ initial, isGuest, pending, onSubmit }: Props) {
     const next = validateContact(contact, { isGuest })
     setErrors(next)
     if (Object.keys(next).length === 0) {
-      onSubmit({ name: contact.name.trim(), email: contact.email.trim(), phone: contact.phone.trim() })
+      // validateContact refused 'invalid', so this is the stored 09… form or blank.
+      onSubmit({ name: contact.name.trim(), email: contact.email.trim(), phone: normalizePhMobile(contact.phone) ?? '' })
     }
   }
 
@@ -51,9 +53,12 @@ export function CheckoutForm({ initial, isGuest, pending, onSubmit }: Props) {
         {error('email')}
       </div>
       <div className="field">
-        <label htmlFor="checkout-phone">Phone{isGuest ? '' : ' (optional)'}</label>
-        <input type="tel" autoComplete="tel" inputMode="tel" {...field('phone')} />
-        {!isGuest && <p className="muted small">Leave blank to use the phone number on your profile.</p>}
+        <label htmlFor="checkout-phone">Mobile number (optional)</label>
+        <input type="tel" autoComplete="tel" inputMode="tel" {...field('phone')}
+          aria-describedby={['checkout-phone-hint', errors.phone && 'checkout-phone-error'].filter(Boolean).join(' ')} />
+        <p id="checkout-phone-hint" className="muted small">
+          The venue uses it only to reach you about your booking.{!isGuest && ' Leave blank to use the number on your profile.'}
+        </p>
         {error('phone')}
       </div>
       <button type="submit" className="btn btn-block" disabled={pending}>

@@ -65,7 +65,7 @@ async function bookAsGuest(page: Page, court: string) {
   expect(courtPrice).toBeGreaterThan(0)
   await page.getByLabel('Name').fill(`${E2E_PREFIX} Online Payer`)
   await page.getByLabel('Email').fill(`e2e-paymongo-${Date.now()}@example.com`)
-  await page.getByLabel('Phone').fill('0917 000 4321')
+  await page.getByLabel('Mobile number (optional)').fill('0917 000 4321')
   await page.getByRole('button', { name: 'Confirm booking' }).click()
   await expect(page.getByRole('heading', { name: 'Booking reserved' })).toBeVisible()
   const url = new URL(page.url())

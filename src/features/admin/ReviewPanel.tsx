@@ -57,7 +57,7 @@ export function ReviewPanel({ booking, timeZone, currency, proof, pending, error
         {booking.booking_fee > 0 && <div><dt>Booking fee</dt><dd>{formatMoney(booking.booking_fee, currency)}</dd></div>}
         <div><dt>Total</dt><dd>{formatMoney(booking.amount_due, currency)}</dd></div>
         <div><dt>Customer</dt><dd>{booking.guest_name}</dd></div>
-        {booking.guest_phone && <div><dt>Phone</dt><dd>{booking.guest_phone}</dd></div>}
+        {booking.guest_phone && <div><dt>Phone</dt><dd><a href={`tel:${booking.guest_phone}`}>{booking.guest_phone}</a></dd></div>}
         {booking.guest_email && <div><dt>Email</dt><dd>{booking.guest_email}</dd></div>}
         {booking.rejection_count > 0 && <div><dt>Rejections</dt><dd>{booking.rejection_count}</dd></div>}
       </dl>

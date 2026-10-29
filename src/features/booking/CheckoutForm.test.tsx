@@ -21,9 +21,38 @@ describe('CheckoutForm', () => {
     render(<CheckoutForm initial={empty} isGuest pending={false} onSubmit={onSubmit} />)
     await userEvent.type(screen.getByLabelText('Name'), '  Gina Guest ')
     await userEvent.type(screen.getByLabelText('Email'), 'gina@example.com')
-    await userEvent.type(screen.getByLabelText('Phone'), '0917 222 2222')
+    await userEvent.type(screen.getByLabelText('Mobile number (optional)'), '+63 917 222 2222')
     await userEvent.click(screen.getByRole('button', { name: 'Confirm booking' }))
-    expect(onSubmit).toHaveBeenCalledWith({ name: 'Gina Guest', email: 'gina@example.com', phone: '0917 222 2222' })
+    expect(onSubmit).toHaveBeenCalledWith({ name: 'Gina Guest', email: 'gina@example.com', phone: '09172222222' })
+  })
+
+  it('lets a guest book without a phone number and submits an empty phone', async () => {
+    const onSubmit = vi.fn()
+    render(<CheckoutForm initial={empty} isGuest pending={false} onSubmit={onSubmit} />)
+    await userEvent.type(screen.getByLabelText('Name'), 'Gina Guest')
+    await userEvent.type(screen.getByLabelText('Email'), 'gina@example.com')
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm booking' }))
+    expect(onSubmit).toHaveBeenCalledWith({ name: 'Gina Guest', email: 'gina@example.com', phone: '' })
+  })
+
+  it('labels the phone field as optional with a privacy hint, for guests and players', () => {
+    const { unmount } = render(<CheckoutForm initial={empty} isGuest pending={false} onSubmit={vi.fn()} />)
+    expect(screen.getByLabelText('Mobile number (optional)')).toBeInTheDocument()
+    expect(screen.getByText(/The venue uses it only to reach you about your booking\./)).toBeInTheDocument()
+    unmount()
+    render(<CheckoutForm initial={empty} isGuest={false} pending={false} onSubmit={vi.fn()} />)
+    expect(screen.getByLabelText('Mobile number (optional)')).toBeInTheDocument()
+    expect(screen.getByText(/The venue uses it only to reach you about your booking\./)).toBeInTheDocument()
+  })
+
+  it('shows PHONE_ERROR for an invalid number and does not submit', async () => {
+    const onSubmit = vi.fn()
+    render(<CheckoutForm initial={{ name: 'Pat', email: 'p@example.com', phone: '' }} isGuest pending={false} onSubmit={onSubmit} />)
+    await userEvent.type(screen.getByLabelText('Mobile number (optional)'), '028123456')
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm booking' }))
+    expect(onSubmit).not.toHaveBeenCalled()
+    expect(screen.getByLabelText('Mobile number (optional)')).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByText('Enter an 11-digit mobile number, like 09171234567.')).toBeInTheDocument()
   })
 
   it('prefills a logged-in player and keeps their account email read-only', async () => {
