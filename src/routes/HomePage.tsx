@@ -27,7 +27,9 @@ export function HomePage() {
         </div>
         <h1>Book a court at {venueName}</h1>
         <p className="lead">
-          Pick a court and a time, then pay with GCash, Maya or a bank transfer.
+          {settings.data?.online_payments_enabled
+            ? 'Pick a court and a time, then pay online with a card, GCash or Maya, or by bank transfer.'
+            : 'Pick a court and a time, then pay with GCash, Maya or a bank transfer.'}
         </p>
         {hours.data && (
           <ul className="hours-summary">

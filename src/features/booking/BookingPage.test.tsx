@@ -29,7 +29,7 @@ vi.mock('./paymongoReturn', async (importOriginal) => ({ ...(await importOrigina
 const REF = 'CB-7KQ2XD'
 const TOKEN = 'secret-token'
 const settings = {
-  timezone: 'Asia/Manila', currency: 'PHP', payment_instructions: '**GCash**: 0917 000 0000', cancel_cutoff_hours: 1, address: '123 Rizal Ave, Makati', maps_url: 'https://maps.app.goo.gl/AbC123',
+  timezone: 'Asia/Manila', currency: 'PHP', payment_instructions: '**GCash**: 0917 000 0000', cancel_cutoff_hours: 1, address: '123 Rizal Ave, Makati', maps_url: 'https://maps.app.goo.gl/AbC123', online_payments_enabled: true,
 } as VenueSettings
 
 const paymongoPayment = (review_status: PaymentAttempt['review_status']): PaymentAttempt => ({
@@ -222,5 +222,29 @@ describe('BookingPage: where to play', () => {
     const accounts = await within(pay).findByRole('list', { name: 'Payment accounts' })
     expect(within(accounts).getByText('0917 000 0000')).toBeInTheDocument()
     expect(accounts.nextElementSibling).toHaveClass('instructions')
+  })
+})
+
+// T11.23: Plotline's online payments switch (venue_settings.online_payments_enabled).
+describe('BookingPage: online payments switch', () => {
+  it('on: shows the Pay online and Or pay manually headings and the PayMongo button', async () => {
+    renderPage(`/booking/${REF}#token=${TOKEN}`)
+    expect(await screen.findByRole('button', { name: 'Pay online with PayMongo' })).toBeEnabled()
+    expect(screen.getByRole('heading', { name: 'Pay online' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Or pay manually' })).toBeInTheDocument()
+  })
+
+  it('off: no PayMongo button and no Pay online heading, but the manual instructions, accounts and proof upload stay', async () => {
+    vi.mocked(fetchVenueSettings).mockResolvedValue({ ...settings, online_payments_enabled: false })
+    vi.mocked(fetchPaymentAccounts).mockResolvedValue([
+      { id: 'a1', label: 'GCash', account_name: 'Claudex Courts', account_number: '0917 111 2222', qr_path: null, position: 0 },
+    ])
+    renderPage(`/booking/${REF}#token=${TOKEN}`)
+    expect(await screen.findByText('GCash', { selector: 'strong' })).toBeInTheDocument()
+    expect(payButton()).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Pay online' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Or pay manually' })).not.toBeInTheDocument()
+    expect(await screen.findByText('0917 111 2222')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Submit proof of payment' })).toBeInTheDocument()
   })
 })

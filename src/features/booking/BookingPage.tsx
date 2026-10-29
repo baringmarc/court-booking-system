@@ -89,8 +89,9 @@ export function BookingPage() {
             paymentNotice={<PaymongoReturnNotice state={returnState} />}
             // Not while we wait for PayMongo's confirmation (no second payment), and not for staff viewing someone
             // else's booking without its link (create-paymongo-checkout only authorizes the owner or the guest token).
-            // An admin's own booking is theirs to pay.
-            payOnline={returnState === 'confirming' || (isAdmin && token === null && booking.data.user_id !== user?.id)
+            // An admin's own booking is theirs to pay. Only when Plotline has turned online payments on (T11.22).
+            payOnline={!settings.data.online_payments_enabled || returnState === 'confirming'
+              || (isAdmin && token === null && booking.data.user_id !== user?.id)
               ? undefined
               : <PayOnlineButton reference={booking.data.reference_code} token={token} />}
             paymentAccounts={<PaymentAccountList />}
