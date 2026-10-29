@@ -1,6 +1,6 @@
 ---
 name: implement
-description: Implement the next task from TASKS.md (or a given task, or the whole current milestone) end to end. Orient, research, plan (pausing for approval on risky DB/security work), build, verify, get a reviewer verdict, then tick the task and update the handoff.
+description: Implement the next task from TASKS.md (or a given task, or the whole current milestone) end to end. Orient, research, plan (pausing for approval on risky DB/security work), write the failing tests first (test-writer), build, verify, get a reviewer verdict, then tick the task and update the handoff. In milestone mode, finish with /retro.
 argument-hint: "[T3.4 | milestone]"
 disable-model-invocation: true
 ---
@@ -14,6 +14,8 @@ Arguments: `$ARGUMENTS`
 - `milestone`: do the next task, then keep going task by task until the current milestone is done or a stop condition below is hit
 
 Follow these steps in order for each task. Don't skip any of them.
+
+Before you start, read the **Learned rules** section of CLAUDE.md: they come from mistakes made in earlier milestones.
 
 ## 1. Orient
 
@@ -52,35 +54,60 @@ For a risky task, pause and show the user a short plan:
 
 Then ask for approval with AskUserQuestion and wait for the answer. Approving the plan also approves running `db:push` for that migration.
 
-For a task that isn't risky, state your plan in two or three lines and continue.
+For a task that isn't risky, state your plan in two or three lines, naming what the tests will need (functions, components, files), and continue.
 
-## 4. Build
+## 4. Tests first (test-writer)
+
+- Launch the `test-writer` agent in the foreground. Give it **only**:
+  - the task ID
+  - the approved plan's names and signatures: tables and columns, RPCs with their arguments and error messages, components, routes, file paths
+- Don't send it code or describe how you'll implement anything beyond those names. It works from the task and SPEC, which is the point.
+- Read its report. Use the names it lists. Its tests are now **locked for this task**: the guard won't let you edit them.
+- Skip this step only when the task has no behavior to test (pure copy, styling or docs). Say so in the plan.
+
+## 5. Build
 
 - Follow every rule in CLAUDE.md. Write the code the task needs and nothing from later tasks.
-- Logic modules: write Vitest tests next to the module (`*.test.ts`) covering the edge cases named in the acceptance criteria.
-- Components: add Testing Library tests where behavior matters (selection, validation, state handling). Mock the `features/<area>/api.ts` functions, never the network.
+- Make the test-writer's tests pass. You may **add** tests for edge cases you find while building (those are yours to edit), following the same conventions: Vitest next to the module, Testing Library mocking `features/<area>/api.ts`, pgTAP in `supabase/tests/database/`.
+- **If a locked test looks wrong** (it contradicts SPEC or the task, not merely your approach): don't work around it. Add a line under the task in TASKS.md:
+  `Test dispute: <file> "<test name>": <what it asserts> vs <what SPEC §x / the criterion says>`
+  Carry on with the rest. The reviewer rules on it in step 7; if it agrees, re-launch the `test-writer` in dispute mode with that line, and it fixes the test.
 - Database changes:
-  1. Create a new migration with `npx supabase migration new <name>`. Never edit a migration that already exists in `HEAD`.
-  2. Run `npm run db:push`, then `npm run db:types`.
-  3. Write pgTAP tests in `supabase/tests/database/NN_<area>.test.sql`, one per acceptance criterion or rule, following the existing files: a transaction, `plan(n)`, acting as anon, player and admin, then `rollback`. Run them with `npm run test:db`, which applies the migration to the local database first. Get the tests green locally before running `db:push` against the linked project.
-- If behavior changed, update SPEC.md.
+  1. Create a new migration with `npx supabase migration new <name>`. Never edit a migration that already exists in `HEAD` (the guard blocks it).
+  2. Run `npm run test:db`, which applies the migration to the local database first, until the pgTAP tests are green locally.
+  3. Only then run `npm run db:push` against the linked project, then `npm run db:types`.
+- If behavior changed, update SPEC.md. If a business fact changed (pricing, fees, plans), update `docs/facts.json` first; that's a decision, so it needs the user.
 
-## 5. Verify
+## 6. Verify
 
-- Run `npm run verify` and fix any failures until it passes.
-- If the task changes a user journey (pages, forms, flows), add or extend a spec in `e2e/` and run `npm run test:e2e` against the full local stack (`npx supabase start`). The Stop hook also runs it whenever UI-facing files changed, and blocks while it fails or the stack is down. Always run it before closing a milestone.
-- Never weaken, skip or delete tests or lint rules to get it passing. The Stop hook re-runs verify anyway.
+- Run `node .claude/hooks/verify-gate.mjs --full` and fix failures until it passes. It runs the full checks (`npm run verify`, including the drift check) and then `npm run test:e2e` if UI-facing files changed. The full local stack must be up for e2e (`npx supabase start`).
+- It records which changes passed. **The guard refuses `git commit` until a full run passed on exactly the current changes**, so re-run it after any later code edit.
+- If the task changes a user journey (pages, forms, flows), the test-writer's e2e spec covers it; extend `e2e/` if you changed more.
+- Test runs that share the local stack go through a lock (`scripts/with-lock.mjs`), so a second run waits for the first instead of colliding. You no longer need to check `pgrep` first.
+- Never weaken, skip or delete tests or lint rules to get it passing. The guard blocks most of it, and the reviewer checks the rest.
 
-## 6. Review
+## 7. Review
 
-- Launch the `reviewer` agent in the foreground, because you need its verdict before continuing. Give it:
+- Launch the `reviewer` agent in the foreground, because you need its verdict before continuing. Give it **only**:
   - the task ID
   - the list of files this task created or changed, and the files that were already dirty before you started (from step 1), so it can tell them apart
-  - the pgTAP test files that prove the DB acceptance criteria
-- On **BLOCK**: fix every blocker, re-run verify, then review again. After 3 review rounds that still end in BLOCK, stop and report.
+  - the test files that prove the acceptance criteria (the test-writer's and yours)
+  - any `Test dispute:` lines, for it to rule on
+- **Don't** summarize what you built, explain your reasoning, or say it's correct. The reviewer judges the code against SPEC with fresh eyes; your account of it would only bias that.
+- After every verdict, log each **blocker** and **major** finding, one call each, using the category the reviewer gave it:
+  `node .claude/hooks/log-event.mjs reviewer '{"severity":"blocker","category":"rls","file":"<file:line>","summary":"<one line>","round":1}'`
+- On **BLOCK**: fix every blocker, re-run step 6, then review again (round 2, 3).
 - On **PASS**: fix majors that are cheap to fix now. Put the rest in a `Follow-ups` line under the task.
+- **Still BLOCK after 3 rounds: escalate.** Don't commit. Write this under **Blockers / notes** in the Handoff section, then stop and report it:
+  ```
+  - **Escalation <task id> (<date>):**
+    - Still failing: <each unresolved blocker, file:line, in the reviewer's words>
+    - Tried: round 1 <what you changed>; round 2 <…>; round 3 <…>
+    - Blocked on: <the one decision or fact you need from the user, e.g. "SPEC §5 says X but the schema forces Y: which wins?">
+  ```
+  And log it: `node .claude/hooks/log-event.mjs escalation '{"summary":"<blocked on…>"}'`
 
-## 7. Close
+## 8. Close
 
 - Tick the task `[x]` and add a short `Notes:` line under it with the key evidence (test files) and any follow-ups.
 - Update the Handoff section:
@@ -88,32 +115,35 @@ For a task that isn't risky, state your plan in two or three lines and continue.
   - **State** (one line)
   - **Blockers / notes**: anything the next session needs to know
 - If this was the last task of the milestone, mark the milestone ✅ in SPEC §9. Breaking down the next milestone is its own step and needs approval (see step 1).
-- **Commit, never push** (authorized by the user on 2026-10-18). Once `npm run verify` passes and the reviewer has signed off:
+- **Commit, never push** (authorized by the user on 2026-10-18). Once the full verify (step 6) passes and the reviewer has signed off:
   - Check `git status` and stage only the files this run created or changed, including its TASKS/SPEC/RESEARCH updates. Leave unrelated dirty files out.
   - Never stage `.env`, `supabase/functions/.env` or other secrets.
   - Commit on the current branch (never `master`) with a message like `feat(booking): T3.5 create_booking RPC` plus the attribution line.
   - Don't push, amend or rewrite history.
   - If verify fails or the reviewer still says BLOCK, don't commit; report instead.
 
-## 8. Report
+## 9. Report
 
 Send a short message:
 
 - task ID and title, with the result
 - what changed: files grouped by area
-- how it was proven: Vitest and pgTAP tests added, and the `npm run verify` result
+- how it was proven: the test-writer's tests and any you added, and the full verify result
+- any test disputes and how they were settled
 - the reviewer verdict, plus any follow-ups left
 - the commit hash and message (or why nothing was committed)
 - what's next
 
 ## Milestone mode
 
-After step 8, continue with the next task. Stop when any of these happens:
+After step 9, continue with the next task. Stop when any of these happens:
 
 - a risky task reaches its plan gate (wait for approval)
-- the reviewer still says BLOCK after 3 rounds
+- the reviewer still says BLOCK after 3 rounds (escalate, step 7)
 - verify can't be made to pass
 - research changes the plan in a way that needs a decision from the user
 - the milestone is complete
 
 Whenever you stop, the Handoff section must say exactly where things stand.
+
+**When the milestone is complete** (its close-out task is committed), run the retro before you stop: follow `.claude/skills/retro/SKILL.md` for that milestone. It proposes lessons and waits for the user's approval, so this is where milestone mode ends.

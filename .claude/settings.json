@@ -1,13 +1,25 @@
 {
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard.mjs\"",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "hooks": [
           {
             "type": "command",
             "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/verify-gate.mjs\"",
-            "timeout": 480,
-            "statusMessage": "Running checks (verify, and e2e if UI changed)…"
+            "timeout": 300,
+            "statusMessage": "Running fast checks (typecheck, lint, unit tests)…"
           }
         ]
       }
