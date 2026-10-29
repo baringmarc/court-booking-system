@@ -123,7 +123,7 @@ export function BookingSummary({ booking, paymentInstructions, timeZone, currenc
       {booking.waiver_text && (
         <section className="card stack" aria-labelledby="waiver-heading">
           <h2 id="waiver-heading">Waiver you accepted</h2>
-          <p className="prewrap">{booking.waiver_text}</p>
+          <p className="pre-line">{booking.waiver_text}</p>
         </section>
       )}
     </div>

@@ -254,8 +254,6 @@ img, svg { display: block; }
 /* Utilities */
 .small { font-size: 0.875rem; }
 .block { display: block; }
-/* Admin-typed text that keeps its line breaks (the waiver, T11.20). */
-.prewrap { white-space: pre-line; overflow-wrap: anywhere; }
 .page-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
 .page-head h1 { margin: 0; }
 h2 { font-size: 1.2rem; }
@@ -272,6 +270,10 @@ h3 { font-size: 1.05rem; margin: 0; }
 
 /* Home */
 .hours-summary { list-style: none; padding: 0; margin: 0 0 16px; color: var(--muted); }
+/* The hero's address and quick facts (T11.24). The address wraps in full; the facts wrap as whole items. */
+.hero .venue-address { margin: 4px 0 8px; overflow-wrap: anywhere; }
+.quick-facts { list-style: none; padding: 0; margin: 0 0 12px; display: flex; flex-wrap: wrap; gap: 4px 16px; color: var(--muted); }
+.quick-facts li { display: inline-flex; align-items: center; gap: 6px; }
 .sport-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
 .card > :last-child { margin-bottom: 0; }
 .court-tiles { list-style: none; padding: 0; margin: 12px 0 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
