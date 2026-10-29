@@ -1,4 +1,4 @@
-import { MapPin } from 'lucide-react'
+import { Clock, LayoutGrid, MapPin } from 'lucide-react'
 import { useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import { SocialIcon } from '../../components/BrandIcons'
@@ -31,24 +31,46 @@ export function AmenityList({ rows }: { rows: Amenity[] }) {
   )
 }
 
-/** The address with a pin, as a link to the venue's Google Maps page when it has one (new tab). Hidden with no
-    address: it's what players read. The social links are in the footer's "Stay connected" band (T11.4). */
-export function VenueLocation({ address, mapsUrl }: { address: string; mapsUrl: string }) {
+/** The address with a pin, as a link to the venue's Google Maps page when it has one (new tab). Nothing without an
+    address: it's what players read. Shown in the home hero (T11.24) and the booking page's Location card. */
+export function VenueAddress({ address, mapsUrl }: { address: string; mapsUrl: string }) {
   const text = address.trim()
   if (!text) return null
   const href = mapsUrl && mapsUrlProblem(mapsUrl) === null ? mapsUrl : null
   const content = <><MapPin className="amenity-icon" aria-hidden="true" /><span className="pre-line">{text}</span></>
+  return href ? (
+    <a className="venue-address" href={href} target="_blank" rel="noopener noreferrer">
+      {content}{' '}<span className="sr-only">(opens Google Maps in a new tab)</span>
+    </a>
+  ) : (
+    <p className="venue-address">{content}</p>
+  )
+}
+
+/** The Location card on /booking/:ref. The social links are in the footer's "Stay connected" band (T11.4). */
+export function VenueLocation({ address, mapsUrl }: { address: string; mapsUrl: string }) {
+  if (!address.trim()) return null
   return (
     <section className="card stack venue-block" aria-labelledby="location-title">
       <h2 id="location-title" className="card-head">Location</h2>
-      {href ? (
-        <a className="venue-address" href={href} target="_blank" rel="noopener noreferrer">
-          {content}{' '}<span className="sr-only">(opens Google Maps in a new tab)</span>
-        </a>
-      ) : (
-        <p className="venue-address">{content}</p>
-      )}
+      <VenueAddress address={address} mapsUrl={mapsUrl} />
     </section>
+  )
+}
+
+/** The hero's quick facts (T11.24): how many courts and how long a slot is, each only once known. */
+export function QuickFacts({ courtCount, slotMinutes }: { courtCount?: number; slotMinutes?: number }) {
+  const facts = [
+    courtCount ? { key: 'courts', icon: LayoutGrid, text: `${courtCount} ${courtCount === 1 ? 'court' : 'courts'}` } : null,
+    slotMinutes ? { key: 'slots', icon: Clock, text: `${slotMinutes}-min slots` } : null,
+  ].filter((f) => f !== null)
+  if (facts.length === 0) return null
+  return (
+    <ul className="quick-facts" aria-label="Quick facts">
+      {facts.map(({ key, icon: Icon, text }) => (
+        <li key={key}><Icon className="amenity-icon" aria-hidden="true" />{text}</li>
+      ))}
+    </ul>
   )
 }
 

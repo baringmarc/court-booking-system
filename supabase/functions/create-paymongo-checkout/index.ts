@@ -1,6 +1,7 @@
 // POST JSON { reference_code, token? } -> { checkout_url }. Starts (or resumes) a PayMongo test-mode checkout for a
 // booking that is waiting for payment. Guests authenticate with the private booking token; signed-in players with
 // their session. The amount always comes from the database (RESEARCH "Milestone 7", SPEC §4).
+//   0. venue_settings               -> refuse (409 online_payments_off) unless Plotline turned online payments on
 //   1. proof_target                 -> authorize and check the booking is payable (same rules as proof upload)
 //   2. paymongo_checkout_for        -> reuse the booking's stored, still usable session
 //   3. create a session at PayMongo with the test key (or a fake one with PAYMONGO_MODE=stub on the local stack)
@@ -55,6 +56,13 @@ export default {
       const referenceCode = normalizeReference(input?.reference_code)
       const token = typeof input?.token === 'string' && input.token.trim() ? input.token.trim() : null
       const admin = ctx.supabaseAdmin
+
+      // The venue's online payments switch (T11.22): Plotline turns it on once the venue's PayMongo account is ready.
+      const settings = await admin.from('venue_settings').select('online_payments_enabled').single()
+      if (settings.error) throw rpcError(settings.error)
+      if (!settings.data.online_payments_enabled) {
+        throw new ProofError('online_payments_off', "Online payment isn't offered here. Please upload a proof of payment instead.", 409)
+      }
 
       const target = await admin.rpc('proof_target', {
         p_reference_code: referenceCode,

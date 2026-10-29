@@ -110,15 +110,23 @@ test('an admin sets an amenity, an info section and a social link, and anyone ca
   const home = await player.newPage()
   await home.goto('/')
   await expect(home.getByRole('list').filter({ has: home.getByText(amenityLabel, { exact: true }) })).toBeVisible()
-  const where = home.getByRole('region', { name: 'Location' })
-  await expect(where.getByText('123 Rizal Ave, Makati City')).toBeVisible()
+  // T11.24: the address and its Maps link are in the hero, under the heading; there is no Location card on /.
+  const hero = home.locator('.hero')
+  await expect(hero.getByText('123 Rizal Ave, Makati City')).toBeVisible()
+  await expect(home.getByRole('region', { name: 'Location' })).toHaveCount(0)
   // T11.9: no embedded map; the address itself links to the pasted URL, in a new tab.
   await expect(home.locator('iframe')).toHaveCount(0)
-  const mapLink = where.getByRole('link', { name: /123 Rizal Ave, Makati City/ })
+  const mapLink = hero.getByRole('link', { name: /123 Rizal Ave, Makati City/ })
   await expect(mapLink).toHaveAttribute('href', 'https://maps.app.goo.gl/E2eAyalaTriangle')
   await expect(mapLink).toHaveAttribute('target', '_blank')
-  // Social links are in the footer's "Stay connected" band now, not the location card (T11.4).
-  await expect(where.getByRole('link', { name: /^TikTok/ })).toHaveCount(0)
+  // Quick facts: the active courts and the slot length.
+  const facts = hero.getByRole('list', { name: 'Quick facts' })
+  await expect(facts.getByText(/^\d+ courts?$/)).toBeVisible()
+  await expect(facts.getByText(/^\d+-min slots$/)).toBeVisible()
+  // No sideways scroll (the phone project runs at 360px).
+  expect(await home.evaluate<number>('document.documentElement.scrollWidth - document.documentElement.clientWidth')).toBeLessThanOrEqual(0)
+  // Social links are in the footer's "Stay connected" band now, not the hero (T11.4).
+  await expect(hero.getByRole('link', { name: /^TikTok/ })).toHaveCount(0)
   const band = home.getByRole('region', { name: 'Connect with us' })
   await expect(band.getByRole('link', { name: /^TikTok/ })).toHaveAttribute('href', 'https://www.tiktok.com/@claudexcourts')
   await expect(band.getByRole('link', { name: /^TikTok/ }).locator('svg[data-platform="tiktok"]')).toBeVisible()

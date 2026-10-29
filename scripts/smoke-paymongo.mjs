@@ -117,6 +117,26 @@ check('lapsed hold: not payable', r.status === 409 && r.body?.code === 'hold_exp
 r = await checkout(guest, { reference_code: 'not-a-ref' })
 check('malformed reference: not found', r.status === 404, `${r.status}`)
 
+// The venue's online payments switch (T11.22): with it off, a payable booking gets no session. Restored either way.
+const o = await freeSlot(guest, 6, 20)
+const { data: ob, error: oe } = await guest.rpc('create_booking', { p_court_id: o.court_id, p_start: o.slot_start, p_slots: 1, p_guest_name: 'Smoke PayMongo Switch', p_guest_email: 'smoke-paymongo@example.com' })
+if (oe) throw oe
+const setOnline = async (on) => {
+  const { error } = await service.from('venue_settings').update({ online_payments_enabled: on }).eq('id', true)
+  if (error) throw error
+}
+await setOnline(false)
+try {
+  r = await checkout(guest, { reference_code: ob[0].reference_code, token: ob[0].guest_token })
+  check('online payments off: refused', r.status === 409 && r.body?.code === 'online_payments_off', `${r.status} ${r.body?.code}`)
+  const offSession = await storedCheckout(ob[0].id)
+  check('online payments off: no session stored', !offSession, offSession?.checkout_id ?? 'none')
+} finally {
+  await setOnline(true)
+}
+r = await checkout(guest, { reference_code: ob[0].reference_code, token: ob[0].guest_token })
+check('online payments back on: starts a checkout', r.status === 200 && r.body?.checkout_url?.startsWith('https://'), `${r.status} ${r.body?.code}`)
+
 
 // --- paymongo-webhook ---------------------------------------------------------------------------------------
 // Fake checkout_session.payment.paid events, signed like PayMongo does (HMAC-SHA256 over `t.rawBody`, `te`) with the

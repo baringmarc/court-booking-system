@@ -800,6 +800,7 @@ export type Database = {
           maps_url: string
           max_rejections: number
           name: string
+          online_payments_enabled: boolean
           payment_hold_minutes: number
           payment_instructions: string
           slot_minutes: number
@@ -821,6 +822,7 @@ export type Database = {
           maps_url?: string
           max_rejections?: number
           name: string
+          online_payments_enabled?: boolean
           payment_hold_minutes?: number
           payment_instructions?: string
           slot_minutes?: number
@@ -842,6 +844,7 @@ export type Database = {
           maps_url?: string
           max_rejections?: number
           name?: string
+          online_payments_enabled?: boolean
           payment_hold_minutes?: number
           payment_instructions?: string
           slot_minutes?: number

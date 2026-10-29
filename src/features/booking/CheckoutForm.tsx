@@ -71,7 +71,7 @@ export function CheckoutForm({ initial, isGuest, pending, waiverText = '', onSub
       {hasWaiver && (
         <section className="stack" aria-labelledby="checkout-waiver-heading">
           <h3 id="checkout-waiver-heading">Waiver</h3>
-          <p className="prewrap">{waiverText}</p>
+          <p className="pre-line">{waiverText}</p>
           <label className="check">
             <input type="checkbox" checked={accepted}
               aria-invalid={waiverError ? true : undefined} aria-describedby={waiverError ? 'checkout-waiver-error' : undefined}

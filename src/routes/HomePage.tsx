@@ -8,7 +8,7 @@ import { summarizeHours } from '../features/catalog/hours'
 import { CourtTiles } from '../features/catalog/CourtTiles'
 import { HomeBanner } from '../features/catalog/HomeBanner'
 import { formatMoney } from '../lib/format'
-import { AmenityChips, InfoSections, VenueLocation } from '../features/venue/VenueInfo'
+import { AmenityChips, InfoSections, QuickFacts, VenueAddress } from '../features/venue/VenueInfo'
 
 export function HomePage() {
   const settings = useVenueSettings()
@@ -26,8 +26,13 @@ export function HomePage() {
           <span className="shape-ring" /><span className="shape-dot" /><span className="shape-leaf" />
         </div>
         <h1>Book a court at {venueName}</h1>
+        {/* T11.24: where the venue is and what it offers, right under its name (the Location card is gone from /). */}
+        {settings.data && <VenueAddress address={settings.data.address} mapsUrl={settings.data.maps_url} />}
+        <QuickFacts courtCount={courts.isSuccess ? courts.data.length : undefined} slotMinutes={settings.data?.slot_minutes} />
         <p className="lead">
-          Pick a court and a time, then pay with GCash, Maya or a bank transfer.
+          {settings.data?.online_payments_enabled
+            ? 'Pick a court and a time, then pay online with a card, GCash or Maya, or by bank transfer.'
+            : 'Pick a court and a time, then pay with GCash, Maya or a bank transfer.'}
         </p>
         {hours.data && (
           <ul className="hours-summary">
@@ -57,9 +62,6 @@ export function HomePage() {
         </div>
       )}
 
-      {settings.data && (
-        <VenueLocation address={settings.data.address} mapsUrl={settings.data.maps_url} />
-      )}
       <InfoSections />
     </section>
   )

@@ -8,6 +8,7 @@ import { AmenitiesSection } from './AmenitiesSection'
 import { BannerSection } from './BannerSection'
 import { InfoSectionsSection } from './InfoSectionsSection'
 import { LocationSection } from './LocationSection'
+import { OnlinePaymentsStatus } from './OnlinePaymentsStatus'
 import { PaymentAccountsSection } from './PaymentAccountsSection'
 import { SocialLinksSection } from './SocialLinksSection'
 import { SportOrderSection } from './SportOrderSection'
@@ -29,6 +30,7 @@ export function SettingsPage() {
         <div className="page-sections">
           <SettingsForm initial={settings.data} />
           <PaymentAccountsSection />
+          <OnlinePaymentsStatus enabled={settings.data.online_payments_enabled} />
           <ThemePicker settings={settings.data} />
           <SportOrderSection settings={settings.data} />
           <BannerSection settings={settings.data} />
