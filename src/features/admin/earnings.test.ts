@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   hourBar,
-  barShares, change, formatHours, formatShare, occupancy, parseEarnings, periodRange, previousLabel, rangeDays,
+  barShares, change, changeText, formatHours, formatShare, occupancy, parseEarnings, periodRange, previousLabel, rangeDays,
   rangeProblem, weekStart,
 } from './earnings'
 
@@ -64,6 +64,30 @@ describe('parseEarnings', () => {
     expect(e.daily).toEqual([])
     expect(e.comingUp).toEqual({ count: 0, value: 0 })
   })
+
+  it('reads the revenue split for the period and the one before (T11.14)', () => {
+    const e = parseEarnings({
+      collected: { total: 1500, count: 3, by_method: [] },
+      split: {
+        total_revenue: 1500, plotline_fees: 20, owner_earnings: 1480,
+        previous: { total_revenue: '1000.00', plotline_fees: '10.00', owner_earnings: '990.00' },
+      },
+    })
+    expect(e.split).toEqual({
+      current: { totalRevenue: 1500, ownerEarnings: 1480, plotlineFees: 20 },
+      previous: { totalRevenue: 1000, ownerEarnings: 990, plotlineFees: 10 },
+    })
+  })
+
+  it('reads a missing split, or missing parts of it, as zero (T11.14)', () => {
+    const zero = { totalRevenue: 0, ownerEarnings: 0, plotlineFees: 0 }
+    expect(parseEarnings({}).split).toEqual({ current: zero, previous: zero })
+    expect(parseEarnings({ split: null }).split).toEqual({ current: zero, previous: zero })
+    expect(parseEarnings({ split: { total_revenue: 350, plotline_fees: 10 } }).split).toEqual({
+      current: { totalRevenue: 350, ownerEarnings: 0, plotlineFees: 10 },
+      previous: zero,
+    })
+  })
 })
 
 describe('figures', () => {
@@ -95,6 +119,21 @@ describe('figures', () => {
     expect(change(800, 1000)).toEqual({ diff: -200, percent: -20 })
     expect(change(500, 0)).toEqual({ diff: 500, percent: null })
     expect(change(0, 0)).toEqual({ diff: 0, percent: null })
+  })
+
+  it('words the change from the previous period (T11.14 changeText)', () => {
+    const peso = (n: number) => `P${n}`
+    expect(changeText(1500, 1000, 'yesterday', peso)).toBe('P500 more than yesterday (+50%).')
+    // The amount is always positive; "less" says the direction.
+    expect(changeText(800, 1000, 'last week', peso)).toBe('P200 less than last week (-20%).')
+    expect(changeText(0, 10, 'yesterday', peso)).toBe('P10 less than yesterday (-100%).')
+    // Nothing before: no percentage.
+    expect(changeText(20, 0, 'the previous 31 days', peso)).toBe('P20 more than the previous 31 days.')
+    expect(changeText(0, 0, 'yesterday', peso)).toBe('The same as yesterday.')
+    expect(changeText(990, 990, 'last week', peso)).toBe('The same as last week.')
+    // Rounded like change(): 1480 vs 990 is +49.49…% → +49%; centavo noise is not a change.
+    expect(changeText(1480, 990, 'yesterday', peso)).toBe('P490 more than yesterday (+49%).')
+    expect(changeText(0.1 + 0.2, 0.3, 'yesterday', peso)).toBe('The same as yesterday.')
   })
 
   it('sizes bars against the best day', () => {

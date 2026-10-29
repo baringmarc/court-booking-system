@@ -20,7 +20,7 @@ vi.mock('./api', async (importOriginal) => ({
 const booking = (reference_code: string, guest_name: string): AdminBooking => ({
   id: reference_code, reference_code, court_id: 'c1', court_name: 'Badminton 1', sport: 'badminton',
   slot_start: '2030-01-07T10:00:00.000Z', slot_end: '2030-01-07T11:00:00.000Z', status: 'confirmed', source: 'online',
-  total_amount: 350, expires_at: null, rejection_count: 0, guest_name, guest_email: 'ana@example.com', guest_phone: null,
+  total_amount: 350, booking_fee: 0, amount_due: 350, expires_at: null, rejection_count: 0, guest_name, guest_email: 'ana@example.com', guest_phone: null,
   created_at: '2030-01-01T00:00:00.000Z', payments: [], cancelled_at: null, cancel_reason: null, cancelled_by_venue: false,
   parent_booking_id: null,
 })

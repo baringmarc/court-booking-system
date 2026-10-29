@@ -12,6 +12,7 @@ import { PaymentAccountsSection } from './PaymentAccountsSection'
 import { SocialLinksSection } from './SocialLinksSection'
 import { SportOrderSection } from './SportOrderSection'
 import { ThemePicker } from './ThemePicker'
+import { WaiverSection } from './WaiverSection'
 
 export function SettingsPage() {
   const settings = useVenueSettings()
@@ -32,6 +33,7 @@ export function SettingsPage() {
           <SportOrderSection settings={settings.data} />
           <BannerSection settings={settings.data} />
           <LocationSection settings={settings.data} />
+          <WaiverSection settings={settings.data} />
           <SocialLinksSection />
           <InfoSectionsSection />
           <AmenitiesSection />

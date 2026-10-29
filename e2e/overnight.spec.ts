@@ -58,7 +58,7 @@ test('an admin opens a day until 2 AM and a guest books an after-midnight slot',
   await expect(guest.getByRole('definition').filter({ hasText: nextDayLabel })).toBeVisible()
   await guest.getByLabel('Name').fill(`${E2E_PREFIX} Night Owl`)
   await guest.getByLabel('Email').fill(`e2e-night-${Date.now()}@example.com`)
-  await guest.getByLabel('Phone').fill('0917 000 2468')
+  await guest.getByLabel('Mobile number (optional)').fill('0917 000 2468')
   await guest.getByRole('button', { name: 'Confirm booking' }).click()
   await expect(guest.getByRole('heading', { name: 'Booking reserved' })).toBeVisible()
 

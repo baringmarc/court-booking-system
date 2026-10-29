@@ -3,6 +3,7 @@ name: implement
 description: Implement the next task from TASKS.md (or a given task, or the whole current milestone) end to end. Orient, research, plan (pausing for approval on risky DB/security work), write the failing tests first (test-writer), build, verify, get a reviewer verdict, then tick the task and update the handoff. In milestone mode, finish with /retro.
 argument-hint: "[T3.4 | milestone]"
 disable-model-invocation: true
+model: sonnet
 ---
 
 # /implement
@@ -96,7 +97,7 @@ For a task that isn't risky, state your plan in two or three lines, naming what 
 - **Don't** summarize what you built, explain your reasoning, or say it's correct. The reviewer judges the code against SPEC with fresh eyes; your account of it would only bias that.
 - After every verdict, log each **blocker** and **major** finding, one call each, using the category the reviewer gave it:
   `node .claude/hooks/log-event.mjs reviewer '{"severity":"blocker","category":"rls","file":"<file:line>","summary":"<one line>","round":1}'`
-- On **BLOCK**: fix every blocker, re-run step 6, then review again (round 2, 3).
+- On **BLOCK**: fix every blocker, re-run step 6, then review again (round 2, 3). For rounds 2 and 3, give the reviewer the task ID, the previous round's blocker lines verbatim, and only the files changed since that round. It re-checks those blockers and the new changes, not the whole task.
 - On **PASS**: fix majors that are cheap to fix now. Put the rest in a `Follow-ups` line under the task.
 - **Still BLOCK after 3 rounds: escalate.** Don't commit. Write this under **Blockers / notes** in the Handoff section, then stop and report it:
   ```

@@ -55,7 +55,7 @@ reset role;
 select results_eq(
   $$ select bk.status::text, bk.source::text, bk.created_by, bk.user_id, bk.guest_name, bk.guest_phone, bk.total_amount, bk.expires_at is null
      from public.bookings bk join w on w.id = bk.id where w.label = 'now' $$,
-  $$ values ('confirmed', 'walk_in', '22222222-2222-2222-2222-222222222222'::uuid, null::uuid, 'Walk-in Wendy', '0917 555 0000', 500.00::numeric, true) $$,
+  $$ values ('confirmed', 'walk_in', '22222222-2222-2222-2222-222222222222'::uuid, null::uuid, 'Walk-in Wendy', '09175550000', 500.00::numeric, true) $$,
   'the walk-in starts in the current slot and is confirmed, recorded by the admin'
 );
 select results_eq(

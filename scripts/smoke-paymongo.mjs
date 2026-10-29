@@ -81,9 +81,10 @@ r = await checkout(guest, { reference_code: ref.toLowerCase(), token, amount: 1 
 const firstUrl = r.body?.checkout_url
 check('guest: starts a checkout', r.status === 200 && typeof firstUrl === 'string' && firstUrl.startsWith('https://'), `${r.status} ${firstUrl}`)
 const stored = await storedCheckout(guestBookingId)
-const { data: booking } = await service.from('bookings').select('total_amount').eq('id', guestBookingId).single()
-check('amount comes from the database (stored total, in centavos)', stored?.amount_centavos === Math.round(Number(booking.total_amount) * 100),
-  `${stored?.amount_centavos} vs total ${booking.total_amount}`)
+// The amount due is the court price plus the booking fee (T11.12).
+const { data: booking } = await service.from('bookings').select('amount_due').eq('id', guestBookingId).single()
+check('amount comes from the database (amount due, in centavos)', stored?.amount_centavos === Math.round(Number(booking.amount_due) * 100),
+  `${stored?.amount_centavos} vs amount due ${booking.amount_due}`)
 check('the stored session is the one returned', stored?.checkout_url === firstUrl, stored?.checkout_id)
 
 r = await checkout(guest, { reference_code: ref, token })

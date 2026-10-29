@@ -8,6 +8,7 @@ import {
   fetchAvailability,
   fetchGuestBooking,
   fetchOwnBooking,
+  fetchPlatformFee,
   requestGuestLinkEmail,
   startPaymongoCheckout,
   submitPaymentProof,
@@ -22,6 +23,11 @@ export const bookingKeys = {
   availability: (date: string) => ['availability', date] as const,
   allDetails: ['booking'] as const,
   detail: (ref: string, token: string | null) => ['booking', ref.toUpperCase(), token] as const,
+  platformFee: ['platform-fee'] as const,
+}
+
+export function usePlatformFee() {
+  return useQuery({ queryKey: bookingKeys.platformFee, queryFn: fetchPlatformFee, staleTime: 5 * 60_000 })
 }
 
 export function useAvailability(date: string) {

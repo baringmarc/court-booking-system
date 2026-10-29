@@ -55,6 +55,25 @@ describe('WalkInForm', () => {
     })
   })
 
+  it('labels the phone field as optional and submits the normalized number', async () => {
+    const onSubmit = renderForm()
+    await userEvent.selectOptions(screen.getByLabelText('Start'), at(11))
+    await userEvent.type(screen.getByLabelText('Customer name'), 'Wendy')
+    await userEvent.type(screen.getByLabelText('Mobile number (optional)'), '+63 917 123 4567')
+    await userEvent.click(screen.getByRole('button', { name: 'Record walk-in' }))
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ name: 'Wendy', phone: '09171234567' }))
+  })
+
+  it('shows PHONE_ERROR for an invalid number and does not submit', async () => {
+    const onSubmit = renderForm()
+    await userEvent.selectOptions(screen.getByLabelText('Start'), at(11))
+    await userEvent.type(screen.getByLabelText('Customer name'), 'Wendy')
+    await userEvent.type(screen.getByLabelText('Mobile number (optional)'), '12345')
+    await userEvent.click(screen.getByRole('button', { name: 'Record walk-in' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('Enter an 11-digit mobile number, like 09171234567.')
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
+
   it('requires a start time and a name, and shows server errors', async () => {
     const onSubmit = renderForm()
     await userEvent.click(screen.getByRole('button', { name: 'Record walk-in' }))

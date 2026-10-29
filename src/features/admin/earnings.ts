@@ -65,7 +65,11 @@ export type Earnings = {
   courts: ({ courtId: string; name: string; sport: Enums<'sport'> } & HourTotals)[]
   sports: ({ sport: Enums<'sport'> } & HourTotals)[]
   comingUp: { count: number; value: number }
+  /** T11.12: what came in, what Plotline's booking fees took from it, and what's left for the owner. */
+  split: { current: RevenueSplit; previous: RevenueSplit }
 }
+
+export type RevenueSplit = { totalRevenue: number; ownerEarnings: number; plotlineFees: number }
 
 type Obj = { [key: string]: Json | undefined }
 const obj = (v: Json | undefined): Obj => (v && typeof v === 'object' && !Array.isArray(v) ? v : {})
@@ -82,6 +86,10 @@ function money(v: Json | undefined): Money {
       method: str(obj(m).method) as Enums<'payment_method'>, amount: num(obj(m).amount), count: num(obj(m).count),
     })),
   }
+}
+
+function revenueSplit(o: Obj): RevenueSplit {
+  return { totalRevenue: num(o.total_revenue), ownerEarnings: num(o.owner_earnings), plotlineFees: num(o.plotline_fees) }
 }
 
 function hours(o: Obj): HourTotals {
@@ -107,6 +115,7 @@ export function parseEarnings(json: Json): Earnings {
     })),
     sports: arr(o.sports).map((s) => ({ sport: str(obj(s).sport) as Enums<'sport'>, ...hours(obj(s)) })),
     comingUp: { count: num(obj(o.coming_up).count), value: num(obj(o.coming_up).value) },
+    split: { current: revenueSplit(obj(o.split)), previous: revenueSplit(obj(obj(o.split).previous)) },
   }
 }
 
@@ -146,6 +155,14 @@ export function formatHours(hours: number) {
 export function change(current: number, previous: number) {
   const diff = Math.round((current - previous) * 100) / 100
   return { diff, percent: previous > 0 ? Math.round((diff / previous) * 100) : null }
+}
+
+/** The change as a sentence: "The same as last week." or "₱500.00 more than last week (+25%)." */
+export function changeText(current: number, previous: number, before: string, money: (n: number) => string) {
+  const { diff, percent } = change(current, previous)
+  if (diff === 0) return `The same as ${before}.`
+  const pct = percent !== null ? ` (${diff > 0 ? '+' : ''}${percent}%)` : ''
+  return `${money(Math.abs(diff))} ${diff > 0 ? 'more' : 'less'} than ${before}${pct}.`
 }
 
 /** Each day's bar as a share of the best day, 0 to 1 (all zero when nothing came in). */

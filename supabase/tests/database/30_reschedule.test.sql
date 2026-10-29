@@ -305,7 +305,7 @@ select results_eq(
      where c.id = (select continuation_id from r where label = 'live1') $$,
   $$ select 'c0000000-0000-0000-0000-00000000000b'::uuid, tstzrange(pg_temp.t(9, 7), pg_temp.t(9, 9)), 'confirmed', 'moved', 0::numeric,
             (select id from b where label = 'live1'), '11111111-1111-1111-1111-111111111111'::uuid, 'Name live1',
-            'live1@example.com', '0917 000 0000', true, '22222222-2222-2222-2222-222222222222'::uuid, true, true $$,
+            'live1@example.com', '09170000000', true, '22222222-2222-2222-2222-222222222222'::uuid, true, true $$,
   'the continuation is a confirmed, free, moved booking on the new court, with the parent''s contact, link and a new reference');
 select is((select lower(during) from public.bookings where id = (select continuation_id from r where label = 'live2')),
   pg_temp.t(9, 10), 'the later split moves only the hours from it');

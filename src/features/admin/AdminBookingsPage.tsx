@@ -112,7 +112,7 @@ export function BookingRow({ booking, timeZone, currency }: { booking: AdminBook
         </span>
       </span>
       <span className="list-row-end">
-        <span>{formatMoney(booking.total_amount, currency)}</span>
+        <span>{formatMoney(booking.amount_due, currency)}</span>
         <span className={`badge status-${status}`}>{STATUS_LABELS[status]}</span>
         {hasPaidOnline(booking) && <span className="badge review-approved">Paid online</span>}
         {flags.refundDue.length > 0 && <span className="badge review-rejected">Refund due</span>}

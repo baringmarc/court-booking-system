@@ -121,12 +121,20 @@ export type NewBooking = {
   slots: number
   /** Guests: required. Logged-in players: optional overrides of their profile name/phone. */
   contact?: { name?: string; email?: string; phone?: string }
+  /** The player ticked the venue's waiver (T11.19); create_booking refuses without it when the venue has one. */
+  waiverAccepted?: boolean
 }
 
 export type CreatedBooking = { id: string; referenceCode: string; guestToken: string | null }
 
+/** Plotline's current booking fee, added to every new online booking (T11.12). The server snapshots it on insert. */
+export async function fetchPlatformFee(): Promise<number> {
+  const row = unwrap(await supabase.from('platform_pricing').select('booking_fee').maybeSingle())
+  return Number(row?.booking_fee ?? 0)
+}
+
 /** The price is never sent: the server computes it (SPEC §5.4). */
-export async function createBooking({ courtId, start, slots, contact }: NewBooking): Promise<CreatedBooking> {
+export async function createBooking({ courtId, start, slots, contact, waiverAccepted }: NewBooking): Promise<CreatedBooking> {
   const rows = unwrap(
     await supabase.rpc('create_booking', {
       p_court_id: courtId,
@@ -135,6 +143,7 @@ export async function createBooking({ courtId, start, slots, contact }: NewBooki
       p_guest_name: contact?.name,
       p_guest_email: contact?.email,
       p_guest_phone: contact?.phone,
+      p_waiver_accepted: waiverAccepted ?? false,
     }),
   )
   const row = rows[0]
@@ -153,7 +162,15 @@ export type BookingDetail = {
   slot_start: string
   slot_end: string
   status: BookingStatus
+  /** The court price. */
   total_amount: number
+  /** Plotline's booking fee (T11.12), 0 for walk-ins, moved parts and bookings made before the fee. */
+  booking_fee: number
+  /** What the player pays: the court price plus the fee. */
+  amount_due: number
+  /** The waiver the player accepted at checkout, and when (T11.19); null when none was asked. */
+  waiver_text: string | null
+  waiver_accepted_at: string | null
   expires_at: string | null
   rejection_count: number
   guest_name: string
@@ -191,6 +208,10 @@ export async function fetchGuestBooking(referenceCode: string, token: string): P
     slot_end: row.slot_end,
     status: row.status,
     total_amount: Number(row.total_amount),
+    booking_fee: Number(row.booking_fee),
+    amount_due: Number(row.amount_due),
+    waiver_text: row.waiver_text,
+    waiver_accepted_at: row.waiver_accepted_at,
     expires_at: row.expires_at,
     rejection_count: row.rejection_count,
     guest_name: row.guest_name,
@@ -212,7 +233,7 @@ export async function fetchOwnBooking(referenceCode: string): Promise<BookingDet
   const row = unwrap(
     await supabase
       .from('bookings')
-      .select(`id, reference_code, court_id, user_id, during, status, total_amount, expires_at, rejection_count, guest_name, guest_email, created_at, cancelled_at, cancel_reason, cancelled_by_venue, parent_booking_id, courts(name, sport), payments(${PAYMENT_FIELDS})`)
+      .select(`id, reference_code, court_id, user_id, during, status, total_amount, booking_fee, amount_due, waiver_text, waiver_accepted_at, expires_at, rejection_count, guest_name, guest_email, created_at, cancelled_at, cancel_reason, cancelled_by_venue, parent_booking_id, courts(name, sport), payments(${PAYMENT_FIELDS})`)
       .eq('reference_code', referenceCode.trim().toUpperCase())
       .maybeSingle(),
   )
@@ -230,6 +251,10 @@ export async function fetchOwnBooking(referenceCode: string): Promise<BookingDet
     slot_end: end,
     status: row.status,
     total_amount: Number(row.total_amount),
+    booking_fee: Number(row.booking_fee),
+    amount_due: Number(row.amount_due),
+    waiver_text: row.waiver_text,
+    waiver_accepted_at: row.waiver_accepted_at,
     expires_at: row.expires_at,
     rejection_count: row.rejection_count,
     guest_name: row.guest_name,

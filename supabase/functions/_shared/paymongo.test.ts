@@ -63,11 +63,30 @@ describe('returnBase', () => {
 })
 
 describe('checkoutRequestBody', () => {
-  const body = checkoutRequestBody({ bookingId: 'b-1', referenceCode: 'CB-ABC234', amountCentavos: 90000, base: 'https://courts.example' })
+  const body = checkoutRequestBody({ bookingId: 'b-1', referenceCode: 'CB-ABC234', courtCentavos: 90000, feeCentavos: 0, base: 'https://courts.example' })
   const attrs = body.data.attributes
 
   it('charges the stored total in centavos as one PHP line item', () => {
     expect(attrs.line_items).toEqual([{ name: 'Court booking CB-ABC234', amount: 90000, currency: 'PHP', quantity: 1 }])
+  })
+
+  it('lists the booking fee as its own line item after the court price (T11.13)', () => {
+    const withFee = checkoutRequestBody({ bookingId: 'b-1', referenceCode: 'CB-ABC234', courtCentavos: 35000, feeCentavos: 1000, base: 'https://courts.example' })
+    expect(withFee.data.attributes.line_items).toEqual([
+      { name: 'Court booking CB-ABC234', amount: 35000, currency: 'PHP', quantity: 1 },
+      { name: 'Booking fee', amount: 1000, currency: 'PHP', quantity: 1 },
+    ])
+  })
+
+  it('line items add up to the amount due (court price + fee), so PayMongo charges what the webhook expects', () => {
+    const withFee = checkoutRequestBody({ bookingId: 'b-1', referenceCode: 'CB-ABC234', courtCentavos: 123456, feeCentavos: 1050, base: 'https://courts.example' })
+    const charged = withFee.data.attributes.line_items.reduce((sum, item) => sum + item.amount * item.quantity, 0)
+    expect(charged).toBe(124506)
+  })
+
+  it('has no booking fee line at a fee of 0 (no zero-amount item)', () => {
+    expect(attrs.line_items).toHaveLength(1)
+    expect(attrs.line_items.map((item) => item.name)).not.toContain('Booking fee')
   })
 
   it('offers GCash, Maya, card and QR Ph', () => {

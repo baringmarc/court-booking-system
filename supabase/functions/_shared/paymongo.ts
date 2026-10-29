@@ -39,17 +39,23 @@ export function returnBase(origin: string | null, allowList: string | undefined)
 export type CheckoutInput = {
   bookingId: string
   referenceCode: string
-  amountCentavos: number
+  /** The court price (bookings.total_amount). */
+  courtCentavos: number
+  /** Plotline's booking fee (bookings.booking_fee); its own line item when above 0 (T11.13). */
+  feeCentavos: number
   base: string
 }
 
 /** Request body for POST /v2/checkout_sessions. The guest token never goes in here (SPEC §4, §6). */
-export function checkoutRequestBody({ bookingId, referenceCode, amountCentavos, base }: CheckoutInput) {
+export function checkoutRequestBody({ bookingId, referenceCode, courtCentavos, feeCentavos, base }: CheckoutInput) {
   const page = `${base}/booking/${encodeURIComponent(referenceCode)}`
   return {
     data: {
       attributes: {
-        line_items: [{ name: `Court booking ${referenceCode}`, amount: amountCentavos, currency: 'PHP', quantity: 1 }],
+        line_items: [
+          { name: `Court booking ${referenceCode}`, amount: courtCentavos, currency: 'PHP', quantity: 1 },
+          ...(feeCentavos > 0 ? [{ name: 'Booking fee', amount: feeCentavos, currency: 'PHP', quantity: 1 }] : []),
+        ],
         payment_method_types: [...PAYMONGO_METHODS],
         success_url: `${page}?paid=1`,
         cancel_url: `${page}?paid=0`,

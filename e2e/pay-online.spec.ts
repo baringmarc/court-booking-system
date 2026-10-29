@@ -1,6 +1,7 @@
 // A guest pays online with PayMongo: the booking page sends them to the (stubbed) hosted checkout, PayMongo's
 // signed webhook confirms the booking, and the guest's private link survives the round trip. Locally,
 // create-paymongo-checkout runs with PAYMONGO_MODE=stub and webhooks are signed with the local-only secret.
+// T11.13: Plotline's booking fee is ₱10 here, so the booking page shows the split and PayMongo is paid the amount due.
 import { createHmac } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { expect, test, type Page } from '@playwright/test'
@@ -8,6 +9,22 @@ import { createAdmin, E2E_PREFIX, logInAdmin, pickFirstFreeSlot, serviceClient, 
 import { localSupabase } from './support/local.ts'
 
 const STUB_CHECKOUT = 'https://checkout.paymongo.test/**'
+const FEE = 10
+
+/** As the app shows money (src/lib/format.ts formatMoney): no centavos on whole pesos. */
+const peso = (amount: number) =>
+  new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP', maximumFractionDigits: Number.isInteger(amount) ? 0 : 2 }).format(amount)
+
+/** The row of a booking fact ("Court price", "Booking fee", "Total") on the page. */
+const fact = (page: Page, label: string) => page.getByText(label, { exact: true }).locator('..')
+
+// The fee is platform-wide: set it for this file only, and put it back (workers: 1, so nothing else runs meanwhile).
+test.beforeAll(async () => {
+  await serviceClient().from('platform_pricing').update({ booking_fee: FEE }).eq('id', true).throwOnError()
+})
+test.afterAll(async () => {
+  await serviceClient().from('platform_pricing').update({ booking_fee: 0 }).eq('id', true).throwOnError()
+})
 
 function webhookSecret() {
   const line = readFileSync('supabase/functions/.env', 'utf8').split('\n').find((l) => l.startsWith('PAYMONGO_WEBHOOK_SECRET='))
@@ -16,16 +33,21 @@ function webhookSecret() {
   return secret
 }
 
-/** Sends a checkout_session.payment.paid event for the booking's stored session, signed like PayMongo does. */
+/**
+ * Sends a checkout_session.payment.paid event for the booking's stored session, signed like PayMongo does. PayMongo
+ * charges the line items (court price + booking fee), so the event pays the amount due.
+ */
 async function sendPaidWebhook(reference: string) {
   const service = serviceClient()
-  const { data: booking } = await service.from('bookings').select('id, total_amount').eq('reference_code', reference).single().throwOnError()
+  const { data: booking } = await service.from('bookings').select('id, total_amount, booking_fee, amount_due').eq('reference_code', reference).single().throwOnError()
+  expect(Number(booking.booking_fee)).toBe(FEE)
+  expect(Number(booking.amount_due)).toBe(Number(booking.total_amount) + FEE)
   const { data: checkout } = await service.from('paymongo_checkouts').select('checkout_id').eq('booking_id', booking.id).single().throwOnError()
   const stamp = `${Date.now()}`
   const body = JSON.stringify({ data: { id: `evt_e2e_${stamp}`, type: 'event', attributes: {
     type: 'checkout_session.payment.paid', livemode: false, created_at: Math.floor(Date.now() / 1000),
     data: { id: checkout.checkout_id, type: 'checkout_session', attributes: { metadata: { booking_id: booking.id }, payments: [
-      { id: `pay_e2e_${stamp}`, type: 'payment', attributes: { amount: Math.round(Number(booking.total_amount) * 100), currency: 'PHP', status: 'paid', source: { type: 'gcash' } } },
+      { id: `pay_e2e_${stamp}`, type: 'payment', attributes: { amount: Math.round(Number(booking.amount_due) * 100), currency: 'PHP', status: 'paid', source: { type: 'gcash' } } },
     ] } },
   } } })
   const t = Math.floor(Date.now() / 1000)
@@ -38,14 +60,16 @@ async function sendPaidWebhook(reference: string) {
 }
 
 async function bookAsGuest(page: Page, court: string) {
-  await pickFirstFreeSlot(page, { date: venueDate(10), sport: 'pickleball', court })
+  const slot = await pickFirstFreeSlot(page, { date: venueDate(10), sport: 'pickleball', court })
+  const courtPrice = Number(slot.match(/₱([\d,]+(?:\.\d+)?)$/)?.[1].replaceAll(',', ''))
+  expect(courtPrice).toBeGreaterThan(0)
   await page.getByLabel('Name').fill(`${E2E_PREFIX} Online Payer`)
   await page.getByLabel('Email').fill(`e2e-paymongo-${Date.now()}@example.com`)
-  await page.getByLabel('Phone').fill('0917 000 4321')
+  await page.getByLabel('Mobile number (optional)').fill('0917 000 4321')
   await page.getByRole('button', { name: 'Confirm booking' }).click()
   await expect(page.getByRole('heading', { name: 'Booking reserved' })).toBeVisible()
   const url = new URL(page.url())
-  return { reference: url.pathname.split('/').pop()!, token: url.hash.replace('#token=', '') }
+  return { reference: url.pathname.split('/').pop()!, token: url.hash.replace('#token=', ''), courtPrice }
 }
 
 /** Clicks "Pay online" and lands on the stubbed PayMongo page (the checkout URL comes from the Edge Function). */
@@ -59,7 +83,11 @@ async function goToStubCheckout(page: Page) {
 }
 
 test('a guest pays online, the webhook confirms the booking, the private link survives the redirect, and staff see the payment', async ({ page }) => {
-  const { reference, token } = await bookAsGuest(page, 'Pickleball 2')
+  const { reference, token, courtPrice } = await bookAsGuest(page, 'Pickleball 2')
+  // Before paying, the booking page shows the court price, the fee and the total to pay online.
+  await expect(fact(page, 'Court price')).toContainText(peso(courtPrice))
+  await expect(fact(page, 'Booking fee')).toContainText(peso(FEE))
+  await expect(fact(page, 'Total')).toContainText(peso(courtPrice + FEE))
   await goToStubCheckout(page)
 
   // PayMongo sends the guest back to the success URL (no token in it).
@@ -74,6 +102,7 @@ test('a guest pays online, the webhook confirms the booking, the private link su
   await expect(page.getByRole('status').filter({ hasText: 'Payment received. Your booking is confirmed.' })).toBeVisible()
   await expect(page.getByText('Confirmed', { exact: true })).toBeVisible()
   await expect(page.getByText('Paid online')).toBeVisible()
+  await expect(page.getByText(`PayMongo · ${peso(courtPrice + FEE)}`, { exact: false })).toBeVisible()
 
   // Staff see the online payment in Admin → Bookings, with nothing to review (T7.6).
   const admin = await createAdmin()

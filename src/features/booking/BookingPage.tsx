@@ -114,7 +114,7 @@ function ProofUpload({ booking, token, currency }: { booking: BookingDetail; tok
   const submitProof = useSubmitPaymentProof(booking.reference_code, token)
   return (
     <ProofForm
-      total={booking.total_amount}
+      total={booking.amount_due}
       currency={currency}
       pending={submitProof.isPending}
       error={submitProof.isError ? submitProof.error : null}

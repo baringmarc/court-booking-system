@@ -62,10 +62,12 @@ export default {
         p_user_id: callerUserId(ctx),
       })
       if (target.error) throw rpcError(target.error)
-      const booking = target.data?.[0] as { booking_id: string; total_amount: number } | undefined
+      const booking = target.data?.[0] as { booking_id: string; total_amount: number; amount_due: number } | undefined
       if (!booking) throw new ProofError('not_found', 'Booking not found.', 404)
 
-      const amountCentavos = toCentavos(booking.total_amount)
+      // The court price plus the booking fee (T11.12); record_paymongo_payment checks the same amount.
+      const amountCentavos = toCentavos(booking.amount_due)
+      const courtCentavos = toCentavos(booking.total_amount)
       checkAmountPayable(amountCentavos)
 
       const existing = await admin.rpc('paymongo_checkout_for', { p_booking_id: booking.booking_id })
@@ -77,7 +79,13 @@ export default {
         console.error('create-paymongo-checkout: PUBLIC_SITE_URL is not set')
         throw unavailable()
       }
-      const session = await createSession(checkoutRequestBody({ bookingId: booking.booking_id, referenceCode, amountCentavos, base }))
+      const session = await createSession(checkoutRequestBody({
+        bookingId: booking.booking_id,
+        referenceCode,
+        courtCentavos,
+        feeCentavos: amountCentavos - courtCentavos,
+        base,
+      }))
 
       const stored = await admin.rpc('record_paymongo_checkout', {
         p_booking_id: booking.booking_id,

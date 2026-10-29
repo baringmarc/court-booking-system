@@ -161,6 +161,8 @@ export type Database = {
       }
       bookings: {
         Row: {
+          amount_due: number
+          booking_fee: number
           cancel_reason: string | null
           cancelled_at: string | null
           cancelled_by: string | null
@@ -183,8 +185,12 @@ export type Database = {
           total_amount: number
           updated_at: string
           user_id: string | null
+          waiver_accepted_at: string | null
+          waiver_text: string | null
         }
         Insert: {
+          amount_due?: number
+          booking_fee?: number
           cancel_reason?: string | null
           cancelled_at?: string | null
           cancelled_by?: string | null
@@ -207,8 +213,12 @@ export type Database = {
           total_amount: number
           updated_at?: string
           user_id?: string | null
+          waiver_accepted_at?: string | null
+          waiver_text?: string | null
         }
         Update: {
+          amount_due?: number
+          booking_fee?: number
           cancel_reason?: string | null
           cancelled_at?: string | null
           cancelled_by?: string | null
@@ -231,6 +241,8 @@ export type Database = {
           total_amount?: number
           updated_at?: string
           user_id?: string | null
+          waiver_accepted_at?: string | null
+          waiver_text?: string | null
         }
         Relationships: [
           {
@@ -652,6 +664,21 @@ export type Database = {
           },
         ]
       }
+      platform_pricing: {
+        Row: {
+          booking_fee: number
+          id: boolean
+        }
+        Insert: {
+          booking_fee: number
+          id?: boolean
+        }
+        Update: {
+          booking_fee?: number
+          id?: boolean
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -780,6 +807,7 @@ export type Database = {
           theme: string
           timezone: string
           updated_at: string
+          waiver_text: string
         }
         Insert: {
           address?: string
@@ -800,6 +828,7 @@ export type Database = {
           theme?: string
           timezone?: string
           updated_at?: string
+          waiver_text?: string
         }
         Update: {
           address?: string
@@ -820,6 +849,7 @@ export type Database = {
           theme?: string
           timezone?: string
           updated_at?: string
+          waiver_text?: string
         }
         Relationships: []
       }
@@ -888,6 +918,7 @@ export type Database = {
           p_guest_phone?: string
           p_slots: number
           p_start: string
+          p_waiver_accepted?: boolean
         }
         Returns: {
           guest_token: string
@@ -945,6 +976,8 @@ export type Database = {
       get_guest_booking: {
         Args: { p_reference_code: string; p_token: string }
         Returns: {
+          amount_due: number
+          booking_fee: number
           cancel_reason: string
           cancelled_at: string
           cancelled_by_venue: boolean
@@ -967,6 +1000,8 @@ export type Database = {
           sport: Database["public"]["Enums"]["sport"]
           status: Database["public"]["Enums"]["booking_status"]
           total_amount: number
+          waiver_accepted_at: string
+          waiver_text: string
         }[]
       }
       move_court: {
@@ -987,6 +1022,7 @@ export type Database = {
       proof_target: {
         Args: { p_reference_code: string; p_token: string; p_user_id: string }
         Returns: {
+          amount_due: number
           booking_id: string
           total_amount: number
         }[]

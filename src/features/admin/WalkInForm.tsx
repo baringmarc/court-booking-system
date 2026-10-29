@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { formatHour, formatMoney } from '../../lib/format'
+import { normalizePhMobile, PHONE_ERROR } from '../../lib/phone'
 import { hourInZone } from '../../lib/time'
 import { isAfterMidnight } from '../catalog/hours'
 import { bookingErrorMessage } from '../booking/errors'
@@ -57,9 +58,11 @@ export function WalkInForm({ courts, slotsByCourt, now, timeZone, currency, pend
     // chosen is empty if the picked slot ended while the form was open.
     if (!courtId || startIndex < 0 || chosen.length === 0) return setFormError('Choose a court and a start time.')
     if (!name.trim()) return setFormError('Enter the customer’s name.')
+    const mobile = normalizePhMobile(phone)
+    if (mobile === 'invalid') return setFormError(PHONE_ERROR)
     if (!amount.trim() || !Number.isFinite(value) || value < 0) return setFormError('Enter the amount received.')
     setFormError(null)
-    onSubmit({ courtId, start, slots: chosen.length, name: name.trim(), phone: phone.trim(), method, amount: value, referenceNumber: reference.trim() })
+    onSubmit({ courtId, start, slots: chosen.length, name: name.trim(), phone: mobile ?? '', method, amount: value, referenceNumber: reference.trim() })
   }
 
   return (
@@ -96,7 +99,7 @@ export function WalkInForm({ courts, slotsByCourt, now, timeZone, currency, pend
           <input id="walkin-name" value={name} onChange={(e) => setName(e.target.value)} autoComplete="off" />
         </div>
         <div className="field">
-          <label htmlFor="walkin-phone">Phone (optional)</label>
+          <label htmlFor="walkin-phone">Mobile number (optional)</label>
           <input id="walkin-phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} autoComplete="off" />
         </div>
       </div>

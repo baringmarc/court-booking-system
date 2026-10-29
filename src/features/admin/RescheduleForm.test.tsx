@@ -27,7 +27,7 @@ function booking(startHour: number, endHour: number, date = FRIDAY): AdminBookin
   return {
     id: 'b1', reference_code: 'CB-7KQ2XD', court_id: 'A', court_name: 'Badminton 1', sport: 'badminton',
     slot_start: manila(date, startHour), slot_end: manila(date, endHour), status: 'confirmed', source: 'online',
-    total_amount: 900, expires_at: null, rejection_count: 0, guest_name: 'Gina Guest', guest_email: 'gina@example.com',
+    total_amount: 900, booking_fee: 0, amount_due: 900, expires_at: null, rejection_count: 0, guest_name: 'Gina Guest', guest_email: 'gina@example.com',
     guest_phone: null, created_at: '2030-01-01T00:00:00.000Z', payments: [], cancelled_at: null, cancel_reason: null,
     cancelled_by_venue: false, parent_booking_id: null,
   }

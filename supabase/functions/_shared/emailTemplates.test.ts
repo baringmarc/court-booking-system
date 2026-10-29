@@ -10,6 +10,8 @@ const data: EmailData = {
   starts_at: '2030-01-07T10:00:00+00:00', // 6:00 PM in Manila
   ends_at: '2030-01-07T12:00:00+00:00',
   total_amount: 700,
+  booking_fee: 0,
+  amount_due: 700,
   status: 'pending_payment',
   expires_at: '2030-01-06T05:00:00+00:00',
   name: 'Gina Guest',
@@ -165,6 +167,56 @@ describe('renderEmail', () => {
 
   it('greets without a name', () => {
     expect(renderEmail({ kind: 'payment_confirmed', data: { ...data, name: null }, site, forGuest: false }).text).toMatch(/^Hi there,/)
+  })
+})
+
+describe('renderEmail: the booking fee split (T11.13)', () => {
+  // A 7 AM Manila booking (11 PM the day before in UTC): court price 350, Plotline's fee 10, amount due 360.
+  const withFee: EmailData = {
+    ...data,
+    starts_at: '2030-01-06T23:00:00+00:00',
+    ends_at: '2030-01-07T00:00:00+00:00',
+    total_amount: 350,
+    booking_fee: 10,
+    amount_due: 360,
+  }
+  const AMOUNT_KINDS: EmailKind[] = ['booking_created', 'payment_confirmed', 'proof_rejected', 'booking_cancelled']
+
+  it('shows the court price, the booking fee and the total (amount due), in that order', () => {
+    const { text } = renderEmail({ kind: 'booking_created', data: withFee, site, forGuest: false })
+    expect(text).toContain('Court price: ₱350.00\nBooking fee: ₱10.00\nTotal: ₱360.00')
+    expect(text).toMatch(/When: Mon, Jan 7, 2030, 7:00\s?AM–8:00\s?AM/)
+  })
+
+  it('shows the split in every email that lists the amount', () => {
+    for (const kind of AMOUNT_KINDS) {
+      const { text, html } = renderEmail({ kind, data: withFee, site, forGuest: false })
+      expect(text, kind).toContain('Court price: ₱350.00')
+      expect(text, kind).toContain('Booking fee: ₱10.00')
+      expect(text, kind).toContain('Total: ₱360.00')
+      expect(text, kind).not.toContain('Total: ₱350.00')
+      expect(html, kind).toContain('Booking fee')
+      expect(html, kind).toContain('₱360.00')
+    }
+  })
+
+  it('takes the total from amount_due, not from adding numbers itself (string amounts from the snapshot)', () => {
+    const { text } = renderEmail({
+      kind: 'payment_confirmed',
+      data: { ...withFee, total_amount: '1500.50', booking_fee: '10.00', amount_due: '1510.50' },
+      site,
+      forGuest: false,
+    })
+    expect(text).toContain('Court price: ₱1,500.50')
+    expect(text).toContain('Booking fee: ₱10.00')
+    expect(text).toContain('Total: ₱1,510.50')
+  })
+
+  it('leaves out the booking fee row when there is no fee (walk-ins, bookings made at a fee of 0)', () => {
+    const { text, html } = renderEmail({ kind: 'booking_created', data, site, forGuest: false })
+    expect(text).toContain('Court price: ₱700.00\nTotal: ₱700.00')
+    expect(text).not.toContain('Booking fee')
+    expect(html).not.toContain('Booking fee')
   })
 })
 

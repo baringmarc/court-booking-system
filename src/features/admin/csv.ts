@@ -37,12 +37,14 @@ export function bookingsCsv(bookings: ExportBooking[], { timeZone, currency, now
     'reference', 'court', 'sport', `start (${timeZone})`, `end (${timeZone})`, 'status', 'source', 'name',
     ...(includeContact ? ['phone', 'email'] : []),
     `amount_${currency.toLowerCase()}`,
+    `booking_fee_${currency.toLowerCase()}`,
   ]
   const rows = bookings.map((b): Cell[] => [
     b.reference_code, b.court_name, b.sport ? SPORT_LABELS[b.sport] ?? b.sport : null, csvTime(b.slot_start, timeZone), csvTime(b.slot_end, timeZone),
     STATUS_LABELS[displayStatus(b, now)], b.source === 'walk_in' ? 'Walk-in' : 'Online', b.guest_name,
     ...(includeContact ? [b.guest_phone, b.guest_email] : []),
     b.total_amount,
+    b.booking_fee,
   ])
   return toCsv(headers, rows)
 }

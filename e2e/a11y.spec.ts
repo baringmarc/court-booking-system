@@ -67,7 +67,7 @@ test('the guest booking page (with its private link) has no serious accessibilit
   await pickFirstFreeSlot(page, { date: venueDate(14), sport: 'badminton', court: 'Badminton 2' })
   await page.getByLabel('Name').fill(`${E2E_PREFIX} A11y Guest`)
   await page.getByLabel('Email').fill(`e2e-a11y-${Date.now()}@example.com`)
-  await page.getByLabel('Phone').fill('0917 000 4321')
+  await page.getByLabel('Mobile number (optional)').fill('0917 000 4321')
   await checkPage(page, 'guest checkout')
   await page.getByRole('button', { name: 'Confirm booking' }).click()
   await expect(page.getByRole('heading', { name: 'Save this link' })).toBeVisible()

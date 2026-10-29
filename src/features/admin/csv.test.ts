@@ -57,21 +57,21 @@ const booking: ExportBooking = {
   reference_code: 'CB-ABC234', court_name: 'Court "A"', sport: 'badminton',
   slot_start: '2026-10-25T06:00:00.000Z', slot_end: '2026-10-25T08:00:00.000Z',
   status: 'confirmed', source: 'walk_in', expires_at: null,
-  guest_name: '=HYPERLINK("x")', guest_phone: '+63 917 000 0000', guest_email: 'ana@example.com', total_amount: 700,
+  guest_name: '=HYPERLINK("x")', guest_phone: '+63 917 000 0000', guest_email: 'ana@example.com', total_amount: 700, booking_fee: 0, amount_due: 700,
 }
 
 describe('bookingsCsv', () => {
   it('lists bookings by play time without contact details by default', () => {
     const [header, row, end] = lines(bookingsCsv([booking], { timeZone: TZ, currency: 'PHP', includeContact: false, now: new Date('2026-10-25T00:00:00Z') }))
-    expect(header).toBe('"reference","court","sport","start (Asia/Manila)","end (Asia/Manila)","status","source","name","amount_php"')
-    expect(row).toBe(`"CB-ABC234","Court ""A""","Badminton","2026-10-25 14:00","2026-10-25 16:00","Confirmed","Walk-in","'=HYPERLINK(""x"")","700"`)
+    expect(header).toBe('"reference","court","sport","start (Asia/Manila)","end (Asia/Manila)","status","source","name","amount_php","booking_fee_php"')
+    expect(row).toBe(`"CB-ABC234","Court ""A""","Badminton","2026-10-25 14:00","2026-10-25 16:00","Confirmed","Walk-in","'=HYPERLINK(""x"")","700","0"`)
     expect(end).toBe('')
   })
 
   it('adds phone and email when asked, defused', () => {
     const [header, row] = lines(bookingsCsv([booking], { timeZone: TZ, currency: 'PHP', includeContact: true, now: new Date('2026-10-25T00:00:00Z') }))
     expect(header).toContain('"name","phone","email","amount_php"')
-    expect(row).toContain(`"'+63 917 000 0000","ana@example.com","700"`)
+    expect(row).toContain(`"'+63 917 000 0000","ana@example.com","700","0"`)
   })
 
   it('shows a played booking as completed', () => {
