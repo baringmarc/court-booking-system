@@ -6,8 +6,9 @@ This repo is also **the platform repo**: it owns the database schema, all Edge F
 
 ## Guide docs
 - **[SPEC.md](SPEC.md)**: what the product does (requirements, data model, booking lifecycle, decisions log). Update it whenever behavior changes.
-- **[TASKS.md](TASKS.md)**: what to build next. Read its **Handoff** section first and update it before you stop. A task is done only when its acceptance criteria hold, `npm run verify` passes and the `reviewer` agent has no blocking issues.
-- **Workflow:** run `/implement` to work on the next task (`/implement T3.4` for a specific task, `/implement milestone` for the whole milestone). It goes orient → research → plan gate (risky DB or security work waits for approval) → build → verify → `reviewer` agent → tick the task and update the handoff → commit (never push) once verify passes and the reviewer signs off.
+- **[TASKS.md](TASKS.md)**: what to build next. Read its **Handoff** section first and update it before you stop. A task is done only when its acceptance criteria hold, the full gate (`node .claude/hooks/verify-gate.mjs --full`) passes and the `reviewer` agent has no blocking issues.
+- **Workflow:** run `/implement` to work on the next task (`/implement T3.4` for a specific task, `/implement milestone` for the whole milestone). It goes orient → research → plan gate (risky DB or security work waits for approval) → `test-writer` agent writes the failing tests → build → full verify → `reviewer` agent → tick the task and update the handoff → commit (never push) once verify passes and the reviewer signs off. Milestone mode ends with `/retro`, which turns repeated mistakes into the **Learned rules** below (with the user's approval).
+- **[docs/facts.json](docs/facts.json)**: Plotline's business facts (booking fee, what venues pay), the single source for both repos. Restate them anywhere, but `npm run check:drift` fails if a restatement disagrees. Change a fact there first, and only as a recorded decision.
 - **[RESEARCH.md](RESEARCH.md)**: technical findings, with sources, gathered before a milestone is built. Research first, then implement. Accepted recommendations go into SPEC §10.
 
 ## Platform (two repos, one database)
@@ -30,7 +31,7 @@ npm run lint      # eslint
 npm run test      # vitest run (test:watch for watch mode)
 npm run test:db   # pgTAP tests in supabase/tests against the LOCAL db (auto-starts it, applies pending migrations)
 npm run verify    # typecheck + lint + test + test:db + build: the gate for "done"
-npm run test:e2e  # Playwright flows against the LOCAL stack (needs `npx supabase start`); not in verify, but the Stop hook runs it when UI files change
+npm run test:e2e  # Playwright flows against the LOCAL stack (needs `npx supabase start`); not in verify; the full gate runs it when UI files changed
 npm run smoke:proof  # Edge Function smoke test against the local stack
 npm run db:start / db:stop / db:reset:local   # local Supabase Postgres (Docker Desktop must be running)
 npm run db:push   # apply supabase/migrations to the linked project
@@ -38,7 +39,14 @@ npm run db:types  # regenerate src/lib/database.types.ts from the linked project
 npx supabase db query --linked -f supabase/seed.sql   # (re)apply demo data, idempotent
 ```
 Supabase CLI is a pinned dev dependency: use `npx supabase <cmd>` (`npx supabase migration new <name>` for new migrations).
-Before saying a task is done, run `npm run verify` and make sure it passes. A Stop hook (`.claude/hooks/verify-gate.mjs`) enforces this: it re-runs verify whenever code changed, and also runs `npm run test:e2e` when UI-facing files (`src/`, `e2e/`, `playwright.config.ts`, `supabase/functions/`) changed since the last passing e2e run. It blocks finishing while either fails, or while the full local stack needed for e2e isn't running. Never weaken tests or lint rules to get past it.
+
+### The harness (`.claude/`)
+- **Fast gate (Stop hook, `.claude/hooks/verify-gate.mjs`):** you can't finish a turn while typecheck, lint or the unit tests fail, whenever code changed.
+- **Full gate:** `node .claude/hooks/verify-gate.mjs --full` runs `npm run verify` (which includes the pgTAP tests and the drift check), then `npm run test:e2e` when UI-facing files (`src/`, `e2e/`, `playwright.config.ts`, `supabase/functions/`) changed. Run it before saying a task is done. **`git commit` is refused until it has passed on exactly the current changes.**
+- **Guard (PreToolUse hook, `.claude/hooks/guard.mjs`)** blocks before the fact: editing applied migrations, adding `.skip`/`.only` or removing assertions from tests, editing the test-writer's locked tests, secrets under `src/`, force pushes, `reset --hard`, amends, resetting a remote database, and edits to the harness itself (`.claude/hooks`, `settings.json`, `harness.json`, the ESLint config). Settings are in `.claude/harness.json`. If a block seems wrong, stop and ask the user rather than working around it.
+- `test:db` and `test:e2e` take a lock (`scripts/with-lock.mjs`): a second run waits for the first instead of sharing the local stack.
+- Gate failures, guard blocks, reviewer findings and escalations are logged to `.claude/retro/failures.jsonl` (append-only; log with `node .claude/hooks/log-event.mjs`). `/retro` reads it.
+- Never weaken tests or lint rules to get past any of this.
 
 ## Environment
 - `.env` (gitignored) holds `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`. Keep `.env.example` in sync when you add vars.
@@ -79,3 +87,8 @@ supabase/
 - Money is `numeric` in the DB. Format it with `Intl.NumberFormat` using the venue currency. Never compute prices on the client for submission.
 - The UI is mobile-first. Every async view handles loading, empty and error states.
 - Keep components small. Co-locate feature-specific code under `src/features/<area>/`.
+
+## Learned rules
+Lessons from repeated mistakes, added by `/retro` with the user's approval. Follow them like any rule above. Each lists the mistake categories it covers; `/retro` promotes a rule to a hard check if its mistake keeps happening anyway.
+
+_(none yet)_

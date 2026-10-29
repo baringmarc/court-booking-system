@@ -26,6 +26,7 @@ dist-ssr
 .env
 # Claude Code local state
 .claude/.verify-state.json
+.claude/state/
 .claude/settings.local.json
 
 # Playwright

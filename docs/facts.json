@@ -1,0 +1,19 @@
+{
+  "_comment": "Plotline's shared business facts: the single source of truth for both repos. Prose (SPEC, SAAS-PLAN, CLAUDE.md, site copy) may restate them, and `npm run check:drift` fails when a restatement disagrees. Change a fact here first, then fix what the check reports. Decided in docs/SAAS-PLAN.md §1.",
+
+  "currency": "₱",
+  "bookingFee": {
+    "amount": 10,
+    "unit": "per confirmed online booking (transaction)",
+    "paidBy": "player",
+    "final": false
+  },
+  "venueFees": { "setup": 0, "monthly": 0, "perHour": 0 },
+  "selfServeSignup": false,
+  "freeTrial": false,
+
+  "retired": [
+    { "pattern": "₱\\s?5\\s+per\\s+court[- ]hour", "replacedBy": "₱10 booking fee per confirmed online booking (2026-10-26)" },
+    { "pattern": "₱\\s?499\\b", "replacedBy": "commission-only pricing (2026-10-25), then the ₱10 booking fee (2026-10-26)" }
+  ]
+}

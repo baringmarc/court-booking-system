@@ -1,0 +1,40 @@
+{
+  "_comment": "Settings for .claude/hooks (guard.mjs, verify-gate.mjs). Paths are repo-relative regexes. Claude can't edit this file; the guard protects it.",
+
+  "fastChecks": ["typecheck", "lint", "test"],
+  "fullChecks": ["typecheck", "lint", "test", "test:db", "build", "check:drift"],
+
+  "e2e": {
+    "script": "test:e2e",
+    "uiPaths": ["src", "e2e", "playwright.config.ts", "supabase/functions"],
+    "stackCheck": ["sh", "scripts/with-docker.sh", "npx", "supabase", "status", "-o", "env"],
+    "stackStartHint": "Start it with `npx supabase start` (Docker Desktop must be running)."
+  },
+
+  "migrations": "^supabase/migrations/.+\\.sql$",
+
+  "tests": [
+    "\\.test\\.tsx?$",
+    "^e2e/.+\\.ts$",
+    "^supabase/tests/.+\\.sql$",
+    "^supabase/functions/.+\\.test\\.ts$"
+  ],
+
+  "secretScan": {
+    "paths": ["^src/"],
+    "except": ["^src/lib/database\\.types\\.ts$"],
+    "patterns": ["service_role", "SERVICE_ROLE", "sb_secret_[A-Za-z0-9]", "PAYMONGO_SECRET", "sk_(test|live)_[A-Za-z0-9]{8,}"]
+  },
+
+  "protected": [
+    "^\\.claude/hooks/",
+    "^\\.claude/settings\\.json$",
+    "^\\.claude/harness\\.json$",
+    "^\\.claude/state/",
+    "^\\.claude/retro/failures\\.jsonl$",
+    "^\\.claude/\\.verify-state\\.json$",
+    "^eslint\\.config\\.[cm]?js$",
+    "^scripts/with-lock\\.mjs$",
+    "^scripts/check-drift\\.mjs$"
+  ]
+}
