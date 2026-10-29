@@ -11,6 +11,8 @@ const CODES = [
   'not_cancellable', 'cutoff_passed', 'booking_ended', 'reason_required',
   // Online payments (M7): the create-paymongo-checkout Edge Function.
   'payments_unavailable', 'payments_failed', 'amount_too_low',
+  // M11 (T11.22): the venue's online payments switch is off.
+  'online_payments_off',
   // Open play (M9, T9.11c): validate_booking_slot and the session RPCs.
   'open_play', 'invalid_links', 'session_overlap', 'session_started',
   // Rescheduling (M10, T10.9): reschedule_booking.
