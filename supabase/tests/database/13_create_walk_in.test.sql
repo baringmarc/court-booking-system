@@ -16,27 +16,26 @@ end $$;
 -- Open around the clock today so "the slot in progress now" always exists; normal hours on other days.
 update public.operating_hours set open_time = '06:00', close_time = '22:00', is_closed = false;
 update public.operating_hours set open_time = '00:00', close_time = '24:00'
-where day_of_week = extract(dow from private.local_today())::smallint;
+where day_of_week = extract(dow from private.local_today(private.default_venue_id()))::smallint;
 
 insert into auth.users (id, email) values
   ('11111111-1111-1111-1111-111111111111', 'pat@test.local'),
   ('22222222-2222-2222-2222-222222222222', 'admin@test.local');
-update public.profiles set role = 'admin' where id = '22222222-2222-2222-2222-222222222222';
 insert into public.venue_members (venue_id, user_id, role)
 select id, '22222222-2222-2222-2222-222222222222', 'staff' from public.venues where slug = 'claudex-courts';
-insert into public.courts (id, name, sport, default_hourly_rate) values
-  ('c0000000-0000-0000-0000-000000000001', 'Walk-in Court', 'tennis', 500);
+insert into public.courts (venue_id, id, name, sport, default_hourly_rate) values
+  (private.default_venue_id(), 'c0000000-0000-0000-0000-000000000001', 'Walk-in Court', 'tennis', 500);
 
 create temp table fx as
 select date_trunc('hour', now() at time zone 'Asia/Manila') at time zone 'Asia/Manila' as current_slot,
-       (private.local_today() + 3 + time '10:00') at time zone 'Asia/Manila' as t10,
-       (private.local_today() + 3 + time '05:00') at time zone 'Asia/Manila' as t05,
-       (private.local_today() + (select booking_window_days from public.venue_settings) + 5 + time '10:00') at time zone 'Asia/Manila' as beyond_window;
+       (private.local_today(private.default_venue_id()) + 3 + time '10:00') at time zone 'Asia/Manila' as t10,
+       (private.local_today(private.default_venue_id()) + 3 + time '05:00') at time zone 'Asia/Manila' as t05,
+       (private.local_today(private.default_venue_id()) + (select booking_window_days from public.venue_settings) + 5 + time '10:00') at time zone 'Asia/Manila' as beyond_window;
 create temp table w (label text primary key, id uuid, ref text);
 grant select on fx to anon, authenticated;
 grant select, insert on w to authenticated;
-insert into public.blackouts (court_id, starts_at, ends_at, reason)
-select 'c0000000-0000-0000-0000-000000000001', t10 + interval '4 hours', t10 + interval '5 hours', 'test' from fx;
+insert into public.blackouts (venue_id, court_id, starts_at, ends_at, reason)
+select private.default_venue_id(), 'c0000000-0000-0000-0000-000000000001', t10 + interval '4 hours', t10 + interval '5 hours', 'test' from fx;
 
 -- Access
 select ok(not has_function_privilege('anon', 'public.create_walk_in(uuid, timestamptz, integer, text, text, public.payment_method, numeric, text)', 'execute'), 'anon cannot record walk-ins');

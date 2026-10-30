@@ -2,14 +2,14 @@
 // proof. venue_settings.online_payments_enabled is turned off for this file and restored (workers: 1).
 import { AxeBuilder } from '@axe-core/playwright'
 import { expect, test } from '@playwright/test'
-import { E2E_PREFIX, pickFirstFreeSlot, serviceClient, uploadProof, venueDate } from './support/helpers.ts'
+import { E2E_PREFIX, pickFirstFreeSlot, serviceClient, uploadProof, venueDate, venueId } from './support/helpers.ts'
 
 test.describe.serial('online payments off', () => {
   test.beforeAll(async () => {
-    await serviceClient().from('venue_settings').update({ online_payments_enabled: false }).eq('id', true).throwOnError()
+    await serviceClient().from('venue_settings').update({ online_payments_enabled: false }).eq('venue_id', await venueId()).throwOnError()
   })
   test.afterAll(async () => {
-    await serviceClient().from('venue_settings').update({ online_payments_enabled: true }).eq('id', true).throwOnError()
+    await serviceClient().from('venue_settings').update({ online_payments_enabled: true }).eq('venue_id', await venueId()).throwOnError()
   })
 
   test('a guest sees no Pay online, can still upload a proof, and the page is axe clean', async ({ page }) => {

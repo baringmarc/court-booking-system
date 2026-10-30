@@ -60,7 +60,7 @@ begin
     end if;
     insert into public.court_rates (venue_id, court_id, day_of_week, start_hour, price) values (v, c, 6, 20, 1) on conflict do nothing;
     insert into public.court_photos (venue_id, court_id, path, sort_order)
-      values (v, c, 'courts/' || c || '/90000000-0000-0000-0000-00000000009' || (case s when 'a' then '1' else '2' end) || '.png', 99) on conflict do nothing;
+      values (v, c, v || '/courts/' || c || '/90000000-0000-0000-0000-00000000009' || (case s when 'a' then '1' else '2' end) || '.png', 99) on conflict do nothing;
     if not exists (select 1 from public.blackouts where venue_id = v and reason = 'E2E disposable') then
       insert into public.blackouts (venue_id, starts_at, ends_at, reason) values (v, now() + interval '300 days', now() + interval '300 days 1 hour', 'E2E disposable');
     end if;
@@ -157,7 +157,7 @@ begin
         when 'courts' then format('insert into public.courts (venue_id, name, sport, default_hourly_rate) values (%L, ''E2E Ins %s'', ''tennis'', 1)', v, p_tag)
         when 'court_rates' then format('insert into public.court_rates (venue_id, court_id, day_of_week, start_hour, price) values (%L, %L, 1, %s, 1)', v, c, p_tag)
         when 'court_photos' then format('insert into public.court_photos (venue_id, court_id, path, sort_order) values (%L, %L, %L, 1)', v, c,
-                                  'courts/' || c || '/80000000-0000-0000-0000-00000000000' || p_tag || '.png')
+                                  v || '/courts/' || c || '/80000000-0000-0000-0000-00000000000' || p_tag || '.png')
         when 'blackouts' then format('insert into public.blackouts (venue_id, starts_at, ends_at, reason) values (%L, now() + interval ''200 days'', now() + interval ''200 days 1 hour'', ''E2E ins'')', v)
         when 'venue_amenities' then format('insert into public.venue_amenities (venue_id, builtin_key) values (%L, %L)', v, amen[p_tag])
         when 'venue_info_sections' then format('insert into public.venue_info_sections (venue_id, title) values (%L, ''E2E ins'')', v)
@@ -187,7 +187,6 @@ insert into auth.users (id, email) values
   ('88888888-8888-8888-8888-888888888888', 'player-p2@test.local'),
   ('99999999-9999-9999-9999-999999999999', 'player-p3@test.local'),
   ('66666666-6666-6666-6666-666666666666', 'legacy-admin@test.local');
-update public.profiles set role = 'admin' where id = '66666666-6666-6666-6666-666666666666';
 
 insert into public.venues (id, slug, status) values
   ('a0000000-0000-0000-0000-00000000000a', 'e2e-rls-a', 'active'),
@@ -215,8 +214,8 @@ insert into public.court_rates (court_id, day_of_week, start_hour, price) values
   ('c0000000-0000-0000-0000-0000000000a1', 1, 9, 550),
   ('c0000000-0000-0000-0000-0000000000b1', 1, 9, 650);
 insert into public.court_photos (id, court_id, path, sort_order) values
-  ('a2000000-0000-0000-0000-0000000000a1', 'c0000000-0000-0000-0000-0000000000a1', 'courts/c0000000-0000-0000-0000-0000000000a1/a2000000-0000-0000-0000-0000000000a1.png', 0),
-  ('a2000000-0000-0000-0000-0000000000b1', 'c0000000-0000-0000-0000-0000000000b1', 'courts/c0000000-0000-0000-0000-0000000000b1/a2000000-0000-0000-0000-0000000000b1.png', 0);
+  ('a2000000-0000-0000-0000-0000000000a1', 'c0000000-0000-0000-0000-0000000000a1', 'a0000000-0000-0000-0000-00000000000a/courts/c0000000-0000-0000-0000-0000000000a1/a2000000-0000-0000-0000-0000000000a1.png', 0),
+  ('a2000000-0000-0000-0000-0000000000b1', 'c0000000-0000-0000-0000-0000000000b1', 'b0000000-0000-0000-0000-00000000000b/courts/c0000000-0000-0000-0000-0000000000b1/a2000000-0000-0000-0000-0000000000b1.png', 0);
 insert into public.blackouts (venue_id, starts_at, ends_at, reason) values
   ('a0000000-0000-0000-0000-00000000000a', now() + interval '20 days', now() + interval '20 days 1 hour', 'E2E fixture'),
   ('b0000000-0000-0000-0000-00000000000b', now() + interval '20 days', now() + interval '20 days 1 hour', 'E2E fixture');

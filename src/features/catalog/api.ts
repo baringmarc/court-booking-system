@@ -124,7 +124,7 @@ export async function saveOperatingHours(rows: OperatingHours[]) {
   unwrap(await supabase.rpc('set_operating_hours', { p_hours }))
 }
 
-export async function createBlackout(input: TablesInsert<'blackouts'>) {
+export async function createBlackout(input: Omit<TablesInsert<'blackouts'>, 'venue_id'>) {
   return unwrap(await supabase.from('blackouts').insert({ ...input, venue_id: await currentAdminVenueId() }).select().single())
 }
 

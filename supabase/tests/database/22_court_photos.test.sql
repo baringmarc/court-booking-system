@@ -8,16 +8,15 @@ select plan(42);
 insert into auth.users (id, email) values
   ('11111111-1111-1111-1111-111111111111', 'player@test.local'),
   ('22222222-2222-2222-2222-222222222222', 'admin@test.local');
-update public.profiles set role = 'admin' where id = '22222222-2222-2222-2222-222222222222';
 insert into public.venue_members (venue_id, user_id, role) select id, '22222222-2222-2222-2222-222222222222', 'owner' from public.venues where slug = 'claudex-courts';
-insert into public.courts (id, name, sport, default_hourly_rate, is_active) values
-  ('c0000000-0000-0000-0000-000000000001', 'Photo Court', 'tennis', 500, true),
-  ('c0000000-0000-0000-0000-000000000002', 'Archived Photo Court', 'tennis', 500, false),
-  ('c0000000-0000-0000-0000-000000000003', 'Legacy Photo Court', 'tennis', 500, true);
+insert into public.courts (venue_id, id, name, sport, default_hourly_rate, is_active) values
+  (private.default_venue_id(), 'c0000000-0000-0000-0000-000000000001', 'Photo Court', 'tennis', 500, true),
+  (private.default_venue_id(), 'c0000000-0000-0000-0000-000000000002', 'Archived Photo Court', 'tennis', 500, false),
+  (private.default_venue_id(), 'c0000000-0000-0000-0000-000000000003', 'Legacy Photo Court', 'tennis', 500, true);
 
--- A valid photo path for court n (1..3) and file number k.
-create function pg_temp.p(n int, k int) returns text language sql as $$
-  select format('courts/c0000000-0000-0000-0000-00000000000%s/00000000-0000-0000-0000-%s.webp', n, lpad(k::text, 12, '0'))
+-- A valid photo path for court n (1..3) and file number k, under the venue folder (T12.11).
+create function pg_temp.p(n int, k int) returns text language sql security definer set search_path = '' as $$
+  select format('%s/courts/c0000000-0000-0000-0000-00000000000%s/00000000-0000-0000-0000-%s.webp', private.default_venue_id(), n, lpad(k::text, 12, '0'))
 $$;
 grant execute on function pg_temp.p(int, int) to anon, authenticated;
 
@@ -121,7 +120,7 @@ select throws_ok(
 );
 select throws_ok(
   $$ insert into public.court_photos (court_id, path)
-     values ('c0000000-0000-0000-0000-000000000001', 'courts/c0000000-0000-0000-0000-000000000001/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa.gif') $$,
+     values ('c0000000-0000-0000-0000-000000000001', replace(pg_temp.p(1, 1), '.webp', '.gif')) $$,
   '23514', null, 'a photo must be webp, jpg, jpeg or png'
 );
 

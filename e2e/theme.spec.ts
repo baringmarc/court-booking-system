@@ -1,13 +1,13 @@
 // Venue color presets (T11.7): the admin's pick reaches a signed-out player, and every preset is axe clean.
 // The theme is venue-wide, so each test puts the saved one back.
 import { expect, test } from '@playwright/test'
-import { axeBothSchemes, createAdmin, logInAdmin, serviceClient } from './support/helpers.ts'
+import { axeBothSchemes, createAdmin, logInAdmin, serviceClient, venueId } from './support/helpers.ts'
 
 const PRESETS = ['plotline', 'court-green', 'ocean', 'plum', 'sunset'] as const
 let saved = 'plotline'
 
 async function setTheme(theme: string) {
-  const { error } = await serviceClient().from('venue_settings').update({ theme }).eq('id', true)
+  const { error } = await serviceClient().from('venue_settings').update({ theme }).eq('venue_id', await venueId())
   if (error) throw error
 }
 

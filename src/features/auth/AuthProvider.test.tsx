@@ -18,7 +18,7 @@ vi.mock('../../lib/supabase', () => ({
 }))
 
 const admin: Profile = {
-  id: 'u1', full_name: 'Ada Admin', phone: null, role: 'admin', created_at: '2030-01-01T00:00:00Z', updated_at: '2030-01-01T00:00:00Z',
+  id: 'u1', full_name: 'Ada Admin', phone: null, created_at: '2030-01-01T00:00:00Z', updated_at: '2030-01-01T00:00:00Z',
 }
 
 let auth: ReturnType<typeof useAuth> | null = null
@@ -54,11 +54,11 @@ describe('AuthProvider profile loading', () => {
     await act(() => auth!.refreshProfile())
     await waitFor(() => expect(screen.getByText('admin')).toBeInTheDocument())
     expect(auth!.profileError).toBeNull()
-    expect(auth!.profile?.role).toBe('admin')
+    expect(auth!.profile?.full_name).toBe('Ada Admin')
   })
 
   it('loads the role normally', async () => {
-    vi.mocked(fetchProfile).mockResolvedValue({ ...admin, role: 'player' })
+    vi.mocked(fetchProfile).mockResolvedValue(admin)
     vi.mocked(fetchAdminVenueIds).mockResolvedValue([])
     render(<AuthProvider><Probe /></AuthProvider>)
     expect(await screen.findByText('not admin')).toBeInTheDocument()

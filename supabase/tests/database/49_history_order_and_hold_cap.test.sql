@@ -10,11 +10,11 @@ insert into auth.users (id, email) values
   ('22222222-2222-2222-2222-222222222222', 'admin@test.local');
 insert into public.venue_members (venue_id, user_id, role)
 select id, '22222222-2222-2222-2222-222222222222', 'staff' from public.venues where slug = 'claudex-courts';
-insert into public.courts (id, name, sport, default_hourly_rate) values
-  ('c0000000-0000-0000-0000-000000000048', 'Cap Court', 'tennis', 500),
-  ('c0000000-0000-0000-0000-000000000049', 'Cap Court B', 'tennis', 500);
+insert into public.courts (venue_id, id, name, sport, default_hourly_rate) values
+  (private.default_venue_id(), 'c0000000-0000-0000-0000-000000000048', 'Cap Court', 'tennis', 500),
+  (private.default_venue_id(), 'c0000000-0000-0000-0000-000000000049', 'Cap Court B', 'tennis', 500);
 
-create temp table fx as select (private.local_today() + 3 + time '10:00') at time zone 'Asia/Manila' as t10;
+create temp table fx as select (private.local_today(private.default_venue_id()) + 3 + time '10:00') at time zone 'Asia/Manila' as t10;
 create temp table b (label text primary key, id uuid, ref text);
 grant select on fx to anon, authenticated, service_role;
 grant select, insert on b to anon, authenticated, service_role;

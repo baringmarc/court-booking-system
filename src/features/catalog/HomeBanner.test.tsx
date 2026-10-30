@@ -10,7 +10,7 @@ vi.mock('./media', () => ({ mediaUrl: (path: string) => `https://cdn.test/${path
 
 const PATH = 'banner/11111111-1111-1111-1111-111111111111.webp'
 const settings = (banner_path: string | null, banner_alt: string | null) =>
-  ({ id: true, name: 'Claudex Courts', banner_path, banner_alt }) as VenueSettings
+  ({ venue_id: 'v1', name: 'Claudex Courts', banner_path, banner_alt }) as VenueSettings
 
 function renderBanner() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })

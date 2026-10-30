@@ -7,11 +7,10 @@ insert into auth.users (id, email) values
   ('11111111-1111-1111-1111-111111111111', 'player@test.local'),
   ('33333333-3333-3333-3333-333333333333', 'other@test.local'),
   ('22222222-2222-2222-2222-222222222222', 'admin@test.local');
-update public.profiles set role = 'admin' where id = '22222222-2222-2222-2222-222222222222';
 insert into public.venue_members (venue_id, user_id, role)
 select id, '22222222-2222-2222-2222-222222222222', 'staff' from public.venues where slug = 'claudex-courts';
-insert into public.courts (id, name, sport, default_hourly_rate) values
-  ('c0000000-0000-0000-0000-000000000001', 'Proof Court', 'tennis', 500);
+insert into public.courts (venue_id, id, name, sport, default_hourly_rate) values
+  (private.default_venue_id(), 'c0000000-0000-0000-0000-000000000001', 'Proof Court', 'tennis', 500);
 insert into public.bookings (id, reference_code, court_id, user_id, guest_name, during, total_amount, status) values
   ('b0000000-0000-0000-0000-000000000001', 'CB-PRFAA2', 'c0000000-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', 'Pat',
    tstzrange('2030-01-07 10:00+08', '2030-01-07 11:00+08'), 500, 'payment_submitted'),

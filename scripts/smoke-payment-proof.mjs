@@ -90,8 +90,6 @@ log('anon: player booking without session', await invoke(client(), { reference_c
 
 // Admin review access to the guest's proof (T4.10): an admin can sign it, another player cannot.
 const { sb: admin, userId: adminId } = await signedInUser(`smoke-admin-${Date.now()}@example.com`)
-const { error: pe2 } = await service.from('profiles').update({ role: 'admin' }).eq('id', adminId)
-if (pe2) throw pe2
 // Admin rights come from venue membership since M12 (T12.10); Claudex Courts is the only venue.
 const { data: venue } = await service.from('venues').select('id').eq('slug', 'claudex-courts').single().throwOnError()
 await service.from('venue_members').insert({ venue_id: venue.id, user_id: adminId, role: 'staff' }).throwOnError()

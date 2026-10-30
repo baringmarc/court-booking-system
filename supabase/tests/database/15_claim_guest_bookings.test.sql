@@ -7,8 +7,8 @@ insert into auth.users (id, email, email_confirmed_at) values
   ('11111111-1111-1111-1111-111111111111', 'Gina.Guest@Test.Local', now()),   -- confirmed, mixed case
   ('22222222-2222-2222-2222-222222222222', 'unverified@test.local', null),   -- never confirmed
   ('33333333-3333-3333-3333-333333333333', 'olga@test.local', now());
-insert into public.courts (id, name, sport, default_hourly_rate) values
-  ('c0000000-0000-0000-0000-000000000001', 'Claim Court', 'tennis', 500);
+insert into public.courts (venue_id, id, name, sport, default_hourly_rate) values
+  (private.default_venue_id(), 'c0000000-0000-0000-0000-000000000001', 'Claim Court', 'tennis', 500);
 
 create function pg_temp.mk(p_ref text, p_hour int, p_email text, p_user uuid default null,
                            p_token boolean default true, p_source public.booking_source default 'online')

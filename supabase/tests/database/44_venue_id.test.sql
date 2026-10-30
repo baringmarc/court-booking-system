@@ -81,7 +81,7 @@ select is(pg_temp.foreign_rows(), 0::bigint, 'backfill: every existing row belon
 select cmp_ok((select count(*) from public.courts), '>', 0::bigint, 'backfill: seed courts exist (so the checks above are not vacuous)');
 select cmp_ok((select count(*) from public.operating_hours), '=', 7::bigint, 'backfill: operating_hours keeps its 7 rows');
 select is((select count(*) from public.venue_settings), 1::bigint, 'backfill: venue_settings keeps its single row');
-select is(pg_temp.default_tables(), 9, 'default: the 9 direct tables default venue_id to private.default_venue_id()');
+select is(pg_temp.default_tables(), 0, 'default: no direct table defaults venue_id any more (T12.11 contract)');
 
 -- rekeys
 select is(pg_temp.pk_cols('public.venue_settings'), 'venue_id', 'rekey: venue_settings primary key is (venue_id)');
@@ -93,20 +93,20 @@ select is(pg_temp.parent_uniques(), 6, 'schema: 6 parents have unique (venue_id,
 insert into public.venues (id, slug, status) values ('b0000000-0000-0000-0000-00000000000b', 'e2e-venue-b', 'active');
 
 -- default venue on direct tables when venue_id is omitted
-insert into public.courts (id, name, sport, default_hourly_rate) values
-  ('c0000000-0000-0000-0000-0000000000a1', 'E2E Shared Name', 'tennis', 500);
+insert into public.courts (venue_id, id, name, sport, default_hourly_rate) values
+  (private.default_venue_id(), 'c0000000-0000-0000-0000-0000000000a1', 'E2E Shared Name', 'tennis', 500);
 select is((select venue_id from public.courts where id = 'c0000000-0000-0000-0000-0000000000a1'), private.default_venue_id(), 'default: court inserted without venue_id lands in claudex-courts');
-insert into public.blackouts (id, court_id, starts_at, ends_at) values
-  ('d0000000-0000-0000-0000-0000000000a1', 'c0000000-0000-0000-0000-0000000000a1', now() + interval '10 days', now() + interval '10 days 1 hour');
+insert into public.blackouts (venue_id, id, court_id, starts_at, ends_at) values
+  (private.default_venue_id(), 'd0000000-0000-0000-0000-0000000000a1', 'c0000000-0000-0000-0000-0000000000a1', now() + interval '10 days', now() + interval '10 days 1 hour');
 select is((select venue_id from public.blackouts where id = 'd0000000-0000-0000-0000-0000000000a1'), private.default_venue_id(), 'default: blackout lands in claudex-courts');
-insert into public.open_play_sessions (id, title, starts_at, ends_at) values
-  ('e0000000-0000-0000-0000-0000000000a1', 'E2E Open Play', now() + interval '11 days', now() + interval '11 days 2 hours');
+insert into public.open_play_sessions (venue_id, id, title, starts_at, ends_at) values
+  (private.default_venue_id(), 'e0000000-0000-0000-0000-0000000000a1', 'E2E Open Play', now() + interval '11 days', now() + interval '11 days 2 hours');
 select is((select venue_id from public.open_play_sessions where id = 'e0000000-0000-0000-0000-0000000000a1'), private.default_venue_id(), 'default: open play session lands in claudex-courts');
-insert into public.venue_amenities (id, builtin_key) values ('f0000000-0000-0000-0000-0000000000a1', 'parking');
+insert into public.venue_amenities (venue_id, id, builtin_key) values (private.default_venue_id(), 'f0000000-0000-0000-0000-0000000000a1', 'parking');
 select is((select venue_id from public.venue_amenities where id = 'f0000000-0000-0000-0000-0000000000a1'), private.default_venue_id(), 'default: amenity lands in claudex-courts');
-insert into public.venue_info_sections (id, title) values ('f1000000-0000-0000-0000-0000000000a1', 'E2E Info');
+insert into public.venue_info_sections (venue_id, id, title) values (private.default_venue_id(), 'f1000000-0000-0000-0000-0000000000a1', 'E2E Info');
 select is((select venue_id from public.venue_info_sections where id = 'f1000000-0000-0000-0000-0000000000a1'), private.default_venue_id(), 'default: info section lands in claudex-courts');
-insert into public.venue_payment_accounts (id, label) values ('f2000000-0000-0000-0000-0000000000a1', 'E2E Account A');
+insert into public.venue_payment_accounts (venue_id, id, label) values (private.default_venue_id(), 'f2000000-0000-0000-0000-0000000000a1', 'E2E Account A');
 select is((select venue_id from public.venue_payment_accounts where id = 'f2000000-0000-0000-0000-0000000000a1'), private.default_venue_id(), 'default: payment account lands in claudex-courts');
 
 -- venue B fixtures (explicit venue_id on the direct tables)
@@ -132,7 +132,7 @@ select is((select venue_id from public.payments where id = 'a1000000-0000-0000-0
 insert into public.court_rates (court_id, day_of_week, start_hour, price) values ('c0000000-0000-0000-0000-0000000000b2', 1, 8, 700);
 select is((select venue_id from public.court_rates where court_id = 'c0000000-0000-0000-0000-0000000000b2'), 'b0000000-0000-0000-0000-00000000000b'::uuid, 'child fill: court rate takes its court''s venue');
 insert into public.court_photos (id, court_id, path, sort_order) values
-  ('a2000000-0000-0000-0000-0000000000b2', 'c0000000-0000-0000-0000-0000000000b2', 'courts/c0000000-0000-0000-0000-0000000000b2/a2000000-0000-0000-0000-0000000000b2.png', 0);
+  ('a2000000-0000-0000-0000-0000000000b2', 'c0000000-0000-0000-0000-0000000000b2', 'b0000000-0000-0000-0000-00000000000b/courts/c0000000-0000-0000-0000-0000000000b2/a2000000-0000-0000-0000-0000000000b2.png', 0);
 select is((select venue_id from public.court_photos where id = 'a2000000-0000-0000-0000-0000000000b2'), 'b0000000-0000-0000-0000-00000000000b'::uuid, 'child fill: court photo takes its court''s venue');
 insert into public.open_play_courts (session_id, court_id, during) values
   ('e0000000-0000-0000-0000-0000000000b1', 'c0000000-0000-0000-0000-0000000000b2', tstzrange(now() + interval '12 days', now() + interval '12 days 2 hours'));
@@ -165,7 +165,7 @@ select throws_ok($$insert into public.payments (venue_id, booking_id, method, am
   '23503', null, 'cross-venue: payment in claudex on a venue B booking is rejected');
 select throws_ok($$insert into public.court_rates (venue_id, court_id, day_of_week, start_hour, price) values (private.default_venue_id(), 'c0000000-0000-0000-0000-0000000000b2', 3, 8, 1)$$,
   '23503', null, 'cross-venue: court rate in claudex on a venue B court is rejected');
-select throws_ok($$insert into public.court_photos (venue_id, court_id, path, sort_order) values (private.default_venue_id(), 'c0000000-0000-0000-0000-0000000000b2', 'courts/c0000000-0000-0000-0000-0000000000b2/a2000000-0000-0000-0000-0000000000c3.png', 1)$$,
+select throws_ok($$insert into public.court_photos (venue_id, court_id, path, sort_order) values (private.default_venue_id(), 'c0000000-0000-0000-0000-0000000000b2', private.default_venue_id() || '/courts/c0000000-0000-0000-0000-0000000000b2/a2000000-0000-0000-0000-0000000000c3.png', 1)$$,
   '23503', null, 'cross-venue: court photo in claudex on a venue B court is rejected');
 select throws_ok($$insert into public.blackouts (venue_id, court_id, starts_at, ends_at) values (private.default_venue_id(), 'c0000000-0000-0000-0000-0000000000b2', now() + interval '40 days', now() + interval '40 days 1 hour')$$,
   '23503', null, 'cross-venue: blackout in claudex on a venue B court is rejected');
@@ -205,11 +205,11 @@ select throws_ok($$insert into public.operating_hours (venue_id, day_of_week, op
 select is((select count(*) from public.operating_hours where venue_id = private.default_venue_id()), 7::bigint, 'second venue: claudex operating_hours is untouched');
 select lives_ok($$insert into public.courts (venue_id, name, sport, default_hourly_rate) values ('b0000000-0000-0000-0000-00000000000b', 'E2E Shared Name', 'tennis', 500)$$,
   'second venue: can reuse a court name another venue uses');
-select throws_ok($$insert into public.courts (name, sport, default_hourly_rate) values ('E2E Shared Name', 'tennis', 500)$$,
+select throws_ok($$insert into public.courts (venue_id, name, sport, default_hourly_rate) values (private.default_venue_id(), 'E2E Shared Name', 'tennis', 500)$$,
   '23505', null, 'second venue: court name is still unique within a venue');
 select lives_ok($$insert into public.venue_amenities (venue_id, builtin_key) values ('b0000000-0000-0000-0000-00000000000b', 'parking')$$,
   'second venue: can reuse a built-in amenity another venue has');
-select throws_ok($$insert into public.venue_amenities (builtin_key) values ('parking')$$,
+select throws_ok($$insert into public.venue_amenities (venue_id, builtin_key) values (private.default_venue_id(), 'parking')$$,
   '23505', null, 'second venue: built-in amenity is still unique within a venue');
 select lives_ok($$insert into public.venue_social_links (venue_id, platform, url) values ('b0000000-0000-0000-0000-00000000000b', 'facebook', 'https://facebook.com/e2e-b'), (private.default_venue_id(), 'facebook', 'https://facebook.com/e2e-a')$$,
   'second venue: each venue can have its own link for the same platform');

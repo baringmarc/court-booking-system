@@ -162,7 +162,6 @@ insert into auth.users (id, email) values
   ('22222222-2222-2222-2222-222222222222', 'staff-a-bill@test.local'),
   ('77777777-7777-7777-7777-777777777777', 'staff-b-bill@test.local'),
   ('44444444-4444-4444-4444-444444444444', 'platform-bill@test.local');
-update public.profiles set role = 'admin' where id = '22222222-2222-2222-2222-222222222222';
 insert into public.venue_members (venue_id, user_id, role)
 select id, '22222222-2222-2222-2222-222222222222', 'staff' from public.venues where slug = 'claudex-courts';
 insert into public.platform_admins (user_id) values ('44444444-4444-4444-4444-444444444444');
@@ -184,7 +183,7 @@ create temp table v as select (select id from public.venues where slug = 'claude
                               'b1110000-0000-0000-0000-00000000000b'::uuid as b;
 -- t0 is 07:00 in Manila three days out: slot k is t0 + k hours. tb is 10:00 in Honolulu three days out.
 create temp table fx as
-select (private.local_today() + 3 + time '07:00') at time zone 'Asia/Manila' as t0,
+select (private.local_today(private.default_venue_id()) + 3 + time '07:00') at time zone 'Asia/Manila' as t0,
        ((now() at time zone 'Pacific/Honolulu')::date + 3 + time '10:00') at time zone 'Pacific/Honolulu' as tb;
 create temp table b (label text primary key, id uuid, ref text, token text, cents bigint);
 create temp table inv (label text primary key, id uuid);
@@ -301,8 +300,8 @@ select is(pg_temp.conf('exp'), 'null', 'an expired hold has no confirmed_at');
 select is(pg_temp.charges('exp'), '0', 'an expired hold writes no charge');
 
 -- ---------------------------------------------------------------- row: late PayMongo payment for an expired hold
-insert into public.blackouts (court_id, starts_at, ends_at, reason)
-select 'c0000000-0000-0000-0000-00000000b0a1', fx.t0 + interval '5 hours', fx.t0 + interval '6 hours', 'E2E bill blackout' from fx;
+insert into public.blackouts (venue_id, court_id, starts_at, ends_at, reason)
+select private.default_venue_id(), 'c0000000-0000-0000-0000-00000000b0a1', fx.t0 + interval '5 hours', fx.t0 + interval '6 hours', 'E2E bill blackout' from fx;
 select pg_temp.mk_checkout('late');
 set local role service_role;
 select is(pg_temp.pay('late'), 'late', 'a payment for an expired hold whose slot is blacked out is late (refund due)');
@@ -331,10 +330,10 @@ reset role;
 select is(pg_temp.conf('walk'), 'set', 'a walk-in is confirmed on creation, so it has confirmed_at');
 select is(pg_temp.charges('walk'), '0', 'a walk-in writes no charge');
 
-insert into public.blackouts (court_id, starts_at, ends_at, reason)
-select 'c0000000-0000-0000-0000-00000000b0a2', fx.t0 + interval '12 hours', fx.t0 + interval '13 hours', 'E2E bill blackout 2' from fx;
-insert into public.open_play_sessions (id, title, starts_at, ends_at)
-select '0b000000-0000-0000-0000-0000000b1101', 'E2E bill open play', fx.t0 + interval '13 hours', fx.t0 + interval '15 hours' from fx;
+insert into public.blackouts (venue_id, court_id, starts_at, ends_at, reason)
+select private.default_venue_id(), 'c0000000-0000-0000-0000-00000000b0a2', fx.t0 + interval '12 hours', fx.t0 + interval '13 hours', 'E2E bill blackout 2' from fx;
+insert into public.open_play_sessions (venue_id, id, title, starts_at, ends_at)
+select private.default_venue_id(), '0b000000-0000-0000-0000-0000000b1101', 'E2E bill open play', fx.t0 + interval '13 hours', fx.t0 + interval '15 hours' from fx;
 insert into public.open_play_courts (session_id, court_id, during)
 select '0b000000-0000-0000-0000-0000000b1101', 'c0000000-0000-0000-0000-00000000b0a2', tstzrange(fx.t0 + interval '13 hours', fx.t0 + interval '15 hours') from fx;
 select is(pg_temp.val($$ select count(*) from public.billing_charges $$), (select v from kv where k = 'before'),

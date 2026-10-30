@@ -26,7 +26,7 @@ test('an admin builds a court gallery that players see on the home page and /boo
   const name = `${E2E_PREFIX} Photo Court ${Date.now()}`
   // Inactive, so it never shows up on public pages or in other flows.
   const { data: court, error } = await service.from('courts')
-    .insert({ name, sport: 'tennis', default_hourly_rate: 500, is_active: false }).select('id').single()
+    .insert({ venue_id: await venueId(), name, sport: 'tennis', default_hourly_rate: 500, is_active: false }).select('id').single()
   if (error) throw error
 
   const admin = await createAdmin()

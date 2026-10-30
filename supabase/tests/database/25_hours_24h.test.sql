@@ -5,7 +5,6 @@ create extension if not exists pgtap with schema extensions;
 select plan(9);
 
 insert into auth.users (id, email) values ('22222222-2222-2222-2222-222222222222', 'admin@test.local');
-update public.profiles set role = 'admin' where id = '22222222-2222-2222-2222-222222222222';
 insert into public.venue_members (venue_id, user_id, role)
 select id, '22222222-2222-2222-2222-222222222222', 'staff' from public.venues where slug = 'claudex-courts';
 

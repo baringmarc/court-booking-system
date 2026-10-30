@@ -34,12 +34,12 @@ export async function createPlayer(kind = 'player') {
   return { id: data.user.id, email, password: PASSWORD }
 }
 
-/** Creates a confirmed user and promotes them to admin (admins are promoted in the database, SPEC §2). */
+/** Creates a confirmed user and makes them staff of Claudex Courts (admins are promoted in the database, SPEC §2). */
 export async function createAdmin() {
   const user = await createPlayer('admin')
-  const { error } = await serviceClient().from('profiles').update({ role: 'admin', full_name: `${E2E_PREFIX} Admin` }).eq('id', user.id)
+  const { error } = await serviceClient().from('profiles').update({ full_name: `${E2E_PREFIX} Admin` }).eq('id', user.id)
   if (error) throw error
-  // Admin rights come from venue membership since M12 (T12.4); Claudex Courts is the only venue.
+  // Admin rights come from venue membership (M12); Claudex Courts is the only venue.
   const { data: venue, error: venueError } = await serviceClient().from('venues').select('id').eq('slug', 'claudex-courts').single()
   if (venueError) throw venueError
   const { error: memberError } = await serviceClient().from('venue_members').insert({ venue_id: venue.id, user_id: user.id, role: 'staff' })

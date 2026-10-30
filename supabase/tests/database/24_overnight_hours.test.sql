@@ -18,11 +18,10 @@ insert into auth.users (id, email) values
   ('11111111-1111-1111-1111-111111111111', 'nameless@test.local'),
   ('22222222-2222-2222-2222-222222222222', 'admin@test.local');
 update public.profiles set full_name = null where id = '11111111-1111-1111-1111-111111111111';
-update public.profiles set role = 'admin' where id = '22222222-2222-2222-2222-222222222222';
 insert into public.venue_members (venue_id, user_id, role)
 select id, '22222222-2222-2222-2222-222222222222', 'staff' from public.venues where slug = 'claudex-courts';
-insert into public.courts (id, name, sport, default_hourly_rate) values
-  ('c0000000-0000-0000-0000-000000000001', 'Night Court', 'tennis', 300);
+insert into public.courts (venue_id, id, name, sport, default_hourly_rate) values
+  (private.default_venue_id(), 'c0000000-0000-0000-0000-000000000001', 'Night Court', 'tennis', 300);
 
 -- d: an overnight day (06:00 → 05:00 the next morning). e: a 24-hour day (00:00 → 24:00, the only way to set one).
 -- w: the last day of the booking window (30 days), also overnight. Its weekday is the one before d's
@@ -31,7 +30,7 @@ update public.venue_settings set booking_window_days = 30;
 create temp table fx as
 select d, d + 4 as e, w, extract(dow from d)::smallint as dow_d, extract(dow from d + 1)::smallint as dow_next,
        extract(dow from d + 4)::smallint as dow_e, extract(dow from w)::smallint as dow_w
-from (select private.local_today() + 3 as d, private.local_today() + 30 as w) x; -- = operating_today() once the hours below are set
+from (select private.local_today(private.default_venue_id()) + 3 as d, private.local_today(private.default_venue_id()) + 30 as w) x; -- = operating_today() once the hours below are set
 grant select on fx to anon, authenticated;
 
 update public.operating_hours set open_time = '06:00', close_time = '22:00', is_closed = false;
@@ -54,21 +53,21 @@ grant execute on function pg_temp.at(date, time) to anon, authenticated;
 -- The operating day
 -- ---------------------------------------------------------------------------
 select is(
-  private.operating_day_range((select d from fx)),
+  private.operating_day_range(private.default_venue_id(), (select d from fx)),
   tstzrange(pg_temp.at((select d from fx), '06:00'), pg_temp.at((select d from fx) + 1, '05:00')),
   'an overnight day runs from its opening to the close the next morning'
 );
 select is(
-  upper(private.operating_day_range((select e from fx))) - lower(private.operating_day_range((select e from fx))),
+  upper(private.operating_day_range(private.default_venue_id(), (select e from fx))) - lower(private.operating_day_range(private.default_venue_id(), (select e from fx))),
   interval '24 hours', '12 AM to midnight is 24 hours'
 );
-select is(private.operating_day_of(pg_temp.at((select d from fx) + 1, '01:00')), (select d from fx),
+select is(private.operating_day_of(private.default_venue_id(), pg_temp.at((select d from fx) + 1, '01:00')), (select d from fx),
   'a 1 AM slot after the overnight day belongs to the previous date');
-select is(private.operating_day_of(pg_temp.at((select d from fx) + 1, '05:30')), null::date,
+select is(private.operating_day_of(private.default_venue_id(), pg_temp.at((select d from fx) + 1, '05:30')), null::date,
   'between the overnight close and the next opening the venue is closed');
-select is(private.operating_day_of(pg_temp.at((select d from fx) + 1, '06:00')), (select d from fx) + 1,
+select is(private.operating_day_of(private.default_venue_id(), pg_temp.at((select d from fx) + 1, '06:00')), (select d from fx) + 1,
   'the next day starts at its own opening');
-select ok(private.operating_today() in (private.local_today(), private.local_today() - 1),
+select ok(private.operating_today(private.default_venue_id()) in (private.local_today(private.default_venue_id()), private.local_today(private.default_venue_id()) - 1),
   'today is the local date, or the previous date while an overnight day is still running');
 
 -- ---------------------------------------------------------------------------

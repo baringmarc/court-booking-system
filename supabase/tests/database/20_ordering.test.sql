@@ -7,17 +7,16 @@ select plan(13);
 insert into auth.users (id, email) values
   ('11111111-1111-1111-1111-111111111111', 'player@test.local'),
   ('22222222-2222-2222-2222-222222222222', 'admin@test.local');
-update public.profiles set role = 'admin' where id = '22222222-2222-2222-2222-222222222222';
 insert into public.venue_members (venue_id, user_id, role) select id, '22222222-2222-2222-2222-222222222222', 'owner' from public.venues where slug = 'claudex-courts';
-insert into public.courts (id, name, sport, default_hourly_rate, sort_order) values
-  ('c0000000-0000-0000-0000-000000000001', 'Order T-A', 'tennis', 500, 100),
-  ('c0000000-0000-0000-0000-000000000002', 'Order T-B', 'tennis', 500, 100),  -- same number: name breaks the tie
-  ('c0000000-0000-0000-0000-000000000003', 'Order T-C', 'tennis', 500, 107);
+insert into public.courts (venue_id, id, name, sport, default_hourly_rate, sort_order) values
+  (private.default_venue_id(), 'c0000000-0000-0000-0000-000000000001', 'Order T-A', 'tennis', 500, 100),
+  (private.default_venue_id(), 'c0000000-0000-0000-0000-000000000002', 'Order T-B', 'tennis', 500, 100),  -- same number: name breaks the tie
+  (private.default_venue_id(), 'c0000000-0000-0000-0000-000000000003', 'Order T-C', 'tennis', 500, 107);
 -- Archived courts are ordered too (the admin list shows them).
-insert into public.courts (id, name, sport, default_hourly_rate, sort_order, is_active) values
-  ('c0000000-0000-0000-0000-000000000004', 'Order T-D (archived)', 'tennis', 500, 108, false);
+insert into public.courts (venue_id, id, name, sport, default_hourly_rate, sort_order, is_active) values
+  (private.default_venue_id(), 'c0000000-0000-0000-0000-000000000004', 'Order T-D (archived)', 'tennis', 500, 108, false);
 
-create temp table fx as select private.local_today() + 3 as d;
+create temp table fx as select private.local_today(private.default_venue_id()) + 3 as d;
 grant select on fx to anon, authenticated;
 -- Tennis courts in display order, as names.
 create function pg_temp.tennis_order() returns text[] language sql as $$

@@ -8,16 +8,16 @@ import { localSupabase } from './support/local.ts'
 type Snapshot = {
   socials: { platform: string; url: string }[]
   amenities: { id: string; builtin_key: string | null; custom_name: string | null; created_at: string }[]
-  location: { address: string; maps_url: string }
+  location: { venue_id: string; address: string; maps_url: string }
 }
 let before: Snapshot
 
 test.beforeEach(async () => {
   const service = serviceClient()
-  const { data: socials, error: e1 } = await service.from('venue_social_links').select('platform, url')
+  const { data: socials, error: e1 } = await service.from('venue_social_links').select('venue_id, platform, url')
   // Ids and dates too, so restoring keeps the amenities' order.
-  const { data: amenities, error: e2 } = await service.from('venue_amenities').select('id, builtin_key, custom_name, created_at')
-  const { data: location, error: e3 } = await service.from('venue_settings').select('address, maps_url').single()
+  const { data: amenities, error: e2 } = await service.from('venue_amenities').select('id, venue_id, builtin_key, custom_name, created_at')
+  const { data: location, error: e3 } = await service.from('venue_settings').select('venue_id, address, maps_url').single()
   if (e1 || e2 || e3) throw e1 ?? e2 ?? e3
   before = { socials: socials ?? [], amenities: amenities ?? [], location: location! }
 })
@@ -30,7 +30,7 @@ test.afterEach(async () => {
   if (before.socials.length) await service.from('venue_social_links').insert(before.socials as never).throwOnError()
   await service.from('venue_amenities').delete().not('id', 'is', null).throwOnError()
   if (before.amenities.length) await service.from('venue_amenities').insert(before.amenities).throwOnError()
-  await service.from('venue_settings').update(before.location).eq('id', true).throwOnError()
+  await service.from('venue_settings').update(before.location).eq('venue_id', before.location.venue_id).throwOnError()
 })
 
 test('an admin sets an amenity, an info section and a social link, and anyone can read them', async ({ page }) => {

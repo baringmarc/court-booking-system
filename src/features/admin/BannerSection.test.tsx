@@ -16,7 +16,7 @@ vi.mock('../catalog/media', () => ({ mediaUrl: (path: string) => `https://cdn.te
 const OLD = 'banner/11111111-1111-1111-1111-111111111111.webp'
 const NEW = 'banner/22222222-2222-2222-2222-222222222222.webp'
 const settings = (banner_path: string | null = null, banner_alt: string | null = null) =>
-  ({ id: true, name: 'Claudex Courts', banner_path, banner_alt }) as VenueSettings
+  ({ venue_id: 'v1', name: 'Claudex Courts', banner_path, banner_alt }) as VenueSettings
 
 const image = (type = 'image/jpeg') => new File([new Uint8Array(1)], 'banner', { type })
 const resized = (size = 500) => {

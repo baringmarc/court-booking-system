@@ -21,18 +21,17 @@ insert into auth.users (id, email) values
   ('11111111-1111-1111-1111-111111111111', 'player@test.local'),
   ('22222222-2222-2222-2222-222222222222', 'admin@test.local'),
   ('33333333-3333-3333-3333-333333333333', 'other@test.local');
-update public.profiles set role = 'admin' where id = '22222222-2222-2222-2222-222222222222';
 insert into public.venue_members (venue_id, user_id, role) select id, '22222222-2222-2222-2222-222222222222', 'owner' from public.venues where slug = 'claudex-courts';
-insert into public.courts (id, name, sport, default_hourly_rate) values
-  ('c0000000-0000-0000-0000-000000000041', 'Paid With Court', 'tennis', 500);
+insert into public.courts (venue_id, id, name, sport, default_hourly_rate) values
+  (private.default_venue_id(), 'c0000000-0000-0000-0000-000000000041', 'Paid With Court', 'tennis', 500);
 delete from public.venue_payment_accounts;
 create temp table acc as
-  with i as (insert into public.venue_payment_accounts (label, account_name) values ('Main GCash', 'Claudex') returning id)
+  with i as (insert into public.venue_payment_accounts (venue_id, label, account_name) values (private.default_venue_id(), 'Main GCash', 'Claudex') returning id)
   select id from i;
-insert into public.venue_payment_accounts (label) values ('Other Maya');
+insert into public.venue_payment_accounts (venue_id, label) values (private.default_venue_id(), 'Other Maya');
 grant select on acc to anon, authenticated, service_role;
 
-create temp table fx as select (private.local_today() + 3 + time '10:00') at time zone 'Asia/Manila' as t10;
+create temp table fx as select (private.local_today(private.default_venue_id()) + 3 + time '10:00') at time zone 'Asia/Manila' as t10;
 create temp table b (label text primary key, id uuid, ref text, token text);
 grant select on fx to anon, authenticated, service_role;
 grant select, insert on b to anon, authenticated, service_role;

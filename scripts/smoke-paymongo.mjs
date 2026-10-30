@@ -121,8 +121,9 @@ check('malformed reference: not found', r.status === 404, `${r.status}`)
 const o = await freeSlot(guest, 6, 20)
 const { data: ob, error: oe } = await guest.rpc('create_booking', { p_court_id: o.court_id, p_start: o.slot_start, p_slots: 1, p_guest_name: 'Smoke PayMongo Switch', p_guest_email: 'smoke-paymongo@example.com' })
 if (oe) throw oe
+const { data: venue } = await service.from('venues').select('id').eq('slug', 'claudex-courts').single().throwOnError()
 const setOnline = async (on) => {
-  const { error } = await service.from('venue_settings').update({ online_payments_enabled: on }).eq('id', true)
+  const { error } = await service.from('venue_settings').update({ online_payments_enabled: on }).eq('venue_id', venue.id)
   if (error) throw error
 }
 await setOnline(false)

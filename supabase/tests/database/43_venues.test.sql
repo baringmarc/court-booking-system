@@ -56,7 +56,6 @@ insert into auth.users (id, email) values
   ('44444444-4444-4444-4444-444444444444', 'platform@test.local'),
   ('55555555-5555-5555-5555-555555555555', 'owner-b@test.local'),
   ('66666666-6666-6666-6666-666666666666', 'legacy-admin@test.local');
-update public.profiles set role = 'admin' where id = '66666666-6666-6666-6666-666666666666';
 
 insert into public.venues (id, slug, status) values
   ('a0000000-0000-0000-0000-00000000000a', 'e2e-venue-a', 'active'),
@@ -178,11 +177,11 @@ select is((select status from public.venues where id = 'a0000000-0000-0000-0000-
 select is((select role from public.venue_members where user_id = '22222222-2222-2222-2222-222222222222'), 'staff', 'intact: staff role unchanged');
 select is((select count(*) from public.platform_admins), 1::bigint, 'intact: still exactly one platform admin (test fixture)');
 
--- legacy admin keeps working
+-- the former profiles.role admin (no membership) has no rights since T12.11
 select set_config('request.jwt.claims', '{"sub": "66666666-6666-6666-6666-666666666666", "role": "authenticated"}', true);
-select is(private.is_admin(), true, 'legacy: profiles.role=admin still passes private.is_admin()');
+select is(private.is_venue_admin('a0000000-0000-0000-0000-00000000000a'), false, 'contract: a user without a membership is not an admin of venue A');
 select set_config('request.jwt.claims', '{"sub": "11111111-1111-1111-1111-111111111111", "role": "authenticated"}', true);
-select is(private.is_admin(), false, 'legacy: player still fails private.is_admin()');
+select is(private.is_venue_admin('a0000000-0000-0000-0000-00000000000a'), false, 'contract: a player is not an admin of venue A');
 
 select * from finish();
 rollback;
