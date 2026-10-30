@@ -8,6 +8,7 @@ insert into auth.users (id, email, raw_user_meta_data) values
   ('22222222-2222-2222-2222-222222222222', 'admin@test.local',  '{"name": "Ada Admin"}'),
   ('33333333-3333-3333-3333-333333333333', 'sneaky@test.local', '{"full_name": "Sam Sneaky", "role": "admin"}');
 update public.profiles set role = 'admin' where id = '22222222-2222-2222-2222-222222222222';
+insert into public.venue_members (venue_id, user_id, role) select id, '22222222-2222-2222-2222-222222222222', 'owner' from public.venues where slug = 'claudex-courts';
 
 select is(
   (select full_name from public.profiles where id = '11111111-1111-1111-1111-111111111111'),
@@ -44,7 +45,7 @@ select is(
   'Ada Admin', 'the player''s update did not change the other profile'
 );
 select ok(private.is_admin(), 'admin is admin');
-select cmp_ok((select count(*)::int from public.profiles), '>=', 2, 'admin sees all profiles');
+select is((select count(*)::int from public.profiles), 1, 'venue admin sees only their own profile until a player books at their venue (T12.4)');
 
 -- As anon
 reset role;

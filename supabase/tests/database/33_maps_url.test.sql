@@ -7,6 +7,7 @@ insert into auth.users (id, email) values
   ('11111111-1111-1111-1111-111111111111', 'player@test.local'),
   ('22222222-2222-2222-2222-222222222222', 'admin@test.local');
 update public.profiles set role = 'admin' where id = '22222222-2222-2222-2222-222222222222';
+insert into public.venue_members (venue_id, user_id, role) select id, '22222222-2222-2222-2222-222222222222', 'owner' from public.venues where slug = 'claudex-courts';
 
 -- ---------------------------------------------------------------------------
 -- The column
