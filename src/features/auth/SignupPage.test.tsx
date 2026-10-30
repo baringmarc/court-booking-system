@@ -4,12 +4,10 @@ import { describe, expect, it } from 'vitest'
 import { SignupPage } from './SignupPage'
 
 describe('SignupPage', () => {
-  it('points visitors to Google sign-in or guest booking while confirmation emails are off', () => {
+  it('no longer warns that confirmation emails are off, and keeps Google sign-in and the form', () => {
     render(<MemoryRouter><SignupPage /></MemoryRouter>)
-    const note = screen.getByRole('note')
-    expect(note).toHaveTextContent(/can't send confirmation emails yet/)
-    expect(note).toHaveTextContent('Continue with Google')
-    expect(screen.getByRole('link', { name: 'book as a guest' })).toHaveAttribute('href', '/book')
+    expect(screen.queryByRole('note')).not.toBeInTheDocument()
+    expect(screen.queryByText(/can't send confirmation emails yet/)).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Continue with Google/ })).toBeInTheDocument()
   })
 })

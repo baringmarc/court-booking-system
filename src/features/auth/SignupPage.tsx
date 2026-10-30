@@ -56,14 +56,6 @@ export function SignupPage() {
     <section className="page narrow">
       <h1>Create an account</h1>
       <p className="muted">Keep track of your bookings at Claudex Courts.</p>
-      {/* Hosted emails are off for now (SPEC §8, T8.6), so an email + password sign-up can't be confirmed. */}
-      <div className="alert alert-info" role="note">
-        <p>
-          We can't send confirmation emails yet, so email sign-up won't finish. Use <strong>Continue with Google</strong>,
-          or <Link to="/book">book as a guest</Link> with no account.
-        </p>
-      </div>
-
       <div className="card stack">
         <GoogleButton redirectPath={from} />
         <div className="divider"><span>or</span></div>

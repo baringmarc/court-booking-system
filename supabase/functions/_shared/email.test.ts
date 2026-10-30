@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { emailAction, emailTransport, LOCAL_WORKER_SECRET, parseFrom, RESEND_API, sendEmail, workerAuthorized, workerSecret } from './email.ts'
+import { emailAction, emailTransport, fromFor, LOCAL_WORKER_SECRET, parseFrom, RESEND_API, sendEmail, workerAuthorized, workerSecret } from './email.ts'
 
 const LOCAL = 'http://kong:8000'
 const HOSTED = 'https://abc.supabase.co'
@@ -95,5 +95,37 @@ describe('sendEmail', () => {
     const [url, init] = fetchFn.mock.calls[0]
     expect(url).toBe('http://mailpit:8025/api/v1/send')
     expect(JSON.parse(init.body)).toMatchObject({ To: [{ Email: 'gina@example.com' }], Subject: 'S', Text: 'T', From: { Email: 'no-reply@claudex.test' } })
+  })
+})
+
+describe('fromFor', () => {
+  const addr = 'bookings@mail.plotline.fit'
+  it('puts the venue name on the bare sender address and round-trips through parseFrom', () => {
+    const from = fromFor('Claudex Courts', addr)
+    expect(from).toBe(`Claudex Courts <${addr}>`)
+    expect(parseFrom(from)).toEqual({ name: 'Claudex Courts', email: addr })
+  })
+  it('uses only the address part when EMAIL_FROM is still in "Name <addr>" form', () => {
+    expect(parseFrom(fromFor('Padel Hub', `Old Name <${addr}>`))).toEqual({ name: 'Padel Hub', email: addr })
+  })
+  it('falls back to the bare address when the venue name is empty or missing', () => {
+    for (const name of [null, undefined, '', '   ']) expect(parseFrom(fromFor(name, addr))).toEqual({ name: '', email: addr })
+  })
+  it('falls back to the default address when the address is missing', () => {
+    expect(parseFrom(fromFor('Padel Hub', null))).toEqual({ name: 'Padel Hub', email: 'no-reply@claudex.test' })
+    expect(parseFrom(fromFor('Padel Hub', undefined)).email).toBe('no-reply@claudex.test')
+  })
+  it('sanitizes the venue name so it cannot break the header', () => {
+    const from = fromFor('Evil" <x@y.z>\r\nBcc: a@b.c', addr)
+    expect(from).not.toMatch(/[\r\n]/)
+    const parsed = parseFrom(from)
+    expect(parsed.email).toBe(addr)
+    expect(parsed.name).not.toMatch(/[<>"\r\n]/)
+    expect(from.match(/</g)).toHaveLength(1)
+  })
+  it('trims and caps the name at 60 characters', () => {
+    const parsed = parseFrom(fromFor(`  ${'A'.repeat(100)}  `, addr))
+    expect(parsed.name).toBe('A'.repeat(60))
+    expect(parsed.email).toBe(addr)
   })
 })
