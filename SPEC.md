@@ -1,6 +1,6 @@
 # Court Booking System — Product Spec
 
-> Status: v1.0 (2026-10-23), with M10 done (2026-10-26). M1–M10 are done; the M9 and M10 frontends reach production when `develop` is merged into `master`. Portfolio project: one realistic venue, simplified operations.
+> Status: v1.0 (2026-10-23), with M11 done (2026-10-30). M1–M11 are done; the M9–M11 frontends reach production when `develop` is merged into `master`. Portfolio project: one realistic venue, simplified operations.
 
 ## 1. Overview
 
@@ -384,7 +384,7 @@ Until emails ship, the confirmation page shows the private link with a "save thi
    - merged blocks on the slot grids (one cell per booking, open play session or blackout)
    - earnings on the dashboard (collected per method, occupancy, a daily chart, coming up) and CSV export
    - staff-only rescheduling, including moving the rest of a booking that has already started
-11. **Plotline brand and venue upgrades** (added 2026-10-26; breakdown in TASKS.md, brand summary in `docs/BRAND.md`, research in RESEARCH M11):
+11. ✅ **Plotline brand and venue upgrades** (added 2026-10-26; done 2026-10-30, except the T11.15 contract migration, which waits for the production deploy; breakdown in TASKS.md, brand summary in `docs/BRAND.md`, research in RESEARCH M11):
    - the whole site restyled to the Plotline brand (palette, Fraunces and DM Sans, the logo), light and dark
    - venue color themes: owners pick one of a few presets (Plotline by default)
    - location from a pasted Google Maps link; players see the address with a pin icon that opens Google Maps (no embedded map)

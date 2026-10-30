@@ -6,35 +6,35 @@ A court booking web app for a single multi-sport venue in the Philippines: badmi
 
 This is a portfolio project. The product spec is [SPEC.md](SPEC.md), the work plan is [TASKS.md](TASKS.md), and the research behind each decision (with sources) is in [RESEARCH.md](RESEARCH.md).
 
-| Booking on a phone | Open play details | Rescheduling a booking |
+| Home | Booking on a phone | Earnings |
 | --- | --- | --- |
-| ![The /book slot grid at 360px, with one merged open play block](docs/screenshots/book-phone.png) | ![The open play details dialog](docs/screenshots/open-play-details-phone.png) | ![The admin reschedule form at 360px](docs/screenshots/admin-reschedule-phone.png) |
+| ![The home page at 360px: address, quick facts and amenities](docs/screenshots/home-phone.png) | ![The /book slot grid at 360px, with one merged open play block](docs/screenshots/book-phone.png) | ![The admin earnings at 360px](docs/screenshots/admin-earnings-phone.png) |
 
 More screenshots, at phone and desktop sizes, are in [docs/screenshots](docs/screenshots). The demo video script is [docs/demo-script.md](docs/demo-script.md).
 
 ## What it does
 
 **Players** (guests or signed-in):
-- Browse courts with photo galleries, the venue's amenities, location (with a map) and policies.
+- See the venue's address (a pin that opens Google Maps), courts with photo galleries, amenities and policies, in the Plotline look (Fraunces and DM Sans, light and dark) and the venue's own color preset.
 - Pick a date from a calendar (or Today, Tomorrow and the arrows), then consecutive one-hour slots on a live grid. It shows each slot's time range and price, marks booked, closed, open play and past slots, and merges the hours of one booking, session or closure into a single block. It also handles opening hours that run past midnight.
-- Check out as a guest (name, email, phone) or with an account. The slot is held while the player pays.
-- Pay online with PayMongo (GCash, Maya, card, QR Ph; test mode), confirmed automatically by a signed webhook. Or pay manually and upload a receipt, which staff review.
+- Check out as a guest (name, email, optional mobile number) or with an account, accepting the venue's waiver if it has one. The slot is held while the player pays. The ₱10 booking fee is shown on top of the court price.
+- Pay online with PayMongo (GCash, Maya, card, QR Ph; test mode, when Plotline has switched it on for the venue), confirmed automatically by a signed webhook. Or pay manually: scan the venue's payment QR codes (GCash, InstaPay, Maya, banks), upload a receipt and say which account was used. Staff review it, and a rejection email carries a fresh link to upload again.
 - Manage the booking from a private link (guests) or from My bookings (accounts). Cancel up to the venue's cutoff. If staff move a booking, the page shows the new time and the reason, and the player gets an email.
 
 **Staff** (the `/admin` area, lazy-loaded so players never download it):
-- See today's courts with each booker's name, review payment proofs, and record walk-ins.
-- Follow the money on the dashboard: what was collected per payment method for a day, week, month or custom range (with the change from the period before), booked hours and occupancy per court and sport, a daily chart, and what's coming up. Export bookings and payments to CSV (contact details only when ticked).
+- See today's courts with each booker's name and review payment proofs. A new booking or proof shows live in the browser tab's title. Search and sort bookings. Walk-ins are built but hidden behind a code flag.
+- Follow the money on the dashboard: total revenue, the owner's earnings and Plotline's booking fees, what was collected per payment method for a day, week, month or custom range (with the change from the period before), booked hours and occupancy per court and sport, a daily chart, and what's coming up. Export bookings and payments to CSV (contact details only when ticked).
 - Reschedule a confirmed booking to another court of the same sport or another time, with a reason the player sees. Once a booking has started, the rest of it moves as a booking of its own, so nothing already played is rewritten.
-- Edit courts, rates by day and hour, opening hours (including overnight and 24 hours), blackouts and photos.
+- Edit courts, rates by day and hour, opening hours (including overnight and 24 hours), blackouts and photos. Drag courts and info sections into order.
 - Create one-off open play sessions that block courts and show their details and RSVP links to players.
-- Set the venue's location, social links, info sections (waiver, policies, house rules) and amenities.
+- Set the venue's Google Maps link, social links, the waiver, info sections (policies, house rules), amenities, payment accounts with QR codes, and the website color preset.
 
 ## Stack
 
 - **Frontend:** Vite, React 19, TypeScript (strict), React Router 7, TanStack Query; lucide-react for the amenity icons. Plain CSS with light and dark themes, mobile-first.
 - **Backend:** Supabase. That's Postgres with Row Level Security, Auth (email and Google), Storage, Edge Functions (Deno), and pg_cron with pg_net for background jobs.
 - **Payments:** PayMongo Checkout Sessions in test mode, through two Edge Functions.
-- **Email:** a transactional outbox drained by an Edge Function (booking created, payment confirmed, proof rejected, cancelled and rescheduled). Locally it delivers to Mailpit; email is switched off on the live demo.
+- **Email:** a transactional outbox drained by an Edge Function (booking created, payment confirmed, proof rejected, cancelled and rescheduled). In production it sends through Resend from `mail.plotline.fit`; locally it delivers to Mailpit.
 - **Hosting:** Vercel for the SPA. One hosted Supabase project.
 - **Tests:** Vitest with Testing Library (about 630 tests), pgTAP (about 800 database tests), and Playwright end to end on desktop and a 360px phone, with axe accessibility checks.
 
@@ -102,7 +102,7 @@ pgTAP tests run in a transaction that's rolled back, acting as anon, a player an
 - Vercel builds `master` as production and other branches as previews.
 - **Previews share the production database**: there's one hosted Supabase project (RESEARCH.md, M8). Treat preview testing as production data.
 - Schema changes are migrations applied with `npm run db:push`, expand-then-contract, so the live frontend keeps working while the database changes ahead of it.
-- PayMongo runs in test mode, and the live demo sends no emails.
+- PayMongo runs in test mode. Email goes through Resend in production.
 
 ## How it was built
 

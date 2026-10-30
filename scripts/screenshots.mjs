@@ -234,11 +234,7 @@ async function main() {
       const player = await browser.newContext({ ...device, timezoneId: TZ, colorScheme: 'light' })
       const page = await player.newPage()
       await page.goto(`${BASE}/`)
-      await page.getByRole('heading', { name: 'Location' }).waitFor()
-      if (kind === 'phone') {
-        await page.getByRole('heading', { name: 'Location' }).evaluate((el) => el.scrollIntoView({ block: 'start' }))
-        await shoot(page, 'location', kind)
-      }
+      await page.getByRole('heading', { level: 1 }).waitFor()
       await page.evaluate(() => window.scrollTo(0, 0))
       await shoot(page, 'home', kind, { fullPage: kind === 'desktop' })
 
