@@ -470,7 +470,7 @@ export async function deleteOpenPlay(id: string) {
   unwrap(await supabase.rpc('delete_open_play', { p_id: id }))
 }
 
-// --- Venue info (T9.11h; admin RLS on the tables, plus move_info_section) --------
+// --- Venue info (T9.11h; admin RLS on the tables, plus reorder_info_sections) --------
 
 /** Saves every platform at once: a URL upserts, an empty one removes that platform's link. */
 export async function saveSocialLinks(links: Record<SocialPlatform, string>) {

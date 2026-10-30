@@ -835,7 +835,6 @@ export type Database = {
           cancel_cutoff_hours: number
           currency: string
           id: boolean
-          maps_query: string
           maps_url: string
           max_rejections: number
           name: string
@@ -857,7 +856,6 @@ export type Database = {
           cancel_cutoff_hours?: number
           currency?: string
           id?: boolean
-          maps_query?: string
           maps_url?: string
           max_rejections?: number
           name: string
@@ -879,7 +877,6 @@ export type Database = {
           cancel_cutoff_hours?: number
           currency?: string
           id?: boolean
-          maps_query?: string
           maps_url?: string
           max_rejections?: number
           name?: string
@@ -1047,14 +1044,6 @@ export type Database = {
         }[]
       }
       issue_guest_link: { Args: { p_booking_id: string }; Returns: string }
-      move_court: {
-        Args: { p_court_id: string; p_direction: number }
-        Returns: undefined
-      }
-      move_info_section: {
-        Args: { p_direction: number; p_id: string }
-        Returns: undefined
-      }
       paymongo_checkout_for: {
         Args: { p_booking_id: string }
         Returns: {

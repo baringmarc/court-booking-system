@@ -192,7 +192,7 @@ Also on the single-venue app (approved 2026-10-26; breakdown in TASKS.md M11). P
 - `venue_settings.theme` (five presets), `maps_url`, `waiver_text`, `online_payments_enabled` (only Plotline can change it) and `venue_payment_accounts` with the `payment-qr` bucket are single-venue today; Phase 1 makes each per venue like the rest of `venue_settings`.
 - Walk-ins stay behind `VITE_FEATURE_WALK_INS` (a build flag, so not per venue).
 - Email runs through Resend from `mail.plotline.fit`, and guests get fresh private links (`guest_link_tokens`, `issue_guest_link`) in the re-upload email.
-- T11.15 (the contract migration that drops `maps_query`) waits for the production deploy.
+- T11.15 (the contract migration) is done: `maps_query`, `move_court` and `move_info_section` are dropped, so Phase 1 starts without them.
 
 ### Phase 0: Accounts and groundwork (no code)
 - [ ] Buy `plotline.fit`. Move its nameservers to Cloudflare.

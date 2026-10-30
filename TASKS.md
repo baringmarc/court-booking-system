@@ -7,8 +7,8 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
 > Update this section at the end of every session or task. Keep it short; it's the first thing the next session reads.
 
 - **Current milestone:** M11 Plotline brand and venue upgrades (**approved by the user on 2026-10-26**; breakdown below, brand in `docs/BRAND.md`). M10 ✅ done on 2026-10-26 and M9 on 2026-10-23 (M1–M10 all done). After M11 come the SaaS milestones (M12+, `docs/SAAS-PLAN.md`), each with its own breakdown and approval.
-- **Next task:** M12 (the multi-venue database, `docs/SAAS-PLAN.md` Phase 1) needs its own breakdown and the user's approval before any work. T11.15 (contract migration) waits for `develop` to be merged into `master` and deployed. T11.31 done on 2026-10-30 (M11 closed out).
-- **State:** M11 done on 2026-10-30 (T11.1–T11.14 and T11.16–T11.31; only T11.15 is open, waiting on the production deploy). Details per task are under Milestone 11. M1–M11 are on `develop`; production still serves M8 until the merge into `master`.
+- **Next task:** M12 (the multi-venue database, `docs/SAAS-PLAN.md` Phase 1) needs its own breakdown and the user's approval before any work. T11.15 done on 2026-10-30 (contract migration live). `develop` is merged into `master` and deployed.
+- **State:** M11 fully done on 2026-10-30 (T11.1–T11.31, including the T11.15 contract migration on the linked project). Production runs the M11 frontend. Still waiting on you: the ₱10 fee and the default waiver text (see Blockers / notes).
 - **Blockers / notes:**
   - **Resend is live** (2026-10-30, T11.26). Free-plan limits as researched on 2026-10-18 (not rechecked on signup): 3,000 emails a month, 100 a day, 3 domains. `npm run smoke:prod` books with Resend's test address `delivered+smoke-…@resend.dev`, so its emails don't bounce; still cancel the `E2E Smoke` booking afterwards.
   - **Realtime "Allow public access"** (the user's step, T11.16): turn it off in the Supabase dashboard (Project Settings → Realtime). The admin alert uses a private channel either way.
@@ -1695,10 +1695,11 @@ Out of scope for M11: multiple venues, the billing ledger, invoices and statemen
   - Tests (test-writer): `earnings.test.ts`, `EarningsSection.test.tsx` (revenue split cases), e2e `earnings.spec.ts` "a confirmed online booking paid today raises …" (+787 / +777 / +10 at a local fee of 10, axe, 360px). Full gate passed.
   - Test dispute (settled): I changed the zero-state test's "The same as yesterday." count myself; the reviewer blocked round 1 on it, and the test-writer replaced it with a stricter check (once outside the split, once per split row). Reviewer round 2: PASS, no findings.
 
-### [ ] T11.15 Contract migration
+### [x] T11.15 Contract migration
 - **Depends:** T11.9 deployed to production
 - **Do:** drop `venue_settings.maps_query`, `move_court` and `move_info_section` (replaced by `reorder_courts` and `reorder_info_sections` in T11.5a; the frontend no longer calls them), and anything else T11.1–T11.14 left for contraction. Only after the frontend that no longer reads them is live.
 - **Acceptance:** pgTAP updated; `db:push` and `db:types` have been run; the production site still works (`npm run smoke:prod -- --links-only`).
+- **Notes:** Done on 2026-10-30, after `develop` was merged into `master` and the production bundle read `maps_url` (no `maps_query`). Migration `20261030051618_drop_maps_query_and_move_rpcs.sql` also drops `private.maps_search_url` and `private.url_encode` (they only served the T11.8 backfill). The user approved the plan and `db:push`; applied to the linked project, `db:types` run, `smoke:prod -- --links-only` passed and the live API still serves `maps_url`. Tests (test-writer): `20_ordering`, `27_venue_info` and `33_maps_url` pgTAP (the old objects asserted gone, `reorder_*` and `venue_settings_maps_url_link` still there). Full gate passed. Reviewer round 1 blocked on SPEC drift only; fixed.
 
 ### [x] T11.16 Research: phones, waiver and admin alerts
 - **Depends:** T11.10
