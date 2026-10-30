@@ -60,7 +60,7 @@ select is(
   'anon cannot execute reorder_courts'
 );
 select is(
-  has_function_privilege('anon', 'public.reorder_info_sections(uuid[])', 'execute'), false,
+  has_function_privilege('anon', 'public.reorder_info_sections(uuid[], uuid)', 'execute'), false,
   'anon cannot execute reorder_info_sections'
 );
 select is(

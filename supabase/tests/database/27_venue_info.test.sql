@@ -147,7 +147,7 @@ select results_eq($$ select coalesce(builtin_key, custom_name) from public.venue
 -- ---------------------------------------------------------------------------
 select hasnt_column('public', 'venue_settings', 'maps_query', 'venue_settings no longer has maps_query');
 select hasnt_function('public', 'move_info_section', 'move_info_section is dropped');
-select has_function('public', 'reorder_info_sections', array['uuid[]'], 'reorder_info_sections stays');
+select has_function('public', 'reorder_info_sections', array['uuid[]', 'uuid'], 'reorder_info_sections stays');
 
 select * from finish();
 rollback;

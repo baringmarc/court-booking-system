@@ -32,9 +32,9 @@ select ok(not has_column_privilege('authenticated', 'public.venue_payment_accoun
 select ok(not has_column_privilege('authenticated', 'public.venue_payment_accounts', 'position', 'insert'),
   'clients cannot insert a position');
 select ok(has_column_privilege('authenticated', 'public.venue_payment_accounts', 'qr_path', 'update'), 'qr_path is updatable by grant');
-select ok(not has_function_privilege('anon', 'public.reorder_payment_accounts(uuid[])', 'execute'), 'anon cannot execute the reorder');
-select ok(has_function_privilege('authenticated', 'public.reorder_payment_accounts(uuid[])', 'execute'), 'authenticated can execute the reorder');
-select ok((select prosecdef from pg_proc where oid = 'public.reorder_payment_accounts(uuid[])'::regprocedure), 'the reorder is security definer');
+select ok(not has_function_privilege('anon', 'public.reorder_payment_accounts(uuid[], uuid)', 'execute'), 'anon cannot execute the reorder');
+select ok(has_function_privilege('authenticated', 'public.reorder_payment_accounts(uuid[], uuid)', 'execute'), 'authenticated can execute the reorder');
+select ok((select prosecdef from pg_proc where oid = 'public.reorder_payment_accounts(uuid[], uuid)'::regprocedure), 'the reorder is security definer');
 select ok(not has_function_privilege('authenticated', 'private.venue_payment_accounts_append()', 'execute'), 'the append trigger function is not callable');
 
 -- ---------------------------------------------------------------------------

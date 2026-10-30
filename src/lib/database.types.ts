@@ -1271,7 +1271,10 @@ export type Database = {
               status: string
             }[]
           }
-      get_earnings: { Args: { p_from: string; p_to: string }; Returns: Json }
+      get_earnings: {
+        Args: { p_from: string; p_to: string; p_venue_id?: string }
+        Returns: Json
+      }
       get_guest_booking: {
         Args: { p_reference_code: string; p_token: string }
         Returns: {
@@ -1367,9 +1370,12 @@ export type Database = {
         Args: { p_ids: string[]; p_sport: Database["public"]["Enums"]["sport"] }
         Returns: undefined
       }
-      reorder_info_sections: { Args: { p_ids: string[] }; Returns: undefined }
+      reorder_info_sections: {
+        Args: { p_ids: string[]; p_venue_id?: string }
+        Returns: undefined
+      }
       reorder_payment_accounts: {
-        Args: { p_ids: string[] }
+        Args: { p_ids: string[]; p_venue_id?: string }
         Returns: undefined
       }
       reschedule_booking: {
@@ -1392,7 +1398,10 @@ export type Database = {
           status: Database["public"]["Enums"]["booking_status"]
         }[]
       }
-      set_operating_hours: { Args: { p_hours: Json }; Returns: undefined }
+      set_operating_hours: {
+        Args: { p_hours: Json; p_venue_id?: string }
+        Returns: undefined
+      }
       update_open_play: {
         Args: {
           p_court_ids: string[]

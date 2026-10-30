@@ -36,6 +36,8 @@ insert into auth.users (id, email) values
   ('11111111-1111-1111-1111-111111111111', 'pat@test.local'),
   ('22222222-2222-2222-2222-222222222222', 'admin@test.local');
 update public.profiles set role = 'admin' where id = '22222222-2222-2222-2222-222222222222';
+insert into public.venue_members (venue_id, user_id, role)
+select id, '22222222-2222-2222-2222-222222222222', 'staff' from public.venues where slug = 'claudex-courts';
 
 insert into public.courts (id, name, sport, default_hourly_rate) values
   ('c0000000-0000-0000-0000-0000000000f1', 'Fee Court 1', 'tennis', 500),
@@ -407,7 +409,7 @@ select pg_temp.as_player();
 select is(pg_temp.hint_of($$ select public.get_earnings((select mon from wk), (select mon from wk) + 6) $$), 'forbidden',
   'a player still cannot call get_earnings');
 reset role;
-select ok(not has_function_privilege('anon', 'public.get_earnings(date, date)', 'EXECUTE'), 'anon still cannot call get_earnings');
+select ok(not has_function_privilege('anon', 'public.get_earnings(date, date, uuid)', 'EXECUTE'), 'anon still cannot call get_earnings');
 
 select * from finish();
 rollback;

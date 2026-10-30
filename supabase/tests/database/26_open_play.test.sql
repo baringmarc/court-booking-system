@@ -20,6 +20,8 @@ insert into auth.users (id, email) values
   ('22222222-2222-2222-2222-222222222222', 'admin@test.local');
 update public.profiles set full_name = 'Pat Player' where id = '11111111-1111-1111-1111-111111111111';
 update public.profiles set role = 'admin' where id = '22222222-2222-2222-2222-222222222222';
+insert into public.venue_members (venue_id, user_id, role)
+select id, '22222222-2222-2222-2222-222222222222', 'staff' from public.venues where slug = 'claudex-courts';
 insert into public.courts (id, name, sport, default_hourly_rate, is_active) values
   ('c0000000-0000-0000-0000-0000000000f1', 'OP Court 1', 'pickleball', 300, true),
   ('c0000000-0000-0000-0000-0000000000f2', 'OP Court 2', 'pickleball', 300, true),

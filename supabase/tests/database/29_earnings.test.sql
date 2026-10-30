@@ -19,6 +19,8 @@ insert into auth.users (id, email) values
   ('11111111-1111-1111-1111-111111111111', 'player@test.local'),
   ('22222222-2222-2222-2222-222222222222', 'admin@test.local');
 update public.profiles set role = 'admin' where id = '22222222-2222-2222-2222-222222222222';
+insert into public.venue_members (venue_id, user_id, role)
+select id, '22222222-2222-2222-2222-222222222222', 'staff' from public.venues where slug = 'claudex-courts';
 
 insert into public.courts (id, name, sport, default_hourly_rate) values
   ('c0000000-0000-0000-0000-0000000000a1', 'Earn Court 1', 'tennis', 500),
@@ -91,8 +93,8 @@ insert into public.open_play_courts (session_id, court_id, during) values
 -- ---------------------------------------------------------------------------
 -- Who may call it
 -- ---------------------------------------------------------------------------
-select ok(not has_function_privilege('anon', 'public.get_earnings(date, date)', 'EXECUTE'), 'anon cannot call get_earnings');
-select ok(not has_function_privilege('public', 'public.get_earnings(date, date)', 'EXECUTE'), 'PUBLIC has no execute grant');
+select ok(not has_function_privilege('anon', 'public.get_earnings(date, date, uuid)', 'EXECUTE'), 'anon cannot call get_earnings');
+select ok(not has_function_privilege('public', 'public.get_earnings(date, date, uuid)', 'EXECUTE'), 'PUBLIC has no execute grant');
 
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub": "11111111-1111-1111-1111-111111111111", "role": "authenticated"}', true);
