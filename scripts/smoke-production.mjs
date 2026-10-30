@@ -2,7 +2,9 @@
 // 1. Deep links (/book, /admin/login, /booking/…) must return the SPA (vercel.json rewrite).
 // 2. A real browser books as a guest through the UI and uploads a proof of payment, which exercises the
 //    create_booking RPC, the submit-payment-proof Edge Function, Storage and CORS from the real origin.
-// It writes ONE real booking to the production database, tagged "E2E Smoke" with an e2e-…@example.com email.
+// It writes ONE real booking to the production database, tagged "E2E Smoke" with Resend's test address
+// delivered+smoke-…@resend.dev, which is accepted and marked delivered without a bounce (example.com bounces now that
+// production sends through Resend, T11.26).
 // It prints the reference and private link so an admin can review the proof; cancel it afterwards.
 import { chromium } from '@playwright/test'
 
@@ -41,7 +43,7 @@ if (!LINKS_ONLY) {
     await slot.click()
     await page.getByRole('button', { name: 'Continue' }).click()
     await page.getByLabel('Name').fill('E2E Smoke')
-    await page.getByLabel('Email').fill(`e2e-smoke-${Date.now()}@example.com`)
+    await page.getByLabel('Email').fill(`delivered+smoke-${Date.now()}@resend.dev`)
     // "Phone" until T11.18 is on production, then "Mobile number (optional)".
     await page.getByLabel(/^(Phone|Mobile number)/).fill('0917 000 0000')
     await page.getByRole('button', { name: 'Confirm booking' }).click()
