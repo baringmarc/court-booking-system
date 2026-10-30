@@ -703,6 +703,18 @@ export type Database = {
           },
         ]
       }
+      platform_admins: {
+        Row: {
+          user_id: string
+        }
+        Insert: {
+          user_id: string
+        }
+        Update: {
+          user_id?: string
+        }
+        Relationships: []
+      }
       platform_pricing: {
         Row: {
           booking_fee: number
@@ -792,6 +804,32 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      venue_members: {
+        Row: {
+          role: string
+          user_id: string
+          venue_id: string
+        }
+        Insert: {
+          role: string
+          user_id: string
+          venue_id: string
+        }
+        Update: {
+          role?: string
+          user_id?: string
+          venue_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "venue_members_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       venue_payment_accounts: {
         Row: {
@@ -907,6 +945,27 @@ export type Database = {
           platform?: Database["public"]["Enums"]["venue_social_platform"]
           updated_at?: string
           url?: string
+        }
+        Relationships: []
+      }
+      venues: {
+        Row: {
+          created_at: string
+          id: string
+          slug: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          slug: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          slug?: string
+          status?: string
         }
         Relationships: []
       }

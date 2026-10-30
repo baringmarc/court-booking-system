@@ -6,8 +6,8 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
 
 > Update this section at the end of every session or task. Keep it short; it's the first thing the next session reads.
 
-- **Current milestone:** M11 Plotline brand and venue upgrades (**approved by the user on 2026-10-26**; breakdown below, brand in `docs/BRAND.md`). M10 ✅ done on 2026-10-26 and M9 on 2026-10-23 (M1–M10 all done). After M11 come the SaaS milestones (M12+, `docs/SAAS-PLAN.md`), each with its own breakdown and approval.
-- **Next task:** M12 (the multi-venue database, `docs/SAAS-PLAN.md` Phase 1) needs its own breakdown and the user's approval before any work. T11.15 done on 2026-10-30 (contract migration live). `develop` is merged into `master` and deployed.
+- **Current milestone:** M12 Multi-venue database (breakdown approved on 2026-10-30). M11 ✅ done on 2026-10-30 (brand in `docs/BRAND.md`). M10 ✅ done on 2026-10-26 and M9 on 2026-10-23 (M1–M10 all done). After M11 come the SaaS milestones (M12+, `docs/SAAS-PLAN.md`), each with its own breakdown and approval.
+- **Next task:** T12.3 (`venue_id` on every venue-owned table; plan gate, not pre-approved). T12.1 and T12.2 done on 2026-10-30; the `venues`, `venue_members` and `platform_admins` tables are live on the linked project, nothing reads them yet. The M12 breakdown was approved on 2026-10-30; plan gates are not pre-approved. T11.15 done on 2026-10-30 (contract migration live). `develop` is merged into `master` and deployed.
 - **State:** M11 fully done on 2026-10-30 (T11.1–T11.31, including the T11.15 contract migration on the linked project). Production runs the M11 frontend. Still waiting on you: the ₱10 fee and the default waiver text (see Blockers / notes).
 - **Blockers / notes:**
   - **Resend is live** (2026-10-30, T11.26). Free-plan limits as researched on 2026-10-18 (not rechecked on signup): 3,000 emails a month, 100 a day, 3 domains. `npm run smoke:prod` books with Resend's test address `delivered+smoke-…@resend.dev`, so its emails don't bounce; still cancel the `E2E Smoke` booking afterwards.
@@ -1871,6 +1871,74 @@ Out of scope for M11: multiple venues, the billing ledger, invoices and statemen
   - Move the Handoff on to M12 (the multi-venue database, `docs/SAAS-PLAN.md` Phase 1), which needs its own breakdown and approval.
 - **Acceptance:** `npm run verify` and `npm run test:e2e` pass, and the reviewer signs off.
 - **Notes:** README, demo script and SAAS-PLAN §7b updated; SPEC §9 marks M11 ✅ (v1.0 header too). `scripts/screenshots.mjs` no longer waits for the removed Location card (the `location-phone.png` shot is gone) and all screenshots were regenerated on a freshly reset local database. T11.15 stays open: it drops `maps_query` and needs T11.9 on production first.
+
+---
+
+## Milestone 12: Multi-venue database
+
+Goal: SAAS-PLAN Phase 1. One database serves many venues, isolated by `venue_id`, with venue membership replacing the global admin role. Claudex Courts becomes venue `claudex-courts`. The UI stays single-venue (subdomain routing is Phase 2).
+
+> **Status: breakdown approved by the user on 2026-10-30.** Plan gates are **not** pre-approved: every task below is risky and stops for approval before `db:push`. Production is live, so each change is expand → deploy → contract and keeps the deployed frontend working. The existing ~690 tests are updated to run under a venue alongside T12.3–T12.6. `public_venues` doesn't exist yet (Phase 3), so M12 has no marketing-site contract to keep (RESEARCH M12).
+
+Out of scope for M12: subdomains and `getVenueSlug()` (Phase 2), the platform console (Phase 3), PayMongo per venue (Phase 4), invoicing screens and the monthly invoice job (Phase 3).
+
+### [x] T12.1 Research: M12
+- **Depends:** T11.31
+- **Do:** record findings in RESEARCH M12 and decisions in SPEC §10: every reader of the `venue_settings` singleton and every table needing `venue_id`; composite-FK and RLS patterns, with `is_venue_admin` performance (initplan, indexes); storage policy and object migration; the expand/contract order against the deployed frontend; whether `platform_pricing` needs a per-venue override; whether the database refuses `create_walk_in` per venue.
+- **Acceptance:** each finding has a source or the SQL run; open questions are listed for the user.
+- **Notes:** RESEARCH M12 and SPEC §10 hold the findings and the user's three answers (2026-10-30). `public_venues` doesn't exist yet, so there is no marketing-site contract in M12.
+
+### [x] T12.2 Venues, members and platform admins (expand)
+- **Depends:** T12.1
+- **Do:** `venues` (id, slug unique `a-z0-9-` 3–40 and not reserved, status draft|active|suspended|closed, created_at); `venue_members` (venue_id, user_id, role owner|staff); `platform_admins`; `private.is_venue_admin(venue_id)` and `private.is_platform_admin()`. Seed `claudex-courts` and backfill members and platform admins from `profiles.role`. `profiles.role` and `is_admin()` keep working until T12.11.
+- **Acceptance:** pgTAP on constraints, RLS (anon/player/staff/owner/platform admin) and both helpers.
+- **Notes:** `supabase/tests/database/43_venues.test.sql` (55 tests). Migration `20261030054219_venues_members_platform_admins.sql` is applied locally and on the linked project, types regenerated. The `venue_members` policy recursed on itself; it now calls `private.is_venue_owner`. Test dispute settled (the test had invalid SQL and a wrong plan count; fixed by the test-writer, reviewer agreed). Reviewer: PASS.
+- Test dispute: supabase/tests/database/43_venues.test.sql line 74 "slug format" assertion: `select is((with i as (insert into public.venues …` is invalid SQL (a data-modifying WITH must be top level), so the file aborts after 8 tests, and the reported plan(55) is plan(54) in the file; vs L1 (tests must run and match their plan). Fix with throws_ok/lives_ok or a plpgsql helper, and make plan(n) match the assertions.
+
+### [ ] T12.3 `venue_id` on every venue-owned table (expand)
+- **Depends:** T12.2
+- **Do:** add and backfill `venue_id`; composite FKs so child rows can't cross venues; denormalize onto `bookings`, `payments`, `court_rates`, `court_photos`, `open_play_courts`, `paymongo_checkouts`, `email_outbox`; rekey the venue-wide tables (`venue_settings`, `operating_hours`, `venue_social_links`, `venue_amenities`, `venue_info_sections`, `sport_order`, `venue_payment_accounts`); scope blackouts and sort orders per venue. Update existing tests to run under a venue.
+- **Acceptance:** pgTAP: backfill complete, no NULL `venue_id`, cross-venue child inserts rejected.
+
+### [ ] T12.4 RLS rewrite
+- **Depends:** T12.3
+- **Do:** public reads only `active` venues; writes need `is_venue_admin(venue_id)`; platform admins read everything; draft venues are visible to their staff and to us. The RLS coverage test fails if a table with `venue_id` lacks venue-scoped policies.
+- **Acceptance:** pgTAP for anon/player/staff of venue A/staff of venue B/platform admin on every table.
+
+### [ ] T12.5 RPC rewrite: booking path
+- **Depends:** T12.4
+- **Do:** `create_booking`, `cancel_booking`, `review_payment`, `get_availability`, `get_guest_booking`, `issue_guest_link`, `private.local_today()` and `operating_today()` derive the venue from the row they touch and never trust a client `venue_id`; draft and suspended venues refuse public bookings.
+- **Acceptance:** pgTAP per RPC with two venues, plus the refusal cases.
+
+### [ ] T12.6 RPC rewrite: the rest
+- **Depends:** T12.5
+- **Do:** open play RPCs, reschedule, `get_earnings`, `create_walk_in`, the email outbox trigger and the reorder RPCs (inside one venue). Settle the per-venue walk-in refusal from T12.1.
+- **Acceptance:** pgTAP per RPC with two venues; reorders can't touch another venue.
+
+### [ ] T12.7 Storage per venue
+- **Depends:** T12.4
+- **Do:** `{venue_id}/…` paths and `is_venue_admin` policies on the first folder for `venue-media`, `payment-qr` and the proofs bucket; migrate existing objects; update the upload code.
+- **Acceptance:** pgTAP on `storage.objects` policies for both venues; e2e uploads still work.
+
+### [ ] T12.8 Billing data
+- **Depends:** T12.6
+- **Do:** `bookings.confirmed_at` with backfill from approved payments; `billing_charges` ledger written by a trigger in the confirming transaction (a negative `adjustment` on venue cancellation of a confirmed booking); `invoices`; per-venue fee override only if T12.1 says so.
+- **Acceptance:** pgTAP covers every row of the SAAS-PLAN §5 table.
+
+### [ ] T12.9 Cross-venue isolation tests
+- **Depends:** T12.5–T12.8
+- **Do:** a second venue in the fixtures. For every table, RPC and bucket, venue A's staff can't read or change venue B.
+- **Acceptance:** the isolation suite passes and fails when a policy is removed.
+
+### [ ] T12.10 Edge Functions and frontend
+- **Depends:** T12.9
+- **Do:** the PayMongo webhook and email data take the venue from the row; `AdminGuard` and the API layer use venue membership; the `site-contact` and `site-review` contract is untouched.
+- **Acceptance:** e2e and smoke pass on the local stack.
+
+### [ ] T12.11 Contract and close out M12
+- **Depends:** T12.10, with the frontend deployed to production
+- **Do:** drop `profiles.role` and the singleton paths; update SPEC (roles, data model, RLS summary, decisions log) and PLATFORM.md; mark M12 ✅ in SPEC §9; run the milestone review and `/retro`.
+- **Acceptance:** `npm run verify` and `npm run test:e2e` pass and the reviewer signs off.
 
 ---
 
