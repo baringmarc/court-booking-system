@@ -1244,19 +1244,33 @@ export type Database = {
         Args: { p_error?: string; p_id: string; p_outcome: string }
         Returns: Database["public"]["Enums"]["email_status"]
       }
-      get_availability: {
-        Args: { p_court_id?: string; p_date: string }
-        Returns: {
-          block_key: string
-          booker_first_name: string
-          court_id: string
-          open_play_session_id: string
-          price: number
-          slot_end: string
-          slot_start: string
-          status: string
-        }[]
-      }
+      get_availability:
+        | {
+            Args: { p_court_id?: string; p_date: string }
+            Returns: {
+              block_key: string
+              booker_first_name: string
+              court_id: string
+              open_play_session_id: string
+              price: number
+              slot_end: string
+              slot_start: string
+              status: string
+            }[]
+          }
+        | {
+            Args: { p_court_id: string; p_date: string; p_venue_slug: string }
+            Returns: {
+              block_key: string
+              booker_first_name: string
+              court_id: string
+              open_play_session_id: string
+              price: number
+              slot_end: string
+              slot_start: string
+              status: string
+            }[]
+          }
       get_earnings: { Args: { p_from: string; p_to: string }; Returns: Json }
       get_guest_booking: {
         Args: { p_reference_code: string; p_token: string }

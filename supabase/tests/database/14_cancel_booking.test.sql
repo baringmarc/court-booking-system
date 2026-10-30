@@ -21,6 +21,8 @@ insert into auth.users (id, email) values
   ('22222222-2222-2222-2222-222222222222', 'admin@test.local'),
   ('33333333-3333-3333-3333-333333333333', 'olga@test.local');
 update public.profiles set role = 'admin' where id = '22222222-2222-2222-2222-222222222222';
+insert into public.venue_members (venue_id, user_id, role)
+select id, '22222222-2222-2222-2222-222222222222', 'staff' from public.venues where slug = 'claudex-courts';
 
 -- One court per fixture keeps every active range clear of the exclusion constraint.
 create temp table b (label text primary key, id uuid, ref text);
