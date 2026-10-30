@@ -455,6 +455,32 @@ export type Database = {
           },
         ]
       }
+      guest_link_tokens: {
+        Row: {
+          booking_id: string
+          created_at: string
+          token_hash: string
+        }
+        Insert: {
+          booking_id: string
+          created_at?: string
+          token_hash: string
+        }
+        Update: {
+          booking_id?: string
+          created_at?: string
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guest_link_tokens_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       open_play_courts: {
         Row: {
           court_id: string
@@ -1020,6 +1046,7 @@ export type Database = {
           waiver_text: string
         }[]
       }
+      issue_guest_link: { Args: { p_booking_id: string }; Returns: string }
       move_court: {
         Args: { p_court_id: string; p_direction: number }
         Returns: undefined
