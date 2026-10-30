@@ -48,7 +48,7 @@ export type RenderInput = {
   forGuest: boolean
   /** The booking's status now. booking_created is rendered from it (a guest may already have paid). */
   currentStatus?: BookingStatus
-  /** booking_created for a guest only, from email-guest-link. Never stored. */
+  /** For a guest's booking_created (email-guest-link) or non-final proof_rejected (send-emails). Never stored. */
   guestToken?: string | null
 }
 
@@ -110,9 +110,14 @@ function content(input: RenderInput): { subject: string; block: Block } {
     ...(fee > 0 ? [['Booking fee', money(fee)] as [string, string]] : []),
     ['Total', money(data.amount_due ?? data.total_amount)],
   ]
-  const token = kind === 'booking_created' && forGuest ? input.guestToken : null
+  // The private link goes only in booking_created and in a non-final rejection (T11.30: a fresh token, so the guest can
+  // upload a new proof without the original link).
+  const reupload = kind === 'proof_rejected' && !data.final
+  const token = (kind === 'booking_created' || reupload) && forGuest ? input.guestToken : null
   const canLink = !forGuest || !!token
-  const link = canLink ? { href: bookingLink(input.site, ref, token), label: 'Open your booking' } : undefined
+  const link = canLink
+    ? { href: bookingLink(input.site, ref, token), label: reupload && token ? 'Upload a new proof' : 'Open your booking' }
+    : undefined
   const footer: string[] = []
   if (token) {
     footer.push('This link is your private access to the booking. Keep it safe: anyone with it can see and cancel the booking.')

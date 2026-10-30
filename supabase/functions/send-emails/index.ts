@@ -15,6 +15,7 @@ const MAX_BATCHES = 3
 
 type Claimed = {
   id: string
+  booking_id: string
   kind: EmailKind
   to_email: string
   for_guest: boolean
@@ -63,7 +64,15 @@ export default {
           await finish(row.id, 'skipped', next.action === 'skip' ? next.reason : undefined)
           continue
         }
-        const email = renderEmail({ kind: row.kind, data: row.data, site: site!, forGuest: row.for_guest, currentStatus: row.booking_status })
+        // A guest's non-final rejection carries a fresh private link. The token lives in memory only; if issuing
+        // fails the plain email still goes out (the guest has the original link).
+        let guestToken: string | null = null
+        if (row.kind === 'proof_rejected' && row.for_guest && !row.data.final) {
+          const issued = await admin.rpc('issue_guest_link', { p_booking_id: row.booking_id })
+          if (issued.error) console.error('send-emails: issue_guest_link failed', row.id, issued.error.message)
+          else guestToken = issued.data
+        }
+        const email = renderEmail({ kind: row.kind, data: row.data, site: site!, forGuest: row.for_guest, currentStatus: row.booking_status, guestToken })
         const result = await sendEmail(fetch, transport, { from: fromFor(row.data.venue_name, Deno.env.get('EMAIL_FROM')), resendKey, mailpitUrl }, { to: row.to_email, ...email }, row.id)
         if (result.ok) {
           if (result.note) console.warn('send-emails:', row.id, result.note)
