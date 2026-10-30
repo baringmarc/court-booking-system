@@ -19,18 +19,17 @@ insert into auth.users (id, email) values
   ('11111111-1111-1111-1111-111111111111', 'player@test.local'),
   ('22222222-2222-2222-2222-222222222222', 'admin@test.local');
 update public.profiles set full_name = 'Pat Player' where id = '11111111-1111-1111-1111-111111111111';
-update public.profiles set role = 'admin' where id = '22222222-2222-2222-2222-222222222222';
 insert into public.venue_members (venue_id, user_id, role)
 select id, '22222222-2222-2222-2222-222222222222', 'staff' from public.venues where slug = 'claudex-courts';
-insert into public.courts (id, name, sport, default_hourly_rate, is_active) values
-  ('c0000000-0000-0000-0000-0000000000f1', 'OP Court 1', 'pickleball', 300, true),
-  ('c0000000-0000-0000-0000-0000000000f2', 'OP Court 2', 'pickleball', 300, true),
-  ('c0000000-0000-0000-0000-0000000000f3', 'OP Court Off', 'pickleball', 300, false),
-  ('c0000000-0000-0000-0000-0000000000f4', 'OP Court 4', 'pickleball', 300, true);
+insert into public.courts (venue_id, id, name, sport, default_hourly_rate, is_active) values
+  (private.default_venue_id(), 'c0000000-0000-0000-0000-0000000000f1', 'OP Court 1', 'pickleball', 300, true),
+  (private.default_venue_id(), 'c0000000-0000-0000-0000-0000000000f2', 'OP Court 2', 'pickleball', 300, true),
+  (private.default_venue_id(), 'c0000000-0000-0000-0000-0000000000f3', 'OP Court Off', 'pickleball', 300, false),
+  (private.default_venue_id(), 'c0000000-0000-0000-0000-0000000000f4', 'OP Court 4', 'pickleball', 300, true);
 
 -- Every day 06:00–22:00; d is three days ahead, inside the booking window.
 update public.operating_hours set open_time = '06:00', close_time = '22:00', is_closed = false;
-create temp table fx as select private.local_today() + 3 as d;
+create temp table fx as select private.local_today(private.default_venue_id()) + 3 as d;
 grant select on fx to anon, authenticated;
 
 create function pg_temp.at(p_time time) returns timestamptz language sql as $$
@@ -53,8 +52,8 @@ insert into public.paymongo_checkouts (booking_id, checkout_id, checkout_url, am
 values ('b0000000-0000-0000-0000-0000000000f2', 'cs_open_play', 'https://checkout.paymongo.test/op', 30000);
 
 -- A session that has already started (written directly, as the RPCs refuse a past start).
-insert into public.open_play_sessions (id, title, starts_at, ends_at) values
-  ('a0000000-0000-0000-0000-0000000000f9', 'Running now', now() - interval '1 hour', now() + interval '1 hour');
+insert into public.open_play_sessions (venue_id, id, title, starts_at, ends_at) values
+  (private.default_venue_id(), 'a0000000-0000-0000-0000-0000000000f9', 'Running now', now() - interval '1 hour', now() + interval '1 hour');
 
 -- ---------------------------------------------------------------------------
 -- Grants and RLS: anyone reads, nobody writes the tables directly
@@ -69,15 +68,15 @@ select ok(not has_function_privilege('anon', 'public.create_open_play(uuid[], ti
       and not has_function_privilege('anon', 'public.delete_open_play(uuid)', 'execute'),
   'anon cannot call the open play RPCs');
 select throws_ok(
-  $$ insert into public.open_play_sessions (title, starts_at, ends_at, links)
-     values ('Bad', now() + interval '1 day', now() + interval '1 day 1 hour', '[{"label": "x", "url": "http://a.test"}]') $$,
+  $$ insert into public.open_play_sessions (venue_id, title, starts_at, ends_at, links)
+     values (private.default_venue_id(), 'Bad', now() + interval '1 day', now() + interval '1 day 1 hour', '[{"label": "x", "url": "http://a.test"}]') $$,
   '23514', null, 'the table itself refuses a link that is not https');
 
 -- Player: can't write, can't call the RPCs.
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub": "11111111-1111-1111-1111-111111111111", "role": "authenticated"}', true);
 select throws_ok(
-  $$ insert into public.open_play_sessions (title, starts_at, ends_at) values ('Mine', now() + interval '1 day', now() + interval '1 day 1 hour') $$,
+  $$ insert into public.open_play_sessions (venue_id, title, starts_at, ends_at) values (private.default_venue_id(), 'Mine', now() + interval '1 day', now() + interval '1 day 1 hour') $$,
   '42501', null, 'players cannot insert sessions directly');
 select is(pg_temp.hint_of($$ select public.create_open_play(array['c0000000-0000-0000-0000-0000000000f1']::uuid[],
   pg_temp.at('12:00'), pg_temp.at('13:00'), 'Mine') $$), 'forbidden', 'players cannot create sessions');

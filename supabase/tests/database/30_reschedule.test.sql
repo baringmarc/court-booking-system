@@ -23,7 +23,7 @@ exception when others then
 end $$;
 
 -- A local time on a day `p_days` from today, in the venue timezone.
-create temp table today as select private.local_today() as d;
+create temp table today as select private.local_today(private.default_venue_id()) as d;
 grant select on today to anon, authenticated;
 create function pg_temp.t(p_days integer, p_hour integer) returns timestamptz language sql stable as $$
   select (((select d from today) + p_days) + make_time(p_hour, 0, 0)) at time zone 'Asia/Manila'
@@ -36,13 +36,12 @@ insert into auth.users (id, email, email_confirmed_at) values
   ('22222222-2222-2222-2222-222222222222', 'admin@test.local', now()),
   ('33333333-3333-3333-3333-333333333333', 'olga@test.local', now()),
   ('44444444-4444-4444-4444-444444444444', 'claimer@example.com', now());
-update public.profiles set role = 'admin' where id = '22222222-2222-2222-2222-222222222222';
 insert into public.venue_members (venue_id, user_id, role) select id, '22222222-2222-2222-2222-222222222222', 'owner' from public.venues where slug = 'claudex-courts';
 
-insert into public.courts (id, name, sport, default_hourly_rate) values
-  ('c0000000-0000-0000-0000-00000000000b', 'Target B', 'tennis', 500),
-  ('c0000000-0000-0000-0000-00000000000c', 'Pickle C', 'pickleball', 500),
-  ('c0000000-0000-0000-0000-00000000000d', 'Closed D', 'tennis', 500);
+insert into public.courts (venue_id, id, name, sport, default_hourly_rate) values
+  (private.default_venue_id(), 'c0000000-0000-0000-0000-00000000000b', 'Target B', 'tennis', 500),
+  (private.default_venue_id(), 'c0000000-0000-0000-0000-00000000000c', 'Pickle C', 'pickleball', 500),
+  (private.default_venue_id(), 'c0000000-0000-0000-0000-00000000000d', 'Closed D', 'tennis', 500);
 update public.courts set is_active = false where id = 'c0000000-0000-0000-0000-00000000000d';
 
 create temp table b (label text primary key, id uuid, ref text, court uuid);
@@ -62,7 +61,7 @@ declare
   v_ref   text := 'CB-' || translate(upper(substr(md5(p_label), 1, 6)), '01', '23');
   v_id    uuid;
 begin
-  insert into public.courts (id, name, sport, default_hourly_rate) values (v_court, 'Court ' || p_label, 'tennis', 500);
+  insert into public.courts (venue_id, id, name, sport, default_hourly_rate) values (private.default_venue_id(), v_court, 'Court ' || p_label, 'tennis', 500);
   insert into public.bookings (reference_code, court_id, user_id, guest_name, guest_email, guest_phone, during,
                                total_amount, status, source, guest_token_hash, expires_at, parent_booking_id)
   values (v_ref, v_court, p_user, 'Name ' || p_label, p_email, '0917 000 0000', p_during,
@@ -103,10 +102,10 @@ select pg_temp.mk('goneroot', tstzrange(now() - interval '40 days', now() - inte
 -- Targets that the clash cases need on court B
 insert into public.bookings (reference_code, court_id, guest_name, during, total_amount, status, source)
 values ('CB-BLKB22', 'c0000000-0000-0000-0000-00000000000b', 'Blocker', tstzrange(pg_temp.t(11, 7), pg_temp.t(11, 9)), 500, 'confirmed', 'walk_in');
-insert into public.blackouts (court_id, starts_at, ends_at, reason)
-values ('c0000000-0000-0000-0000-00000000000b', pg_temp.t(12, 7), pg_temp.t(12, 9), 'Maintenance');
-insert into public.open_play_sessions (id, title, starts_at, ends_at)
-values ('0b000000-0000-0000-0000-000000000001', 'Open play', pg_temp.t(13, 7), pg_temp.t(13, 9));
+insert into public.blackouts (venue_id, court_id, starts_at, ends_at, reason)
+values (private.default_venue_id(), 'c0000000-0000-0000-0000-00000000000b', pg_temp.t(12, 7), pg_temp.t(12, 9), 'Maintenance');
+insert into public.open_play_sessions (venue_id, id, title, starts_at, ends_at)
+values (private.default_venue_id(), '0b000000-0000-0000-0000-000000000001', 'Open play', pg_temp.t(13, 7), pg_temp.t(13, 9));
 insert into public.open_play_courts (session_id, court_id, during)
 values ('0b000000-0000-0000-0000-000000000001', 'c0000000-0000-0000-0000-00000000000b', tstzrange(pg_temp.t(13, 7), pg_temp.t(13, 9)));
 

@@ -70,18 +70,18 @@ function courtSvg(sport, variant) {
 }
 
 async function addCourtPhotos(page) {
-  const { data: courts } = await service.from('courts').select('id, sport, court_photos(id)').eq('is_active', true).throwOnError()
+  const { data: courts } = await service.from('courts').select('id, venue_id, sport, court_photos(id)').eq('is_active', true).throwOnError()
   const added = []
   for (const court of courts.filter((c) => c.court_photos.length === 0)) {
     for (const variant of [0, 1]) {
       await page.setViewportSize({ width: 1600, height: 900 })
       await page.setContent(`<body style="margin:0">${courtSvg(court.sport, variant)}</body>`)
       const png = await page.screenshot({ type: 'png' })
-      const path = `courts/${court.id}/${randomUUID()}.png`
+      const path = `${court.venue_id}/courts/${court.id}/${randomUUID()}.png`
       const { error } = await service.storage.from('venue-media').upload(path, png, { contentType: 'image/png' })
       if (error) throw error
       const { data: row } = await service.from('court_photos')
-        .insert({ court_id: court.id, path, sort_order: variant }).select('id').single().throwOnError()
+        .insert({ venue_id: court.venue_id, court_id: court.id, path, sort_order: variant }).select('id').single().throwOnError()
       added.push({ id: row.id, path })
     }
   }
@@ -91,14 +91,14 @@ async function addCourtPhotos(page) {
 // --- Demo data ----------------------------------------------------------------------------------------------
 
 async function snapshotVenueInfo() {
-  const { data: settings } = await service.from('venue_settings').select('address, maps_url').single().throwOnError()
-  const { data: socials } = await service.from('venue_social_links').select('platform, url').throwOnError()
-  const { data: amenities } = await service.from('venue_amenities').select('id, builtin_key, custom_name, created_at').throwOnError()
+  const { data: settings } = await service.from('venue_settings').select('venue_id, address, maps_url').single().throwOnError()
+  const { data: socials } = await service.from('venue_social_links').select('venue_id, platform, url').throwOnError()
+  const { data: amenities } = await service.from('venue_amenities').select('id, venue_id, builtin_key, custom_name, created_at').throwOnError()
   return { settings, socials, amenities }
 }
 
 async function restoreVenueInfo({ settings, socials, amenities }) {
-  await service.from('venue_settings').update(settings).eq('id', true).throwOnError()
+  await service.from('venue_settings').update(settings).eq('venue_id', settings.venue_id).throwOnError()
   await service.from('venue_social_links').delete().not('url', 'is', null).throwOnError()
   if (socials.length) await service.from('venue_social_links').insert(socials).throwOnError()
   await service.from('venue_amenities').delete().not('id', 'is', null).throwOnError()
@@ -106,17 +106,19 @@ async function restoreVenueInfo({ settings, socials, amenities }) {
 }
 
 async function setDemoVenueInfo() {
+  const { data: venue } = await service.from('venues').select('id').eq('slug', 'claudex-courts').single().throwOnError()
+  const venue_id = venue.id
   await service.from('venue_settings')
-    .update({ address: '123 Rizal Ave, Makati City', maps_url: 'https://www.google.com/maps/search/?api=1&query=Ayala%20Triangle%20Gardens%2C%20Makati' }).eq('id', true).throwOnError()
+    .update({ address: '123 Rizal Ave, Makati City', maps_url: 'https://www.google.com/maps/search/?api=1&query=Ayala%20Triangle%20Gardens%2C%20Makati' }).eq('venue_id', venue_id).throwOnError()
   await service.from('venue_social_links').delete().not('url', 'is', null).throwOnError()
   await service.from('venue_social_links').insert([
-    { platform: 'facebook', url: 'https://www.facebook.com/claudexcourts' },
-    { platform: 'instagram', url: 'https://www.instagram.com/claudexcourts' },
-    { platform: 'website', url: 'https://claudex-courts.example.ph' },
+    { venue_id, platform: 'facebook', url: 'https://www.facebook.com/claudexcourts' },
+    { venue_id, platform: 'instagram', url: 'https://www.instagram.com/claudexcourts' },
+    { venue_id, platform: 'website', url: 'https://claudex-courts.example.ph' },
   ]).throwOnError()
   await service.from('venue_amenities').delete().not('id', 'is', null).throwOnError()
   await service.from('venue_amenities').insert(
-    ['restrooms', 'parking', 'showers', 'water_station', 'night_lights', 'wifi', 'equipment_rental'].map((builtin_key) => ({ builtin_key })),
+    ['restrooms', 'parking', 'showers', 'water_station', 'night_lights', 'wifi', 'equipment_rental'].map((builtin_key) => ({ venue_id, builtin_key })),
   ).throwOnError()
 }
 
@@ -126,7 +128,7 @@ async function createAdmin() {
   const password = 'e2e-password-123'
   const { data, error } = await service.auth.admin.createUser({ email, password, email_confirm: true })
   if (error) throw error
-  await service.from('profiles').update({ role: 'admin', full_name: 'Marc Admin' }).eq('id', data.user.id).throwOnError()
+  await service.from('profiles').update({ full_name: 'Marc Admin' }).eq('id', data.user.id).throwOnError()
   // Admin rights come from venue membership since M12 (T12.10); Claudex Courts is the only venue.
   const { data: venue } = await service.from('venues').select('id').eq('slug', 'claudex-courts').single().throwOnError()
   await service.from('venue_members').insert({ venue_id: venue.id, user_id: data.user.id, role: 'staff' }).throwOnError()

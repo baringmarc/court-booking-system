@@ -9,7 +9,7 @@ import { ThemePicker } from './ThemePicker'
 
 vi.mock('../catalog/api', async (importOriginal) => ({ ...(await importOriginal<typeof import('../catalog/api')>()), updateVenueSettings: vi.fn() }))
 
-const settings = (theme = 'plotline') => ({ id: true, name: 'Claudex Courts', theme }) as VenueSettings
+const settings = (theme = 'plotline') => ({ venue_id: 'v1', name: 'Claudex Courts', theme }) as VenueSettings
 const store = new Map<string, string>()
 
 function renderPicker(s: VenueSettings) {

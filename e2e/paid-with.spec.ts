@@ -1,7 +1,7 @@
 // T11.28: "Paid with" on the proof form lists the venue's payment accounts. A guest picks an E2E account, uploads a
 // proof, and the admin sees that account's label in the review panel. Accessible and usable at 360px.
 import { expect, test } from '@playwright/test'
-import { axeBothSchemes, createAdmin, E2E_PREFIX, logInAdmin, pickFirstFreeSlot, receiptPng, serviceClient, venueDate } from './support/helpers.ts'
+import { axeBothSchemes, createAdmin, E2E_PREFIX, logInAdmin, pickFirstFreeSlot, receiptPng, serviceClient, venueDate, venueId } from './support/helpers.ts'
 
 const LABEL = `${E2E_PREFIX} Paid With Bank`
 
@@ -17,7 +17,7 @@ test('a guest pays with a payment account and the admin sees its label in the re
   const { count } = await service.from('venue_payment_accounts').select('id', { count: 'exact', head: true })
   test.skip((count ?? 0) >= 10, 'the local venue already lists 10 payment accounts')
   await service.from('venue_payment_accounts')
-    .insert({ label: LABEL, account_name: 'Claudex Courts', account_number: '0917 000 3333', position: 99 }).throwOnError()
+    .insert({ venue_id: await venueId(), label: LABEL, account_name: 'Claudex Courts', account_number: '0917 000 3333', position: 99 }).throwOnError()
 
   await pickFirstFreeSlot(page, { date: venueDate(12), sport: 'pickleball', court: 'Pickleball 2' })
   await page.getByLabel('Name').fill(`${E2E_PREFIX} Paid With Guest`)

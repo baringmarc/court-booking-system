@@ -7,20 +7,19 @@ select plan(18);
 insert into auth.users (id, email) values
   ('11111111-1111-1111-1111-111111111111', 'player@test.local'),
   ('22222222-2222-2222-2222-222222222222', 'admin@test.local');
-update public.profiles set role = 'admin' where id = '22222222-2222-2222-2222-222222222222';
 insert into public.venue_members (venue_id, user_id, role)
 select id, '22222222-2222-2222-2222-222222222222', 'staff' from public.venues where slug = 'claudex-courts';
 
-insert into public.courts (id, name, sport, default_hourly_rate) values
-  ('c0000000-0000-0000-0000-000000000001', 'Delete Me', 'tennis', 500),
-  ('c0000000-0000-0000-0000-000000000002', 'Booked Once', 'tennis', 500),
-  ('c0000000-0000-0000-0000-000000000003', 'Cancelled Only', 'tennis', 500);
+insert into public.courts (venue_id, id, name, sport, default_hourly_rate) values
+  (private.default_venue_id(), 'c0000000-0000-0000-0000-000000000001', 'Delete Me', 'tennis', 500),
+  (private.default_venue_id(), 'c0000000-0000-0000-0000-000000000002', 'Booked Once', 'tennis', 500),
+  (private.default_venue_id(), 'c0000000-0000-0000-0000-000000000003', 'Cancelled Only', 'tennis', 500);
 insert into public.court_rates (court_id, day_of_week, start_hour, price) values
   ('c0000000-0000-0000-0000-000000000001', 1, 18, 700),
   ('c0000000-0000-0000-0000-000000000001', 2, 18, 700);
-insert into public.blackouts (id, court_id, starts_at, ends_at, reason) values
-  ('b0000000-0000-0000-0000-000000000001', 'c0000000-0000-0000-0000-000000000001', now() + interval '2 days', now() + interval '2 days 1 hour', 'court'),
-  ('b0000000-0000-0000-0000-000000000002', null, now() + interval '3 days', now() + interval '3 days 1 hour', 'venue');
+insert into public.blackouts (venue_id, id, court_id, starts_at, ends_at, reason) values
+  (private.default_venue_id(), 'b0000000-0000-0000-0000-000000000001', 'c0000000-0000-0000-0000-000000000001', now() + interval '2 days', now() + interval '2 days 1 hour', 'court'),
+  (private.default_venue_id(), 'b0000000-0000-0000-0000-000000000002', null, now() + interval '3 days', now() + interval '3 days 1 hour', 'venue');
 -- A confirmed booking on one court, and only a cancelled one on another: both count as "ever booked".
 insert into public.bookings (reference_code, court_id, guest_name, during, total_amount, status) values
   ('CB-DELAAB', 'c0000000-0000-0000-0000-000000000002', 'Fixture',

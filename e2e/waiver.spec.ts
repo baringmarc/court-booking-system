@@ -2,16 +2,16 @@
 // booking email show the text. The local venue_settings.waiver_text is set for this flow and restored (workers: 1).
 import { AxeBuilder } from '@axe-core/playwright'
 import { expect, test } from '@playwright/test'
-import { E2E_PREFIX, emailText, pickFirstFreeSlot, serviceClient, venueDate } from './support/helpers.ts'
+import { E2E_PREFIX, emailText, pickFirstFreeSlot, serviceClient, venueDate, venueId } from './support/helpers.ts'
 
 const WAIVER = 'E2E waiver: you play at your own risk & you bring your own water.'
 
 test.describe.serial('waiver', () => {
   test.beforeAll(async () => {
-    await serviceClient().from('venue_settings').update({ waiver_text: WAIVER }).eq('id', true).throwOnError()
+    await serviceClient().from('venue_settings').update({ waiver_text: WAIVER }).eq('venue_id', await venueId()).throwOnError()
   })
   test.afterAll(async () => {
-    await serviceClient().from('venue_settings').update({ waiver_text: '' }).eq('id', true).throwOnError()
+    await serviceClient().from('venue_settings').update({ waiver_text: '' }).eq('venue_id', await venueId()).throwOnError()
   })
 
   test('a guest must accept the waiver, then sees it on the booking page and in the email', async ({ page }) => {

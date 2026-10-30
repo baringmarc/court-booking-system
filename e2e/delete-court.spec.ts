@@ -5,7 +5,7 @@ import { createAdmin, E2E_PREFIX, logInAdmin, receiptPng, serviceClient, venueId
 test('an admin deletes an unbooked court, and a booked court is refused', async ({ page }) => {
   const name = `${E2E_PREFIX} Delete ${Date.now()}`
   const { data: court, error } = await serviceClient()
-    .from('courts').insert({ name, sport: 'tennis', default_hourly_rate: 500 }).select('id').single()
+    .from('courts').insert({ venue_id: await venueId(), name, sport: 'tennis', default_hourly_rate: 500 }).select('id').single()
   if (error) throw error
   // A photo in the court's media folder: deleting the court removes the folder's files too.
   const folder = `${await venueId()}/courts/${court.id}`

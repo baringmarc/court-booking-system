@@ -156,12 +156,12 @@ select is(pg_temp.hint_of($$ select private.resolve_public_venue('e2e-vbr-c') $$
   'resolve: a draft venue stays unavailable next to active ones');
 
 -- ---------------------------------------------------------------- private overloads (venue first)
-select has_function('private', 'venue_tz', array[]::name[], 'the zero-argument venue_tz stays');
-select has_function('private', 'local_today', array[]::name[], 'the zero-argument local_today stays');
-select has_function('private', 'operating_today', array[]::name[], 'the zero-argument operating_today stays');
-select has_function('private', 'operating_day_of', array['timestamp with time zone'], 'operating_day_of(timestamptz) stays');
-select has_function('private', 'operating_day_range', array['date'], 'operating_day_range(date) stays');
-select has_function('private', 'in_booking_window', array['date'], 'in_booking_window(date) stays');
+select hasnt_function('private', 'venue_tz', array[]::name[], 'the zero-argument venue_tz is dropped (T12.11)');
+select hasnt_function('private', 'local_today', array[]::name[], 'the zero-argument local_today is dropped (T12.11)');
+select hasnt_function('private', 'operating_today', array[]::name[], 'the zero-argument operating_today is dropped (T12.11)');
+select hasnt_function('private', 'operating_day_of', array['timestamp with time zone'], 'operating_day_of(timestamptz) is dropped (T12.11)');
+select hasnt_function('private', 'operating_day_range', array['date'], 'operating_day_range(date) is dropped (T12.11)');
+select hasnt_function('private', 'in_booking_window', array['date'], 'in_booking_window(date) is dropped (T12.11)');
 
 select is(pg_temp.val($$ select private.venue_tz('a0000000-0000-0000-0000-00000000000a') $$), 'Asia/Manila', 'venue_tz(A)');
 select is(pg_temp.val($$ select private.venue_tz('b0000000-0000-0000-0000-00000000000b') $$), 'Pacific/Honolulu', 'venue_tz(B)');

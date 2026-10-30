@@ -1,4 +1,4 @@
-// T12.10: admin rights come from venue_members (AuthState.venueIds), not from profiles.role.
+// T12.10: admin rights come from venue_members (AuthState.venueIds); profiles.role is gone since T12.11.
 import { act, render, screen, waitFor } from '@testing-library/react'
 import { useLayoutEffect } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -19,7 +19,7 @@ vi.mock('../../lib/supabase', () => ({
 }))
 
 const profile: Profile = {
-  id: 'u1', full_name: 'Ada', phone: null, role: 'player', created_at: '2030-01-01T00:00:00Z', updated_at: '2030-01-01T00:00:00Z',
+  id: 'u1', full_name: 'Ada', phone: null, created_at: '2030-01-01T00:00:00Z', updated_at: '2030-01-01T00:00:00Z',
 }
 
 let auth: ReturnType<typeof useAuth> | null = null
@@ -39,8 +39,8 @@ beforeEach(() => {
 })
 
 describe('AuthProvider venue memberships (T12.10)', () => {
-  it('a member of a venue is an admin even when profiles.role is player, and venueIds lists the venues', async () => {
-    vi.mocked(fetchProfile).mockResolvedValue({ ...profile, role: 'player' })
+  it('a member of a venue is an admin, and venueIds lists the venues', async () => {
+    vi.mocked(fetchProfile).mockResolvedValue(profile)
     vi.mocked(fetchAdminVenueIds).mockResolvedValue(['venue-a', 'venue-b'])
     render(<AuthProvider><Probe /></AuthProvider>)
     expect(await screen.findByText('admin')).toBeInTheDocument()
@@ -49,8 +49,8 @@ describe('AuthProvider venue memberships (T12.10)', () => {
     expect(fetchAdminVenueIds).toHaveBeenCalledWith('u1')
   })
 
-  it('profiles.role = admin without any membership is not an admin', async () => {
-    vi.mocked(fetchProfile).mockResolvedValue({ ...profile, role: 'admin' })
+  it('a signed-in user without any membership is not an admin', async () => {
+    vi.mocked(fetchProfile).mockResolvedValue(profile)
     vi.mocked(fetchAdminVenueIds).mockResolvedValue([])
     render(<AuthProvider><Probe /></AuthProvider>)
     expect(await screen.findByText('not admin')).toBeInTheDocument()

@@ -7,12 +7,11 @@ insert into auth.users (id, email) values
   ('11111111-1111-1111-1111-111111111111', 'player@test.local'),
   ('33333333-3333-3333-3333-333333333333', 'other@test.local'),
   ('22222222-2222-2222-2222-222222222222', 'admin@test.local');
-update public.profiles set role = 'admin' where id = '22222222-2222-2222-2222-222222222222';
 insert into public.venue_members (venue_id, user_id, role) select id, '22222222-2222-2222-2222-222222222222', 'owner' from public.venues where slug = 'claudex-courts';
 
-insert into public.courts (id, name, sport, default_hourly_rate) values
-  ('c0000000-0000-0000-0000-000000000001', 'Test Court A', 'badminton', 300),
-  ('c0000000-0000-0000-0000-000000000002', 'Test Court B', 'badminton', 300);
+insert into public.courts (venue_id, id, name, sport, default_hourly_rate) values
+  (private.default_venue_id(), 'c0000000-0000-0000-0000-000000000001', 'Test Court A', 'badminton', 300),
+  (private.default_venue_id(), 'c0000000-0000-0000-0000-000000000002', 'Test Court B', 'badminton', 300);
 
 select is(
   (select n.nspname::text from pg_extension e join pg_namespace n on n.oid = e.extnamespace where e.extname = 'btree_gist'),

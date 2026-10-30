@@ -127,8 +127,6 @@ check('outbox: the row is sent and the token is nowhere in it', (await outbox(g.
 
 // --- player: booking_created, proof_rejected, payment_confirmed through the worker ------------------------------
 const { sb: adminSb, userId: adminId } = await signedInUser(`smoke-email-admin-${stamp}@example.com`)
-const { error: promoteError } = await service.from('profiles').update({ role: 'admin' }).eq('id', adminId)
-if (promoteError) throw promoteError
 // Admin rights come from venue membership since M12 (T12.10); Claudex Courts is the only venue.
 const { data: venue } = await service.from('venues').select('id').eq('slug', 'claudex-courts').single().throwOnError()
 await service.from('venue_members').insert({ venue_id: venue.id, user_id: adminId, role: 'staff' }).throwOnError()

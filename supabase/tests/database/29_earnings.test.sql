@@ -18,13 +18,12 @@ grant execute on function pg_temp.hint_of(text) to anon, authenticated;
 insert into auth.users (id, email) values
   ('11111111-1111-1111-1111-111111111111', 'player@test.local'),
   ('22222222-2222-2222-2222-222222222222', 'admin@test.local');
-update public.profiles set role = 'admin' where id = '22222222-2222-2222-2222-222222222222';
 insert into public.venue_members (venue_id, user_id, role)
 select id, '22222222-2222-2222-2222-222222222222', 'staff' from public.venues where slug = 'claudex-courts';
 
-insert into public.courts (id, name, sport, default_hourly_rate) values
-  ('c0000000-0000-0000-0000-0000000000a1', 'Earn Court 1', 'tennis', 500),
-  ('c0000000-0000-0000-0000-0000000000a2', 'Earn Court 2', 'tennis', 500);
+insert into public.courts (venue_id, id, name, sport, default_hourly_rate) values
+  (private.default_venue_id(), 'c0000000-0000-0000-0000-0000000000a1', 'Earn Court 1', 'tennis', 500),
+  (private.default_venue_id(), 'c0000000-0000-0000-0000-0000000000a2', 'Earn Court 2', 'tennis', 500);
 
 -- Every day 06:00–22:00, except Saturday 18:00–02:00 (overnight). The week is a Monday at least 40 days ahead,
 -- clear of the seeded demo payments.
@@ -32,7 +31,7 @@ update public.operating_hours set open_time = '06:00', close_time = '22:00', is_
 update public.operating_hours set open_time = '18:00', close_time = '02:00' where day_of_week = 6;
 create temp table fx as
 select d + ((8 - extract(isodow from d)::int) % 7) as mon
-from (select private.local_today() + 40 as d) x;
+from (select private.local_today(private.default_venue_id()) + 40 as d) x;
 grant select on fx to anon, authenticated;
 
 create function pg_temp.at(p_offset int, p_time time) returns timestamptz language sql as $$
@@ -78,15 +77,15 @@ insert into public.payments (booking_id, method, amount, provider_payment_id, re
 
 -- Blackouts: court 1 Tuesday 10–14 and 12–16 (overlapping: 6 hours, not 8); every court Wednesday 08–10; court 2
 -- Friday 20:00 to Saturday 08:00 (only Friday 20–22 is open, since Saturday opens at 18:00).
-insert into public.blackouts (court_id, starts_at, ends_at, reason) values
-  ('c0000000-0000-0000-0000-0000000000a1', pg_temp.at(1, '10:00'), pg_temp.at(1, '14:00'), 'Repair'),
-  ('c0000000-0000-0000-0000-0000000000a1', pg_temp.at(1, '12:00'), pg_temp.at(1, '16:00'), 'More repair'),
-  (null,                                   pg_temp.at(2, '08:00'), pg_temp.at(2, '10:00'), 'Venue event'),
-  ('c0000000-0000-0000-0000-0000000000a2', pg_temp.at(4, '20:00'), pg_temp.at(5, '08:00'), 'Resurfacing');
+insert into public.blackouts (venue_id, court_id, starts_at, ends_at, reason) values
+  (private.default_venue_id(), 'c0000000-0000-0000-0000-0000000000a1', pg_temp.at(1, '10:00'), pg_temp.at(1, '14:00'), 'Repair'),
+  (private.default_venue_id(), 'c0000000-0000-0000-0000-0000000000a1', pg_temp.at(1, '12:00'), pg_temp.at(1, '16:00'), 'More repair'),
+  (private.default_venue_id(), null,                                   pg_temp.at(2, '08:00'), pg_temp.at(2, '10:00'), 'Venue event'),
+  (private.default_venue_id(), 'c0000000-0000-0000-0000-0000000000a2', pg_temp.at(4, '20:00'), pg_temp.at(5, '08:00'), 'Resurfacing');
 
 -- Open play on court 2, Thursday 10–13.
-insert into public.open_play_sessions (id, title, starts_at, ends_at) values
-  ('a0000000-0000-0000-0000-0000000000a1', 'Earn open play', pg_temp.at(3, '10:00'), pg_temp.at(3, '13:00'));
+insert into public.open_play_sessions (venue_id, id, title, starts_at, ends_at) values
+  (private.default_venue_id(), 'a0000000-0000-0000-0000-0000000000a1', 'Earn open play', pg_temp.at(3, '10:00'), pg_temp.at(3, '13:00'));
 insert into public.open_play_courts (session_id, court_id, during) values
   ('a0000000-0000-0000-0000-0000000000a1', 'c0000000-0000-0000-0000-0000000000a2', tstzrange(pg_temp.at(3, '10:00'), pg_temp.at(3, '13:00')));
 

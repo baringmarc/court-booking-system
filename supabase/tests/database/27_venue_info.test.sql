@@ -7,7 +7,6 @@ select plan(46);
 insert into auth.users (id, email) values
   ('11111111-1111-1111-1111-111111111111', 'player@test.local'),
   ('22222222-2222-2222-2222-222222222222', 'admin@test.local');
-update public.profiles set role = 'admin' where id = '22222222-2222-2222-2222-222222222222';
 insert into public.venue_members (venue_id, user_id, role) select id, '22222222-2222-2222-2222-222222222222', 'owner' from public.venues where slug = 'claudex-courts';
 
 -- The migration's starter sections, then a known state for the rest (local edits are rolled back with the rest).
@@ -17,7 +16,7 @@ select is(
   4, 'the migration adds the four starter sections'
 );
 delete from public.venue_info_sections;
-insert into public.venue_info_sections (title) values ('Waiver'), ('Reminders and policies'), ('Cancellation and refund policy'), ('House rules');
+insert into public.venue_info_sections (venue_id, title) values (private.default_venue_id(), 'Waiver'), (private.default_venue_id(), 'Reminders and policies'), (private.default_venue_id(), 'Cancellation and refund policy'), (private.default_venue_id(), 'House rules');
 delete from public.venue_social_links;
 delete from public.venue_amenities;
 update public.venue_settings set address = '';
@@ -35,11 +34,11 @@ select results_eq(
 select is((select count(*)::int from public.venue_social_links), 0, 'anon can read social links (none yet)');
 select is((select count(*)::int from public.venue_amenities), 0, 'anon can read amenities (none yet)');
 select is((select address from public.venue_settings), '', 'anon reads the address (empty by default)');
-select throws_ok($$ insert into public.venue_info_sections (title) values ('Anon') $$, '42501', null,
+select throws_ok($$ insert into public.venue_info_sections (venue_id, title) values (private.default_venue_id(), 'Anon') $$, '42501', null,
   'anon cannot add sections');
-select throws_ok($$ insert into public.venue_amenities (builtin_key) values ('wifi') $$, '42501', null,
+select throws_ok($$ insert into public.venue_amenities (venue_id, builtin_key) values (private.default_venue_id(), 'wifi') $$, '42501', null,
   'anon cannot switch on amenities');
-select throws_ok($$ insert into public.venue_social_links (platform, url) values ('website', 'https://evil.test') $$, '42501', null,
+select throws_ok($$ insert into public.venue_social_links (venue_id, platform, url) values (private.default_venue_id(), 'website', 'https://evil.test') $$, '42501', null,
   'anon cannot add social links');
 -- ---------------------------------------------------------------------------
 -- Player: reads, never writes
@@ -48,18 +47,18 @@ reset role;
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub": "11111111-1111-1111-1111-111111111111", "role": "authenticated"}', true);
 select is((select count(*)::int from public.venue_info_sections), 4, 'players read sections');
-select throws_ok($$ insert into public.venue_info_sections (title) values ('Mine') $$, '42501', null,
+select throws_ok($$ insert into public.venue_info_sections (venue_id, title) values (private.default_venue_id(), 'Mine') $$, '42501', null,
   'players cannot add sections');
-select throws_ok($$ insert into public.venue_social_links (platform, url) values ('website', 'https://evil.test') $$,
+select throws_ok($$ insert into public.venue_social_links (venue_id, platform, url) values (private.default_venue_id(), 'website', 'https://evil.test') $$,
   '42501', null, 'players cannot add social links');
-select throws_ok($$ insert into public.venue_amenities (builtin_key) values ('wifi') $$, '42501', null,
+select throws_ok($$ insert into public.venue_amenities (venue_id, builtin_key) values (private.default_venue_id(), 'wifi') $$, '42501', null,
   'players cannot switch on amenities');
 update public.venue_info_sections set title = 'Hacked';
 delete from public.venue_info_sections;
 update public.venue_settings set address = 'Hacked';
 reset role;
-insert into public.venue_social_links (platform, url) values ('website', 'https://claudex.example.ph');
-insert into public.venue_amenities (builtin_key) values ('showers');
+insert into public.venue_social_links (venue_id, platform, url) values (private.default_venue_id(), 'website', 'https://claudex.example.ph');
+insert into public.venue_amenities (venue_id, builtin_key) values (private.default_venue_id(), 'showers');
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub": "11111111-1111-1111-1111-111111111111", "role": "authenticated"}', true);
 update public.venue_social_links set url = 'https://evil.test';
@@ -87,14 +86,14 @@ select throws_ok($$ update public.venue_settings set address = repeat('a', 301) 
 -- ---------------------------------------------------------------------------
 -- Admin: social links, https and the platform's own hosts
 -- ---------------------------------------------------------------------------
-select lives_ok($$ insert into public.venue_social_links (platform, url) values
-  ('facebook', 'https://www.facebook.com/claudexcourts'),
-  ('instagram', 'https://instagram.com/claudex.courts'),
-  ('tiktok', 'https://www.tiktok.com/@claudexcourts'),
-  ('youtube', 'https://youtu.be/abc123'),
-  ('x', 'https://twitter.com/claudex'),
-  ('messenger', 'https://m.me/claudexcourts'),
-  ('website', 'https://claudex-courts.example.ph/about?x=1') $$,
+select lives_ok($$ insert into public.venue_social_links (venue_id, platform, url) values
+  (private.default_venue_id(), 'facebook', 'https://www.facebook.com/claudexcourts'),
+  (private.default_venue_id(), 'instagram', 'https://instagram.com/claudex.courts'),
+  (private.default_venue_id(), 'tiktok', 'https://www.tiktok.com/@claudexcourts'),
+  (private.default_venue_id(), 'youtube', 'https://youtu.be/abc123'),
+  (private.default_venue_id(), 'x', 'https://twitter.com/claudex'),
+  (private.default_venue_id(), 'messenger', 'https://m.me/claudexcourts'),
+  (private.default_venue_id(), 'website', 'https://claudex-courts.example.ph/about?x=1') $$,
   'admins add a link for each platform on its own hosts');
 select lives_ok($$ update public.venue_social_links set url = 'https://x.com/claudex' where platform = 'x' $$,
   'admins change a link');
@@ -117,24 +116,24 @@ select lives_ok($$ delete from public.venue_social_links where platform = 'tikto
 -- ---------------------------------------------------------------------------
 -- Admin: info sections and their order
 -- ---------------------------------------------------------------------------
-select lives_ok($$ insert into public.venue_info_sections (title, body) values ('Parking', 'Free for players.') $$,
+select lives_ok($$ insert into public.venue_info_sections (venue_id, title, body) values (private.default_venue_id(), 'Parking', 'Free for players.') $$,
   'admins add a section');
 select is((select sort_order from public.venue_info_sections where title = 'Parking'), 4, 'a new section goes last');
-select throws_ok($$ insert into public.venue_info_sections (title) values ('  ') $$, '23514', null, 'a section needs a title');
-select throws_ok($$ insert into public.venue_info_sections (title, body) values ('Long', repeat('a', 5001)) $$,
+select throws_ok($$ insert into public.venue_info_sections (venue_id, title) values (private.default_venue_id(), '  ') $$, '23514', null, 'a section needs a title');
+select throws_ok($$ insert into public.venue_info_sections (venue_id, title, body) values (private.default_venue_id(), 'Long', repeat('a', 5001)) $$,
   '23514', null, 'a body is at most 5000 characters');
 select lives_ok($$ delete from public.venue_info_sections where title = 'House rules' $$, 'admins delete a section');
 
 -- ---------------------------------------------------------------------------
 -- Admin: amenities
 -- ---------------------------------------------------------------------------
-select lives_ok($$ insert into public.venue_amenities (builtin_key) values ('wifi'), ('parking') $$, 'admins switch on built-in amenities');
-select throws_ok($$ insert into public.venue_amenities (builtin_key) values ('wifi') $$, '23505', null, 'a built-in is on once');
-select throws_ok($$ insert into public.venue_amenities (builtin_key) values ('helipad') $$, '23514', null, 'only known built-ins');
-select lives_ok($$ insert into public.venue_amenities (custom_name) values ('Massage chairs') $$, 'admins add a custom amenity');
-select throws_ok($$ insert into public.venue_amenities (custom_name) values (' massage CHAIRS ') $$, '23505', null,
+select lives_ok($$ insert into public.venue_amenities (venue_id, builtin_key) values (private.default_venue_id(), 'wifi'), (private.default_venue_id(), 'parking') $$, 'admins switch on built-in amenities');
+select throws_ok($$ insert into public.venue_amenities (venue_id, builtin_key) values (private.default_venue_id(), 'wifi') $$, '23505', null, 'a built-in is on once');
+select throws_ok($$ insert into public.venue_amenities (venue_id, builtin_key) values (private.default_venue_id(), 'helipad') $$, '23514', null, 'only known built-ins');
+select lives_ok($$ insert into public.venue_amenities (venue_id, custom_name) values (private.default_venue_id(), 'Massage chairs') $$, 'admins add a custom amenity');
+select throws_ok($$ insert into public.venue_amenities (venue_id, custom_name) values (private.default_venue_id(), ' massage CHAIRS ') $$, '23505', null,
   'custom names are unique, ignoring case and spaces');
-select throws_ok($$ insert into public.venue_amenities (builtin_key, custom_name) values ('lockers', 'Lockers') $$, '23514', null,
+select throws_ok($$ insert into public.venue_amenities (venue_id, builtin_key, custom_name) values (private.default_venue_id(), 'lockers', 'Lockers') $$, '23514', null,
   'an amenity is either built-in or custom, not both');
 select throws_ok($$ update public.venue_amenities set custom_name = 'Renamed' where custom_name = 'Massage chairs' $$, '42501', null,
   'amenities are switched on and off, not edited');

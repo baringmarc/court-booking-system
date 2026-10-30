@@ -14,7 +14,7 @@ vi.mock('../catalog/api', async (importOriginal) => ({
 }))
 
 const ORDER: Sport[] = ['badminton', 'pickleball', 'basketball', 'tennis']
-const settings = (sport_order: Sport[]) => ({ id: true, name: 'Claudex Courts', sport_order }) as VenueSettings
+const settings = (sport_order: Sport[]) => ({ venue_id: 'v1', name: 'Claudex Courts', sport_order }) as VenueSettings
 
 /** Like SettingsPage: the section gets the cached settings, so it re-renders when they change. */
 function Harness() {

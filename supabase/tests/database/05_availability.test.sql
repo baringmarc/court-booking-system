@@ -3,14 +3,14 @@ begin;
 create extension if not exists pgtap with schema extensions;
 select plan(22);
 
-insert into public.courts (id, name, sport, default_hourly_rate, is_active) values
-  ('c0000000-0000-0000-0000-000000000001', 'Avail Court A', 'tennis', 300, true),
-  ('c0000000-0000-0000-0000-000000000002', 'Avail Court B', 'tennis', 300, true),
-  ('c0000000-0000-0000-0000-000000000003', 'Avail Archived', 'tennis', 300, false);
+insert into public.courts (venue_id, id, name, sport, default_hourly_rate, is_active) values
+  (private.default_venue_id(), 'c0000000-0000-0000-0000-000000000001', 'Avail Court A', 'tennis', 300, true),
+  (private.default_venue_id(), 'c0000000-0000-0000-0000-000000000002', 'Avail Court B', 'tennis', 300, true),
+  (private.default_venue_id(), 'c0000000-0000-0000-0000-000000000003', 'Avail Archived', 'tennis', 300, false);
 
 -- d = today + 3 in Manila; all fixtures below are on that day.
 create temp table fx as
-select private.local_today() + 3 as d, private.venue_tz() as tz;
+select private.local_today(private.default_venue_id()) + 3 as d, private.venue_tz(private.default_venue_id()) as tz;
 grant select on fx to anon;
 
 -- 10–12 confirmed, 13 stale pending hold, 14 payment_submitted on court A
@@ -24,8 +24,8 @@ from fx, (values
 ) as v(ref, s, e, st, exp);
 
 -- 15–16 venue-wide blackout; 17–18 blackout on court B only
-insert into public.blackouts (court_id, starts_at, ends_at, reason)
-select v.court, (fx.d + v.s) at time zone fx.tz, (fx.d + v.e) at time zone fx.tz, 'test'
+insert into public.blackouts (venue_id, court_id, starts_at, ends_at, reason)
+select private.default_venue_id(), v.court, (fx.d + v.s) at time zone fx.tz, (fx.d + v.e) at time zone fx.tz, 'test'
 from fx, (values
   (null::uuid,                              time '15:00', time '16:00'),
   ('c0000000-0000-0000-0000-000000000002', time '17:00', time '18:00')
@@ -72,11 +72,11 @@ select cmp_ok(
 
 -- Today: open 00:00–24:00 so the result doesn't depend on the time the tests run.
 update public.operating_hours set open_time = '00:00', close_time = '24:00'
-where day_of_week = extract(dow from private.local_today())::smallint and not is_closed;
+where day_of_week = extract(dow from private.local_today(private.default_venue_id()))::smallint and not is_closed;
 create temp view today_slots as
-select * from public.get_availability(private.local_today(), 'c0000000-0000-0000-0000-000000000001');
+select * from public.get_availability(private.local_today(private.default_venue_id()), 'c0000000-0000-0000-0000-000000000001');
 select is(
-  (select status from today_slots where slot_start = private.local_today()::timestamp at time zone 'Asia/Manila'),
+  (select status from today_slots where slot_start = private.local_today(private.default_venue_id())::timestamp at time zone 'Asia/Manila'),
   'past', 'today''s 00:00 slot has started, so it is past'
 );
 select is(
@@ -97,22 +97,22 @@ select 'CB-NQWPLY', 'c0000000-0000-0000-0000-000000000001', 'Playing now',
        tstzrange(date_trunc('hour', now() at time zone 'Asia/Manila') at time zone 'Asia/Manila',
                  date_trunc('hour', now() at time zone 'Asia/Manila') at time zone 'Asia/Manila' + interval '1 hour'), 300, 'confirmed';
 select is(
-  (select status from public.get_availability(private.local_today(), 'c0000000-0000-0000-0000-000000000001')
+  (select status from public.get_availability(private.local_today(private.default_venue_id()), 'c0000000-0000-0000-0000-000000000001')
    where slot_start <= now() and now() < slot_end),
   'booked', 'a booked slot in progress shows as booked, so walk-ins are not offered it'
 );
 
 -- Window and closed days
 select is(
-  (select count(*)::int from public.get_availability(private.local_today() - 1)), 0,
+  (select count(*)::int from public.get_availability(private.local_today(private.default_venue_id()) - 1)), 0,
   'yesterday returns no slots'
 );
 select is(
-  (select count(*)::int from public.get_availability(private.local_today() + (select booking_window_days from public.venue_settings) + 1)), 0,
+  (select count(*)::int from public.get_availability(private.local_today(private.default_venue_id()) + (select booking_window_days from public.venue_settings) + 1)), 0,
   'a date past the booking window returns no slots'
 );
 select cmp_ok(
-  (select count(*)::int from public.get_availability(private.local_today() + (select booking_window_days from public.venue_settings), 'c0000000-0000-0000-0000-000000000001')), '>', 0,
+  (select count(*)::int from public.get_availability(private.local_today(private.default_venue_id()) + (select booking_window_days from public.venue_settings), 'c0000000-0000-0000-0000-000000000001')), '>', 0,
   'the last day of the booking window is offered'
 );
 update public.operating_hours set is_closed = true where day_of_week = extract(dow from (select d from fx))::smallint;

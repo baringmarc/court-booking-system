@@ -18,17 +18,16 @@ grant execute on function pg_temp.hint_of(text) to anon, authenticated;
 insert into auth.users (id, email) values
   ('11111111-1111-1111-1111-111111111111', 'player@test.local'),
   ('22222222-2222-2222-2222-222222222222', 'admin@test.local');
-update public.profiles set role = 'admin' where id = '22222222-2222-2222-2222-222222222222';
 insert into public.venue_members (venue_id, user_id, role) select id, '22222222-2222-2222-2222-222222222222', 'owner' from public.venues where slug = 'claudex-courts';
 
 -- A known tennis list (the seed's tennis court removed from it), with an archived court that is ordered too.
 delete from public.courts where sport = 'tennis' and id not in (select court_id from public.bookings);
 update public.courts set sport = 'basketball' where sport = 'tennis';
-insert into public.courts (id, name, sport, default_hourly_rate, sort_order, is_active) values
-  ('c0000000-0000-0000-0000-000000000001', 'Re T-A', 'tennis', 500, 0, true),
-  ('c0000000-0000-0000-0000-000000000002', 'Re T-B', 'tennis', 500, 1, true),
-  ('c0000000-0000-0000-0000-000000000003', 'Re T-C', 'tennis', 500, 2, true),
-  ('c0000000-0000-0000-0000-000000000004', 'Re T-D (archived)', 'tennis', 500, 3, false);
+insert into public.courts (venue_id, id, name, sport, default_hourly_rate, sort_order, is_active) values
+  (private.default_venue_id(), 'c0000000-0000-0000-0000-000000000001', 'Re T-A', 'tennis', 500, 0, true),
+  (private.default_venue_id(), 'c0000000-0000-0000-0000-000000000002', 'Re T-B', 'tennis', 500, 1, true),
+  (private.default_venue_id(), 'c0000000-0000-0000-0000-000000000003', 'Re T-C', 'tennis', 500, 2, true),
+  (private.default_venue_id(), 'c0000000-0000-0000-0000-000000000004', 'Re T-D (archived)', 'tennis', 500, 3, false);
 create temp table badminton_before as select id, sort_order from public.courts where sport = 'badminton';
 grant select on badminton_before to authenticated;
 create function pg_temp.badminton_moved() returns int language sql security definer as $$
@@ -37,10 +36,10 @@ $$;
 grant execute on function pg_temp.badminton_moved() to authenticated;
 
 delete from public.venue_info_sections;
-insert into public.venue_info_sections (id, title, sort_order) values
-  ('d0000000-0000-0000-0000-000000000001', 'One', 0),
-  ('d0000000-0000-0000-0000-000000000002', 'Two', 1),
-  ('d0000000-0000-0000-0000-000000000003', 'Three', 2);
+insert into public.venue_info_sections (venue_id, id, title, sort_order) values
+  (private.default_venue_id(), 'd0000000-0000-0000-0000-000000000001', 'One', 0),
+  (private.default_venue_id(), 'd0000000-0000-0000-0000-000000000002', 'Two', 1),
+  (private.default_venue_id(), 'd0000000-0000-0000-0000-000000000003', 'Three', 2);
 
 -- Owner's view (security definer), so a player's run still sees the archived court RLS hides from them.
 create function pg_temp.tennis() returns text[] language sql security definer as $$

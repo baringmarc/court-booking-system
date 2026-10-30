@@ -88,7 +88,7 @@ export function useSaveOperatingHours() {
 export function useCreateBlackout() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (input: TablesInsert<'blackouts'>) => createBlackout(input),
+    mutationFn: (input: Omit<TablesInsert<'blackouts'>, 'venue_id'>) => createBlackout(input),
     onSuccess: () => qc.invalidateQueries({ queryKey: catalogKeys.blackouts }),
   })
 }

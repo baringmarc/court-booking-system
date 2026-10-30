@@ -13,8 +13,8 @@ exception when others then
   return coalesce(nullif(h, ''), 'sqlstate ' || sqlstate);
 end $$;
 
-insert into public.courts (id, name, sport, default_hourly_rate) values
-  ('c0000000-0000-0000-0000-000000000001', 'Expiry Court', 'tennis', 500);
+insert into public.courts (venue_id, id, name, sport, default_hourly_rate) values
+  (private.default_venue_id(), 'c0000000-0000-0000-0000-000000000001', 'Expiry Court', 'tennis', 500);
 -- Release anything already lapsed in the local database so the count below is exact.
 select private.expire_holds();
 

@@ -8,7 +8,7 @@ import { ThemeSync } from './ThemeSync'
 vi.mock('./api', async (importOriginal) => ({ ...(await importOriginal<typeof import('./api')>()), fetchVenueSettings: vi.fn() }))
 
 const store = new Map<string, string>()
-const settings = (theme: string) => ({ id: true, name: 'Claudex Courts', theme }) as VenueSettings
+const settings = (theme: string) => ({ venue_id: 'v1', name: 'Claudex Courts', theme }) as VenueSettings
 
 function renderSync() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })

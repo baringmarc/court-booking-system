@@ -113,7 +113,7 @@ export type Database = {
           id?: string
           reason?: string
           starts_at: string
-          venue_id?: string
+          venue_id: string
         }
         Update: {
           court_id?: string | null
@@ -474,7 +474,7 @@ export type Database = {
           sort_order?: number
           sport: Database["public"]["Enums"]["sport"]
           updated_at?: string
-          venue_id?: string
+          venue_id: string
         }
         Update: {
           created_at?: string
@@ -730,7 +730,7 @@ export type Database = {
           starts_at: string
           title: string
           updated_at?: string
-          venue_id?: string
+          venue_id: string
         }
         Update: {
           created_at?: string
@@ -774,7 +774,7 @@ export type Database = {
           day_of_week: number
           is_closed?: boolean
           open_time: string
-          venue_id?: string
+          venue_id: string
         }
         Update: {
           close_time?: string
@@ -970,7 +970,6 @@ export type Database = {
           full_name: string | null
           id: string
           phone: string | null
-          role: Database["public"]["Enums"]["user_role"]
           updated_at: string
         }
         Insert: {
@@ -978,7 +977,6 @@ export type Database = {
           full_name?: string | null
           id: string
           phone?: string | null
-          role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string
         }
         Update: {
@@ -986,7 +984,6 @@ export type Database = {
           full_name?: string | null
           id?: string
           phone?: string | null
-          role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string
         }
         Relationships: []
@@ -1004,7 +1001,7 @@ export type Database = {
           created_at?: string
           custom_name?: string | null
           id?: string
-          venue_id?: string
+          venue_id: string
         }
         Update: {
           builtin_key?: string | null
@@ -1040,7 +1037,7 @@ export type Database = {
           sort_order?: number
           title: string
           updated_at?: string
-          venue_id?: string
+          venue_id: string
         }
         Update: {
           body?: string
@@ -1108,7 +1105,7 @@ export type Database = {
           position?: number
           qr_path?: string | null
           updated_at?: string
-          venue_id?: string
+          venue_id: string
         }
         Update: {
           account_name?: string
@@ -1139,7 +1136,6 @@ export type Database = {
           booking_window_days: number
           cancel_cutoff_hours: number
           currency: string
-          id: boolean | null
           maps_url: string
           max_rejections: number
           name: string
@@ -1161,7 +1157,6 @@ export type Database = {
           booking_window_days?: number
           cancel_cutoff_hours?: number
           currency?: string
-          id?: boolean | null
           maps_url?: string
           max_rejections?: number
           name: string
@@ -1173,7 +1168,7 @@ export type Database = {
           theme?: string
           timezone?: string
           updated_at?: string
-          venue_id?: string
+          venue_id: string
           waiver_text?: string
         }
         Update: {
@@ -1183,7 +1178,6 @@ export type Database = {
           booking_window_days?: number
           cancel_cutoff_hours?: number
           currency?: string
-          id?: boolean | null
           maps_url?: string
           max_rejections?: number
           name?: string
@@ -1219,7 +1213,7 @@ export type Database = {
           platform: Database["public"]["Enums"]["venue_social_platform"]
           updated_at?: string
           url: string
-          venue_id?: string
+          venue_id: string
         }
         Update: {
           platform?: Database["public"]["Enums"]["venue_social_platform"]
@@ -1542,7 +1536,6 @@ export type Database = {
         | "account"
       payment_review_status: "pending" | "approved" | "rejected"
       sport: "badminton" | "pickleball" | "basketball" | "tennis"
-      user_role: "player" | "admin"
       venue_social_platform:
         | "facebook"
         | "instagram"
@@ -1708,7 +1701,6 @@ export const Constants = {
       ],
       payment_review_status: ["pending", "approved", "rejected"],
       sport: ["badminton", "pickleball", "basketball", "tennis"],
-      user_role: ["player", "admin"],
       venue_social_platform: [
         "facebook",
         "instagram",

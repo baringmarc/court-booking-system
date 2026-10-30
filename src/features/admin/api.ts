@@ -580,8 +580,8 @@ export async function reorderPaymentAccounts(ids: string[]) {
 }
 
 /**
- * Booking changes for open admin tabs (T11.21): the private Realtime topic admin:bookings, which only admins can
- * join (RLS on realtime.messages). onReconnect runs when the channel comes back after a drop, so lists are refetched
+ * Booking changes for open admin tabs (T11.21): the private Realtime topic admin:bookings:{venueId} (T12.11), which
+ * only that venue's admins can join (RLS on realtime.messages). onReconnect runs when the channel comes back after a drop, so lists are refetched
  * in case an event was missed. Returns the unsubscribe.
  */
 export function subscribeToBookingChanges({ onChange, onReconnect }: { onChange: (change: BookingChange) => void; onReconnect: () => void }) {
@@ -589,10 +589,10 @@ export function subscribeToBookingChanges({ onChange, onReconnect }: { onChange:
   let channel: ReturnType<typeof supabase.channel> | null = null
   let closed = false
   // The private channel is authorized with the user's JWT, which Realtime must have before joining.
-  void supabase.realtime.setAuth().then(() => {
+  void Promise.all([currentAdminVenueId(), supabase.realtime.setAuth()]).then(([venueId]) => {
     if (closed) return
     channel = supabase
-      .channel('admin:bookings', { config: { private: true } })
+      .channel(`admin:bookings:${venueId}`, { config: { private: true } })
       .on('broadcast', { event: 'booking_changed' }, ({ payload }) => onChange(payload as BookingChange))
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
@@ -602,6 +602,9 @@ export function subscribeToBookingChanges({ onChange, onReconnect }: { onChange:
           dropped = true
         }
       })
+  }).catch((e) => {
+    // No venue or no Realtime auth: the admin lists still load and refetch, they just aren't live.
+    console.error('Live booking changes are off', e)
   })
   return () => {
     closed = true

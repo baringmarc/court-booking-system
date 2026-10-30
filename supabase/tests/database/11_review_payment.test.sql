@@ -18,13 +18,12 @@ update public.venue_settings set max_rejections = 2, payment_hold_minutes = 60;
 insert into auth.users (id, email) values
   ('11111111-1111-1111-1111-111111111111', 'pat@test.local'),
   ('22222222-2222-2222-2222-222222222222', 'admin@test.local');
-update public.profiles set role = 'admin' where id = '22222222-2222-2222-2222-222222222222';
 insert into public.venue_members (venue_id, user_id, role)
 select id, '22222222-2222-2222-2222-222222222222', 'staff' from public.venues where slug = 'claudex-courts';
-insert into public.courts (id, name, sport, default_hourly_rate) values
-  ('c0000000-0000-0000-0000-000000000001', 'Review Court', 'tennis', 500);
+insert into public.courts (venue_id, id, name, sport, default_hourly_rate) values
+  (private.default_venue_id(), 'c0000000-0000-0000-0000-000000000001', 'Review Court', 'tennis', 500);
 
-create temp table fx as select (private.local_today() + 3 + time '10:00') at time zone 'Asia/Manila' as t10;
+create temp table fx as select (private.local_today(private.default_venue_id()) + 3 + time '10:00') at time zone 'Asia/Manila' as t10;
 create temp table b (label text primary key, id uuid, ref text);
 grant select on fx to anon, authenticated, service_role;
 grant select, insert on b to anon, authenticated, service_role;

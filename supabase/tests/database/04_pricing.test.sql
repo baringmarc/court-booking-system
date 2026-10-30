@@ -3,22 +3,22 @@ begin;
 create extension if not exists pgtap with schema extensions;
 select plan(12);
 
-insert into public.courts (id, name, sport, default_hourly_rate) values
-  ('c0000000-0000-0000-0000-000000000001', 'Pricing Test Court', 'tennis', 300);
+insert into public.courts (venue_id, id, name, sport, default_hourly_rate) values
+  (private.default_venue_id(), 'c0000000-0000-0000-0000-000000000001', 'Pricing Test Court', 'tennis', 300);
 -- Saturday 07:00 override, and a Friday 07:00 trap that only a UTC-based lookup would hit.
 insert into public.court_rates (court_id, day_of_week, start_hour, price) values
   ('c0000000-0000-0000-0000-000000000001', 6, 7, 500),
   ('c0000000-0000-0000-0000-000000000001', 5, 7, 999),
   ('c0000000-0000-0000-0000-000000000001', 5, 23, 999);
 
-select is(private.venue_tz(), 'Asia/Manila', 'venue timezone comes from venue_settings');
+select is(private.venue_tz(private.default_venue_id()), 'Asia/Manila', 'venue timezone comes from venue_settings');
 select is(
-  private.local_day_bounds('2030-01-05'),
-  tstzrange('2030-01-04 16:00+00', '2030-01-05 16:00+00'),
-  'local day bounds are Manila midnight to midnight'
+  '2030-01-05'::timestamp at time zone private.venue_tz(private.default_venue_id()),
+  '2030-01-04 16:00+00'::timestamptz,
+  'a Manila day starts at 16:00 UTC the day before'
 );
 select is(
-  (select row(dow, hour)::text from private.local_dow_hour('2030-01-04 23:00+00')),
+  (select row(dow, hour)::text from private.local_dow_hour(private.default_venue_id(), '2030-01-04 23:00+00')),
   '(6,7)', '23:00 UTC Friday is Saturday 07:00 in Manila'
 );
 

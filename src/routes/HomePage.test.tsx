@@ -24,7 +24,7 @@ const OFF = 'Pick a court and a time, then pay with GCash, Maya or a bank transf
 
 function renderHome(enabled: boolean) {
   vi.mocked(fetchVenueSettings).mockResolvedValue({
-    id: true, name: 'Claudex Courts', currency: 'PHP', timezone: 'Asia/Manila', address: '', maps_url: '',
+    venue_id: 'v1', name: 'Claudex Courts', currency: 'PHP', timezone: 'Asia/Manila', address: '', maps_url: '',
     banner_path: null, banner_alt: null, online_payments_enabled: enabled,
   } as VenueSettings)
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })

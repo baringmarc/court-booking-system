@@ -5,8 +5,10 @@
 -- Demo bookings must not queue booking emails (SPEC §8): the bookings_queue_email trigger checks this setting.
 select set_config('app.suppress_booking_emails', 'on', false);
 
-insert into public.courts (name, sport, description, default_hourly_rate, sort_order) values
-  ('Badminton 1',       'badminton',  'Wooden floor, BWF-standard lighting.',      350,  1),
+insert into public.courts (venue_id, name, sport, description, default_hourly_rate, sort_order)
+select (select id from public.venues where slug = 'claudex-courts'), v.*
+from (values
+  ('Badminton 1',       'badminton'::public.sport, 'Wooden floor, BWF-standard lighting.', 350, 1),
   ('Badminton 2',       'badminton',  'Wooden floor, BWF-standard lighting.',      350,  2),
   ('Badminton 3',       'badminton',  'Wooden floor, BWF-standard lighting.',      350,  3),
   ('Badminton 4',       'badminton',  'Wooden floor, BWF-standard lighting.',      350,  4),
@@ -14,6 +16,7 @@ insert into public.courts (name, sport, description, default_hourly_rate, sort_o
   ('Pickleball 2',      'pickleball', 'Cushioned acrylic surface. Paddles for rent.', 400, 2),
   ('Basketball Court',  'basketball', 'Full court, indoor, with scoreboard.',      1200, 1),
   ('Tennis Court',      'tennis',     'Hard court with night lighting.',            600, 1)
+) as v(name, sport, description, default_hourly_rate, sort_order)
 on conflict (venue_id, name) do nothing;
 
 -- Peak pricing: weekday evenings (Mon–Fri, 17:00–22:00) and all day on weekends.
@@ -49,10 +52,11 @@ from (values
   ('CB-DEMQE6', 'Tennis Court',     2, time '06:00', 2, 'confirmed')
 ) as v(ref, court_name, day_offset, start_time, hours, status)
 join public.courts c on c.name = v.court_name
+  and c.venue_id = (select id from public.venues where slug = 'claudex-courts')
 cross join lateral (
   select tstzrange(
-    ((private.local_today() + v.day_offset) + v.start_time) at time zone private.venue_tz(),
-    ((private.local_today() + v.day_offset) + v.start_time) at time zone private.venue_tz() + make_interval(hours => v.hours)
+    ((private.local_today(c.venue_id) + v.day_offset) + v.start_time) at time zone private.venue_tz(c.venue_id),
+    ((private.local_today(c.venue_id) + v.day_offset) + v.start_time) at time zone private.venue_tz(c.venue_id) + make_interval(hours => v.hours)
   ) as during
 ) as r
 where not exists (

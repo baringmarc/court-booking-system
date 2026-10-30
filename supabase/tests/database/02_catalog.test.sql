@@ -6,15 +6,14 @@ select plan(14);
 insert into auth.users (id, email) values
   ('11111111-1111-1111-1111-111111111111', 'player@test.local'),
   ('22222222-2222-2222-2222-222222222222', 'admin@test.local');
-update public.profiles set role = 'admin' where id = '22222222-2222-2222-2222-222222222222';
 insert into public.venue_members (venue_id, user_id, role) select id, '22222222-2222-2222-2222-222222222222', 'owner' from public.venues where slug = 'claudex-courts';
 
-insert into public.courts (name, sport, default_hourly_rate, is_active)
-values ('Test Archived Court', 'tennis', 500, false);
+insert into public.courts (venue_id, name, sport, default_hourly_rate, is_active)
+values (private.default_venue_id(), 'Test Archived Court', 'tennis', 500, false);
 
 -- Constraints (as postgres)
 select throws_ok(
-  $$ insert into public.venue_settings (name) values ('Second venue') $$,
+  $$ insert into public.venue_settings (venue_id, name) values (private.default_venue_id(), 'Second venue') $$,
   '23505', null, 'venue_settings is a singleton'
 );
 select throws_ok(
@@ -36,7 +35,7 @@ select throws_ok(
   '23514', null, 'court_rates.day_of_week is 0–6'
 );
 select throws_ok(
-  $$ insert into public.blackouts (starts_at, ends_at) values ('2026-11-01 10:00+08', '2026-11-01 09:00+08') $$,
+  $$ insert into public.blackouts (venue_id, starts_at, ends_at) values (private.default_venue_id(), '2026-11-01 10:00+08', '2026-11-01 09:00+08') $$,
   '23514', null, 'blackout must end after it starts'
 );
 
@@ -49,7 +48,7 @@ select is(
 );
 select ok((select count(*) from public.venue_settings) = 1, 'anon can read venue settings');
 select throws_ok(
-  $$ insert into public.courts (name, sport, default_hourly_rate) values ('Anon Court', 'tennis', 1) $$,
+  $$ insert into public.courts (venue_id, name, sport, default_hourly_rate) values (private.default_venue_id(), 'Anon Court', 'tennis', 1) $$,
   '42501', null, 'anon cannot insert courts'
 );
 
@@ -58,7 +57,7 @@ reset role;
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub": "11111111-1111-1111-1111-111111111111", "role": "authenticated"}', true);
 select throws_ok(
-  $$ insert into public.courts (name, sport, default_hourly_rate) values ('Player Court', 'tennis', 1) $$,
+  $$ insert into public.courts (venue_id, name, sport, default_hourly_rate) values (private.default_venue_id(), 'Player Court', 'tennis', 1) $$,
   '42501', null, 'player cannot insert courts (RLS)'
 );
 select lives_ok(
@@ -67,7 +66,7 @@ select lives_ok(
 );
 select is((select name from public.venue_settings), 'Claudex Courts', 'venue name unchanged by player');
 select throws_ok(
-  $$ insert into public.blackouts (starts_at, ends_at) values (now(), now() + interval '1 hour') $$,
+  $$ insert into public.blackouts (venue_id, starts_at, ends_at) values (private.default_venue_id(), now(), now() + interval '1 hour') $$,
   '42501', null, 'player cannot create blackouts'
 );
 
@@ -78,7 +77,7 @@ select is(
   'admin sees archived courts'
 );
 select lives_ok(
-  $$ insert into public.courts (name, sport, default_hourly_rate) values ('Admin Court', 'pickleball', 300) $$,
+  $$ insert into public.courts (venue_id, name, sport, default_hourly_rate) values (private.default_venue_id(), 'Admin Court', 'pickleball', 300) $$,
   'admin can insert courts'
 );
 

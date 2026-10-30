@@ -6,13 +6,12 @@ select plan(61);
 insert into auth.users (id, email) values
   ('11111111-1111-1111-1111-111111111111', 'player@test.local'),
   ('22222222-2222-2222-2222-222222222222', 'admin@test.local');
-update public.profiles set role = 'admin' where id = '22222222-2222-2222-2222-222222222222';
 insert into public.venue_members (venue_id, user_id, role) select id, '22222222-2222-2222-2222-222222222222', 'owner' from public.venues where slug = 'claudex-courts';
 
-insert into public.courts (id, name, sport, default_hourly_rate, is_active) values
-  ('c0000000-0000-0000-0000-0000000000a1', 'PM Court A', 'tennis', 500, true),
-  ('c0000000-0000-0000-0000-0000000000a2', 'PM Court B', 'tennis', 500, true),
-  ('c0000000-0000-0000-0000-0000000000a3', 'PM Court Closed', 'tennis', 500, false);
+insert into public.courts (venue_id, id, name, sport, default_hourly_rate, is_active) values
+  (private.default_venue_id(), 'c0000000-0000-0000-0000-0000000000a1', 'PM Court A', 'tennis', 500, true),
+  (private.default_venue_id(), 'c0000000-0000-0000-0000-0000000000a2', 'PM Court B', 'tennis', 500, true),
+  (private.default_venue_id(), 'c0000000-0000-0000-0000-0000000000a3', 'PM Court Closed', 'tennis', 500, false);
 
 -- One booking per scenario. Future slots are on 2030-01-07 (Court A) / 2030-01-08 (Court B) at different hours.
 insert into public.bookings (id, reference_code, court_id, user_id, guest_name, during, total_amount, status, expires_at) values
@@ -66,8 +65,8 @@ insert into public.payments (booking_id, method, amount, review_status, reviewed
   ('b0000000-0000-0000-0000-0000000000c3', 'gcash', 500, 'approved', now());
 update public.bookings set rejection_count = 1 where id = 'b0000000-0000-0000-0000-0000000000b3';
 
-insert into public.blackouts (court_id, starts_at, ends_at, reason) values
-  ('c0000000-0000-0000-0000-0000000000a2', '2030-01-08 07:00+08', '2030-01-08 09:00+08', 'Resurfacing');
+insert into public.blackouts (venue_id, court_id, starts_at, ends_at, reason) values
+  (private.default_venue_id(), 'c0000000-0000-0000-0000-0000000000a2', '2030-01-08 07:00+08', '2030-01-08 09:00+08', 'Resurfacing');
 
 -- Checkout sessions for the payment scenarios (cs_<booking suffix>)
 insert into public.paymongo_checkouts (booking_id, checkout_id, checkout_url, amount_centavos)

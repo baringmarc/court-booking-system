@@ -92,6 +92,8 @@ Reply: `200 { ok: true, message }`.
 
 plotline-site never writes to tables directly and never reads `leads`.
 
+M12 (done 2026-10-31) made the schema multi-venue (`venues`, `venue_members`, `platform_admins`, `venue_id` everywhere) and dropped `profiles.role` and `venue_settings.id`. None of that is part of this contract, so plotline-site needed no change; its generated types lose only those columns.
+
 ### Environment
 
 | Repo | Variable | Value |

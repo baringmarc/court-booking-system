@@ -21,9 +21,9 @@ insert into auth.users (id, email) values ('11111111-1111-1111-1111-111111111111
 update public.profiles set full_name = 'Pat Player', phone = '0917 111 1111'
 where id = '11111111-1111-1111-1111-111111111111';
 
-insert into public.courts (id, name, sport, default_hourly_rate, is_active) values
-  ('c0000000-0000-0000-0000-000000000001', 'CB Court', 'tennis', 300, true),
-  ('c0000000-0000-0000-0000-000000000002', 'CB Archived', 'tennis', 300, false);
+insert into public.courts (venue_id, id, name, sport, default_hourly_rate, is_active) values
+  (private.default_venue_id(), 'c0000000-0000-0000-0000-000000000001', 'CB Court', 'tennis', 300, true),
+  (private.default_venue_id(), 'c0000000-0000-0000-0000-000000000002', 'CB Archived', 'tennis', 300, false);
 
 -- Fixture times: d = today + 3 (Manila), as instants.
 create temp table fx as
@@ -31,15 +31,15 @@ select d, (d + time '10:00') at time zone 'Asia/Manila' as t10,
           (d + time '12:00') at time zone 'Asia/Manila' as t12,
           (d + time '14:00') at time zone 'Asia/Manila' as t14,
           (d + time '16:00') at time zone 'Asia/Manila' as t16,
-          ((private.local_today() - 1) + time '10:00') at time zone 'Asia/Manila' as t_yesterday,
-          ((private.local_today() + (select booking_window_days from public.venue_settings) + 1) + time '10:00') at time zone 'Asia/Manila' as t_past_window
-from (select private.local_today() + 3 as d) x;
+          ((private.local_today(private.default_venue_id()) - 1) + time '10:00') at time zone 'Asia/Manila' as t_yesterday,
+          ((private.local_today(private.default_venue_id()) + (select booking_window_days from public.venue_settings) + 1) + time '10:00') at time zone 'Asia/Manila' as t_past_window
+from (select private.local_today(private.default_venue_id()) + 3 as d) x;
 create temp table results (label text primary key, id uuid, ref text, token text);
 grant select on fx to anon, authenticated;
 grant select, insert on results to anon, authenticated;
 
-insert into public.blackouts (court_id, starts_at, ends_at, reason)
-select null, t16, t16 + interval '1 hour', 'test' from fx;
+insert into public.blackouts (venue_id, court_id, starts_at, ends_at, reason)
+select private.default_venue_id(), null, t16, t16 + interval '1 hour', 'test' from fx;
 
 -- ---------------------------------------------------------------- guest flow (anon)
 set local role anon;

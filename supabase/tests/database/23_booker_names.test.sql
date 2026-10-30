@@ -3,10 +3,10 @@ begin;
 create extension if not exists pgtap with schema extensions;
 select plan(16);
 
-insert into public.courts (id, name, sport, default_hourly_rate) values
-  ('c0000000-0000-0000-0000-000000000001', 'Names Court', 'tennis', 300);
+insert into public.courts (venue_id, id, name, sport, default_hourly_rate) values
+  (private.default_venue_id(), 'c0000000-0000-0000-0000-000000000001', 'Names Court', 'tennis', 300);
 
-create temp table fx as select private.local_today() + 3 as d, private.venue_tz() as tz;
+create temp table fx as select private.local_today(private.default_venue_id()) + 3 as d, private.venue_tz(private.default_venue_id()) as tz;
 grant select on fx to anon;
 
 -- One booking per hour on Names Court, day d (Manila).
@@ -24,8 +24,8 @@ from fx, (values
   ('CB-BKNAAG', 'Rejected Person',                time '19:00', 'rejected',          null::timestamptz,              'online')
 ) as v(ref, name, s, st, exp, src);
 
-insert into public.blackouts (court_id, starts_at, ends_at, reason)
-select 'c0000000-0000-0000-0000-000000000001', (fx.d + time '17:00') at time zone fx.tz, (fx.d + time '18:00') at time zone fx.tz, 'test'
+insert into public.blackouts (venue_id, court_id, starts_at, ends_at, reason)
+select private.default_venue_id(), 'c0000000-0000-0000-0000-000000000001', (fx.d + time '17:00') at time zone fx.tz, (fx.d + time '18:00') at time zone fx.tz, 'test'
 from fx;
 
 -- ---------------------------------------------------------------------------
