@@ -124,7 +124,7 @@ select is((select j -> 'collected' -> 'total' from e)::numeric, 1500::numeric,
 select is((select j -> 'collected' -> 'count' from e)::int, 3, 'collected counts three payments');
 select is(
   (select jsonb_agg(m order by m ->> 'method') from e, jsonb_array_elements(e.j -> 'collected' -> 'by_method') m),
-  '[{"count": 1, "amount": 600, "method": "cash"}, {"count": 1, "amount": 400, "method": "gcash"}, {"count": 1, "amount": 500, "method": "paymongo"}]'::jsonb,
+  '[{"count": 1, "amount": 600, "method": "cash", "paid_with": null}, {"count": 1, "amount": 400, "method": "gcash", "paid_with": null}, {"count": 1, "amount": 500, "method": "paymongo", "paid_with": null}]'::jsonb,
   'collected per method (refunds due and rejected proofs left out)');
 select is((select j -> 'refunds_due' from e), '{"count": 1, "total": 300}'::jsonb,
   'refunds due: the rejected PayMongo payment only, not the rejected proof');

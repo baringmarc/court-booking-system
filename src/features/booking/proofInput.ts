@@ -12,6 +12,7 @@ export const METHOD_LABELS: Record<Enums<'payment_method'>, string> = {
   bank_transfer: 'Bank transfer',
   cash: 'Cash',
   paymongo: 'PayMongo',
+  account: 'Payment account',
 }
 export const PROOF_METHOD_OPTIONS = PROOF_METHODS.map((value) => ({ value, label: METHOD_LABELS[value] }))
 export const ACCEPTED_PROOF_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf']

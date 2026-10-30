@@ -55,9 +55,18 @@ describe('parseProofFields', () => {
       referenceCode: 'CB-7KQ2XD',
       token: 'tok',
       method: 'gcash',
+      accountId: null,
       amount: 450.01,
       referenceNumber: '123',
     })
+  })
+
+  it('takes an account id instead of a method', () => {
+    const { method, ...rest } = valid
+    void method
+    const accountId = '3f2b8c1e-5d4a-4b6c-9e7f-0a1b2c3d4e5f'
+    expect(parseProofFields(form({ ...rest, account_id: accountId }))).toMatchObject({ method: 'account', accountId })
+    expect(() => parseProofFields(form({ ...rest, account_id: 'nope' }))).toThrow()
   })
 
   it('treats a missing token and reference number as null (signed-in players)', () => {

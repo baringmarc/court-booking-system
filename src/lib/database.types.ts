@@ -559,6 +559,8 @@ export type Database = {
           booking_id: string
           id: string
           method: Database["public"]["Enums"]["payment_method"]
+          paid_with: string | null
+          payment_account_id: string | null
           provider_checkout_id: string | null
           provider_event_id: string | null
           provider_payment_id: string | null
@@ -577,6 +579,8 @@ export type Database = {
           booking_id: string
           id?: string
           method: Database["public"]["Enums"]["payment_method"]
+          paid_with?: string | null
+          payment_account_id?: string | null
           provider_checkout_id?: string | null
           provider_event_id?: string | null
           provider_payment_id?: string | null
@@ -595,6 +599,8 @@ export type Database = {
           booking_id?: string
           id?: string
           method?: Database["public"]["Enums"]["payment_method"]
+          paid_with?: string | null
+          payment_account_id?: string | null
           provider_checkout_id?: string | null
           provider_event_id?: string | null
           provider_payment_id?: string | null
@@ -614,6 +620,13 @@ export type Database = {
             columns: ["booking_id"]
             isOneToOne: false
             referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_payment_account_id_fkey"
+            columns: ["payment_account_id"]
+            isOneToOne: false
+            referencedRelation: "venue_payment_accounts"
             referencedColumns: ["id"]
           },
           {
@@ -1032,6 +1045,7 @@ export type Database = {
       }
       record_payment_proof: {
         Args: {
+          p_account_id?: string
           p_amount: number
           p_booking_id: string
           p_method: Database["public"]["Enums"]["payment_method"]
@@ -1132,7 +1146,13 @@ export type Database = {
         | "booking_cancelled"
         | "booking_rescheduled"
       email_status: "pending" | "sending" | "sent" | "skipped" | "failed"
-      payment_method: "gcash" | "maya" | "bank_transfer" | "cash" | "paymongo"
+      payment_method:
+        | "gcash"
+        | "maya"
+        | "bank_transfer"
+        | "cash"
+        | "paymongo"
+        | "account"
       payment_review_status: "pending" | "approved" | "rejected"
       sport: "badminton" | "pickleball" | "basketball" | "tennis"
       user_role: "player" | "admin"
@@ -1291,7 +1311,14 @@ export const Constants = {
         "booking_rescheduled",
       ],
       email_status: ["pending", "sending", "sent", "skipped", "failed"],
-      payment_method: ["gcash", "maya", "bank_transfer", "cash", "paymongo"],
+      payment_method: [
+        "gcash",
+        "maya",
+        "bank_transfer",
+        "cash",
+        "paymongo",
+        "account",
+      ],
       payment_review_status: ["pending", "approved", "rejected"],
       sport: ["badminton", "pickleball", "basketball", "tennis"],
       user_role: ["player", "admin"],
