@@ -82,6 +82,7 @@ For a task that isn't risky, state your plan in two or three lines, naming what 
 ## 6. Verify
 
 - Run `node .claude/hooks/verify-gate.mjs --full` and fix failures until it passes. It runs the full checks (`npm run verify`, including the drift check) and then `npm run test:e2e` if UI-facing files changed. The full local stack must be up for e2e (`npx supabase start`).
+- Pipe its output (`2>&1 | tail -n 40`, in the background if long); never redirect it with `>`, which the guard reads as writing a harness file.
 - It records which changes passed. **The guard refuses `git commit` until a full run passed on exactly the current changes**, so re-run it after any later code edit.
 - If the task changes a user journey (pages, forms, flows), the test-writer's e2e spec covers it; extend `e2e/` if you changed more.
 - Test runs that share the local stack go through a lock (`scripts/with-lock.mjs`), so a second run waits for the first instead of colliding. You no longer need to check `pgrep` first.

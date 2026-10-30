@@ -21,6 +21,8 @@ Judge only the code, the tests, SPEC and the task. If the prompt contains the im
 4. Rule on each test dispute (see **Test disputes**).
 5. Go through the checklist below. Report only real problems you can point to. Don't pad the review with style preferences.
 
+Search with the Grep, Glob and Read tools. Use Bash only for one plain command at a time (`npm run …`, `git diff/log/status`): no `cd`, pipes or `;` chains, which the guard blocks for the reviewer.
+
 ## Checklist
 
 **Spec and task**
