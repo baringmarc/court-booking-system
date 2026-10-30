@@ -37,6 +37,7 @@ insert into auth.users (id, email, email_confirmed_at) values
   ('33333333-3333-3333-3333-333333333333', 'olga@test.local', now()),
   ('44444444-4444-4444-4444-444444444444', 'claimer@example.com', now());
 update public.profiles set role = 'admin' where id = '22222222-2222-2222-2222-222222222222';
+insert into public.venue_members (venue_id, user_id, role) select id, '22222222-2222-2222-2222-222222222222', 'owner' from public.venues where slug = 'claudex-courts';
 
 insert into public.courts (id, name, sport, default_hourly_rate) values
   ('c0000000-0000-0000-0000-00000000000b', 'Target B', 'tennis', 500),

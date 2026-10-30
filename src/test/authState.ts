@@ -15,6 +15,7 @@ export function authState(who: Who, overrides: Partial<AuthState> = {}): AuthSta
     session: user ? ({ user } as Session) : null,
     user,
     profile,
+    venueIds: who === 'admin' ? ['venue-a'] : [],
     isAdmin: who === 'admin',
     loading: false,
     profileError: null,

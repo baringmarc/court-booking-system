@@ -2,23 +2,13 @@
 -- amenities; the URL, host and length checks; section ordering; the starter sections.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(51);
-
-create function pg_temp.hint_of(p_sql text) returns text language plpgsql as $$
-declare h text;
-begin
-  execute p_sql;
-  return null;
-exception when others then
-  get stacked diagnostics h = pg_exception_hint;
-  return coalesce(nullif(h, ''), 'sqlstate ' || sqlstate);
-end $$;
-grant execute on function pg_temp.hint_of(text) to anon, authenticated;
+select plan(46);
 
 insert into auth.users (id, email) values
   ('11111111-1111-1111-1111-111111111111', 'player@test.local'),
   ('22222222-2222-2222-2222-222222222222', 'admin@test.local');
 update public.profiles set role = 'admin' where id = '22222222-2222-2222-2222-222222222222';
+insert into public.venue_members (venue_id, user_id, role) select id, '22222222-2222-2222-2222-222222222222', 'owner' from public.venues where slug = 'claudex-courts';
 
 -- The migration's starter sections, then a known state for the rest (local edits are rolled back with the rest).
 select is(
@@ -30,7 +20,7 @@ delete from public.venue_info_sections;
 insert into public.venue_info_sections (title) values ('Waiver'), ('Reminders and policies'), ('Cancellation and refund policy'), ('House rules');
 delete from public.venue_social_links;
 delete from public.venue_amenities;
-update public.venue_settings set address = '', maps_query = '';
+update public.venue_settings set address = '';
 
 -- ---------------------------------------------------------------------------
 -- Anon: reads, never writes
@@ -51,9 +41,6 @@ select throws_ok($$ insert into public.venue_amenities (builtin_key) values ('wi
   'anon cannot switch on amenities');
 select throws_ok($$ insert into public.venue_social_links (platform, url) values ('website', 'https://evil.test') $$, '42501', null,
   'anon cannot add social links');
-select throws_ok($$ select public.move_info_section((select id from public.venue_info_sections limit 1), 1::smallint) $$, '42501', null,
-  'anon cannot reorder sections');
-
 -- ---------------------------------------------------------------------------
 -- Player: reads, never writes
 -- ---------------------------------------------------------------------------
@@ -89,16 +76,12 @@ delete from public.venue_social_links;
 delete from public.venue_amenities;
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub": "11111111-1111-1111-1111-111111111111", "role": "authenticated"}', true);
-select is(pg_temp.hint_of($$ select public.move_info_section((select id from public.venue_info_sections order by sort_order limit 1), 1::smallint) $$),
-  'forbidden', 'players cannot reorder sections');
-
 -- ---------------------------------------------------------------------------
 -- Admin: location
 -- ---------------------------------------------------------------------------
 select set_config('request.jwt.claims', '{"sub": "22222222-2222-2222-2222-222222222222", "role": "authenticated"}', true);
-select lives_ok($$ update public.venue_settings set address = '123 Rizal Ave, Makati', maps_query = 'Claudex Courts Makati' $$,
-  'admins set the address and map query');
-select is((select maps_query from public.venue_settings), 'Claudex Courts Makati', 'the map query is stored');
+select lives_ok($$ update public.venue_settings set address = '123 Rizal Ave, Makati' $$,
+  'admins set the address');
 select throws_ok($$ update public.venue_settings set address = repeat('a', 301) $$, '23514', null, 'the address is at most 300 characters');
 
 -- ---------------------------------------------------------------------------
@@ -140,18 +123,6 @@ select is((select sort_order from public.venue_info_sections where title = 'Park
 select throws_ok($$ insert into public.venue_info_sections (title) values ('  ') $$, '23514', null, 'a section needs a title');
 select throws_ok($$ insert into public.venue_info_sections (title, body) values ('Long', repeat('a', 5001)) $$,
   '23514', null, 'a body is at most 5000 characters');
-select lives_ok($$ select public.move_info_section((select id from public.venue_info_sections where title = 'Parking'), -1::smallint) $$,
-  'admins move a section up');
-select results_eq(
-  $$ select title, sort_order from public.venue_info_sections order by sort_order $$,
-  $$ values ('Waiver', 0), ('Reminders and policies', 1), ('Cancellation and refund policy', 2), ('Parking', 3), ('House rules', 4) $$,
-  'moving swaps it with its neighbour and renumbers 0..n-1'
-);
-select lives_ok($$ select public.move_info_section((select id from public.venue_info_sections where title = 'Waiver'), -1::smallint) $$,
-  'moving the first section up does nothing');
-select is((select title from public.venue_info_sections where sort_order = 0), 'Waiver', 'the first stays first');
-select is(pg_temp.hint_of($$ select public.move_info_section('00000000-0000-0000-0000-00000000dead', 1::smallint) $$),
-  'not_found', 'moving a missing section is refused');
 select lives_ok($$ delete from public.venue_info_sections where title = 'House rules' $$, 'admins delete a section');
 
 -- ---------------------------------------------------------------------------
@@ -170,6 +141,13 @@ select throws_ok($$ update public.venue_amenities set custom_name = 'Renamed' wh
 select lives_ok($$ delete from public.venue_amenities where builtin_key = 'parking' $$, 'admins switch an amenity off');
 select results_eq($$ select coalesce(builtin_key, custom_name) from public.venue_amenities order by created_at, builtin_key $$,
   $$ values ('wifi'), ('Massage chairs') $$, 'only the switched-off amenity is gone');
+
+-- ---------------------------------------------------------------------------
+-- T11.15 contract: the old map query and the one-step mover are gone; the whole-list reorder stays
+-- ---------------------------------------------------------------------------
+select hasnt_column('public', 'venue_settings', 'maps_query', 'venue_settings no longer has maps_query');
+select hasnt_function('public', 'move_info_section', 'move_info_section is dropped');
+select has_function('public', 'reorder_info_sections', array['uuid[]', 'uuid'], 'reorder_info_sections stays');
 
 select * from finish();
 rollback;

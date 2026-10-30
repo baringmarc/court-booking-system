@@ -19,6 +19,13 @@ export function serviceClient() {
   return createClient(url, secretKey, { auth: { persistSession: false, autoRefreshToken: false } })
 }
 
+/** Claudex Courts' id: new uploads live under `{venue_id}/…` since T12.7. */
+export async function venueId() {
+  const { data, error } = await serviceClient().from('venues').select('id').eq('slug', 'claudex-courts').single()
+  if (error) throw error
+  return data.id
+}
+
 /** Creates a confirmed account with the default player role. */
 export async function createPlayer(kind = 'player') {
   const email = uniqueEmail(kind)
@@ -32,6 +39,11 @@ export async function createAdmin() {
   const user = await createPlayer('admin')
   const { error } = await serviceClient().from('profiles').update({ role: 'admin', full_name: `${E2E_PREFIX} Admin` }).eq('id', user.id)
   if (error) throw error
+  // Admin rights come from venue membership since M12 (T12.4); Claudex Courts is the only venue.
+  const { data: venue, error: venueError } = await serviceClient().from('venues').select('id').eq('slug', 'claudex-courts').single()
+  if (venueError) throw venueError
+  const { error: memberError } = await serviceClient().from('venue_members').insert({ venue_id: venue.id, user_id: user.id, role: 'staff' })
+  if (memberError) throw memberError
   return { email: user.email, password: user.password }
 }
 

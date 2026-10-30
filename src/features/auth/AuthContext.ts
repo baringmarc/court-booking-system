@@ -8,6 +8,9 @@ export type AuthState = {
   session: Session | null
   user: User | null
   profile: Profile | null
+  /** The venues the user is staff or owner of (venue_members). */
+  venueIds: string[]
+  /** A member of at least one venue. Admin access itself is enforced by RLS (`private.is_venue_admin`). */
   isAdmin: boolean
   /** true until the initial session (and profile, if signed in) has loaded */
   loading: boolean

@@ -60,7 +60,7 @@ function CourtForm({ court }: { court: Court | null }) {
         sport,
         description: description.trim(),
         default_hourly_rate: Number(rate),
-        // Order is changed with the arrows on the courts list (move_court). A new court, or one moved to another
+        // Order is changed by dragging on the courts list (reorder_courts). A new court, or one moved to another
         // sport, goes last in that sport; otherwise its place is kept.
         ...(court?.sport === sport ? {} : { sort_order: nextSortOrder(allCourts.data ?? [], sport) }),
         is_active: isActive,

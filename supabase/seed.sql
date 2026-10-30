@@ -14,7 +14,7 @@ insert into public.courts (name, sport, description, default_hourly_rate, sort_o
   ('Pickleball 2',      'pickleball', 'Cushioned acrylic surface. Paddles for rent.', 400, 2),
   ('Basketball Court',  'basketball', 'Full court, indoor, with scoreboard.',      1200, 1),
   ('Tennis Court',      'tennis',     'Hard court with night lighting.',            600, 1)
-on conflict (name) do nothing;
+on conflict (venue_id, name) do nothing;
 
 -- Peak pricing: weekday evenings (Mon–Fri, 17:00–22:00) and all day on weekends.
 -- Peak price = default rate + 100 (badminton/pickleball), +300 (basketball), +150 (tennis).

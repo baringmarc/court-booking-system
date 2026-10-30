@@ -127,6 +127,9 @@ async function createAdmin() {
   const { data, error } = await service.auth.admin.createUser({ email, password, email_confirm: true })
   if (error) throw error
   await service.from('profiles').update({ role: 'admin', full_name: 'Marc Admin' }).eq('id', data.user.id).throwOnError()
+  // Admin rights come from venue membership since M12 (T12.10); Claudex Courts is the only venue.
+  const { data: venue } = await service.from('venues').select('id').eq('slug', 'claudex-courts').single().throwOnError()
+  await service.from('venue_members').insert({ venue_id: venue.id, user_id: data.user.id, role: 'staff' }).throwOnError()
   return { id: data.user.id, email, password }
 }
 

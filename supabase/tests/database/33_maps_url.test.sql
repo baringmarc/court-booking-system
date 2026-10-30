@@ -1,13 +1,13 @@
--- T11.8: venue_settings.maps_url. The column and its link check, the url_encode and maps_search_url helpers behind the
--- backfill, and RLS: anyone reads it, only admins change it.
+-- T11.8: venue_settings.maps_url. The column and its link check, and RLS: anyone reads it, only admins change it.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(44);
+select plan(30);
 
 insert into auth.users (id, email) values
   ('11111111-1111-1111-1111-111111111111', 'player@test.local'),
   ('22222222-2222-2222-2222-222222222222', 'admin@test.local');
 update public.profiles set role = 'admin' where id = '22222222-2222-2222-2222-222222222222';
+insert into public.venue_members (venue_id, user_id, role) select id, '22222222-2222-2222-2222-222222222222', 'owner' from public.venues where slug = 'claudex-courts';
 
 -- ---------------------------------------------------------------------------
 -- The column
@@ -15,22 +15,13 @@ update public.profiles set role = 'admin' where id = '22222222-2222-2222-2222-22
 select has_column('public', 'venue_settings', 'maps_url', 'venue_settings has maps_url');
 select col_not_null('public', 'venue_settings', 'maps_url', 'maps_url is required');
 select col_default_is('public', 'venue_settings', 'maps_url', '', 'maps_url defaults to empty');
-select has_column('public', 'venue_settings', 'maps_query', 'maps_query stays until the contract migration (T11.15)');
--- The migration's backfill statement, run again on a row with a blank map search and an address.
-update public.venue_settings set maps_query = '  ', address = '12 Rizal Ave', maps_url = '';
-update public.venue_settings
-set maps_url = private.maps_search_url(coalesce(nullif(btrim(maps_query), ''), address))
-where maps_url = '';
+select hasnt_column('public', 'venue_settings', 'maps_query', 'maps_query is dropped (T11.15)');
+select hasnt_function('private', 'maps_search_url', array['text'], 'maps_search_url is dropped');
+select hasnt_function('private', 'url_encode', array['text'], 'url_encode is dropped');
 select is(
-  (select maps_url from public.venue_settings),
-  'https://www.google.com/maps/search/?api=1&query=12%20Rizal%20Ave',
-  'the backfill falls back to the address when the map search is blank'
+  (select count(*)::int from pg_constraint where conname = 'venue_settings_maps_url_link' and conrelid = 'public.venue_settings'::regclass),
+  1, 'the maps_url link check constraint stays'
 );
-update public.venue_settings set maps_query = 'Claudex Courts', maps_url = 'https://maps.app.goo.gl/Kept';
-update public.venue_settings
-set maps_url = private.maps_search_url(coalesce(nullif(btrim(maps_query), ''), address))
-where maps_url = '';
-select is((select maps_url from public.venue_settings), 'https://maps.app.goo.gl/Kept', 'the backfill leaves a link that is already set');
 
 -- ---------------------------------------------------------------------------
 -- Accepted links
@@ -63,40 +54,6 @@ select throws_ok(
   $$ update public.venue_settings set maps_url = 'https://maps.app.goo.gl/' || repeat('a', 1001 - char_length('https://maps.app.goo.gl/')) $$,
   '23514', null, '1001 characters is refused'
 );
-
--- ---------------------------------------------------------------------------
--- The helpers behind the backfill
--- ---------------------------------------------------------------------------
-select is(private.url_encode('Az09-_.~'), 'Az09-_.~', 'unreserved characters stay as they are');
-select is(private.url_encode('a b&c#d+e/f?'), 'a%20b%26c%23d%2Be%2Ff%3F', 'spaces, &, #, +, / and ? are percent-encoded');
-select is(private.url_encode('Parañaque'), 'Para%C3%B1aque', 'non-ASCII letters are encoded as UTF-8 bytes');
-select is(private.maps_search_url('  '), '', 'nothing to search gives no link');
-select is(
-  private.maps_search_url(' 12 Rizal Ave, Makati '),
-  'https://www.google.com/maps/search/?api=1&query=12%20Rizal%20Ave%2C%20Makati',
-  'a search link for an address (trimmed)'
-);
-select lives_ok(
-  $$ update public.venue_settings set maps_url = private.maps_search_url(repeat('a&', 150)) $$,
-  'a 300-character ASCII address still fits the check'
-);
-select is(char_length(private.maps_search_url(repeat('a&', 150))), 48 + 150 * 4, 'its encoded link is 648 characters');
-select is(char_length(private.maps_search_url(repeat('&', 300))), 948, 'the worst 300-character ASCII address encodes to 948 characters');
-select lives_ok(
-  $$ update public.venue_settings set maps_url = private.maps_search_url(repeat('&', 300)) $$,
-  'and still fits the check'
-);
-select is(private.maps_search_url(repeat('ñ', 200)), '', 'an address whose link would pass 1000 characters gives no link');
-select is(
-  (select private.maps_search_url(coalesce(nullif(btrim(q), ''), a)) from (values ('Claudex Courts', '12 Rizal Ave')) v(q, a)),
-  'https://www.google.com/maps/search/?api=1&query=Claudex%20Courts',
-  'the backfill prefers the map search over the address'
-);
-
-select ok(not has_function_privilege('anon', 'private.url_encode(text)', 'execute'), 'anon cannot execute url_encode');
-select ok(not has_function_privilege('authenticated', 'private.url_encode(text)', 'execute'), 'authenticated cannot execute url_encode');
-select ok(not has_function_privilege('anon', 'private.maps_search_url(text)', 'execute'), 'anon cannot execute maps_search_url');
-select ok(not has_function_privilege('authenticated', 'private.maps_search_url(text)', 'execute'), 'authenticated cannot execute maps_search_url');
 
 -- ---------------------------------------------------------------------------
 -- RLS: anon and players read, never write; admins write

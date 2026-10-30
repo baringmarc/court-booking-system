@@ -3,14 +3,14 @@
 // and the court_photos rules end to end.
 import { AxeBuilder } from '@axe-core/playwright'
 import { expect, test } from '@playwright/test'
-import { createAdmin, E2E_PREFIX, logInAdmin, serviceClient } from './support/helpers.ts'
+import { createAdmin, E2E_PREFIX, logInAdmin, serviceClient, venueId } from './support/helpers.ts'
 
 // A valid 1×1 PNG. The browser decodes it and re-encodes it before upload.
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64')
 const png = (name: string) => ({ name, mimeType: 'image/png', buffer: PNG })
 
 async function storedPhotos(courtId: string) {
-  const { data, error } = await serviceClient().storage.from('venue-media').list(`courts/${courtId}`)
+  const { data, error } = await serviceClient().storage.from('venue-media').list(`${await venueId()}/courts/${courtId}`)
   if (error) throw error
   return (data ?? []).map((f) => f.name)
 }

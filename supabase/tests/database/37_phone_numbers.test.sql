@@ -31,6 +31,8 @@ insert into auth.users (id, email) values
   ('11111111-1111-1111-1111-111111111111', 'pat@test.local'),
   ('22222222-2222-2222-2222-222222222222', 'admin@test.local');
 update public.profiles set role = 'admin' where id = '22222222-2222-2222-2222-222222222222';
+insert into public.venue_members (venue_id, user_id, role)
+select id, '22222222-2222-2222-2222-222222222222', 'staff' from public.venues where slug = 'claudex-courts';
 insert into public.courts (id, name, sport, default_hourly_rate) values
   ('c0000000-0000-0000-0000-0000000037a1', 'Phone Court', 'tennis', 300);
 

@@ -18,7 +18,7 @@ vi.mock('../catalog/api', async (importOriginal) => ({
 
 const court = { id: 'c1', name: 'Badminton 1', default_hourly_rate: 350 } as Court
 const week = (patch: Partial<Record<number, Partial<OperatingHours>>> = {}): OperatingHours[] =>
-  [0, 1, 2, 3, 4, 5, 6].map((d) => ({ day_of_week: d, open_time: '20:00:00', close_time: '22:00:00', is_closed: false, ...patch[d] }))
+  [0, 1, 2, 3, 4, 5, 6].map((d) => ({ venue_id: 'v1', day_of_week: d, open_time: '20:00:00', close_time: '22:00:00', is_closed: false, ...patch[d] }))
 
 function renderRates(hours: OperatingHours[]) {
   vi.mocked(fetchOperatingHours).mockResolvedValue(hours)

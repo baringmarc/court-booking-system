@@ -1,13 +1,13 @@
 // An admin sets and removes the home page banner, which players see on / and nowhere else. Runs the real
 // browser downscale, the venue-media storage policies and the venue_settings banner CHECKs end to end.
 import { expect, test } from '@playwright/test'
-import { createAdmin, E2E_PREFIX, logInAdmin, serviceClient } from './support/helpers.ts'
+import { createAdmin, E2E_PREFIX, logInAdmin, serviceClient, venueId } from './support/helpers.ts'
 
 // A valid 1×1 PNG. The browser decodes it and re-encodes it before upload.
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64')
 
 async function storedBanners() {
-  const { data, error } = await serviceClient().storage.from('venue-media').list('banner')
+  const { data, error } = await serviceClient().storage.from('venue-media').list(`${await venueId()}/banner`)
   if (error) throw error
   return (data ?? []).map((f) => f.name)
 }

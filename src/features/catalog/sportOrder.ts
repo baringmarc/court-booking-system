@@ -1,4 +1,4 @@
-// Sport and court order (SPEC §6, T9.3/T9.4). The database's get_availability and move_court use the same rules:
+// Sport and court order (SPEC §6, T9.3/T9.4). The database's get_availability and reorder_courts use the same rules:
 // sports in venue_settings.sport_order, then courts by sort_order and name.
 import type { Court } from './api'
 import { SPORTS, type Sport } from './sports'

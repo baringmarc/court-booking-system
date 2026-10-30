@@ -91,4 +91,4 @@ supabase/
 ## Learned rules
 Lessons from repeated mistakes, added by `/retro` with the user's approval. Follow them like any rule above. Each lists the mistake categories it covers; `/retro` promotes a rule to a hard check if its mistake keeps happening anyway.
 
-_(none yet)_
+- **L1** Tests the test-writer writes must pass `tsc -b` and, for pgTAP, match their `plan(n)`. Red means the behavior is missing, not that the file is broken. Type fixture rows from the `Database` row types, never loose literals. _Why:_ typecheck failures in test files in 5 tasks and plan-count disputes in M11. _(categories: typecheck, dispute; added 2026-10-30 from /retro M11)_

@@ -33,9 +33,9 @@ test('an admin adds a payment account with a QR code, and a guest sees it while 
   const list = page.getByRole('list', { name: 'Payment accounts in order' })
   await expect(list.getByText(LABEL, { exact: true })).toBeVisible()
 
-  // Stored as a fresh <uuid>.png in the payment-qr bucket (re-encoded in the browser).
+  // Stored as a fresh {venue_id}/<uuid>.png in the payment-qr bucket (re-encoded in the browser).
   const { data: row } = await serviceClient().from('venue_payment_accounts').select('qr_path').eq('label', LABEL).single().throwOnError()
-  expect(row!.qr_path).toMatch(/^[0-9a-f-]{36}\.png$/)
+  expect(row!.qr_path).toMatch(/^[0-9a-f-]{36}\/[0-9a-f-]{36}\.png$/)
 
   // A guest books (signed out, same device size) and pays.
   const guest = await browser.newContext({ ...test.info().project.use })
@@ -53,7 +53,7 @@ test('an admin adds a payment account with a QR code, and a guest sees it while 
   // Lazy: wait until it has actually loaded and decoded (a broken file never gets a natural width).
   await expect.poll(() => qr.evaluate((img: { complete: boolean; naturalWidth: number }) => img.complete && img.naturalWidth > 0)).toBe(true)
   const download = account.getByRole('link', { name: 'Download QR' })
-  await expect(download).toHaveAttribute('href', /\/storage\/v1\/object\/public\/payment-qr\/[0-9a-f-]{36}\.png\?download=/)
+  await expect(download).toHaveAttribute('href', /\/storage\/v1\/object\/public\/payment-qr\/[0-9a-f-]{36}\/[0-9a-f-]{36}\.png\?download=/)
   const response = await guest.request.get((await download.getAttribute('href'))!)
   expect(response.status()).toBe(200)
   expect(response.headers()['content-disposition']).toMatch(/attachment/)

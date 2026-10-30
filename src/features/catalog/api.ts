@@ -2,6 +2,7 @@ import { supabase } from '../../lib/supabase'
 import { unwrap } from '../../lib/queryClient'
 import type { Tables, TablesInsert, TablesUpdate } from '../../lib/database.types'
 import { sortCourts } from './sportOrder'
+import { currentAdminVenueId } from '../auth/api'
 
 export type VenueSettings = Tables<'venue_settings'>
 export type Court = Tables<'courts'>
@@ -84,18 +85,19 @@ export type CourtInput = Pick<
 export async function saveCourt(id: string | null, input: CourtInput) {
   const query = id
     ? supabase.from('courts').update(input).eq('id', id).select().single()
-    : supabase.from('courts').insert(input).select().single()
+    : supabase.from('courts').insert({ ...input, venue_id: await currentAdminVenueId() }).select().single()
   return unwrap(await query)
 }
 
 export type RateChanges = {
-  upserts: CourtRate[]
+  upserts: Omit<CourtRate, 'venue_id'>[]
   deletes: { day_of_week: number; start_hour: number }[]
 }
 
 export async function saveCourtRates(courtId: string, { upserts, deletes }: RateChanges) {
   if (upserts.length) {
-    unwrap(await supabase.from('court_rates').upsert(upserts))
+    const venue_id = await currentAdminVenueId()
+    unwrap(await supabase.from('court_rates').upsert(upserts.map((rate) => ({ ...rate, venue_id }))))
   }
   // One delete per weekday keeps the request count small.
   const hoursByDay = new Map<number, number[]>()
@@ -123,7 +125,7 @@ export async function saveOperatingHours(rows: OperatingHours[]) {
 }
 
 export async function createBlackout(input: TablesInsert<'blackouts'>) {
-  return unwrap(await supabase.from('blackouts').insert(input).select().single())
+  return unwrap(await supabase.from('blackouts').insert({ ...input, venue_id: await currentAdminVenueId() }).select().single())
 }
 
 export async function deleteBlackout(id: string) {
@@ -131,5 +133,5 @@ export async function deleteBlackout(id: string) {
 }
 
 export async function updateVenueSettings(values: TablesUpdate<'venue_settings'>) {
-  return unwrap(await supabase.from('venue_settings').update(values).eq('id', true).select().single())
+  return unwrap(await supabase.from('venue_settings').update(values).eq('venue_id', await currentAdminVenueId()).select().single())
 }

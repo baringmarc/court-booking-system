@@ -1185,3 +1185,36 @@ Answered by the user on 2026-10-29: all three as recommended (blank waiver, then
 1. **Waiver rollout:** leave the venue's waiver blank in the migration and set the default text as a data change after the T11.20 merge, as with the fee (recommended)? Or set it in the migration, which would refuse every online booking on production until the merge?
 2. **Realtime "Allow public access":** the private channel works either way. Turning that setting off in the Supabase dashboard (Realtime settings) also blocks any public channel on the project. Nothing uses public channels, so turning it off is recommended. It's a dashboard step for the user.
 3. **Waiver cap:** 2000 characters (recommended; the default text is about 230).
+
+## Milestone 12: Multi-venue database
+
+### Inventory (T12.1, 2026-10-30)
+- **Sources:** catalog queries on the local database (`pg_class`, `pg_policy`, `pg_proc`, `storage.buckets`, `cron.job`) and a grep of `src/`, `supabase/functions` and the tests, run on 2026-10-30.
+- **Tables (20, all RLS on):** `blackouts`, `booking_changes`, `bookings`, `court_photos`, `court_rates`, `courts`, `email_outbox`, `guest_link_tokens`, `open_play_courts`, `open_play_sessions`, `operating_hours`, `payments`, `paymongo_checkouts`, `platform_pricing`, `profiles`, `venue_amenities`, `venue_info_sections`, `venue_payment_accounts`, `venue_settings`, `venue_social_links`.
+  - `platform_pricing` and `profiles` stay global. `booking_changes` and `guest_link_tokens` hang off `bookings`; they get `venue_id` too, so their policies don't need a join.
+  - `venue_settings` is a singleton by `id boolean` with `CHECK (id)`. T12.3 replaces it with `venue_id` as the primary key; the `banner_path` check (`^banner/…`) changes with the new `{venue_id}/banner/…` paths (T12.7).
+- **Functions that read `venue_settings`:** `private.booking_email_data`, `in_booking_window`, `validate_booking_slot`, `venue_tz`; `public.cancel_booking`, `create_booking`, `get_availability`, `get_earnings`, `get_guest_booking`, `review_payment`. The timezone helpers (`venue_tz`, `local_today`, `local_day_bounds`, `local_dow_hour`, `operating_day_of`, `operating_day_range`, `operating_today`) and `private.save_open_play` reach it through `venue_tz`, so they all need a venue argument.
+- **`is_admin()`** is used by 15 functions and 31 policies. Every one becomes `is_venue_admin(venue_id)`, except the platform-only ones (`platform_pricing`, `online_payments_enabled`).
+- **Storage:** buckets `venue-media` (public), `payment-qr` (public), `payment-proofs` (private). 8 policies on `storage.objects`, all `is_admin()` based, except proofs, which also let the booking owner read.
+- **Cron:** `expire-holds`, `send-emails`, `purge-email-outbox`. They work across venues; `expire-holds` reads `payment_hold_minutes` per booking, so it must read it per venue.
+- **Edge Functions:** `create-paymongo-checkout` reads `venue_settings`; `paymongo-webhook`, `send-emails`, `submit-payment-proof` and `email-guest-link` get the venue through the booking.
+- **Frontend readers:** `features/catalog` (`api.ts`, `hooks.ts`, `sportOrder.ts`, `sports.ts`), `features/admin/api.ts`, `SportOrderSection.tsx`, `features/venue` (`map.ts`, `waiver.ts`) and `lib/themes.ts`.
+- **Tests:** 43 pgTAP files; 45 files across `supabase/tests`, `e2e`, `src` and `scripts` mention `venue_settings`.
+
+### Findings that change the plan
+- **`public.public_venues` doesn't exist yet.** PLATFORM.md §3 marks it *target, Phase 3*, and nothing in `supabase/` or `src/` uses it. So M12 has **no marketing-site contract to keep**, and T12.10 does not touch it. It is built in Phase 3.
+- **Phase 1's `venues` table is also the base for `public_venues`** later, so `venues` gets no `city` or `logo_url` now (YAGNI; Phase 3 adds them).
+
+### Proposed design (for the plan gates)
+- **Helper performance:** `private.is_venue_admin(venue_id)` as `security definer stable`, called in policies as `(select private.is_venue_admin(venue_id))` so Postgres caches it per statement (Supabase RLS performance guidance). Index `venue_members (user_id, venue_id)`.
+- **Composite foreign keys:** each parent gets `unique (venue_id, id)`; children reference `(venue_id, court_id)`. Cost: one extra unique index per parent.
+- **Venue derivation in RPCs:** from the court or booking row being touched. The timezone helpers take `venue_id` as an argument.
+- **`platform_pricing`:** stays global (one fee). No per-venue override until a venue negotiates a different rate; the snapshot on `bookings.booking_fee` already makes a later override safe. Recommended: no override in M12.
+- **`create_walk_in`:** refuse in the database unless the venue opts in? Recommended: leave the RPC as it is (the code flag hides it) and revisit when a venue asks, because a free blackout holds a court anyway (SAAS-PLAN §4 Q4).
+- **Storage migration:** copy each object to `{venue_id}/…`, update the stored paths, then delete the old objects after the new frontend is live (expand → contract).
+- **Expand/contract order:** T12.2–T12.3 add columns with defaults to Claudex Courts, so the deployed frontend and RPCs keep working. T12.5–T12.6 change RPC signatures only by adding an optional venue argument where the client has to name a venue; today there is one venue, so the frontend passes none until Phase 2.
+
+### Decisions (the user, 2026-10-30)
+1. **Venue pick until Phase 2: option A.** Public RPCs take an optional `p_venue_slug text default 'claudex-courts'`; the frontend is unchanged. Guard: the default raises a clear error once a second venue is `active`. Phase 2 passes the subdomain slug and removes the default.
+2. **`platform_pricing` stays global** in M12.
+3. **`create_walk_in` is left as it is** (made venue-aware only; the code flag keeps hiding it). A per-venue `walk_ins_enabled` can come later.
