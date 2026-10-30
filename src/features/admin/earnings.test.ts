@@ -49,7 +49,7 @@ describe('parseEarnings', () => {
       sports: [{ sport: 'tennis', open_hours: 104, blackout_hours: 8, sold_hours: 3, open_play_hours: 0 }],
       coming_up: { count: 2, value: 1300 },
     })
-    expect(e.collected).toEqual({ total: 1500, count: 3, byMethod: [{ method: 'cash', amount: 600, count: 1 }] })
+    expect(e.collected).toEqual({ total: 1500, count: 3, byMethod: [{ method: 'cash', paidWith: null, amount: 600, count: 1 }] })
     expect(e.previous).toMatchObject({ from: '2026-10-12', to: '2026-10-18', total: 250 })
     expect(e.refundsDue).toEqual({ count: 1, total: 300 })
     expect(e.daily).toEqual([{ date: '2026-10-19', collected: 400, soldHours: 2 }])

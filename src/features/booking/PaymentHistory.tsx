@@ -2,7 +2,7 @@ import { formatMoney } from '../../lib/format'
 import { formatDateTimeInZone } from '../../lib/time'
 import type { PaymentAttempt } from './api'
 import { isReplacedByOnlinePayment } from './paymentLabels'
-import { METHOD_LABELS } from './proofInput'
+import { paymentLabel } from './proofInput'
 
 const REVIEW_LABELS = { pending: 'Under review', approved: 'Accepted', rejected: 'Not accepted' } as const
 // PayMongo payments are never reviewed: they're paid online, or received too late and refunded (SPEC §4).
@@ -19,7 +19,7 @@ export function PaymentHistory({ payments, timeZone, currency }: { payments: Pay
           return (
           <li key={p.id} className="list-row">
             <div>
-              <div>{METHOD_LABELS[p.method]} · {formatMoney(p.amount, currency)}</div>
+              <div>{paymentLabel(p)} · {formatMoney(p.amount, currency)}</div>
               <div className="muted small">
                 {formatDateTimeInZone(p.submitted_at, timeZone)}{p.reference_number ? ` · Ref ${p.reference_number}` : ''}
               </div>

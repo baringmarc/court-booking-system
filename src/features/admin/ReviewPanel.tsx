@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { formatHour, formatMoney } from '../../lib/format'
 import { formatDateLabel, formatDateTimeInZone, hourInZone, todayInZone } from '../../lib/time'
 import { bookingErrorMessage } from '../booking/errors'
-import { amountMismatch, METHOD_LABELS } from '../booking/proofInput'
+import { amountMismatch, paymentLabel } from '../booking/proofInput'
 import { displayStatus, STATUS_LABELS } from '../booking/status'
 import { hasApprovedPayment, pendingPayment, type AdminBooking } from './api'
 import { onlinePayments, paymentFlags, sourceLabel } from './paymentFlags'
@@ -83,7 +83,7 @@ export function ReviewPanel({ booking, timeZone, currency, proof, pending, error
             {online.map((p) => (
               <li key={p.id} className="list-row">
                 <span className="small">
-                  {METHOD_LABELS[p.method]}{sourceLabel(p.provider_source) ? ` · ${sourceLabel(p.provider_source)}` : ''} · {formatMoney(p.amount, currency)}
+                  {paymentLabel(p)}{sourceLabel(p.provider_source) ? ` · ${sourceLabel(p.provider_source)}` : ''} · {formatMoney(p.amount, currency)}
                   <span className="muted block">
                     {p.provider_payment_id} · paid {formatDateTimeInZone(p.reviewed_at ?? p.submitted_at, timeZone)}
                   </span>
@@ -110,7 +110,7 @@ export function ReviewPanel({ booking, timeZone, currency, proof, pending, error
         <div className="stack">
           <h3>Proof waiting for review</h3>
           <p className="small">
-            {METHOD_LABELS[payment.method]} · {formatMoney(payment.amount, currency)}
+            {paymentLabel(payment)} · {formatMoney(payment.amount, currency)}
             {payment.reference_number ? ` · Ref ${payment.reference_number}` : ''} · {formatDateTimeInZone(payment.submitted_at, timeZone)}
           </p>
           {amountMismatch(String(payment.amount), booking.amount_due) && (
