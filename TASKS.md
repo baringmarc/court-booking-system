@@ -6,9 +6,9 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
 
 > Update this section at the end of every session or task. Keep it short; it's the first thing the next session reads.
 
-- **Current milestone:** M12 Multi-venue database (breakdown approved on 2026-10-30). M11 ✅ done on 2026-10-30 (brand in `docs/BRAND.md`). M10 ✅ done on 2026-10-26 and M9 on 2026-10-23 (M1–M10 all done). After M11 come the SaaS milestones (M12+, `docs/SAAS-PLAN.md`), each with its own breakdown and approval.
-- **Next task:** the M13 breakdown (SaaS Phase 2, `docs/SAAS-PLAN.md`; research first, then wait for approval). M12 milestone review PASS and `/retro` M12 done on 2026-10-31 (L2 added, L1 promoted). T12.11 done on 2026-10-31 (contract migration `20261030185106` live on the linked project). T12.10 done on 2026-10-31 (`create-paymongo-checkout` deployed; grant migration `20261030181759` live). T12.9 done on 2026-10-31. (T12.9: isolation suite `51_cross_venue_isolation`, tests only.) T12.8 done on 2026-10-30. T12.7 done on 2026-10-30, including the remote object copy. T12.1–T12.8 done on 2026-10-30; `venue_id` is live on every venue-owned table, RLS is venue-scoped, and every RPC reads its venue, all on the linked project. Only the zero-argument time helpers and `private.is_admin()` remain for T12.11. The M12 breakdown was approved on 2026-10-30; plan gates are not pre-approved. T11.15 done on 2026-10-30 (contract migration live). `develop` is merged into `master` and deployed.
-- **State:** M12 done on 2026-10-31 (T12.1–T12.11; the contract is live on the linked project). Production runs the T12.10 frontend, so its admin tabs get no live booking refresh until `develop` (T12.11's per-venue topic) is merged into `master` and deployed. Still waiting on you: the ₱10 fee and the default waiver text (see Blockers / notes).
+- **Current milestone:** M13 Subdomains and Cloudflare hosting (breakdown approved on 2026-10-31). M12 ✅ done on 2026-10-31. M11 ✅ done on 2026-10-30 (brand in `docs/BRAND.md`). M10 ✅ done on 2026-10-26 and M9 on 2026-10-23 (M1–M10 all done). After M11 come the SaaS milestones (M12+, `docs/SAAS-PLAN.md`), each with its own breakdown and approval.
+- **Next task:** T13.2 `getVenueSlug()` and host modes. T13.1 done on 2026-10-31 (RESEARCH M13). M13 breakdown approved on 2026-10-31. M12 milestone review PASS and `/retro` M12 done on 2026-10-31 (L2 added, L1 promoted). T12.11 done on 2026-10-31 (contract migration `20261030185106` live on the linked project). T12.10 done on 2026-10-31 (`create-paymongo-checkout` deployed; grant migration `20261030181759` live). T12.9 done on 2026-10-31. (T12.9: isolation suite `51_cross_venue_isolation`, tests only.) T12.8 done on 2026-10-30. T12.7 done on 2026-10-30, including the remote object copy. T12.1–T12.8 done on 2026-10-30; `venue_id` is live on every venue-owned table, RLS is venue-scoped, and every RPC reads its venue, all on the linked project. Only the zero-argument time helpers and `private.is_admin()` remain for T12.11. The M12 breakdown was approved on 2026-10-30; plan gates are not pre-approved. T11.15 done on 2026-10-30 (contract migration live). `develop` is merged into `master` and deployed.
+- **State:** M13 started; T13.1 research done on 2026-10-31. M12 done on 2026-10-31 (T12.1–T12.11; the contract is live on the linked project). Production runs the T12.10 frontend, so its admin tabs get no live booking refresh until `develop` (T12.11's per-venue topic) is merged into `master` and deployed. Still waiting on you: the ₱10 fee and the default waiver text (see Blockers / notes).
 - **Blockers / notes:**
   - **Waiting on you (T12.11, 2026-10-31):** (1) merge `develop` into `master` so production admin tabs get live refresh again (topic `admin:bookings:<venue_id>`); (2) remove the old unprefixed storage objects on the linked project: `MIGRATE_URL=… MIGRATE_SECRET_KEY=… node scripts/migrate-storage-paths.mjs --remote --remove-legacy` (deletes only objects outside a `{venue_id}/` folder; it refuses if any stored path is unprefixed).
   - **History order and rejection hold cap** (approved by the user on 2026-10-30, SPEC §10): migration `20261030091334_history_order_and_hold_cap` is live on the linked project (2026-10-30). T12.7's `db:push` sent it early under its first version `20261030082454`; the remote history was repaired to the new version (same SQL). Backward compatible with the deployed frontend. It also fixes the flaky `30_reschedule` test 66 (`changed_at` now defaults to `clock_timestamp()`).
@@ -1952,6 +1952,55 @@ Out of scope for M12: subdomains and `getVenueSlug()` (Phase 2), the platform co
 - **Do:** drop `profiles.role` and the singleton paths; update SPEC (roles, data model, RLS summary, decisions log) and PLATFORM.md; mark M12 ✅ in SPEC §9; run the milestone review and `/retro`.
 - **Acceptance:** `npm run verify` and `npm run test:e2e` pass and the reviewer signs off.
 - **Notes:** Done on 2026-10-31 (the user approved the plan and `db:push`). Migration `20261030185106_contract_legacy_admin_and_singleton.sql` is applied locally and on the linked project (checked first: no `role = 'admin'` user without a membership, no unprefixed stored path), and the types are regenerated. It drops `profiles.role`, `user_role`, `private.is_admin()`, the 7 legacy storage policies, `venue_settings.id`, the 9 `venue_id` defaults and the no-venue time helpers; it requires `{venue_id}/` media paths; and the admin Realtime topic is now `admin:bookings:<venue_id>` (the client subscribes through `currentAdminVenueId()`). `private.default_venue_id()` stays for the public default slug. Seed, e2e helpers/specs and scripts name `venue_id` and no longer set `profiles.role`. `scripts/migrate-storage-paths.mjs --remove-legacy` deletes the old unprefixed objects (refuses while any stored path is unprefixed). Tests: the test-writer's `53_contract.test.sql` (61) and `src/features/admin/api.realtimeTopic.test.ts` (3); pgTAP 01–51 updated for the contract (role lines → memberships, fixtures name `venue_id`, legacy "stays" checks flipped to "dropped"; `01_profiles` test 10 now counts only its own users, since leftover local smoke bookings made it data-dependent). pgTAP 2522 pass; full gate with e2e passed. Reviewer PASS; its major (this Handoff) and both minors (SPEC `payment-qr` line, a `.catch` on the Realtime subscribe) are fixed.
+
+## M13 Subdomains and Cloudflare hosting (SaaS Phase 2)
+
+> **Status: breakdown approved by the user on 2026-10-31** (`docs/SAAS-PLAN.md` Phase 2). Phase 0 (domain, Cloudflare, production Supabase project) is the user's, not code; T13.8 and T13.9 need it. Until a second venue is `active`, nothing changes for players. Plan gates are not pre-approved.
+
+### [x] T13.1 Research: M13
+- **Do:** fill RESEARCH.md: Cloudflare Workers static assets with SPA fallback and a wildcard route; `*.localhost` for Vite and Playwright; Supabase redirect URL wildcards and per-origin sessions; what `p_venue_slug` defaults exist today (RESEARCH M12 option A) and how to remove them; the PayMongo and email origin checks.
+- **Acceptance:** every finding has a source; SPEC §10 gets the accepted choices.
+- **Notes:** Done on 2026-10-31. RESEARCH M13 (4 entries, each sourced or with the query or experiment run) and a SPEC §10 row. Findings that shape later tasks: only `get_availability` still defaults to Claudex Courts (T13.5 drops its two-argument form and `private.default_venue_id()`); `catalog/api.ts` reads `venue_settings` with `.single()` and every public list is unfiltered, so a second active venue breaks them until T13.3; Vite and Playwright's Chromium serve `*.localhost` with no config (checked by experiment); the Workers route is `*.plotline.fit/*` with assets only and no Worker script; `send-emails` has no request origin, so T13.6 builds links from the booking's venue slug.
+
+### [ ] T13.2 `getVenueSlug()` and host modes
+- **Depends:** T13.1
+- **Do:** `src/lib/venueHost.ts`: slug from `<slug>.plotline.fit`, from `<slug>.localhost`, or from a `?venue=` override saved for the session (staging and previews); reserved names and `app.` resolve to a mode (`venue` | `console` | `none`). Pure functions, no React.
+- **Acceptance:** Vitest table of hosts → slug/mode, including reserved names, `www`, ports, and a bad `?venue=`.
+
+### [ ] T13.3 `VenueProvider` and venue-aware public API
+- **Depends:** T13.2
+- **Do:** resolve the venue once (anon read of `venues` by slug); "venue not found" and "not taking bookings" pages; every public `api.ts` function and query key takes the venue (`p_venue_slug` / `venue_id`); admin `currentAdminVenueId()` becomes the current venue.
+- **Acceptance:** component tests for found/not found/suspended; api tests assert the slug or id is sent; query keys include the venue.
+
+### [ ] T13.4 Admin access per venue and venue switcher
+- **Depends:** T13.3
+- **Do:** `AdminGuard` checks membership of *this* venue; owners of several venues get a switcher linking to the other subdomains; My bookings shows only this venue.
+- **Acceptance:** AdminGuard tests (member, member of another venue only, anon); switcher test.
+
+### [ ] T13.5 Drop the single-venue default (migration)
+- **Depends:** T13.3
+- **Do:** remove the `'claudex-courts'` default on public RPCs and its "second venue is active" guard (risky: migration, grants). Backward compatible only after T13.3 is deployed.
+- **Acceptance:** pgTAP: calls without a slug fail with a clear error; with a slug they work for two venues.
+
+### [ ] T13.6 Edge Functions and auth redirects
+- **Depends:** T13.3
+- **Do:** PayMongo return URL and CORS accept `https://<slug>.plotline.fit` for an existing venue slug (replaces the exact allow-list; no open redirect); email links use the venue's subdomain; document the Supabase redirect URL `https://*.plotline.fit/**` for the user to add.
+- **Acceptance:** Deno/Vitest tests in `_shared`; `smoke:proof` and `smoke:paymongo` pass locally.
+
+### [ ] T13.7 Console host mode
+- **Depends:** T13.2
+- **Do:** `app.plotline.fit` loads a lazy, empty platform-console shell behind a platform-admin guard (content is Phase 3). The apex and `www` never reach this build.
+- **Acceptance:** route tests: console host → console shell; non-platform-admin refused; public bundle size unchanged within 1 kB gzip.
+
+### [ ] T13.8 Cloudflare deploy
+- **Depends:** T13.3, Phase 0 done by the user
+- **Do:** `wrangler.jsonc` with static assets and SPA fallback replacing `vercel.json`; wildcard route and proxied wildcard DNS (user runs the dashboard steps); previews point to staging; the old Vercel URL redirects to `claudex-courts.plotline.fit`.
+- **Acceptance:** `wrangler dev` serves a deep link; a deploy to a preview works; steps documented in PLATFORM.md.
+
+### [ ] T13.9 e2e under subdomains and close out M13
+- **Depends:** T13.4–T13.8
+- **Do:** Playwright runs under `<slug>.localhost`; a two-venue isolation flow (player and admin); update SPEC (§1 non-goal, §5 routing, §10), PLATFORM.md and the Handoff; milestone review and `/retro`.
+- **Acceptance:** `npm run verify` and `npm run test:e2e` pass; reviewer signs off.
 
 ---
 
