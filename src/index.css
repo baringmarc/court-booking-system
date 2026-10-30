@@ -826,9 +826,22 @@ details[open]::details-content { block-size: auto; }
 .account-label { font-size: 1.05rem; }
 .account-number { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .account-number-value { font-variant-numeric: tabular-nums; font-weight: 700; letter-spacing: 0.02em; overflow-wrap: anywhere; }
-.qr-open { padding: 10px; border: 1px solid var(--border); border-radius: 12px; background: #ffffff; cursor: zoom-in; max-width: 100%; }
+.qr-open { box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 12px; background: #ffffff; cursor: zoom-in; }
 .qr-open:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.qr-open img { display: block; width: 220px; max-width: 100%; height: auto; aspect-ratio: 1; object-fit: contain; }
+.qr-open img { display: block; width: 100%; height: auto; aspect-ratio: 1; object-fit: contain; }
+.qr-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; align-self: stretch; }
+/* The bubble joins the row's flex items, so it opens on its own line below the buttons. */
+.toggletip { display: contents; }
+.toggletip-button {
+  display: inline-grid; place-items: center; min-width: 44px; min-height: 44px; padding: 0;
+  border: 0; border-radius: 999px; background: transparent; color: var(--muted); font-size: 1.25rem; cursor: pointer;
+}
+.toggletip-button[aria-expanded="true"] { color: var(--accent); }
+.toggletip-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.toggletip-bubble {
+  flex-basis: 100%; margin: 0; padding: 10px 12px; border: 1px solid var(--border-strong); border-radius: 10px;
+  background: var(--surface); color: var(--text);
+}
 .account-summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; min-width: 0; }
 .qr-admin-preview { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .qr-admin-preview img { width: 160px; height: 160px; object-fit: contain; background: #ffffff; padding: 6px; border: 1px solid var(--border); border-radius: 10px; }

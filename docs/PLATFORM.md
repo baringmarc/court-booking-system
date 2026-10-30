@@ -24,6 +24,7 @@ Locally both repos sit side by side: `~/Documents/Projects/court-booking-system`
 
 - **Reserved subdomains** (never a venue slug): `www`, `app`, `api`, `admin`, `demo`, `staging`, `mail`, `help`, `blog`, `status`, `support`.
 - **DNS and TLS:** one Cloudflare zone for `plotline.fit`. The apex points at plotline-site; a proxied wildcard record `*.plotline.fit` routes to court-booking-system. Cloudflare's free certificate covers the apex and `*.plotline.fit`.
+- **Email:** `mail.plotline.fit` is reserved for the Resend sending domain and goes into use with the T11.26 switch-on (SPF, DKIM and the bounce MX in the Cloudflare zone). Booking emails go from `bookings@mail.plotline.fit` with the venue's name, Supabase Auth emails from `no-reply@mail.plotline.fit` (T11.26).
 - **Hosting:** Cloudflare (Workers static assets, free plan, commercial use allowed). Today court-booking-system is still on Vercel (`court-booking-system-ashen.vercel.app`) and plotline-site isn't deployed.
 
 ## 3. Supabase projects

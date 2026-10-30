@@ -42,13 +42,12 @@ describe('PaymentAccountList', () => {
     expect(within(card('GCash')).getByText('0917 000 0000')).toBeInTheDocument()
   })
 
-  it('shows the QR code with a full-size view and a Download QR link, plus the iPhone hint', async () => {
+  it('shows the QR code with a full-size view and a Download QR link', async () => {
     renderList()
     await screen.findByRole('list', { name: 'Payment accounts' })
     const g = card('GCash')
     expect(within(g).getByRole('img', { name: 'QR code for GCash' })).toHaveAttribute('src', `https://cdn.test/qr/${QR}`)
     expect(within(g).getByRole('link', { name: 'Download QR' })).toHaveAttribute('href', `https://cdn.test/qr/${QR}?download=GCash`)
-    expect(within(g).getByText(/Save to Photos/)).toBeInTheDocument()
     await userEvent.click(within(g).getByRole('button', { name: 'Show the GCash QR code full size' }))
     expect(screen.getByRole('dialog', { name: 'GCash QR code' })).toBeInTheDocument()
   })
@@ -108,5 +107,60 @@ describe('PaymentAccountList', () => {
     vi.mocked(fetchPaymentAccounts).mockResolvedValue([bank])
     await userEvent.click(screen.getByRole('button', { name: /try again|retry/i }))
     expect(await screen.findByRole('article', { name: 'BPI' })).toBeInTheDocument()
+  })
+
+  describe('iPhone hint (T11.25)', () => {
+    const hintText = /On iPhone, a download goes to Files\. To scan it from Photos instead/
+    const toggle = (name = 'GCash') => within(card(name)).getByRole('button', { name: 'How to save to Photos on iPhone' })
+
+    async function ready() {
+      renderList()
+      await screen.findByRole('list', { name: 'Payment accounts' })
+    }
+
+    it('is hidden at first, with the button collapsed', async () => {
+      await ready()
+      expect(toggle()).toHaveAttribute('aria-expanded', 'false')
+      expect(screen.queryByText(hintText)).not.toBeInTheDocument()
+    })
+
+    it('opens on click with the unchanged text and aria-expanded true', async () => {
+      await ready()
+      await userEvent.click(toggle())
+      expect(toggle()).toHaveAttribute('aria-expanded', 'true')
+      expect(screen.getByText(hintText)).toHaveTextContent('tap the QR code to open it, then press and hold it and choose Save to Photos.')
+    })
+
+    it('closes when the button is clicked again', async () => {
+      await ready()
+      await userEvent.click(toggle())
+      await userEvent.click(toggle())
+      expect(toggle()).toHaveAttribute('aria-expanded', 'false')
+      expect(screen.queryByText(hintText)).not.toBeInTheDocument()
+    })
+
+    it('closes on Escape and focus stays on the button', async () => {
+      await ready()
+      await userEvent.click(toggle())
+      await userEvent.keyboard('{Escape}')
+      expect(screen.queryByText(hintText)).not.toBeInTheDocument()
+      expect(toggle()).toHaveAttribute('aria-expanded', 'false')
+      expect(toggle()).toHaveFocus()
+    })
+
+    it('closes on a click outside, and a click inside the hint keeps it open', async () => {
+      await ready()
+      await userEvent.click(toggle())
+      await userEvent.click(screen.getByText(hintText))
+      expect(screen.getByText(hintText)).toBeInTheDocument()
+      await userEvent.click(within(card('BPI')).getByText('1234-5678-90'))
+      expect(screen.queryByText(hintText)).not.toBeInTheDocument()
+      expect(toggle()).toHaveAttribute('aria-expanded', 'false')
+    })
+
+    it('is not offered for an account without a QR code', async () => {
+      await ready()
+      expect(within(card('BPI')).queryByRole('button', { name: 'How to save to Photos on iPhone' })).not.toBeInTheDocument()
+    })
   })
 })

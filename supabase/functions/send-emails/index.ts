@@ -5,7 +5,7 @@
 //   3. render from the snapshot and send (a guest's emails never carry the private link here: only email-guest-link
 //      has the token), then finish_email -> sent, or failed (retried with backoff, `failed` after 5 attempts)
 import { withSupabase } from 'npm:@supabase/server@1'
-import { emailAction, emailTransport, sendEmail, workerAuthorized, workerSecret } from '../_shared/email.ts'
+import { emailAction, emailTransport, fromFor, sendEmail, workerAuthorized, workerSecret } from '../_shared/email.ts'
 import { renderEmail, type BookingStatus, type EmailData, type EmailKind } from '../_shared/emailTemplates.ts'
 import { returnBase } from '../_shared/paymongo.ts'
 
@@ -64,7 +64,7 @@ export default {
           continue
         }
         const email = renderEmail({ kind: row.kind, data: row.data, site: site!, forGuest: row.for_guest, currentStatus: row.booking_status })
-        const result = await sendEmail(fetch, transport, { from: Deno.env.get('EMAIL_FROM'), resendKey, mailpitUrl }, { to: row.to_email, ...email }, row.id)
+        const result = await sendEmail(fetch, transport, { from: fromFor(row.data.venue_name, Deno.env.get('EMAIL_FROM')), resendKey, mailpitUrl }, { to: row.to_email, ...email }, row.id)
         if (result.ok) {
           if (result.note) console.warn('send-emails:', row.id, result.note)
           await finish(row.id, 'sent')

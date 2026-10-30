@@ -1,6 +1,6 @@
 // Email transport for the email Edge Functions (SPEC §8, RESEARCH M8). Plain TypeScript with no Deno APIs, so Vitest
 // and tsc check it with the app. Transports: resend (real delivery, needs RESEND_API_KEY), mailpit (local stack only)
-// and disabled (the hosted default for now: rows are finished as skipped).
+// and disabled (rows are finished as skipped).
 import { shouldSkip, type BookingStatus, type EmailKind } from './emailTemplates.ts'
 import { constantTimeEqual } from './paymongo.ts'
 
@@ -32,7 +32,7 @@ export function emailTransport(env: Env): Transport {
 export type EmailAction = { action: 'send' } | { action: 'skip'; reason: string }
 
 /**
- * What to do with a claimed email: skip everything while the transport is disabled (the hosted default for now), skip
+ * What to do with a claimed email: skip everything while the transport is disabled, skip
  * a booking_created that a later event overtook, otherwise send. Shared by send-emails and email-guest-link.
  */
 export function emailAction(transport: Transport, kind: EmailKind, status: BookingStatus | null | undefined): EmailAction {
@@ -58,6 +58,17 @@ export function parseFrom(value: string | null | undefined): { email: string; na
   const match = raw.match(/^(.*)<([^>]+)>$/)
   if (match) return { name: match[1].trim().replace(/^"|"$/g, ''), email: match[2].trim() }
   return { name: '', email: raw }
+}
+
+/**
+ * The From for one email: "<venue name> <address>", so every venue sends from the one verified address (SPEC §8).
+ * `address` is the EMAIL_FROM secret; only its address part is used. The name is cleaned so it can't break the header.
+ */
+export function fromFor(venueName: string | null | undefined, address: string | null | undefined): string {
+  const email = parseFrom(address).email
+  // eslint-disable-next-line no-control-regex
+  const name = (venueName ?? '').replace(/[<>"\u0000-\u001f\u007f]/g, '').replace(/\s+/g, ' ').trim().slice(0, 60).trim()
+  return name ? `${name} <${email}>` : email
 }
 
 export type OutgoingEmail = { to: string; subject: string; html: string; text: string }

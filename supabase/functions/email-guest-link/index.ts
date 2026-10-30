@@ -7,7 +7,7 @@
 //   3. send to the outbox row's recipient (never one from the request) and finish_email
 // Every refusal is the same 404 not_found, so the endpoint reveals nothing about which references exist.
 import { withSupabase } from 'npm:@supabase/server@1'
-import { emailAction, emailTransport, sendEmail } from '../_shared/email.ts'
+import { emailAction, emailTransport, fromFor, sendEmail } from '../_shared/email.ts'
 import { renderEmail, type BookingStatus, type EmailData } from '../_shared/emailTemplates.ts'
 import { returnBase } from '../_shared/paymongo.ts'
 import { normalizeReference } from '../_shared/payable.ts'
@@ -74,7 +74,7 @@ export default {
     if (next.action === 'skip' || transport === 'disabled') return finish('skipped', next.action === 'skip' ? next.reason : undefined)
 
     const email = renderEmail({ kind: 'booking_created', data: row.data, site: site!, forGuest: true, currentStatus: status, guestToken: token })
-    const result = await sendEmail(fetch, transport, { from: Deno.env.get('EMAIL_FROM'), resendKey, mailpitUrl }, { to: row.to_email, ...email }, row.id)
+    const result = await sendEmail(fetch, transport, { from: fromFor(row.data.venue_name, Deno.env.get('EMAIL_FROM')), resendKey, mailpitUrl }, { to: row.to_email, ...email }, row.id)
     if (result.ok) {
       if (result.note) console.warn('email-guest-link:', row.id, result.note)
       return finish('sent')

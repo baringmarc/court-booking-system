@@ -3,6 +3,8 @@
 import { expect, test } from '@playwright/test'
 import { axeBothSchemes, createAdmin, E2E_PREFIX, logInAdmin, pickFirstFreeSlot, receiptPng, serviceClient, venueDate } from './support/helpers.ts'
 
+/** The bits of an element read for padding (the e2e tsconfig has no DOM types). */
+type Styled = { ownerDocument: { defaultView: { getComputedStyle(el: unknown): Record<string, string> } } }
 const LABEL = `${E2E_PREFIX} GCash`
 
 async function removeTaggedAccounts() {
@@ -60,6 +62,33 @@ test('an admin adds a payment account with a QR code, and a guest sees it while 
   expect(await pay.evaluate<boolean>('document.documentElement.scrollWidth <= window.innerWidth')).toBe(true)
   const box = await qr.boundingBox()
   expect(box!.x + box!.width).toBeLessThanOrEqual((pay.viewportSize()?.width ?? 1280))
+
+  // T11.25: the QR tile fills the card's content width, and the iPhone hint is behind a button.
+  const tile = account.locator('.qr-open')
+  const cardBox = (await account.boundingBox())!
+  const cardContent = await account.evaluate((el: Styled) => {
+    const cs = el.ownerDocument.defaultView.getComputedStyle(el)
+    return parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight) + parseFloat(cs.borderLeftWidth) + parseFloat(cs.borderRightWidth)
+  })
+  const tileBox = (await tile.boundingBox())!
+  const tileInsets = await tile.evaluate((el: Styled) => {
+    const cs = el.ownerDocument.defaultView.getComputedStyle(el)
+    return parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight) + parseFloat(cs.borderLeftWidth) + parseFloat(cs.borderRightWidth)
+  })
+  expect(Math.abs(tileBox.width - (cardBox.width - cardContent))).toBeLessThanOrEqual(2)
+  // The image fills the tile's content box (the tile keeps its white quiet-zone padding).
+  expect(Math.abs((await qr.boundingBox())!.width - (tileBox.width - tileInsets))).toBeLessThanOrEqual(2)
+  const hintButton = account.getByRole('button', { name: 'How to save to Photos on iPhone' })
+  const hint = account.getByText(/On iPhone, a download goes to Files/)
+  await expect(hint).toHaveCount(0)
+  await hintButton.click()
+  await expect(hintButton).toHaveAttribute('aria-expanded', 'true')
+  await expect(hint).toBeVisible()
+  expect(await pay.evaluate<boolean>('document.documentElement.scrollWidth <= window.innerWidth')).toBe(true)
+  expect(await axeBothSchemes(pay, '.payment-accounts')).toEqual([])
+  await pay.keyboard.press('Escape')
+  await expect(hint).toHaveCount(0)
+  await expect(hintButton).toBeFocused()
 
   await account.getByRole('button', { name: `Show the ${LABEL} QR code full size` }).click()
   await expect(pay.getByRole('dialog', { name: `${LABEL} QR code` })).toBeVisible()
