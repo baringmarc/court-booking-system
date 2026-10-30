@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ErrorMessage } from '../../components/ErrorMessage'
 import { PhotoViewer } from '../../components/PhotoViewer'
 import { qrDownloadUrl, qrImageUrl, type PaymentAccount } from '../venue/api'
@@ -33,14 +33,52 @@ function AccountCard({ account }: { account: PaymentAccount }) {
           <button type="button" className="qr-open" aria-label={`Show the ${account.label} QR code full size`} onClick={() => setViewing(true)}>
             <img src={qrImageUrl(qr)} alt={alt} width={220} height={220} loading="lazy" onError={() => setQrFailed(qr)} />
           </button>
-          <a className="btn btn-small btn-outline tap-44" href={qrDownloadUrl(qr, account.label)}>Download QR</a>
-          <p className="muted small">On iPhone, a download goes to Files. To scan it from Photos instead, tap the QR code to open it, then press and hold it and choose Save to Photos.</p>
+          <div className="qr-actions">
+            <a className="btn btn-small btn-outline tap-44" href={qrDownloadUrl(qr, account.label)}>Download QR</a>
+            <IphoneHint />
+          </div>
         </>
       )}
       {viewing && qr && (
         <PhotoViewer photos={[{ src: qrImageUrl(qr), alt }]} start={0} label={`${account.label} QR code`} onClose={() => setViewing(false)} />
       )}
     </article>
+  )
+}
+
+/** A toggletip (T11.25): opens on tap or click, never on hover; Escape, the button again or a tap outside closes it. */
+function IphoneHint() {
+  const [open, setOpen] = useState(false)
+  const wrap = useRef<HTMLSpanElement>(null)
+  const button = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    function onPointerDown(e: PointerEvent) {
+      if (!wrap.current?.contains(e.target as Node)) setOpen(false)
+    }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key !== 'Escape') return
+      setOpen(false)
+      button.current?.focus()
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [open])
+
+  return (
+    <span className="toggletip" ref={wrap}>
+      <button ref={button} type="button" className="toggletip-button tap-44" aria-label="How to save to Photos on iPhone" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+        <span aria-hidden="true">ⓘ</span>
+      </button>
+      {open && (
+        <p className="toggletip-bubble small">On iPhone, a download goes to Files. To scan it from Photos instead, tap the QR code to open it, then press and hold it and choose Save to Photos.</p>
+      )}
+    </span>
   )
 }
 
