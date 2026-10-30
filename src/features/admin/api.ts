@@ -159,7 +159,7 @@ export async function reorderCourts(sport: Enums<'sport'>, ids: string[]) {
   unwrap(await supabase.rpc('reorder_courts', { p_sport: sport, p_ids: ids }))
 }
 
-/** Staff cancel by booking id (the session path, so cancel_booking checks is_admin) with a required reason. */
+/** Staff cancel by booking id (the session path, so cancel_booking checks is_venue_admin for the booking's venue) with a required reason. */
 export async function adminCancelBooking(bookingId: string, reason: string) {
   return unwrap(await supabase.rpc('cancel_booking', { p_booking_id: bookingId, p_reason: reason }))
 }
