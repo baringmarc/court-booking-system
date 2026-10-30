@@ -19,6 +19,13 @@ export function serviceClient() {
   return createClient(url, secretKey, { auth: { persistSession: false, autoRefreshToken: false } })
 }
 
+/** Claudex Courts' id: new uploads live under `{venue_id}/…` since T12.7. */
+export async function venueId() {
+  const { data, error } = await serviceClient().from('venues').select('id').eq('slug', 'claudex-courts').single()
+  if (error) throw error
+  return data.id
+}
+
 /** Creates a confirmed account with the default player role. */
 export async function createPlayer(kind = 'player') {
   const email = uniqueEmail(kind)

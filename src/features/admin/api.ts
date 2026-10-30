@@ -357,8 +357,13 @@ export async function createWalkIn(input: WalkInInput) {
 
 // --- venue media (public `venue-media` bucket; admin-only writes via storage policies) ---------------
 
+/** The admin's venue: new uploads go under `{venue_id}/…`, which the storage policies check (T12.7). */
+async function venueFolder() {
+  return unwrap(await supabase.from('venue_settings').select('venue_id').limit(1).single()).venue_id
+}
+
 async function uploadVenueMedia(folder: string, image: Blob) {
-  const path = newMediaPath(folder, image.type)
+  const path = newMediaPath(`${await venueFolder()}/${folder}`, image.type)
   // The path never changes contents, so it can be cached for a year (RESEARCH M6).
   const { error } = await supabase.storage
     .from(VENUE_MEDIA_BUCKET)
@@ -381,7 +386,7 @@ async function removeVenueMedia(path: string) {
  */
 export async function deleteCourt(courtId: string) {
   unwrap(await supabase.rpc('delete_court', { p_court_id: courtId }))
-  await removeMediaFolder(`courts/${courtId}`).catch(() => {})
+  await removeMediaFolder(`${await venueFolder()}/courts/${courtId}`).catch(() => {})
 }
 
 async function removeMediaFolder(folder: string) {
@@ -522,7 +527,7 @@ export type PaymentAccountInput = { label: string; account_name: string; account
 export type QrChange = { kind: 'keep' } | { kind: 'set'; image: Blob } | { kind: 'clear' }
 
 async function uploadPaymentQr(image: Blob) {
-  const path = `${crypto.randomUUID()}.png`
+  const path = `${await venueFolder()}/${crypto.randomUUID()}.png`
   const { error } = await supabase.storage
     .from(PAYMENT_QR_BUCKET)
     .upload(path, image, { contentType: 'image/png', cacheControl: '31536000', upsert: false })

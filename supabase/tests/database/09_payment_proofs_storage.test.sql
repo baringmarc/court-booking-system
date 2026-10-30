@@ -8,6 +8,8 @@ insert into auth.users (id, email) values
   ('33333333-3333-3333-3333-333333333333', 'other@test.local'),
   ('22222222-2222-2222-2222-222222222222', 'admin@test.local');
 update public.profiles set role = 'admin' where id = '22222222-2222-2222-2222-222222222222';
+insert into public.venue_members (venue_id, user_id, role)
+select id, '22222222-2222-2222-2222-222222222222', 'staff' from public.venues where slug = 'claudex-courts';
 insert into public.courts (id, name, sport, default_hourly_rate) values
   ('c0000000-0000-0000-0000-000000000001', 'Proof Court', 'tennis', 500);
 insert into public.bookings (id, reference_code, court_id, user_id, guest_name, during, total_amount, status) values
@@ -26,7 +28,9 @@ select is_empty(
      where schemaname = 'storage' and tablename = 'objects'
        and cmd in ('INSERT', 'UPDATE', 'DELETE', 'ALL')
        and policyname not in ('Admins upload venue media', 'Admins update venue media', 'Admins delete venue media',
-                              'Admins upload payment QR codes', 'Admins delete payment QR codes') $$,
+                              'Admins upload payment QR codes', 'Admins delete payment QR codes',
+                              'Venue admins upload media', 'Venue admins update media', 'Venue admins delete media',
+                              'Venue admins upload payment QR', 'Venue admins delete payment QR') $$,
   'no insert, update, delete or all policy lets clients write to storage, except the venue-media and payment-qr admin policies'
 );
 select results_eq(
@@ -70,7 +74,7 @@ select is(
   (select count(*)::int from storage.objects
    where bucket_id = 'payment-proofs'
      and name in ('b0000000-0000-0000-0000-000000000001/a.png', 'b0000000-0000-0000-0000-000000000002/b.pdf', 'not-a-uuid/c.png')),
-  3, 'admins see every proof (counted on this test''s fixtures, so other local data cannot affect it)'
+  2, 'admins see the proofs of their venue''s bookings (a path with no booking is invisible; counted on this test''s fixtures)'
 );
 select throws_ok(
   $$ insert into storage.objects (bucket_id, name) values ('payment-proofs', 'b0000000-0000-0000-0000-000000000001/admin.png') $$,

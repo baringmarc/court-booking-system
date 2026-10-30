@@ -1,6 +1,6 @@
 // T9.5: an admin deletes a court that was never booked; a booked court is refused and stays.
 import { expect, test } from '@playwright/test'
-import { createAdmin, E2E_PREFIX, logInAdmin, receiptPng, serviceClient } from './support/helpers.ts'
+import { createAdmin, E2E_PREFIX, logInAdmin, receiptPng, serviceClient, venueId } from './support/helpers.ts'
 
 test('an admin deletes an unbooked court, and a booked court is refused', async ({ page }) => {
   const name = `${E2E_PREFIX} Delete ${Date.now()}`
@@ -8,7 +8,7 @@ test('an admin deletes an unbooked court, and a booked court is refused', async 
     .from('courts').insert({ name, sport: 'tennis', default_hourly_rate: 500 }).select('id').single()
   if (error) throw error
   // A photo in the court's media folder: deleting the court removes the folder's files too.
-  const folder = `courts/${court.id}`
+  const folder = `${await venueId()}/courts/${court.id}`
   const { error: uploadError } = await serviceClient().storage
     .from('venue-media').upload(`${folder}/photo.png`, receiptPng().buffer, { contentType: 'image/png' })
   if (uploadError) throw uploadError
