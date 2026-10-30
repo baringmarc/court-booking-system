@@ -1,8 +1,8 @@
 // POST JSON { reference_code, token? } -> { checkout_url }. Starts (or resumes) a PayMongo test-mode checkout for a
 // booking that is waiting for payment. Guests authenticate with the private booking token; signed-in players with
 // their session. The amount always comes from the database (RESEARCH "Milestone 7", SPEC §4).
-//   0. venue_settings               -> refuse (409 online_payments_off) unless Plotline turned online payments on
 //   1. proof_target                 -> authorize and check the booking is payable (same rules as proof upload)
+//      venue_settings of the booking's venue -> refuse (409 online_payments_off) unless Plotline turned online payments on
 //   2. paymongo_checkout_for        -> reuse the booking's stored, still usable session
 //   3. create a session at PayMongo with the test key (or a fake one with PAYMONGO_MODE=stub on the local stack)
 //   4. record_paymongo_checkout     -> store it; if another request stored one first, return that one
@@ -57,13 +57,6 @@ export default {
       const token = typeof input?.token === 'string' && input.token.trim() ? input.token.trim() : null
       const admin = ctx.supabaseAdmin
 
-      // The venue's online payments switch (T11.22): Plotline turns it on once the venue's PayMongo account is ready.
-      const settings = await admin.from('venue_settings').select('online_payments_enabled').single()
-      if (settings.error) throw rpcError(settings.error)
-      if (!settings.data.online_payments_enabled) {
-        throw new ProofError('online_payments_off', "Online payment isn't offered here. Please upload a proof of payment instead.", 409)
-      }
-
       const target = await admin.rpc('proof_target', {
         p_reference_code: referenceCode,
         p_token: token,
@@ -72,6 +65,16 @@ export default {
       if (target.error) throw rpcError(target.error)
       const booking = target.data?.[0] as { booking_id: string; total_amount: number; amount_due: number } | undefined
       if (!booking) throw new ProofError('not_found', 'Booking not found.', 404)
+
+      // The booking's venue's online payments switch (T11.22, per venue since T12.10): Plotline turns it on once the
+      // venue's PayMongo account is ready.
+      const venue = await admin.from('bookings').select('venue_id').eq('id', booking.booking_id).single()
+      if (venue.error) throw rpcError(venue.error)
+      const settings = await admin.from('venue_settings').select('online_payments_enabled').eq('venue_id', venue.data.venue_id).single()
+      if (settings.error) throw rpcError(settings.error)
+      if (!settings.data.online_payments_enabled) {
+        throw new ProofError('online_payments_off', "Online payment isn't offered here. Please upload a proof of payment instead.", 409)
+      }
 
       // The court price plus the booking fee (T11.12); record_paymongo_payment checks the same amount.
       const amountCentavos = toCentavos(booking.amount_due)

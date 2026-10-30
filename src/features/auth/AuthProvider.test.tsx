@@ -1,12 +1,12 @@
 import { act, render, screen, waitFor } from '@testing-library/react'
 import { useLayoutEffect } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fetchProfile } from './api'
+import { fetchAdminVenueIds, fetchProfile } from './api'
 import type { Profile } from './AuthContext'
 import { AuthProvider } from './AuthProvider'
 import { useAuth } from './useAuth'
 
-vi.mock('./api', () => ({ fetchProfile: vi.fn() }))
+vi.mock('./api', () => ({ fetchProfile: vi.fn(), fetchAdminVenueIds: vi.fn() }))
 vi.mock('../../lib/supabase', () => ({
   supabase: {
     auth: {
@@ -36,6 +36,8 @@ function Probe() {
 beforeEach(() => {
   auth = null
   vi.mocked(fetchProfile).mockReset()
+  vi.mocked(fetchAdminVenueIds).mockReset()
+  vi.mocked(fetchAdminVenueIds).mockResolvedValue(['v1'])
   vi.spyOn(console, 'error').mockImplementation(() => {})
 })
 
@@ -57,6 +59,7 @@ describe('AuthProvider profile loading', () => {
 
   it('loads the role normally', async () => {
     vi.mocked(fetchProfile).mockResolvedValue({ ...admin, role: 'player' })
+    vi.mocked(fetchAdminVenueIds).mockResolvedValue([])
     render(<AuthProvider><Probe /></AuthProvider>)
     expect(await screen.findByText('not admin')).toBeInTheDocument()
     expect(auth!.profileError).toBeNull()

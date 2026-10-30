@@ -1,10 +1,11 @@
-// Admin data access for bookings and payments. Admins read everything through RLS (private.is_admin());
+// Admin data access for bookings and payments. Admins read their venue's rows through RLS (private.is_venue_admin);
 // writes go through RPCs (venue media: storage plus the admin RLS on courts and venue_settings). Only imported by lazy admin routes.
 import type { PostgrestSingleResponse } from '@supabase/supabase-js'
 import { supabase } from '../../lib/supabase'
 import { ApiError, unwrap } from '../../lib/queryClient'
 import { parseTstzRange } from '../../lib/time'
-import type { Enums, TablesInsert } from '../../lib/database.types'
+import type { Enums } from '../../lib/database.types'
+import { currentAdminVenueId } from '../auth/api'
 import { dayRangeLiteral, effectiveSort, parseSearch, type BookingFilters } from './bookingFilters'
 import { VENUE_MEDIA_BUCKET } from '../catalog/media'
 import type { CourtPhotoRow, VenueSettings } from '../catalog/api'
@@ -357,10 +358,8 @@ export async function createWalkIn(input: WalkInInput) {
 
 // --- venue media (public `venue-media` bucket; admin-only writes via storage policies) ---------------
 
-/** The admin's venue: new uploads go under `{venue_id}/…`, which the storage policies check (T12.7). */
-async function venueFolder() {
-  return unwrap(await supabase.from('venue_settings').select('venue_id').limit(1).single()).venue_id
-}
+/** The admin's venue (their membership, T12.10): new uploads go under `{venue_id}/…`, which the storage policies check (T12.7). */
+const venueFolder = currentAdminVenueId
 
 async function uploadVenueMedia(folder: string, image: Blob) {
   const path = newMediaPath(`${await venueFolder()}/${folder}`, image.type)
@@ -407,7 +406,7 @@ export async function addCourtPhoto(courtId: string, image: Blob, sortOrder: num
   const path = await uploadVenueMedia(`courts/${courtId}`, image)
   try {
     return unwrap(
-      await supabase.from('court_photos').insert({ court_id: courtId, path, sort_order: sortOrder } as TablesInsert<'court_photos'>)
+      await supabase.from('court_photos').insert({ venue_id: await currentAdminVenueId(), court_id: courtId, path, sort_order: sortOrder })
         .select('id, path, sort_order').single(),
     )
   } catch (error) {
@@ -428,7 +427,7 @@ export async function reorderCourtPhotos(courtId: string, ids: string[]) {
 }
 
 async function updateBanner(values: Pick<VenueSettings, 'banner_path' | 'banner_alt'> | Pick<VenueSettings, 'banner_alt'>) {
-  return unwrap(await supabase.from('venue_settings').update(values).eq('id', true).select().single())
+  return unwrap(await supabase.from('venue_settings').update(values).eq('venue_id', await currentAdminVenueId()).select().single())
 }
 
 /** `alt` must already be trimmed (a CHECK enforces it). */
@@ -480,10 +479,11 @@ export async function deleteOpenPlay(id: string) {
 /** Saves every platform at once: a URL upserts, an empty one removes that platform's link. */
 export async function saveSocialLinks(links: Record<SocialPlatform, string>) {
   const entries = Object.entries(links) as [SocialPlatform, string][]
-  const upserts = entries.filter(([, url]) => url).map(([platform, url]) => ({ platform, url }))
+  const venue_id = await currentAdminVenueId()
+  const upserts = entries.filter(([, url]) => url).map(([platform, url]) => ({ venue_id, platform, url }))
   const removed = entries.filter(([, url]) => !url).map(([platform]) => platform)
   if (upserts.length) unwrap(await supabase.from('venue_social_links').upsert(upserts))
-  if (removed.length) unwrap(await supabase.from('venue_social_links').delete().in('platform', removed))
+  if (removed.length) unwrap(await supabase.from('venue_social_links').delete().eq('venue_id', venue_id).in('platform', removed))
 }
 
 export type InfoSectionInput = { title: string; body: string }
@@ -492,7 +492,7 @@ export type InfoSectionInput = { title: string; body: string }
 export async function saveInfoSection(id: string | null, input: InfoSectionInput) {
   const query = id
     ? supabase.from('venue_info_sections').update(input).eq('id', id).select('id').single()
-    : supabase.from('venue_info_sections').insert(input).select('id').single()
+    : supabase.from('venue_info_sections').insert({ ...input, venue_id: await currentAdminVenueId() }).select('id').single()
   return unwrap(await query)
 }
 
@@ -507,13 +507,14 @@ export async function reorderInfoSections(ids: string[]) {
 
 /** Switches a built-in amenity on (a row) or off (no row). */
 export async function setBuiltinAmenity(key: AmenityKey, on: boolean) {
+  const venue_id = await currentAdminVenueId()
   unwrap(on
-    ? await supabase.from('venue_amenities').insert({ builtin_key: key })
-    : await supabase.from('venue_amenities').delete().eq('builtin_key', key))
+    ? await supabase.from('venue_amenities').insert({ venue_id, builtin_key: key })
+    : await supabase.from('venue_amenities').delete().eq('venue_id', venue_id).eq('builtin_key', key))
 }
 
 export async function addCustomAmenity(name: string) {
-  unwrap(await supabase.from('venue_amenities').insert({ custom_name: name }))
+  unwrap(await supabase.from('venue_amenities').insert({ venue_id: await currentAdminVenueId(), custom_name: name }))
 }
 
 export async function removeAmenity(id: string) {
@@ -548,7 +549,7 @@ async function removePaymentQr(path: string) {
  */
 export async function savePaymentAccount(existing: { id: string; qr_path: string | null } | null, input: PaymentAccountInput, qr: QrChange) {
   const insert = async (qr_path: string | null) =>
-    unwrap(await supabase.from('venue_payment_accounts').insert({ ...input, qr_path }).select('id').single())
+    unwrap(await supabase.from('venue_payment_accounts').insert({ ...input, qr_path, venue_id: await currentAdminVenueId() }).select('id').single())
   const update = async (patch: { qr_path?: string | null }) =>
     unwrap(await supabase.from('venue_payment_accounts').update({ ...input, ...patch }).eq('id', existing!.id).select('id').single())
 

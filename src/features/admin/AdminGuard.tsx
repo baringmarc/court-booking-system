@@ -4,7 +4,7 @@ import { ErrorMessage } from '../../components/ErrorMessage'
 import { PageLoader } from '../../components/PageLoader'
 import { useAuth } from '../auth/useAuth'
 
-/** Shown to a signed-in account that isn't an admin. Admin access itself is enforced by RLS (`private.is_admin()`). */
+/** Shown to a signed-in account that isn't an admin. Admin access itself is enforced by RLS (`private.is_venue_admin`). */
 export function AdminsOnly() {
   const { user, signOut } = useAuth()
   return (
@@ -21,7 +21,7 @@ export function AdminsOnly() {
   )
 }
 
-/** The account's role couldn't be loaded: don't claim it isn't an admin, offer a retry. */
+/** The account (profile and venue memberships) couldn't be loaded: don't claim it isn't an admin, offer a retry. */
 export function AccountLoadError() {
   const { profileError, refreshProfile, signOut } = useAuth()
   const [retrying, setRetrying] = useState(false)
