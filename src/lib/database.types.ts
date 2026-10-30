@@ -48,6 +48,7 @@ export type Database = {
           id: string
           reason: string
           starts_at: string
+          venue_id: string
         }
         Insert: {
           court_id?: string | null
@@ -57,6 +58,7 @@ export type Database = {
           id?: string
           reason?: string
           starts_at: string
+          venue_id?: string
         }
         Update: {
           court_id?: string | null
@@ -66,20 +68,28 @@ export type Database = {
           id?: string
           reason?: string
           starts_at?: string
+          venue_id?: string
         }
         Relationships: [
           {
             foreignKeyName: "blackouts_court_id_fkey"
-            columns: ["court_id"]
+            columns: ["venue_id", "court_id"]
             isOneToOne: false
             referencedRelation: "courts"
-            referencedColumns: ["id"]
+            referencedColumns: ["venue_id", "id"]
           },
           {
             foreignKeyName: "blackouts_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "blackouts_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
             referencedColumns: ["id"]
           },
         ]
@@ -96,6 +106,7 @@ export type Database = {
           old_court_id: string
           old_during: unknown
           reason: string
+          venue_id: string
         }
         Insert: {
           booking_id: string
@@ -108,6 +119,7 @@ export type Database = {
           old_court_id: string
           old_during: unknown
           reason: string
+          venue_id: string
         }
         Update: {
           booking_id?: string
@@ -120,14 +132,15 @@ export type Database = {
           old_court_id?: string
           old_during?: unknown
           reason?: string
+          venue_id?: string
         }
         Relationships: [
           {
             foreignKeyName: "booking_changes_booking_id_fkey"
-            columns: ["booking_id"]
+            columns: ["venue_id", "booking_id"]
             isOneToOne: false
             referencedRelation: "bookings"
-            referencedColumns: ["id"]
+            referencedColumns: ["venue_id", "id"]
           },
           {
             foreignKeyName: "booking_changes_changed_by_fkey"
@@ -138,23 +151,30 @@ export type Database = {
           },
           {
             foreignKeyName: "booking_changes_continuation_id_fkey"
-            columns: ["continuation_id"]
+            columns: ["venue_id", "continuation_id"]
             isOneToOne: false
             referencedRelation: "bookings"
-            referencedColumns: ["id"]
+            referencedColumns: ["venue_id", "id"]
           },
           {
             foreignKeyName: "booking_changes_new_court_id_fkey"
-            columns: ["new_court_id"]
+            columns: ["venue_id", "new_court_id"]
             isOneToOne: false
             referencedRelation: "courts"
-            referencedColumns: ["id"]
+            referencedColumns: ["venue_id", "id"]
           },
           {
             foreignKeyName: "booking_changes_old_court_id_fkey"
-            columns: ["old_court_id"]
+            columns: ["venue_id", "old_court_id"]
             isOneToOne: false
             referencedRelation: "courts"
+            referencedColumns: ["venue_id", "id"]
+          },
+          {
+            foreignKeyName: "booking_changes_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
             referencedColumns: ["id"]
           },
         ]
@@ -185,6 +205,7 @@ export type Database = {
           total_amount: number
           updated_at: string
           user_id: string | null
+          venue_id: string
           waiver_accepted_at: string | null
           waiver_text: string | null
         }
@@ -213,6 +234,7 @@ export type Database = {
           total_amount: number
           updated_at?: string
           user_id?: string | null
+          venue_id: string
           waiver_accepted_at?: string | null
           waiver_text?: string | null
         }
@@ -241,6 +263,7 @@ export type Database = {
           total_amount?: number
           updated_at?: string
           user_id?: string | null
+          venue_id?: string
           waiver_accepted_at?: string | null
           waiver_text?: string | null
         }
@@ -254,10 +277,10 @@ export type Database = {
           },
           {
             foreignKeyName: "bookings_court_id_fkey"
-            columns: ["court_id"]
+            columns: ["venue_id", "court_id"]
             isOneToOne: false
             referencedRelation: "courts"
-            referencedColumns: ["id"]
+            referencedColumns: ["venue_id", "id"]
           },
           {
             foreignKeyName: "bookings_created_by_fkey"
@@ -268,16 +291,23 @@ export type Database = {
           },
           {
             foreignKeyName: "bookings_parent_booking_id_fkey"
-            columns: ["parent_booking_id"]
+            columns: ["venue_id", "parent_booking_id"]
             isOneToOne: false
             referencedRelation: "bookings"
-            referencedColumns: ["id"]
+            referencedColumns: ["venue_id", "id"]
           },
           {
             foreignKeyName: "bookings_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookings_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
             referencedColumns: ["id"]
           },
         ]
@@ -289,6 +319,7 @@ export type Database = {
           id: string
           path: string
           sort_order: number
+          venue_id: string
         }
         Insert: {
           court_id: string
@@ -296,6 +327,7 @@ export type Database = {
           id?: string
           path: string
           sort_order: number
+          venue_id: string
         }
         Update: {
           court_id?: string
@@ -303,13 +335,21 @@ export type Database = {
           id?: string
           path?: string
           sort_order?: number
+          venue_id?: string
         }
         Relationships: [
           {
             foreignKeyName: "court_photos_court_id_fkey"
-            columns: ["court_id"]
+            columns: ["venue_id", "court_id"]
             isOneToOne: false
             referencedRelation: "courts"
+            referencedColumns: ["venue_id", "id"]
+          },
+          {
+            foreignKeyName: "court_photos_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
             referencedColumns: ["id"]
           },
         ]
@@ -320,25 +360,35 @@ export type Database = {
           day_of_week: number
           price: number
           start_hour: number
+          venue_id: string
         }
         Insert: {
           court_id: string
           day_of_week: number
           price: number
           start_hour: number
+          venue_id: string
         }
         Update: {
           court_id?: string
           day_of_week?: number
           price?: number
           start_hour?: number
+          venue_id?: string
         }
         Relationships: [
           {
             foreignKeyName: "court_rates_court_id_fkey"
-            columns: ["court_id"]
+            columns: ["venue_id", "court_id"]
             isOneToOne: false
             referencedRelation: "courts"
+            referencedColumns: ["venue_id", "id"]
+          },
+          {
+            foreignKeyName: "court_rates_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
             referencedColumns: ["id"]
           },
         ]
@@ -354,6 +404,7 @@ export type Database = {
           sort_order: number
           sport: Database["public"]["Enums"]["sport"]
           updated_at: string
+          venue_id: string
         }
         Insert: {
           created_at?: string
@@ -365,6 +416,7 @@ export type Database = {
           sort_order?: number
           sport: Database["public"]["Enums"]["sport"]
           updated_at?: string
+          venue_id?: string
         }
         Update: {
           created_at?: string
@@ -376,8 +428,17 @@ export type Database = {
           sort_order?: number
           sport?: Database["public"]["Enums"]["sport"]
           updated_at?: string
+          venue_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "courts_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       email_outbox: {
         Row: {
@@ -396,6 +457,7 @@ export type Database = {
           sent_at: string | null
           status: Database["public"]["Enums"]["email_status"]
           to_email: string
+          venue_id: string
         }
         Insert: {
           attempts?: number
@@ -413,6 +475,7 @@ export type Database = {
           sent_at?: string | null
           status?: Database["public"]["Enums"]["email_status"]
           to_email: string
+          venue_id: string
         }
         Update: {
           attempts?: number
@@ -430,27 +493,35 @@ export type Database = {
           sent_at?: string | null
           status?: Database["public"]["Enums"]["email_status"]
           to_email?: string
+          venue_id?: string
         }
         Relationships: [
           {
             foreignKeyName: "email_outbox_booking_id_fkey"
-            columns: ["booking_id"]
+            columns: ["venue_id", "booking_id"]
             isOneToOne: false
             referencedRelation: "bookings"
-            referencedColumns: ["id"]
+            referencedColumns: ["venue_id", "id"]
           },
           {
             foreignKeyName: "email_outbox_change_id_fkey"
-            columns: ["change_id"]
+            columns: ["venue_id", "change_id"]
             isOneToOne: false
             referencedRelation: "booking_changes"
-            referencedColumns: ["id"]
+            referencedColumns: ["venue_id", "id"]
           },
           {
             foreignKeyName: "email_outbox_payment_id_fkey"
-            columns: ["payment_id"]
+            columns: ["venue_id", "payment_id"]
             isOneToOne: false
             referencedRelation: "payments"
+            referencedColumns: ["venue_id", "id"]
+          },
+          {
+            foreignKeyName: "email_outbox_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
             referencedColumns: ["id"]
           },
         ]
@@ -460,23 +531,33 @@ export type Database = {
           booking_id: string
           created_at: string
           token_hash: string
+          venue_id: string
         }
         Insert: {
           booking_id: string
           created_at?: string
           token_hash: string
+          venue_id: string
         }
         Update: {
           booking_id?: string
           created_at?: string
           token_hash?: string
+          venue_id?: string
         }
         Relationships: [
           {
             foreignKeyName: "guest_link_tokens_booking_id_fkey"
-            columns: ["booking_id"]
+            columns: ["venue_id", "booking_id"]
             isOneToOne: false
             referencedRelation: "bookings"
+            referencedColumns: ["venue_id", "id"]
+          },
+          {
+            foreignKeyName: "guest_link_tokens_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
             referencedColumns: ["id"]
           },
         ]
@@ -486,30 +567,40 @@ export type Database = {
           court_id: string
           during: unknown
           session_id: string
+          venue_id: string
         }
         Insert: {
           court_id: string
           during: unknown
           session_id: string
+          venue_id: string
         }
         Update: {
           court_id?: string
           during?: unknown
           session_id?: string
+          venue_id?: string
         }
         Relationships: [
           {
             foreignKeyName: "open_play_courts_court_id_fkey"
-            columns: ["court_id"]
+            columns: ["venue_id", "court_id"]
             isOneToOne: false
             referencedRelation: "courts"
-            referencedColumns: ["id"]
+            referencedColumns: ["venue_id", "id"]
           },
           {
             foreignKeyName: "open_play_courts_session_id_fkey"
-            columns: ["session_id"]
+            columns: ["venue_id", "session_id"]
             isOneToOne: false
             referencedRelation: "open_play_sessions"
+            referencedColumns: ["venue_id", "id"]
+          },
+          {
+            foreignKeyName: "open_play_courts_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
             referencedColumns: ["id"]
           },
         ]
@@ -525,6 +616,7 @@ export type Database = {
           starts_at: string
           title: string
           updated_at: string
+          venue_id: string
         }
         Insert: {
           created_at?: string
@@ -536,6 +628,7 @@ export type Database = {
           starts_at: string
           title: string
           updated_at?: string
+          venue_id?: string
         }
         Update: {
           created_at?: string
@@ -547,6 +640,7 @@ export type Database = {
           starts_at?: string
           title?: string
           updated_at?: string
+          venue_id?: string
         }
         Relationships: [
           {
@@ -554,6 +648,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "open_play_sessions_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
             referencedColumns: ["id"]
           },
         ]
@@ -564,20 +665,31 @@ export type Database = {
           day_of_week: number
           is_closed: boolean
           open_time: string
+          venue_id: string
         }
         Insert: {
           close_time: string
           day_of_week: number
           is_closed?: boolean
           open_time: string
+          venue_id?: string
         }
         Update: {
           close_time?: string
           day_of_week?: number
           is_closed?: boolean
           open_time?: string
+          venue_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "operating_hours_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       payments: {
         Row: {
@@ -599,6 +711,7 @@ export type Database = {
           reviewed_by: string | null
           storage_path: string | null
           submitted_at: string
+          venue_id: string
         }
         Insert: {
           amount: number
@@ -619,6 +732,7 @@ export type Database = {
           reviewed_by?: string | null
           storage_path?: string | null
           submitted_at?: string
+          venue_id: string
         }
         Update: {
           amount?: number
@@ -639,21 +753,22 @@ export type Database = {
           reviewed_by?: string | null
           storage_path?: string | null
           submitted_at?: string
+          venue_id?: string
         }
         Relationships: [
           {
             foreignKeyName: "payments_booking_id_fkey"
-            columns: ["booking_id"]
+            columns: ["venue_id", "booking_id"]
             isOneToOne: false
             referencedRelation: "bookings"
-            referencedColumns: ["id"]
+            referencedColumns: ["venue_id", "id"]
           },
           {
             foreignKeyName: "payments_payment_account_id_fkey"
-            columns: ["payment_account_id"]
+            columns: ["venue_id", "payment_account_id"]
             isOneToOne: false
             referencedRelation: "venue_payment_accounts"
-            referencedColumns: ["id"]
+            referencedColumns: ["venue_id", "id"]
           },
           {
             foreignKeyName: "payments_recorded_by_fkey"
@@ -669,6 +784,13 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "payments_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
         ]
       }
       paymongo_checkouts: {
@@ -678,6 +800,7 @@ export type Database = {
           checkout_id: string
           checkout_url: string
           created_at: string
+          venue_id: string
         }
         Insert: {
           amount_centavos: number
@@ -685,6 +808,7 @@ export type Database = {
           checkout_id: string
           checkout_url: string
           created_at?: string
+          venue_id: string
         }
         Update: {
           amount_centavos?: number
@@ -692,13 +816,21 @@ export type Database = {
           checkout_id?: string
           checkout_url?: string
           created_at?: string
+          venue_id?: string
         }
         Relationships: [
           {
             foreignKeyName: "paymongo_checkouts_booking_id_fkey"
-            columns: ["booking_id"]
-            isOneToOne: true
+            columns: ["venue_id", "booking_id"]
+            isOneToOne: false
             referencedRelation: "bookings"
+            referencedColumns: ["venue_id", "id"]
+          },
+          {
+            foreignKeyName: "paymongo_checkouts_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
             referencedColumns: ["id"]
           },
         ]
@@ -763,20 +895,31 @@ export type Database = {
           created_at: string
           custom_name: string | null
           id: string
+          venue_id: string
         }
         Insert: {
           builtin_key?: string | null
           created_at?: string
           custom_name?: string | null
           id?: string
+          venue_id?: string
         }
         Update: {
           builtin_key?: string | null
           created_at?: string
           custom_name?: string | null
           id?: string
+          venue_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "venue_amenities_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       venue_info_sections: {
         Row: {
@@ -786,6 +929,7 @@ export type Database = {
           sort_order: number
           title: string
           updated_at: string
+          venue_id: string
         }
         Insert: {
           body?: string
@@ -794,6 +938,7 @@ export type Database = {
           sort_order?: number
           title: string
           updated_at?: string
+          venue_id?: string
         }
         Update: {
           body?: string
@@ -802,8 +947,17 @@ export type Database = {
           sort_order?: number
           title?: string
           updated_at?: string
+          venue_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "venue_info_sections_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       venue_members: {
         Row: {
@@ -841,6 +995,7 @@ export type Database = {
           position: number
           qr_path: string | null
           updated_at: string
+          venue_id: string
         }
         Insert: {
           account_name?: string
@@ -851,6 +1006,7 @@ export type Database = {
           position?: number
           qr_path?: string | null
           updated_at?: string
+          venue_id?: string
         }
         Update: {
           account_name?: string
@@ -861,8 +1017,17 @@ export type Database = {
           position?: number
           qr_path?: string | null
           updated_at?: string
+          venue_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "venue_payment_accounts_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       venue_settings: {
         Row: {
@@ -872,7 +1037,7 @@ export type Database = {
           booking_window_days: number
           cancel_cutoff_hours: number
           currency: string
-          id: boolean
+          id: boolean | null
           maps_url: string
           max_rejections: number
           name: string
@@ -884,6 +1049,7 @@ export type Database = {
           theme: string
           timezone: string
           updated_at: string
+          venue_id: string
           waiver_text: string
         }
         Insert: {
@@ -893,7 +1059,7 @@ export type Database = {
           booking_window_days?: number
           cancel_cutoff_hours?: number
           currency?: string
-          id?: boolean
+          id?: boolean | null
           maps_url?: string
           max_rejections?: number
           name: string
@@ -905,6 +1071,7 @@ export type Database = {
           theme?: string
           timezone?: string
           updated_at?: string
+          venue_id?: string
           waiver_text?: string
         }
         Update: {
@@ -914,7 +1081,7 @@ export type Database = {
           booking_window_days?: number
           cancel_cutoff_hours?: number
           currency?: string
-          id?: boolean
+          id?: boolean | null
           maps_url?: string
           max_rejections?: number
           name?: string
@@ -926,27 +1093,47 @@ export type Database = {
           theme?: string
           timezone?: string
           updated_at?: string
+          venue_id?: string
           waiver_text?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "venue_settings_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: true
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       venue_social_links: {
         Row: {
           platform: Database["public"]["Enums"]["venue_social_platform"]
           updated_at: string
           url: string
+          venue_id: string
         }
         Insert: {
           platform: Database["public"]["Enums"]["venue_social_platform"]
           updated_at?: string
           url: string
+          venue_id?: string
         }
         Update: {
           platform?: Database["public"]["Enums"]["venue_social_platform"]
           updated_at?: string
           url?: string
+          venue_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "venue_social_links_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       venues: {
         Row: {

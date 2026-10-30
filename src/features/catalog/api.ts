@@ -89,13 +89,13 @@ export async function saveCourt(id: string | null, input: CourtInput) {
 }
 
 export type RateChanges = {
-  upserts: CourtRate[]
+  upserts: Omit<CourtRate, 'venue_id'>[]
   deletes: { day_of_week: number; start_hour: number }[]
 }
 
 export async function saveCourtRates(courtId: string, { upserts, deletes }: RateChanges) {
   if (upserts.length) {
-    unwrap(await supabase.from('court_rates').upsert(upserts))
+    unwrap(await supabase.from('court_rates').upsert(upserts as TablesInsert<'court_rates'>[]))
   }
   // One delete per weekday keeps the request count small.
   const hoursByDay = new Map<number, number[]>()

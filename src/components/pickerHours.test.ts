@@ -8,7 +8,7 @@ import {
 const TZ = 'Asia/Manila'
 
 function day(day_of_week: number, open = '06:00:00', close = '22:00:00', is_closed = false): OperatingHours {
-  return { day_of_week, open_time: open, close_time: close, is_closed }
+  return { venue_id: 'v1', day_of_week, open_time: open, close_time: close, is_closed }
 }
 
 const week = (fn: (d: number) => OperatingHours) => [0, 1, 2, 3, 4, 5, 6].map(fn)

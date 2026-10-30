@@ -4,7 +4,7 @@ import type { PostgrestSingleResponse } from '@supabase/supabase-js'
 import { supabase } from '../../lib/supabase'
 import { ApiError, unwrap } from '../../lib/queryClient'
 import { parseTstzRange } from '../../lib/time'
-import type { Enums } from '../../lib/database.types'
+import type { Enums, TablesInsert } from '../../lib/database.types'
 import { dayRangeLiteral, effectiveSort, parseSearch, type BookingFilters } from './bookingFilters'
 import { VENUE_MEDIA_BUCKET } from '../catalog/media'
 import type { CourtPhotoRow, VenueSettings } from '../catalog/api'
@@ -402,7 +402,7 @@ export async function addCourtPhoto(courtId: string, image: Blob, sortOrder: num
   const path = await uploadVenueMedia(`courts/${courtId}`, image)
   try {
     return unwrap(
-      await supabase.from('court_photos').insert({ court_id: courtId, path, sort_order: sortOrder })
+      await supabase.from('court_photos').insert({ court_id: courtId, path, sort_order: sortOrder } as TablesInsert<'court_photos'>)
         .select('id, path, sort_order').single(),
     )
   } catch (error) {
