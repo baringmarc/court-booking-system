@@ -21,9 +21,11 @@ export type PaymentAttempt = {
   review_status: PaymentReviewStatus
   reviewed_at: string | null
   review_note: string | null
+  /** The payment account's label when paid with one (T11.27). */
+  paid_with?: string | null
 }
 
-const PAYMENT_FIELDS = 'id, method, amount, reference_number, submitted_at, review_status, reviewed_at, review_note'
+const PAYMENT_FIELDS = 'id, method, paid_with, amount, reference_number, submitted_at, review_status, reviewed_at, review_note'
 
 function toPaymentAttempts(value: unknown): PaymentAttempt[] {
   if (!Array.isArray(value)) return []
@@ -32,6 +34,7 @@ function toPaymentAttempts(value: unknown): PaymentAttempt[] {
     .map((p) => ({
       id: String(p.id),
       method: p.method as PaymentMethod,
+      paid_with: (p.paid_with as string | null) ?? null,
       amount: Number(p.amount),
       reference_number: (p.reference_number as string | null) ?? null,
       submitted_at: String(p.submitted_at),
@@ -341,7 +344,9 @@ export type ProofSubmission = {
   referenceCode: string
   /** Guests only; signed-in owners are identified by their session. */
   token: string | null
-  method: Exclude<PaymentMethod, 'cash'>
+  /** Exactly one of method and accountId is set. */
+  method?: Exclude<PaymentMethod, 'cash'>
+  accountId?: string
   amount: number
   referenceNumber: string
   file: File
@@ -352,7 +357,8 @@ export async function submitPaymentProof(input: ProofSubmission): Promise<void> 
   const form = new FormData()
   form.append('reference_code', input.referenceCode)
   if (input.token) form.append('token', input.token)
-  form.append('method', input.method)
+  if (input.accountId) form.append('account_id', input.accountId)
+  else if (input.method) form.append('method', input.method)
   form.append('amount', String(input.amount))
   if (input.referenceNumber.trim()) form.append('reference_number', input.referenceNumber.trim())
   form.append('file', input.file)

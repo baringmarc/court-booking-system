@@ -145,7 +145,10 @@ export function receiptPng() {
 }
 
 export async function uploadProof(page: Page) {
-  await page.getByLabel('Paid with').selectOption('gcash')
+  // A venue with payment accounts lists them instead of GCash / Maya / Bank transfer (T11.28).
+  const paidWith = page.getByLabel('Paid with')
+  if (await paidWith.locator('option[value="gcash"]').count()) await paidWith.selectOption('gcash')
+  else await paidWith.selectOption({ index: 1 })
   await page.getByLabel(/Receipt screenshot/).setInputFiles(receiptPng())
   await page.getByRole('button', { name: 'Submit proof of payment' }).click()
   await expect(page.getByText(/We're checking your payment/)).toBeVisible()

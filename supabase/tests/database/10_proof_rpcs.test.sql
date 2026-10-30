@@ -39,10 +39,10 @@ from fx, public.create_booking('c0000000-0000-0000-0000-000000000001', fx.t10 + 
 
 -- Access: only the service role may call these
 select ok(not has_function_privilege('anon', 'public.proof_target(text, text, uuid)', 'execute'), 'anon cannot call proof_target');
-select ok(not has_function_privilege('authenticated', 'public.record_payment_proof(uuid, text, public.payment_method, numeric, text)', 'execute'), 'authenticated cannot call record_payment_proof');
-select ok(has_function_privilege('service_role', 'public.record_payment_proof(uuid, text, public.payment_method, numeric, text)', 'execute'), 'service_role can call record_payment_proof');
+select ok(not has_function_privilege('authenticated', 'public.record_payment_proof(uuid, text, public.payment_method, numeric, text, uuid)', 'execute'), 'authenticated cannot call record_payment_proof');
+select ok(has_function_privilege('service_role', 'public.record_payment_proof(uuid, text, public.payment_method, numeric, text, uuid)', 'execute'), 'service_role can call record_payment_proof');
 select ok(not has_function_privilege('authenticated', 'public.proof_target(text, text, uuid)', 'execute'), 'authenticated cannot call proof_target');
-select ok(not has_function_privilege('anon', 'public.record_payment_proof(uuid, text, public.payment_method, numeric, text)', 'execute'), 'anon cannot call record_payment_proof');
+select ok(not has_function_privilege('anon', 'public.record_payment_proof(uuid, text, public.payment_method, numeric, text, uuid)', 'execute'), 'anon cannot call record_payment_proof');
 select ok(has_function_privilege('service_role', 'public.proof_target(text, text, uuid)', 'execute'), 'service_role can call proof_target');
 
 reset role;

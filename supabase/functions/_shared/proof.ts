@@ -45,7 +45,9 @@ export function checkProofFile(size: number, head: Uint8Array): ProofFileType {
 export type ProofFields = {
   referenceCode: string
   token: string | null
-  method: ProofMethod
+  /** 'account' when accountId is set: the RPC then takes the method from the account. */
+  method: ProofMethod | 'account'
+  accountId: string | null
   amount: number
   referenceNumber: string | null
 }
@@ -62,8 +64,12 @@ export function parseProofFields(form: { get(name: string): unknown }): ProofFie
     throw new ProofError('not_found', 'Booking not found. Check that you opened the full link from your confirmation.', 404)
   }
 
-  const method = field(form, 'method')
-  if (!(PROOF_METHODS as readonly string[]).includes(method)) {
+  const accountId = field(form, 'account_id') || null
+  if (accountId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(accountId)) {
+    throw new ProofError('invalid_input', 'Choose one of the venue\'s payment accounts.')
+  }
+  const method = accountId ? 'account' : field(form, 'method')
+  if (!accountId && !(PROOF_METHODS as readonly string[]).includes(method)) {
     throw new ProofError('invalid_input', 'Choose GCash, Maya or bank transfer.')
   }
 
@@ -81,7 +87,8 @@ export function parseProofFields(form: { get(name: string): unknown }): ProofFie
   return {
     referenceCode,
     token: field(form, 'token') || null,
-    method: method as ProofMethod,
+    method: method as ProofFields['method'],
+    accountId,
     amount: Math.round(amount * 100) / 100,
     referenceNumber,
   }

@@ -52,7 +52,7 @@ export function previousLabel(period: Period, days: number) {
   return `the previous ${days} days`
 }
 
-type MethodTotal = { method: Enums<'payment_method'>; amount: number; count: number }
+type MethodTotal = { method: Enums<'payment_method'>; paidWith: string | null; amount: number; count: number }
 type Money = { total: number; count: number; byMethod: MethodTotal[] }
 export type HourTotals = { openHours: number; blackoutHours: number; soldHours: number; openPlayHours: number }
 export type Earnings = {
@@ -83,7 +83,7 @@ function money(v: Json | undefined): Money {
     total: num(o.total),
     count: num(o.count),
     byMethod: arr(o.by_method).map((m) => ({
-      method: str(obj(m).method) as Enums<'payment_method'>, amount: num(obj(m).amount), count: num(obj(m).count),
+      method: str(obj(m).method) as Enums<'payment_method'>, paidWith: typeof obj(m).paid_with === 'string' ? (obj(m).paid_with as string) : null, amount: num(obj(m).amount), count: num(obj(m).count),
     })),
   }
 }

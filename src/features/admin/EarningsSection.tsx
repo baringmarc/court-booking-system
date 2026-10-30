@@ -98,8 +98,8 @@ function EarningsBody({ earnings, period, days, currency, timeZone }: BodyProps)
           {collected.byMethod.length > 0 ? (
             <ul className="list" aria-label="Collected by method">
               {collected.byMethod.map((m) => (
-                <li key={m.method} className="list-row">
-                  <span>{METHOD_LABELS[m.method] ?? m.method} <span className="muted small">({m.count})</span></span>
+                <li key={`${m.method}:${m.paidWith ?? ''}`} className="list-row">
+                  <span>{m.paidWith ?? METHOD_LABELS[m.method] ?? m.method} <span className="muted small">({m.count})</span></span>
                   <span>{money(m.amount)}</span>
                 </li>
               ))}

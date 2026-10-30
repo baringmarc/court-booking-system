@@ -1,7 +1,7 @@
 // CSV export (T10.8, RESEARCH M10 "CSV export"): RFC 4180 quoting, protection against spreadsheet formula injection,
 // CRLF lines and a UTF-8 BOM so Excel reads ₱ and ñ. Times are venue-local; amounts are plain numbers.
 import { isoToZonedLocal } from '../../lib/time'
-import { METHOD_LABELS } from '../booking/proofInput'
+import { paymentLabel } from '../booking/proofInput'
 import { displayStatus, STATUS_LABELS } from '../booking/status'
 import { SPORT_LABELS } from '../catalog/api'
 import type { ExportBooking, ExportPayment } from './api'
@@ -53,7 +53,7 @@ export function bookingsCsv(bookings: ExportBooking[], { timeZone, currency, now
 export function paymentsCsv(payments: ExportPayment[], { timeZone, currency }: Options) {
   const headers = ['booking reference', 'method', `amount_${currency.toLowerCase()}`, 'reference number', `received (${timeZone})`, 'status']
   const rows = payments.map((p): Cell[] => [
-    p.booking_reference, METHOD_LABELS[p.method] ?? p.method, p.amount, p.reference_number, csvTime(p.received_at, timeZone),
+    p.booking_reference, paymentLabel(p), p.amount, p.reference_number, csvTime(p.received_at, timeZone),
     p.review_status === 'approved' ? 'Accepted' : 'Refund due',
   ])
   return toCsv(headers, rows)

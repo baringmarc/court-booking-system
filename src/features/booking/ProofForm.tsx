@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { ErrorMessage } from '../../components/ErrorMessage'
 import { formatMoney } from '../../lib/format'
+import { usePaymentAccounts } from '../venue/hooks'
 import { bookingErrorMessage } from './errors'
 import {
   ACCEPTED_PROOF_TYPES,
+  ACCOUNT_PREFIX,
   amountMismatch,
   isProofMethod,
   PROOF_METHOD_OPTIONS,
@@ -12,7 +15,8 @@ import {
   type ProofMethod,
 } from './proofInput'
 
-export type ProofValues = { method: ProofMethod; amount: number; referenceNumber: string; file: File }
+/** Exactly one of method and accountId is set. */
+export type ProofValues = { method?: ProofMethod; accountId?: string; amount: number; referenceNumber: string; file: File }
 
 type Props = {
   total: number
@@ -25,6 +29,7 @@ type Props = {
 export function ProofForm({ total, currency, pending, error, onSubmit }: Props) {
   const [input, setInput] = useState<ProofInput>({ method: '', amount: String(total), referenceNumber: '', file: null })
   const [errors, setErrors] = useState<ProofErrors>({})
+  const accounts = usePaymentAccounts()
 
   // Object URLs must be released; the effect only cleans up, it doesn't sync state.
   const previewUrl = useMemo(
@@ -39,13 +44,23 @@ export function ProofForm({ total, currency, pending, error, onSubmit }: Props) 
     e.preventDefault()
     const next = validateProofInput(input)
     setErrors(next)
-    if (Object.keys(next).length > 0 || !input.file || !isProofMethod(input.method)) return
-    onSubmit({ method: input.method, amount: Number(input.amount), referenceNumber: input.referenceNumber, file: input.file })
+    if (Object.keys(next).length > 0 || !input.file) return
+    const paidWith = input.method.startsWith(ACCOUNT_PREFIX)
+      ? { accountId: input.method.slice(ACCOUNT_PREFIX.length) }
+      : isProofMethod(input.method) ? { method: input.method } : null
+    if (!paidWith) return
+    onSubmit({ ...paidWith, amount: Number(input.amount), referenceNumber: input.referenceNumber, file: input.file })
   }
 
   const describedBy = (key: keyof ProofInput) => (errors[key] ? `proof-${key}-error` : undefined)
   const errorText = (key: keyof ProofInput) =>
     errors[key] && <p id={`proof-${key}-error`} className="form-error">{errors[key]}</p>
+
+  if (accounts.isPending) return <p className="muted small" role="status">Loading payment options…</p>
+  if (accounts.isError) return <ErrorMessage error={accounts.error} onRetry={() => accounts.refetch()} />
+  const options = accounts.data.length > 0
+    ? accounts.data.map((a) => ({ value: `${ACCOUNT_PREFIX}${a.id}`, label: a.label }))
+    : PROOF_METHOD_OPTIONS
 
   return (
     <form className="stack" onSubmit={handleSubmit} noValidate aria-label="Upload proof of payment">
@@ -54,7 +69,7 @@ export function ProofForm({ total, currency, pending, error, onSubmit }: Props) 
         <select id="proof-method" value={input.method} aria-invalid={errors.method ? true : undefined}
           aria-describedby={describedBy('method')} onChange={(e) => setInput((i) => ({ ...i, method: e.target.value }))}>
           <option value="">Choose…</option>
-          {PROOF_METHOD_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
         {errorText('method')}
       </div>

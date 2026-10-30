@@ -1,8 +1,13 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../../lib/queryClient'
+import { fetchPaymentAccounts } from '../venue/api'
 import { ProofForm } from './ProofForm'
+
+// T11.28: the form reads the venue's payment accounts; none here, so the GCash / Maya / Bank transfer list shows.
+vi.mock('../venue/api', async (importOriginal) => ({ ...(await importOriginal<object>()), fetchPaymentAccounts: vi.fn() }))
 
 beforeAll(() => {
   // jsdom has no object URLs; the preview only needs a string.
@@ -11,15 +16,22 @@ beforeAll(() => {
 })
 
 const png = () => new File([new Uint8Array(100)], 'receipt.png', { type: 'image/png' })
-const renderForm = (props: Partial<Parameters<typeof ProofForm>[0]> = {}) => {
+const renderForm = async (props: Partial<Parameters<typeof ProofForm>[0]> = {}) => {
+  vi.mocked(fetchPaymentAccounts).mockResolvedValue([])
   const onSubmit = vi.fn()
-  render(<ProofForm total={900} currency="PHP" pending={false} error={null} onSubmit={onSubmit} {...props} />)
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  render(
+    <QueryClientProvider client={client}>
+      <ProofForm total={900} currency="PHP" pending={false} error={null} onSubmit={onSubmit} {...props} />
+    </QueryClientProvider>,
+  )
+  await screen.findByLabelText('Paid with')
   return onSubmit
 }
 
 describe('ProofForm', () => {
   it('prefills the amount and requires a method and a file', async () => {
-    const onSubmit = renderForm()
+    const onSubmit = await renderForm()
     expect(screen.getByLabelText('Amount paid')).toHaveValue(900)
     await userEvent.click(screen.getByRole('button', { name: 'Submit proof of payment' }))
     expect(onSubmit).not.toHaveBeenCalled()
@@ -28,7 +40,7 @@ describe('ProofForm', () => {
   })
 
   it('warns, without blocking, when the amount differs from the total', async () => {
-    const onSubmit = renderForm()
+    const onSubmit = await renderForm()
     const amount = screen.getByLabelText('Amount paid')
     await userEvent.clear(amount)
     await userEvent.type(amount, '850')
@@ -40,7 +52,7 @@ describe('ProofForm', () => {
   })
 
   it('shows an image preview and submits the chosen file', async () => {
-    const onSubmit = renderForm()
+    const onSubmit = await renderForm()
     const file = png()
     await userEvent.selectOptions(screen.getByLabelText('Paid with'), 'gcash')
     await userEvent.type(screen.getByLabelText('Reference number (optional)'), '1234')
@@ -50,8 +62,8 @@ describe('ProofForm', () => {
     expect(onSubmit).toHaveBeenCalledWith({ method: 'gcash', amount: 900, referenceNumber: '1234', file })
   })
 
-  it('shows server errors and a pending state', () => {
-    renderForm({ pending: true, error: new ApiError('This hold has expired, so the times were released.', '409', 'hold_expired') })
+  it('shows server errors and a pending state', async () => {
+    await renderForm({ pending: true, error: new ApiError('This hold has expired, so the times were released.', '409', 'hold_expired') })
     expect(screen.getByRole('alert')).toHaveTextContent('This hold has expired')
     expect(screen.getByRole('button', { name: 'Uploading…' })).toBeDisabled()
   })

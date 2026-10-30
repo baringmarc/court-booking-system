@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import { SimpleMarkdown } from '../../components/SimpleMarkdown'
 import { formatHour, formatMoney } from '../../lib/format'
 import { formatDateLabel, hourInZone, todayInZone } from '../../lib/time'
@@ -36,6 +36,14 @@ export function BookingSummary({ booking, paymentInstructions, timeZone, currenc
   // Only proofs count as rejections: a PayMongo payment that wasn't accepted is a refund case, not a failed proof.
   const lastRejection = [...booking.payments].reverse()
     .find((p) => p.review_status === 'rejected' && p.method !== 'paymongo' && !isReplacedByOnlinePayment(p, booking.payments))
+  // Waiting for a new proof (e.g. arriving from the rejection email): bring the payment card into view.
+  const payHeading = useRef<HTMLHeadingElement>(null)
+  const needsNewProof = awaitingPayment && !!booking.expires_at && !!lastRejection
+  useEffect(() => {
+    if (!needsNewProof) return
+    payHeading.current?.scrollIntoView?.({ block: 'start' })
+    payHeading.current?.focus({ preventScroll: true })
+  }, [needsNewProof])
 
   return (
     <div className="stack">
@@ -66,7 +74,7 @@ export function BookingSummary({ booking, paymentInstructions, timeZone, currenc
 
       {awaitingPayment && booking.expires_at && (
         <section className="card stack" aria-labelledby="pay-heading">
-          <h2 id="pay-heading" className="card-head rose">Pay within <span className="countdown" role="timer">{formatRemaining(Date.parse(booking.expires_at) - now.getTime())}</span></h2>
+          <h2 id="pay-heading" ref={payHeading} tabIndex={-1} className="card-head rose">Pay within <span className="countdown" role="timer">{formatRemaining(Date.parse(booking.expires_at) - now.getTime())}</span></h2>
           <p className="muted small">
             We hold these times until the timer runs out. Pay {formatMoney(booking.amount_due, currency)} using one of the
             options below, with <strong>{booking.reference_code}</strong> as the payment note.

@@ -1,4 +1,4 @@
-// POST multipart/form-data: reference_code, token? (guests), method, amount, reference_number?, file.
+// POST multipart/form-data: reference_code, token? (guests), method or account_id, amount, reference_number?, file.
 // Guests authenticate with the private booking token; signed-in players with their session.
 // Flow (RESEARCH "Proof upload for guests"): proof_target -> upload with the secret key -> record_payment_proof,
 // deleting the uploaded file if recording fails. All rules live in SQL and _shared/proof.ts.
@@ -51,6 +51,7 @@ export default {
         p_method: fields.method,
         p_amount: fields.amount,
         p_reference_number: fields.referenceNumber,
+        p_account_id: fields.accountId,
       })
       if (recorded.error) {
         const cleanup = await admin.storage.from(BUCKET).remove([path])

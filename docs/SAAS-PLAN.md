@@ -187,6 +187,13 @@ Also on the single-venue app (approved 2026-10-26; breakdown in TASKS.md M11). P
 - **the ₱10 booking fee** (amount due, checkout, PayMongo line item, emails, CSV) and the dashboard's total revenue, owner earnings and Plotline fees;
 - walk-ins behind a code flag, hidden by default.
 
+**Built (done 2026-10-30), and what Phase 1 inherits:**
+- `platform_pricing.booking_fee` (₱10, set on production after the merge into `master`) is copied onto each online booking as `bookings.booking_fee`; `amount_due` is the price plus the fee. `get_earnings.split` gives total revenue, Plotline fees and owner earnings. Phase 1 adds the per-venue override question and the billing ledger on top.
+- `venue_settings.theme` (five presets), `maps_url`, `waiver_text`, `online_payments_enabled` (only Plotline can change it) and `venue_payment_accounts` with the `payment-qr` bucket are single-venue today; Phase 1 makes each per venue like the rest of `venue_settings`.
+- Walk-ins stay behind `VITE_FEATURE_WALK_INS` (a build flag, so not per venue).
+- Email runs through Resend from `mail.plotline.fit`, and guests get fresh private links (`guest_link_tokens`, `issue_guest_link`) in the re-upload email.
+- T11.15 (the contract migration that drops `maps_query`) waits for the production deploy.
+
 ### Phase 0: Accounts and groundwork (no code)
 - [ ] Buy `plotline.fit`. Move its nameservers to Cloudflare.
 - [ ] Create the Supabase production project in Singapore. Keep the current project as staging.

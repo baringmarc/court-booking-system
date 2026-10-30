@@ -60,7 +60,8 @@ describe('renderEmail', () => {
     expect(created.html).toContain(`#token=${TOKEN}`)
     expect(created.text).toContain('Keep it safe')
 
-    for (const kind of KINDS.filter((k) => k !== 'booking_created')) {
+    // proof_rejected is the one other kind that carries the token (T11.30, emailTemplates.reupload.test.ts).
+    for (const kind of KINDS.filter((k) => k !== 'booking_created' && k !== 'proof_rejected')) {
       const other = renderEmail({ kind, data, site, forGuest: true, guestToken: TOKEN })
       expect(other.text).not.toContain(TOKEN)
       expect(other.html).not.toContain(TOKEN)

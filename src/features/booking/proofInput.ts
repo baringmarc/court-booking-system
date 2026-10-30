@@ -12,6 +12,11 @@ export const METHOD_LABELS: Record<Enums<'payment_method'>, string> = {
   bank_transfer: 'Bank transfer',
   cash: 'Cash',
   paymongo: 'PayMongo',
+  account: 'Payment account',
+}
+/** What a payment is called: the payment account's label when it was paid with one (T11.27), else the method. */
+export function paymentLabel(p: { method: Enums<'payment_method'>; paid_with?: string | null }) {
+  return p.paid_with ?? METHOD_LABELS[p.method]
 }
 export const PROOF_METHOD_OPTIONS = PROOF_METHODS.map((value) => ({ value, label: METHOD_LABELS[value] }))
 export const ACCEPTED_PROOF_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf']
@@ -19,13 +24,16 @@ export const ACCEPTED_PROOF_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'a
 export type ProofInput = { method: string; amount: string; referenceNumber: string; file: File | null }
 export type ProofErrors = Partial<Record<keyof ProofInput, string>>
 
+/** The "Paid with" select value for a payment account: `account:<id>`. */
+export const ACCOUNT_PREFIX = 'account:'
+
 export function isProofMethod(value: string): value is ProofMethod {
   return (PROOF_METHODS as readonly string[]).includes(value)
 }
 
 export function validateProofInput(input: ProofInput): ProofErrors {
   const errors: ProofErrors = {}
-  if (!isProofMethod(input.method)) errors.method = 'Choose how you paid.'
+  if (!isProofMethod(input.method) && !input.method.startsWith(ACCOUNT_PREFIX)) errors.method = 'Choose how you paid.'
   const amount = Number(input.amount)
   if (!input.amount.trim() || !Number.isFinite(amount) || amount < 0 || amount > 1_000_000) {
     errors.amount = 'Enter the amount you paid.'

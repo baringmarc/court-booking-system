@@ -20,6 +20,8 @@ import { clearStoredMedia, replaceStoredMedia } from './mediaReplace'
 export type AdminPayment = {
   id: string
   method: Enums<'payment_method'>
+  /** The payment account's label when paid with one (T11.27). */
+  paid_with?: string | null
   amount: number
   reference_number: string | null
   storage_path: string | null
@@ -76,7 +78,7 @@ export const adminKeys = {
 }
 
 // One literal: supabase-js infers the row type from this string.
-const SELECT = 'id, reference_code, court_id, during, status, source, total_amount, booking_fee, amount_due, expires_at, rejection_count, guest_name, guest_email, guest_phone, created_at, cancelled_at, cancel_reason, cancelled_by_venue, parent_booking_id, courts(name, sport), payments(id, method, amount, reference_number, storage_path, submitted_at, review_status, review_note, reviewed_at, reviewed_by, provider_payment_id, provider_source)' as const
+const SELECT = 'id, reference_code, court_id, during, status, source, total_amount, booking_fee, amount_due, expires_at, rejection_count, guest_name, guest_email, guest_phone, created_at, cancelled_at, cancel_reason, cancelled_by_venue, parent_booking_id, courts(name, sport), payments(id, method, paid_with, amount, reference_number, storage_path, submitted_at, review_status, review_note, reviewed_at, reviewed_by, provider_payment_id, provider_source)' as const
 
 export const ADMIN_LIST_LIMIT = 200
 
@@ -290,6 +292,7 @@ export async function fetchBookingsForExport(startIso: string, endIso: string): 
 export type ExportPayment = {
   booking_reference: string
   method: Enums<'payment_method'>
+  paid_with?: string | null
   amount: number
   reference_number: string | null
   received_at: string | null
@@ -300,7 +303,7 @@ export type ExportPayment = {
 export async function fetchPaymentsForExport(startIso: string, endIso: string): Promise<ExportPayment[]> {
   const rows = await allPages((from, to) => supabase
     .from('payments')
-    .select('method, amount, reference_number, reviewed_at, review_status, bookings(reference_code)')
+    .select('method, paid_with, amount, reference_number, reviewed_at, review_status, bookings(reference_code)')
     .or('review_status.eq.approved,and(method.eq.paymongo,review_status.eq.rejected)')
     .gte('reviewed_at', startIso)
     .lt('reviewed_at', endIso)
@@ -310,6 +313,7 @@ export async function fetchPaymentsForExport(startIso: string, endIso: string): 
   return rows.map((row) => ({
     booking_reference: row.bookings?.reference_code ?? '',
     method: row.method,
+    paid_with: row.paid_with,
     amount: Number(row.amount),
     reference_number: row.reference_number,
     received_at: row.reviewed_at,
