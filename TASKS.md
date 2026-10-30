@@ -1861,7 +1861,7 @@ Out of scope for M11: multiple venues, the billing ledger, invoices and statemen
 - Test dispute: src/features/booking/BookingSummary.focus.test.tsx "rejected()" fixture: `method: string` doesn't type-check against `PaymentAttempt['method']` (the union gcash | maya | bank_transfer | cash | paymongo | account), so `npm run typecheck` fails vs the gate requiring typecheck to pass; type the helper's `method` as `PaymentAttempt['method']`.
 - Test dispute: e2e/reupload-link.spec.ts "a guest re-uploads a proof through the link in the rejection email": opens the email's absolute link with `guest.goto(link)`, but the local email link's origin is the first `PUBLIC_SITE_URL` (`http://localhost:5173`, a different server than e2e's `127.0.0.1:5179`), so the page says "Booking not found" vs the criterion (follow the link from the Mailpit email); open the link's path and `#token=` fragment on the e2e baseURL instead, and keep asserting the email's origin-independent path.
 
-### [ ] T11.31 Close out M11
+### [x] T11.31 Close out M11
 - **Depends:** T11.2–T11.30
 - **Do:**
   - Update the README (the new look, features and screenshots) and `docs/demo-script.md`.
