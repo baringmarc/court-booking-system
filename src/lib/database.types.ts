@@ -39,6 +39,61 @@ export type Database = {
   }
   public: {
     Tables: {
+      billing_charges: {
+        Row: {
+          amount: number
+          billing_month: string
+          booking_id: string
+          charged_at: string
+          id: string
+          invoice_id: string | null
+          kind: string
+          venue_id: string
+        }
+        Insert: {
+          amount: number
+          billing_month: string
+          booking_id: string
+          charged_at?: string
+          id?: string
+          invoice_id?: string | null
+          kind: string
+          venue_id: string
+        }
+        Update: {
+          amount?: number
+          billing_month?: string
+          booking_id?: string
+          charged_at?: string
+          id?: string
+          invoice_id?: string | null
+          kind?: string
+          venue_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_charges_booking_fkey"
+            columns: ["venue_id", "booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["venue_id", "id"]
+          },
+          {
+            foreignKeyName: "billing_charges_invoice_fkey"
+            columns: ["venue_id", "invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["venue_id", "id"]
+          },
+          {
+            foreignKeyName: "billing_charges_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       blackouts: {
         Row: {
           court_id: string | null
@@ -187,6 +242,7 @@ export type Database = {
           cancelled_at: string | null
           cancelled_by: string | null
           cancelled_by_venue: boolean
+          confirmed_at: string | null
           court_id: string
           created_at: string
           created_by: string | null
@@ -216,6 +272,7 @@ export type Database = {
           cancelled_at?: string | null
           cancelled_by?: string | null
           cancelled_by_venue?: boolean
+          confirmed_at?: string | null
           court_id: string
           created_at?: string
           created_by?: string | null
@@ -245,6 +302,7 @@ export type Database = {
           cancelled_at?: string | null
           cancelled_by?: string | null
           cancelled_by_venue?: boolean
+          confirmed_at?: string | null
           court_id?: string
           created_at?: string
           created_by?: string | null
@@ -555,6 +613,50 @@ export type Database = {
           },
           {
             foreignKeyName: "guest_link_tokens_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoices: {
+        Row: {
+          billing_month: string
+          created_at: string
+          id: string
+          paid_at: string | null
+          paid_method: string | null
+          paid_reference: string | null
+          sent_at: string | null
+          status: string
+          venue_id: string
+        }
+        Insert: {
+          billing_month: string
+          created_at?: string
+          id?: string
+          paid_at?: string | null
+          paid_method?: string | null
+          paid_reference?: string | null
+          sent_at?: string | null
+          status?: string
+          venue_id: string
+        }
+        Update: {
+          billing_month?: string
+          created_at?: string
+          id?: string
+          paid_at?: string | null
+          paid_method?: string | null
+          paid_reference?: string | null
+          sent_at?: string | null
+          status?: string
+          venue_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_venue_id_fkey"
             columns: ["venue_id"]
             isOneToOne: false
             referencedRelation: "venues"
