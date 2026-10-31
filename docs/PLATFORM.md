@@ -31,7 +31,7 @@ Locally both repos sit side by side: `~/Documents/Projects/court-booking-system`
   2. Build with the production `.env` values (`npm run build`), then `npm run cf:deploy`. The Worker is named `court-booking-system` (it already held the route); the route is created from `wrangler.jsonc`.
   3. Check `https://claudex-courts.plotline.fit/` and a deep link (`/book`, `/admin/login`).
   4. Then set the secret `PUBLIC_ROOT_DOMAIN=plotline.fit` (`npx supabase secrets set`) and deploy the three functions (T13.6).
-  5. Last, the old Vercel URL redirects to `claudex-courts.plotline.fit` (`vercel.json`, temporary 307, path kept; browsers keep `#token=` fragments). It takes effect when `develop` is merged into `master`, so do steps 3–4 first: until `PUBLIC_ROOT_DOMAIN` is set, emails and PayMongo returns still point at the Vercel URL.
+  5. Last, the old Vercel URL redirects to `claudex-courts.plotline.fit` (`vercel.json`, temporary 307, path kept, `assets/` excluded so already-open or cached old pages still load their scripts instead of failing on CORS; browsers keep `#token=` fragments). It takes effect when `develop` is merged into `master`, so do steps 3–4 first: until `PUBLIC_ROOT_DOMAIN` is set, emails and PayMongo returns still point at the Vercel URL.
   - Previews: `npm run cf:preview` uploads a version with its own preview URL. It has no venue subdomain, so open it with `?venue=<slug>`, and build it against staging.
   - Local check: `npm run build && npm run cf:dev` serves deep links on http://localhost:8788.
 

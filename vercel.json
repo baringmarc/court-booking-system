@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "redirects": [
-    { "source": "/:path*", "destination": "https://claudex-courts.plotline.fit/:path*", "permanent": false }
+    { "source": "/((?!assets/).*)", "destination": "https://claudex-courts.plotline.fit/$1", "permanent": false }
   ]
 }
