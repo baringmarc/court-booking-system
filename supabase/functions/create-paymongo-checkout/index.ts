@@ -15,11 +15,11 @@ import {
   checkoutRequestBody,
   PAYMONGO_API,
   parseCheckoutResponse,
-  returnBase,
   stubCheckoutSession,
   toCentavos,
   type CheckoutSession,
 } from '../_shared/paymongo.ts'
+import { venueSiteBase } from '../_shared/venueSite.ts'
 
 const unavailable = () => new ProofError('payments_unavailable', "Online payment isn't available right now. Please upload a proof instead.", 503)
 
@@ -68,7 +68,7 @@ export default {
 
       // The booking's venue's online payments switch (T11.22, per venue since T12.10): Plotline turns it on once the
       // venue's PayMongo account is ready.
-      const venue = await admin.from('bookings').select('venue_id').eq('id', booking.booking_id).single()
+      const venue = await admin.from('bookings').select('venue_id, venues(slug)').eq('id', booking.booking_id).single()
       if (venue.error) throw rpcError(venue.error)
       const settings = await admin.from('venue_settings').select('online_payments_enabled').eq('venue_id', venue.data.venue_id).single()
       if (settings.error) throw rpcError(settings.error)
@@ -85,9 +85,14 @@ export default {
       if (existing.error) throw rpcError(existing.error)
       if (existing.data?.[0]) return Response.json({ checkout_url: existing.data[0].checkout_url })
 
-      const base = returnBase(req.headers.get('origin'), Deno.env.get('PUBLIC_SITE_URL'))
+      const base = venueSiteBase({
+        slug: venue.data.venues?.slug,
+        origin: req.headers.get('origin'),
+        rootDomain: Deno.env.get('PUBLIC_ROOT_DOMAIN'),
+        allowList: Deno.env.get('PUBLIC_SITE_URL'),
+      })
       if (!base) {
-        console.error('create-paymongo-checkout: PUBLIC_SITE_URL is not set')
+        console.error('create-paymongo-checkout: neither PUBLIC_ROOT_DOMAIN nor PUBLIC_SITE_URL is set')
         throw unavailable()
       }
       const session = await createSession(checkoutRequestBody({
