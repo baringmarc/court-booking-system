@@ -1258,3 +1258,46 @@ Answered by the user on 2026-10-29: all three as recommended (blank waiver, then
   - The only origin check in our functions is `returnBase()` (`_shared/paymongo.ts`): an exact allow-list from `PUBLIC_SITE_URL`, else its first entry. `create-paymongo-checkout` and `email-guest-link` pass the request `Origin`; `send-emails` passes `null`, so every queued email links to the first site. None of the functions sets CORS headers of its own (grep for `Allow-Origin` and `OPTIONS` under `supabase/functions` returned nothing on 2026-10-31).
 - **Gotchas:** taking the subdomain from the `Origin` header without checking it would be an open redirect into PayMongo's success URL. The slug has to be a real venue, and it should be the booking's own venue, so a link from venue A's site can't produce venue B's page. Queued emails have no request, so their link has to come from the booking's venue slug.
 - **Recommendation:** replace the exact list with "the booking's venue slug under the configured base domain" (`PUBLIC_SITE_URL` keeps the exact local and staging origins as a fallback). `send-emails` builds links from `venues.slug` of the email's booking. The user adds `https://*.plotline.fit/**` to the Supabase redirect URLs in T13.6.
+
+## Milestone 14: Platform console
+
+### Owner invite (T14.1, 2026-11-01)
+- **Status:** Researched
+- **Question:** how does a service-role function invite a venue owner so the invite lands on `<slug>.plotline.fit/admin`?
+- **Findings:**
+  - `auth.admin.inviteUserByEmail(email, { data?, redirectTo? })` sends the invite; `redirectTo` is where the link ends up; "PKCE is not supported" for it (`node_modules/@supabase/auth-js/dist/main/GoTrueAdminApi.d.ts:65-134`). The redirect must match the Auth allow-list; `https://*.plotline.fit/**` is already allowed (T13.6) and `config.toml` allows `http://*.localhost:5179/**`.
+  - The invite template is the default (`config.toml:251` is commented out), and the local stack sends it to Mailpit.
+  - `venue_members(venue_id, user_id, role in ('owner','staff'))` and `platform_admins(user_id)` exist; `private.is_platform_admin()` exists (T12.2). Writes to both are revoked from clients, so only a service-role function or a platform-admin RPC can add a member.
+- **Gotchas:** inviting an email that already has an account fails (GoTrue refuses an existing user), and an owner may already run another venue. The function must look the user up first (service-role RPC on `auth.users` by email), skip the invite and only add the `venue_members` row for an existing account. A pending, never-accepted invite should be re-sent, not duplicated. The caller check must read the JWT and `platform_admins`, not trust the request body.
+- **Recommendation:** `invite-venue-owner` takes `{ venue_id, email }`; verifies the caller is a platform admin; builds `redirectTo` from `venueSiteBase` (`_shared/venueSite.ts`) plus `/admin`; invites or finds the user; upserts the `owner` row. Invited users set their password on the landing page, so `/admin/login` (email + password) needs a "set password" path for invited users (checked in T14.5's plan).
+
+### pg_cron: monthly invoices and the demo reset (T14.1, 2026-11-01)
+- **Status:** Researched
+- **Question:** how to schedule the monthly drafts and the nightly demo reset?
+- **Findings:**
+  - pg_cron is installed and used: `expire-holds`, `send-emails`, `purge-email-outbox` (`select jobname, schedule from cron.job`, local, 2026-11-01). `cron.schedule(name, …)` by name is an upsert. `show cron.timezone` returns `GMT`, so schedules run in UTC. Supabase recommends at most 8 concurrent jobs, each under 10 minutes (https://supabase.com/docs/guides/cron).
+  - `billing_charges.billing_month` is the month in the **venue's** timezone (`private.billing_month`), and `invoices` is unique on `(venue_id, billing_month)`. A venue's month ends at different UTC instants, so a single run at 00:00 UTC on the 1st could invoice a month that has not ended for a venue west of UTC.
+  - `billing_charges` is immutable except `invoice_id` (`guard_billing_charge`); `invoices` has no number, no due date and no total (the total is the sum of its charges). Overdue needs `sent_at + 7 days` (SAAS-PLAN: 7 days' grace).
+  - Seed data: `seed.sql` inserts courts, court rates, bookings and payments for `claudex-courts` only. Bookings reference courts, and payments reference bookings.
+- **Gotchas:** a reset must delete only rows with `venue_id = claudex-courts` and must never touch `billing_charges` (immutable and `on delete restrict` from bookings, T12.8 `billing_cascade_on_booking_delete`): bookings that have charges can't simply be deleted. The reset also must keep emails off (`app.suppress_booking_emails`, as `seed.sql` does).
+- **Recommendation:**
+  - Invoices: a **daily** job (UTC 01:00) that, per venue, creates a draft for every venue-local month that has already ended and has no invoice yet, then attaches that month's unattached charges. Idempotent, self-healing after a missed day, correct for every timezone.
+  - Demo reset: a private function that restores the demo's *bookings* by deleting and re-inserting only that venue's rows from a fixed set held in SQL (not by running `seed.sql`). Charges for demo bookings are the open point: T14.12's plan decides between not billing the demo (an `is_demo` check in `bill_booking`) or detaching them. Decide at that plan gate, not now.
+
+### Showcase source fields (T14.1, 2026-11-01)
+- **Status:** Researched
+- **Question:** where do `name`, `city` and `logo_url` for `public_venues` come from?
+- **Findings:** `venues` has only `id, slug, status, created_at` (`database.types.ts:1234`). `venue_settings` has `name`, `address` (free text), `theme`, banner fields; there is no `city` and no logo column (grep for `city|logo` in `database.types.ts` found none). The task text also mentions a payment mode for `create_venue`, but no such column exists: the only switch is `venue_settings.online_payments_enabled`, and PayMongo status arrives with Phase 4.
+- **Recommendation:** T14.13 adds `venue_settings.city` and `showcase_opt_in` (default false), and uses the venue's first court photo or the banner as `logo_url` unless a logo column is added (decide at the T14.13 plan gate). `create_venue` takes `p_slug, p_name, p_timezone` only; the payment-mode argument is dropped until Phase 4 (adjust T14.4). The view must be `security_invoker = false` with only these columns and a status/opt-in filter.
+
+### Invoice breakdown wording (T14.1, 2026-11-01)
+- **Status:** Researched
+- **Question:** what does a billing statement show, as documentation of amounts?
+- **Findings:** Stripe's invoice docs list the usual parts: numbered invoice with a prefix per customer (`TYPGRA-0001`), a memo/notes block, a footer, line items that can be grouped under a subtotal, payment terms, and the issuer's contact details (https://docs.stripe.com/invoicing/customize). It also warns invoice requirements vary by jurisdiction. Our data already gives the groups: booking fees (`kind = 'booking_fee'`) and venue-cancellation adjustments (negative `kind = 'adjustment'`), each linked to a booking.
+- **Recommendation:** page layout: header (Plotline, venue name, month, status), a count and subtotal for fees, one for adjustments, the total, then the line list (date, booking reference, kind, amount, link), payment instructions (GCash or bank, the 7-day grace) and the footer "Statement of amounts; not a tax invoice." The invoice has no number yet: show `<SLUG>-<YYYYMM>` derived from venue and month, so there's no sequence to maintain. No tax fields.
+
+### Phase 5 drafts (T14.1, 2026-11-01)
+- **Status:** Researched
+- **Findings:** `docs/drafts/phase5-site-backend/` holds the `leads` and `reviews` tables in one migration, pgTAP, `site-contact` and `site-review` functions and `_shared/siteForms.ts`. The draft's policies use `private.is_admin()`, which M12 removed (T12.11) and its own header says to switch to `private.is_platform_admin()`. `leads` grants `update (status, notes)` to `authenticated`. Its README says to move `site-contact` and `_shared/siteForms.ts` into `supabase/` through the normal flow.
+- **Gotchas:** `reviews` is Phase 5; T14.2 moves only `leads`. The draft pgTAP file covers both tables, so it must be split. `site-contact` needs the secrets `SITE_ORIGINS` and `TURNSTILE_SECRET_KEY`, which the user sets. `PLATFORM.md` §4-5 is updated first.
+- **Recommendation:** T14.2 moves `leads` (with `is_platform_admin()` policies), `site-contact`, `siteForms.ts` and `siteHttp.ts`, and leaves `reviews` and `site-review` in the drafts folder.
