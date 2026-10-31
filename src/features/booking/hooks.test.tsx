@@ -21,7 +21,7 @@ describe('booking mutations keep My bookings fresh', () => {
     const { wrapper, invalidatedKeys } = setup()
     const { result } = renderHook(() => useCancelBooking('CB-7KQ2XD', null), { wrapper })
     await act(() => result.current.mutateAsync({ bookingId: 'b1', reason: '' }))
-    expect(invalidatedKeys()).toEqual(expect.arrayContaining([['booking', 'CB-7KQ2XD', null], ['00000000-0000-4000-8000-0000000000a1', 'availability'], ['my-bookings']]))
+    expect(invalidatedKeys()).toEqual(expect.arrayContaining([['booking', 'CB-7KQ2XD', null], ['00000000-0000-4000-8000-0000000000a1', 'availability'], ['00000000-0000-4000-8000-0000000000a1', 'my-bookings']]))
   })
 
   it('creating a booking or submitting a proof refreshes My bookings', async () => {
@@ -32,7 +32,7 @@ describe('booking mutations keep My bookings fresh', () => {
     await act(() => create.result.current.mutateAsync({ courtId: 'c1', start: '2030-01-07T09:00:00.000Z', slots: 1, contact: { name: 'Pat' } }))
     const proof = renderHook(() => useSubmitPaymentProof('CB-7KQ2XD', null), { wrapper })
     await act(() => proof.result.current.mutateAsync({ method: 'gcash', amount: 500, referenceNumber: '', file: new File(['x'], 'p.png') }))
-    expect(invalidatedKeys().filter((k) => k?.[0] === 'my-bookings')).toHaveLength(2)
+    expect(invalidatedKeys().filter((k) => k?.[1] === 'my-bookings')).toHaveLength(2)
   })
 })
 

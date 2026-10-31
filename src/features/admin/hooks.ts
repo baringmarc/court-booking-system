@@ -73,9 +73,9 @@ export function useReviewPayment() {
     mutationFn: ({ bookingId, approve, note }: { bookingId: string; approve: boolean; note: string | null }) =>
       reviewPayment(bookingId, approve, note),
     onSettled: () => Promise.all([
-      qc.invalidateQueries({ queryKey: adminKeys.allBookings }),
-      qc.invalidateQueries({ queryKey: adminKeys.proofQueue }),
-      qc.invalidateQueries({ queryKey: adminKeys.allEarnings }),
+      qc.invalidateQueries({ queryKey: adminKeys.allBookings() }),
+      qc.invalidateQueries({ queryKey: adminKeys.proofQueue() }),
+      qc.invalidateQueries({ queryKey: adminKeys.allEarnings() }),
       qc.invalidateQueries({ queryKey: bookingKeys.allAvailability() }),
     ]),
   })
@@ -86,9 +86,9 @@ export function useAdminCancelBooking() {
   return useMutation({
     mutationFn: ({ bookingId, reason }: { bookingId: string; reason: string }) => adminCancelBooking(bookingId, reason),
     onSettled: () => Promise.all([
-      qc.invalidateQueries({ queryKey: adminKeys.allBookings }),
-      qc.invalidateQueries({ queryKey: adminKeys.proofQueue }),
-      qc.invalidateQueries({ queryKey: adminKeys.allMovedParts }),
+      qc.invalidateQueries({ queryKey: adminKeys.allBookings() }),
+      qc.invalidateQueries({ queryKey: adminKeys.proofQueue() }),
+      qc.invalidateQueries({ queryKey: adminKeys.allMovedParts() }),
       qc.invalidateQueries({ queryKey: bookingKeys.allAvailability() }),
     ]),
   })
@@ -100,12 +100,12 @@ export function useRescheduleBooking() {
   return useMutation({
     mutationFn: (input: Reschedule) => rescheduleBooking(input),
     onSettled: () => Promise.all([
-      qc.invalidateQueries({ queryKey: adminKeys.allBookings }),
-      qc.invalidateQueries({ queryKey: adminKeys.allEarnings }),
-      qc.invalidateQueries({ queryKey: adminKeys.allMovedParts }),
+      qc.invalidateQueries({ queryKey: adminKeys.allBookings() }),
+      qc.invalidateQueries({ queryKey: adminKeys.allEarnings() }),
+      qc.invalidateQueries({ queryKey: adminKeys.allMovedParts() }),
       qc.invalidateQueries({ queryKey: bookingKeys.allAvailability() }),
       qc.invalidateQueries({ queryKey: bookingKeys.allDetails }),
-      qc.invalidateQueries({ queryKey: accountKeys.allMyBookings }),
+      qc.invalidateQueries({ queryKey: accountKeys.allMyBookings() }),
     ]),
   })
 }
@@ -121,7 +121,7 @@ export function useActiveMovedParts(bookingId: string, enabled: boolean) {
 }
 
 export function useProofQueueCount() {
-  return useQuery({ queryKey: adminKeys.proofQueue, queryFn: fetchProofQueueCount, staleTime: 15_000, refetchInterval: 60_000 })
+  return useQuery({ queryKey: adminKeys.proofQueue(), queryFn: fetchProofQueueCount, staleTime: 15_000, refetchInterval: 60_000 })
 }
 
 /** Reads every booking or payment in [startIso, endIso) for a CSV export (T10.8). */
@@ -144,8 +144,8 @@ export function useCreateWalkIn() {
   return useMutation({
     mutationFn: (input: WalkInInput) => createWalkIn(input),
     onSettled: () => Promise.all([
-      qc.invalidateQueries({ queryKey: adminKeys.allBookings }),
-      qc.invalidateQueries({ queryKey: adminKeys.allEarnings }),
+      qc.invalidateQueries({ queryKey: adminKeys.allBookings() }),
+      qc.invalidateQueries({ queryKey: adminKeys.allEarnings() }),
       qc.invalidateQueries({ queryKey: bookingKeys.allAvailability() }),
     ]),
   })

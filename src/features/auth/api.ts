@@ -18,3 +18,11 @@ export async function fetchAdminVenueIds(userId: string): Promise<string[]> {
   const rows = unwrap(await supabase.from('venue_members').select('venue_id').eq('user_id', userId).order('venue_id'))
   return rows.map((r) => r.venue_id)
 }
+
+/** The venues the user belongs to, by slug, for the admin venue switcher (T13.4). */
+export async function fetchMemberVenues(userId: string): Promise<{ id: string; slug: string }[]> {
+  const rows = unwrap(await supabase.from('venue_members').select('venue_id, venues(id, slug)').eq('user_id', userId))
+  return rows
+    .flatMap((r) => (r.venues ? [{ id: r.venues.id, slug: r.venues.slug }] : []))
+    .sort((a, b) => a.slug.localeCompare(b.slug))
+}

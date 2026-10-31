@@ -1,12 +1,13 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { currentVenueId } from '../../lib/currentVenue'
 import { useAuth } from '../auth/useAuth'
 import { claimGuestBookings, fetchMyBookings } from './api'
 
 export const accountKeys = {
   /** Prefix for every user's My bookings list: booking mutations invalidate it. */
-  allMyBookings: ['my-bookings'] as const,
-  myBookings: (userId: string) => ['my-bookings', userId] as const,
-  claim: (userId: string) => ['claim-guest-bookings', userId] as const,
+  allMyBookings: () => [currentVenueId(), 'my-bookings'] as const,
+  myBookings: (userId: string) => [currentVenueId(), 'my-bookings', userId] as const,
+  claim: (userId: string) => [currentVenueId(), 'claim-guest-bookings', userId] as const,
 }
 
 export function useMyBookings(userId: string | undefined) {

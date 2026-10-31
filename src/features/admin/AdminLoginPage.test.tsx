@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { authState } from '../../test/authState'
 import { signInWithPassword } from '../auth/api'
 import { AuthContext, type AuthState } from '../auth/AuthContext'
+import { VenueContext } from '../venue/VenueContext'
 import { AdminLoginPage } from './AdminLoginPage'
 
 vi.mock('../auth/api', () => ({ signInWithPassword: vi.fn() }))
@@ -18,7 +19,7 @@ const signIn = vi.mocked(signInWithPassword)
 function renderLogin(auth: AuthState, from?: string) {
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-    <AuthContext.Provider value={auth}>
+    <VenueContext.Provider value={{ id: 'venue-a', slug: 'a-venue', status: 'active' }}><AuthContext.Provider value={auth}>
       <MemoryRouter initialEntries={[{ pathname: '/admin/login', state: from ? { from } : null }]}>
         <Routes>
           <Route path="/admin/login" element={<AdminLoginPage />} />
@@ -26,7 +27,7 @@ function renderLogin(auth: AuthState, from?: string) {
           <Route path="/admin/bookings" element={<p>Bookings page</p>} />
         </Routes>
       </MemoryRouter>
-    </AuthContext.Provider>
+    </AuthContext.Provider></VenueContext.Provider>
     </QueryClientProvider>,
   )
 }
@@ -92,5 +93,11 @@ describe('AdminLoginPage', () => {
     expect(screen.getByRole('heading', { name: "Couldn't load your account" })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Admins only' })).not.toBeInTheDocument()
+  })
+
+  it('refuses a signed-in admin of another venue only (T13.4)', () => {
+    renderLogin(authState('admin', { venueIds: ['venue-b'] }))
+    expect(screen.getByRole('heading', { name: 'Admins only' })).toBeInTheDocument()
+    expect(screen.queryByText('Dashboard')).not.toBeInTheDocument()
   })
 })

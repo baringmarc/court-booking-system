@@ -68,14 +68,14 @@ export type AdminBooking = {
 }
 
 export const adminKeys = {
-  bookings: (filters: BookingFilters) => ['admin-bookings', filters] as const,
-  allBookings: ['admin-bookings'] as const,
+  bookings: (filters: BookingFilters) => [currentVenueId(), 'admin-bookings', filters] as const,
+  allBookings: () => [currentVenueId(), 'admin-bookings'] as const,
   proofUrl: (path: string) => ['proof-url', path] as const,
-  proofQueue: ['admin-proof-queue'] as const,
-  earnings: (from: string, to: string) => ['admin-earnings', from, to] as const,
-  allEarnings: ['admin-earnings'] as const,
-  allMovedParts: ['admin-moved-parts'] as const,
-  movedParts: (bookingId: string) => ['admin-moved-parts', bookingId] as const,
+  proofQueue: () => [currentVenueId(), 'admin-proof-queue'] as const,
+  earnings: (from: string, to: string) => [currentVenueId(), 'admin-earnings', from, to] as const,
+  allEarnings: () => [currentVenueId(), 'admin-earnings'] as const,
+  allMovedParts: () => [currentVenueId(), 'admin-moved-parts'] as const,
+  movedParts: (bookingId: string) => [currentVenueId(), 'admin-moved-parts', bookingId] as const,
 }
 
 // One literal: supabase-js infers the row type from this string.
@@ -97,6 +97,7 @@ export async function fetchAdminBookings(
   let query = supabase
     .from('bookings')
     .select(SELECT)
+    .eq('venue_id', currentVenueId())
     .order(sort.startsWith('play') ? 'during' : 'created_at', { ascending: sort.endsWith('asc') })
     .order('id')
     .limit(ADMIN_LIST_LIMIT + 1)
@@ -220,6 +221,7 @@ export async function fetchProofQueueCount() {
   const { count, error } = await supabase
     .from('bookings')
     .select('id', { count: 'exact', head: true })
+    .eq('venue_id', currentVenueId())
     .eq('status', 'payment_submitted')
   if (error) throw new ApiError(error.message, error.code)
   return count ?? 0
@@ -260,6 +262,7 @@ export async function fetchBookingsForExport(startIso: string, endIso: string): 
   const rows = await allPages((from, to) => supabase
     .from('bookings')
     .select('reference_code, during, status, source, expires_at, guest_name, guest_phone, guest_email, total_amount, booking_fee, amount_due, courts(name, sport)')
+    .eq('venue_id', currentVenueId())
     .overlaps('during', `[${startIso},${endIso})`)
     .order('during')
     .order('id')
@@ -305,6 +308,7 @@ export async function fetchPaymentsForExport(startIso: string, endIso: string): 
   const rows = await allPages((from, to) => supabase
     .from('payments')
     .select('method, paid_with, amount, reference_number, reviewed_at, review_status, bookings(reference_code)')
+    .eq('venue_id', currentVenueId())
     .or('review_status.eq.approved,and(method.eq.paymongo,review_status.eq.rejected)')
     .gte('reviewed_at', startIso)
     .lt('reviewed_at', endIso)
@@ -324,7 +328,7 @@ export async function fetchPaymentsForExport(startIso: string, endIso: string): 
 
 /** The earnings summary for venue dates from–to, inclusive (T10.6): raw JSON, read with parseEarnings. */
 export async function fetchEarnings(from: string, to: string) {
-  return unwrap(await supabase.rpc('get_earnings', { p_from: from, p_to: to }))
+  return unwrap(await supabase.rpc('get_earnings', { p_from: from, p_to: to, p_venue_id: currentVenueId() }))
 }
 
 export type WalkInInput = {

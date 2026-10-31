@@ -4,7 +4,10 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import { authState } from '../../test/authState'
 import { AuthContext, type AuthState } from '../auth/AuthContext'
+import { VenueContext } from '../venue/VenueContext'
 import { AdminGuard } from './AdminGuard'
+
+const VENUE = { id: 'venue-a', slug: 'a-venue', status: 'active' as const }
 
 function LoginProbe() {
   const location = useLocation()
@@ -13,7 +16,7 @@ function LoginProbe() {
 
 function renderAt(path: string, auth: AuthState) {
   render(
-    <AuthContext.Provider value={auth}>
+    <VenueContext.Provider value={VENUE}><AuthContext.Provider value={auth}>
       <MemoryRouter initialEntries={[path]}>
         <Routes>
           <Route path="/admin/login" element={<LoginProbe />} />
@@ -22,7 +25,7 @@ function renderAt(path: string, auth: AuthState) {
           </Route>
         </Routes>
       </MemoryRouter>
-    </AuthContext.Provider>,
+    </AuthContext.Provider></VenueContext.Provider>,
   )
 }
 
@@ -63,5 +66,16 @@ describe('AdminGuard', () => {
     expect(screen.queryByText('Bookings page')).not.toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Try again' }))
     expect(refreshProfile).toHaveBeenCalledOnce()
+  })
+
+  it('refuses an admin of ANOTHER venue only (T13.4): "Admins only", not the page', () => {
+    renderAt('/admin/bookings', authState('admin', { venueIds: ['venue-b'], isAdmin: true }))
+    expect(screen.getByRole('heading', { name: 'Admins only' })).toBeInTheDocument()
+    expect(screen.queryByText('Bookings page')).not.toBeInTheDocument()
+  })
+
+  it('lets a member of several venues in when this venue is one of them (T13.4)', () => {
+    renderAt('/admin/bookings', authState('admin', { venueIds: ['venue-b', 'venue-a'] }))
+    expect(screen.getByText('Bookings page')).toBeInTheDocument()
   })
 })

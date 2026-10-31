@@ -1,5 +1,6 @@
 // Player account data: My bookings and claiming earlier guest bookings (SPEC §5.7, §7).
 import { supabase } from '../../lib/supabase'
+import { currentVenueId } from '../../lib/currentVenue'
 import { unwrap } from '../../lib/queryClient'
 import type { Enums } from '../../lib/database.types'
 import { parseTstzRange } from '../../lib/time'
@@ -34,6 +35,7 @@ export async function fetchMyBookings(userId: string): Promise<MyBooking[]> {
       .from('bookings')
       .select('id, reference_code, during, status, expires_at, amount_due, parent_booking_id, created_at, courts(name, sport)')
       .eq('user_id', userId)
+      .eq('venue_id', currentVenueId())
       .order('during', { ascending: false })
       .limit(MY_BOOKINGS_LIMIT),
   )

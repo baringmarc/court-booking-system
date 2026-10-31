@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, render, screen } from '@testing-library/react'
 import { MemoryRouter, Link } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { setCurrentVenue } from '../../lib/currentVenue'
 import { bookingKeys } from '../booking/hooks'
 import { adminKeys, subscribeToBookingChanges } from './api'
 import type { BookingChange } from './bookingAlerts'
@@ -44,6 +45,7 @@ function setup(path = '/admin') {
 const count = () => screen.getByTestId('count').textContent
 
 beforeEach(() => {
+  setCurrentVenue({ id: 'venue-a', slug: 'a-venue', status: 'active' })
   document.title = 'Original title'
   unsubscribe.mockReset()
   vi.mocked(subscribeToBookingChanges).mockReset().mockImplementation((h: Handlers) => { handlers = h; return unsubscribe })
@@ -62,7 +64,7 @@ describe('useBookingAlerts', () => {
     const { spy } = setup()
     act(() => handlers.onChange(hold))
     const keys = spy.mock.calls.map((c) => JSON.stringify((c[0] as { queryKey: unknown }).queryKey))
-    for (const key of [adminKeys.allBookings, adminKeys.proofQueue, adminKeys.allEarnings, adminKeys.allMovedParts, bookingKeys.allAvailability()]) {
+    for (const key of [adminKeys.allBookings(), adminKeys.proofQueue(), adminKeys.allEarnings(), adminKeys.allMovedParts(), bookingKeys.allAvailability()]) {
       expect(keys).toContain(JSON.stringify(key))
     }
     expect(count()).toBe('0')
@@ -72,7 +74,7 @@ describe('useBookingAlerts', () => {
     const { spy } = setup()
     act(() => handlers.onReconnect())
     const keys = spy.mock.calls.map((c) => JSON.stringify((c[0] as { queryKey: unknown }).queryKey))
-    expect(keys).toContain(JSON.stringify(adminKeys.allBookings))
+    expect(keys).toContain(JSON.stringify(adminKeys.allBookings()))
     expect(keys).toContain(JSON.stringify(bookingKeys.allAvailability()))
     expect(count()).toBe('0')
   })

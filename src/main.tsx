@@ -13,13 +13,13 @@ import './index.css'
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <VenueProvider>
-        <ThemeSync />
-        <AuthProvider>
+      <AuthProvider>
+        <VenueProvider>
+          <ThemeSync />
           <GuestBookingClaimer />
           <RouterProvider router={router} />
-        </AuthProvider>
-      </VenueProvider>
+        </VenueProvider>
+      </AuthProvider>
     </QueryClientProvider>
   </StrictMode>,
 )

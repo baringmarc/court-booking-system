@@ -4,12 +4,14 @@ import { PageLoader } from '../../components/PageLoader'
 import { PlotlineLogo } from '../../components/PlotlineLogo'
 import { signInWithPassword } from '../auth/api'
 import { useAuth } from '../auth/useAuth'
+import { useIsVenueAdmin } from '../auth/useIsVenueAdmin'
 import { useVenueSettings } from '../catalog/hooks'
 import { AccountLoadError, AdminsOnly } from './AdminGuard'
 
 /** Staff sign-in: email + password only. There is no admin sign-up; admins are promoted in the database (SPEC §2). */
 export function AdminLoginPage() {
-  const { user, isAdmin, loading, profileError } = useAuth()
+  const { user, loading, profileError } = useAuth()
+  const isAdmin = useIsVenueAdmin()
   const location = useLocation()
   const from = (location.state as { from?: string } | null)?.from ?? '/admin'
   const venueName = useVenueSettings().data?.name ?? ''

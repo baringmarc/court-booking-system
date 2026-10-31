@@ -2,6 +2,8 @@ import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { PlotlineLogo } from '../../components/PlotlineLogo'
 import { useMainFocus } from '../../components/useMainFocus'
 import { useAuth } from '../auth/useAuth'
+import { useIsVenueAdmin } from '../auth/useIsVenueAdmin'
+import { VenueSwitcher } from './VenueSwitcher'
 import { useBookingAlerts } from './useBookingAlerts'
 
 const LINKS = [
@@ -15,7 +17,8 @@ const LINKS = [
 
 /** The admin shell (SPEC §7): its own header and nav, separate from the public Layout. */
 export function AdminLayout() {
-  const { user, profile, isAdmin, loading, signOut } = useAuth()
+  const { user, profile, loading, signOut } = useAuth()
+  const isAdmin = useIsVenueAdmin()
   const navigate = useNavigate()
   const displayName = profile?.full_name || user?.email
   const { mainRef, skipToMain } = useMainFocus()
@@ -39,6 +42,7 @@ export function AdminLayout() {
           {isAdmin && user && <AdminNav key={user.id} />}
 
           <div className="auth-area">
+            <VenueSwitcher />
             <Link to="/" className="btn btn-small btn-ghost">View site</Link>
             {!loading && user && (
               <>

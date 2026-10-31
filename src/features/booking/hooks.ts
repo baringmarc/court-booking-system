@@ -53,7 +53,7 @@ export function useCreateBooking() {
     // Success and "slot taken" both mean the grid is stale; a new booking also belongs in My bookings.
     onSettled: () => Promise.all([
       qc.invalidateQueries({ queryKey: bookingKeys.allAvailability() }),
-      qc.invalidateQueries({ queryKey: accountKeys.allMyBookings }),
+      qc.invalidateQueries({ queryKey: accountKeys.allMyBookings() }),
     ]),
   })
 }
@@ -101,7 +101,7 @@ export function useSubmitPaymentProof(ref: string, token: string | null) {
     // Success moves the booking to payment_submitted; a hold_expired/invalid_state error also means it changed.
     onSettled: () => Promise.all([
       qc.invalidateQueries({ queryKey: bookingKeys.detail(ref, token) }),
-      qc.invalidateQueries({ queryKey: accountKeys.allMyBookings }),
+      qc.invalidateQueries({ queryKey: accountKeys.allMyBookings() }),
     ]),
   })
 }
@@ -114,7 +114,7 @@ export function useCancelBooking(ref: string, token: string | null) {
     onSettled: () => Promise.all([
       qc.invalidateQueries({ queryKey: bookingKeys.detail(ref, token) }),
       qc.invalidateQueries({ queryKey: bookingKeys.allAvailability() }),
-      qc.invalidateQueries({ queryKey: accountKeys.allMyBookings }),
+      qc.invalidateQueries({ queryKey: accountKeys.allMyBookings() }),
     ]),
   })
 }

@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { setCurrentVenue } from '../../lib/currentVenue'
 import { adminCancelBooking, adminKeys, rescheduleBooking } from './api'
 import { useAdminCancelBooking, useRescheduleBooking } from './hooks'
 
@@ -17,6 +18,7 @@ function setup() {
 
 describe('moved parts stay fresh', () => {
   beforeEach(() => {
+    setCurrentVenue({ id: 'venue-a', slug: 'a-venue', status: 'active' })
     vi.mocked(rescheduleBooking).mockReset().mockResolvedValue({ continuationReference: 'CB-MOVEDA' })
     vi.mocked(adminCancelBooking).mockReset().mockResolvedValue('cancelled' as never)
   })

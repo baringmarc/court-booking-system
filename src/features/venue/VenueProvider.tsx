@@ -1,9 +1,11 @@
-import type { ReactNode } from 'react'
+import { useState, type FormEvent, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { ErrorMessage } from '../../components/ErrorMessage'
 import { PageLoader } from '../../components/PageLoader'
 import { setCurrentVenue } from '../../lib/currentVenue'
 import { resolveHost } from '../../lib/venueHost'
+import { signInWithPassword } from '../auth/api'
+import { useAuth } from '../auth/useAuth'
 import { fetchVenueBySlug } from './api'
 import { VenueContext } from './VenueContext'
 import { useVenue } from './useVenue'
@@ -28,13 +30,56 @@ function VenueNotFound() {
 }
 
 /**
+ * A draft venue is invisible to anon, so its staff can't reach /admin/login before they sign in. This form signs them
+ * in; the venue is read again once they have (the query key carries the user), and shows if they are members.
+ */
+function StaffSignIn() {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [pending, setPending] = useState(false)
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault()
+    setPending(true)
+    setError(null)
+    try {
+      await signInWithPassword(email, password)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not sign in. Please try again.')
+    } finally {
+      setPending(false)
+    }
+  }
+
+  return (
+    <section className="page narrow">
+      <h1>Staff sign in</h1>
+      <form className="card stack" onSubmit={handleSubmit}>
+        <label className="field">
+          <span>Email</span>
+          <input type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+        </label>
+        <label className="field">
+          <span>Password</span>
+          <input type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+        </label>
+        {error && <p className="form-error" role="alert">{error}</p>}
+        <button type="submit" className="btn btn-block" disabled={pending}>Sign in</button>
+      </form>
+    </section>
+  )
+}
+
+/**
  * Resolves the page's venue once, before anything below it renders, and makes it the current venue for the api
  * layer (`currentVenueId()`). A venue can't change without a page load: another venue is another subdomain.
  */
 export function VenueProvider({ children }: { children: ReactNode }) {
   const slug = pageSlug()
+  const { user } = useAuth()
   const { data: venue, error, isPending, refetch } = useQuery({
-    queryKey: ['venue', slug],
+    queryKey: ['venue', slug, user?.id ?? null],
     queryFn: () => fetchVenueBySlug(slug!),
     enabled: !!slug,
     staleTime: 5 * 60_000,
@@ -49,7 +94,9 @@ export function VenueProvider({ children }: { children: ReactNode }) {
     )
   }
   if (isPending) return <PageLoader />
-  if (!venue) return <VenueNotFound />
+  if (!venue) {
+    return !user && window.location.pathname.startsWith('/admin') ? <StaffSignIn /> : <VenueNotFound />
+  }
 
   setCurrentVenue(venue)
   return <VenueContext.Provider value={venue}>{children}</VenueContext.Provider>
