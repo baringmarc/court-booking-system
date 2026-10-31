@@ -20,7 +20,7 @@ beforeEach(() => {
 describe('booking api is venue-aware (T13.3)', () => {
   it('fetchAvailability sends the date and the current venue slug', async () => {
     await fetchAvailability('2030-05-01')
-    expect(h.calls).toEqual([{ fn: 'get_availability', args: { p_date: '2030-05-01', p_court_id: null, p_venue_slug: 'bay-courts' } }])
+    expect(h.calls).toEqual([{ fn: 'get_availability', args: { p_date: '2030-05-01', p_venue_slug: 'bay-courts' } }])
   })
 
   it('availability keys start with the venue id and keep the date', () => {

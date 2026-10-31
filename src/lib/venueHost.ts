@@ -1,6 +1,6 @@
 // Which venue (or the platform console) a hostname selects (SPEC §10 2026-10-31, RESEARCH M13).
 
-/** Never a venue slug (PLATFORM.md §3). The database's `venues_slug_not_reserved` check differs until T13.5 aligns it. */
+/** Never a venue slug (PLATFORM.md §3). The database's `venues_slug_not_reserved` also reserves `plotline` (T13.5). */
 export const RESERVED_SUBDOMAINS: readonly string[] = [
   'www', 'app', 'api', 'admin', 'demo', 'staging', 'mail', 'help', 'blog', 'status', 'support',
 ]

@@ -98,7 +98,7 @@ select has_function('private', 'resolve_public_venue', array['text'], 'private.r
 select is(private.resolve_public_venue('e2e-contract-a'), 'a0000000-0000-0000-0000-00000000000a'::uuid,
   'resolve_public_venue still resolves a slug');
 select is(pg_temp.sqlstate_of($$ select private.resolve_public_venue(null) $$), 'P0001',
-  'with several active venues, no slug still asks which venue (venue_required)');
+  'no slug asks which venue, whatever is active (venue_required)');
 
 -- ---------------------------------------------------------------- no-venue time helpers gone
 select is(to_regprocedure('private.venue_tz()'), null, 'venue_tz() is dropped');

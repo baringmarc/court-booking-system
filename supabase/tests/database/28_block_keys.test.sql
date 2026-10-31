@@ -51,12 +51,12 @@ insert into public.open_play_courts (session_id, court_id, during) values
 -- Shape and grants (expand only: the earlier columns are unchanged)
 -- ---------------------------------------------------------------------------
 select is(
-  pg_get_function_result('public.get_availability(date, uuid)'::regprocedure),
+  pg_get_function_result('public.get_availability(date, uuid, text)'::regprocedure),
   'TABLE(court_id uuid, slot_start timestamp with time zone, slot_end timestamp with time zone, price numeric, status text, booker_first_name text, open_play_session_id uuid, block_key text)',
   'get_availability gains block_key after its earlier columns'
 );
-select ok(has_function_privilege('anon', 'public.get_availability(date, uuid)', 'EXECUTE'), 'anon can still call it');
-select ok(not has_function_privilege('public', 'public.get_availability(date, uuid)', 'EXECUTE'), 'PUBLIC still has no execute grant');
+select ok(has_function_privilege('anon', 'public.get_availability(date, uuid, text)', 'EXECUTE'), 'anon can still call it');
+select ok(not has_function_privilege('public', 'public.get_availability(date, uuid, text)', 'EXECUTE'), 'PUBLIC still has no execute grant');
 
 -- ---------------------------------------------------------------------------
 -- As anon, the way /book calls it
@@ -66,7 +66,7 @@ select set_config('request.jwt.claims', '{"role": "anon"}', true);
 
 create temp view keys as
 select court_id, extract(hour from slot_start at time zone 'Asia/Manila')::int as h, status, block_key
-from public.get_availability((select d from fx))
+from public.get_availability((select d from fx), null, 'claudex-courts')
 where court_id in ('c0000000-0000-0000-0000-0000000000e1', 'c0000000-0000-0000-0000-0000000000e2');
 
 create function pg_temp.key_at(p_court text, p_hour int) returns text language sql as $$
@@ -89,7 +89,7 @@ select ok(
      k.block_key <> b.id::text
      and position(k.block_key in replace(b.id::text, '-', '')) = 0
      and position(k.block_key in b.reference_code) = 0)
-   from public.get_availability((select d from fx)) k
+   from public.get_availability((select d from fx), null, 'claudex-courts') k
    join public.bookings b on b.court_id = k.court_id and b.during @> k.slot_start
    where k.status = 'booked'),
   'no booking key is, or contains part of, the booking id or reference'
