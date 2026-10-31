@@ -175,3 +175,7 @@
 {"ts":"2026-10-31T06:07:53.103Z","task":"T13.6","source":"gate","tier":"fast","category":"test","summary":"❯ src/features/admin/OpenPlayPage.test.tsx (8 tests | 1 failed) 11698ms"}
 {"ts":"2026-10-31T06:13:21.744Z","task":"T13.6","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"grep -rniE \"cors|Access-Control|allow-origin\" /Users/macbookpro/Documents/Projects/court-booking-system/supabase/functions --include=*.ts -l"}
 {"ts":"2026-10-31T06:31:31.079Z","task":"T13.8","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"grep -rn \"on public.platform_admins\\|platform_admins for\" /Users/macbookpro/Documents/Projects/court-booking-system/supabase/migrations"}
+{"ts":"2026-10-31T17:28:02.100Z","task":"T13.9","source":"gate","tier":"full","category":"test:db","summary":"# Failed test 7: \"anon can read venue settings\""}
+{"ts":"2026-10-31T17:35:45.176Z","task":"T13.9","source":"gate","tier":"full","category":"test:e2e","summary":"Testing stopped early after 5 maximum allowed failures."}
+{"ts":"2026-10-31T17:37:13.435Z","task":"T13.9","source":"dispute","summary":"T13.9 two-venues afterAll could not delete venues (non-cascading FKs); fixed with deleteVenue helper"}
+{"ts":"2026-10-31T17:43:05.447Z","task":"T13.9","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"grep -rn \"127.0.0.1:5179\\|VITE_DEFAULT_VENUE\\|localhost:5179\" /Users/macbookpro/Documents/Projects/court-booking-system/e2e /Users/macbookpro/Documents/Projects/court-booking-system/scripts /Users/mac"}

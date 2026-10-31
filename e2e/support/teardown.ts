@@ -1,7 +1,7 @@
 // Removes everything the E2E run created in the LOCAL database: tagged bookings (payments cascade),
 // their proof files, tagged courts with their photos, an E2E banner, tagged blackouts and open play sessions, tagged
 // payment accounts with their QR codes, and the e2e-* users.
-import { E2E_PREFIX, serviceClient } from './helpers.ts'
+import { E2E_PREFIX, serviceClient, venueId } from './helpers.ts'
 
 export default async function teardown() {
   const service = serviceClient()
@@ -34,7 +34,7 @@ export default async function teardown() {
   }
 
   // A banner left by a failed run (tagged through its alt text); a developer's own banner is kept.
-  const { data: settings } = await service.from('venue_settings').select('venue_id, banner_path, banner_alt').single()
+  const { data: settings } = await service.from('venue_settings').select('venue_id, banner_path, banner_alt').eq('venue_id', await venueId()).single()
   if (settings?.banner_path && settings.banner_alt?.startsWith(E2E_PREFIX)) {
     const { error: clearError } = await service.from('venue_settings')
       .update({ banner_path: null, banner_alt: null }).eq('venue_id', settings.venue_id)
@@ -60,6 +60,20 @@ export default async function teardown() {
   if (qrPaths.length) await service.storage.from('payment-qr').remove(qrPaths)
   const { error: accountsError } = await service.from('venue_payment_accounts').delete().like('label', `${E2E_PREFIX}%`)
   if (accountsError) throw accountsError
+
+  // Tagged venues (T13.9). Their members cascade; the users go below.
+  // Hours and settings don't cascade from `venues`; courts were removed above (tagged E2E) and bookings before that.
+  const { data: e2eVenues, error: venuesError } = await service.from('venues').select('id').like('slug', 'e2e-%')
+  if (venuesError) throw venuesError
+  const venueIds = (e2eVenues ?? []).map((v) => v.id)
+  if (venueIds.length) {
+    for (const table of ['operating_hours', 'venue_settings'] as const) {
+      const { error: childError } = await service.from(table).delete().in('venue_id', venueIds)
+      if (childError) throw childError
+    }
+    const { error: deleteVenuesError } = await service.from('venues').delete().in('id', venueIds)
+    if (deleteVenuesError) throw deleteVenuesError
+  }
 
   const { data: users } = await service.auth.admin.listUsers({ perPage: 1000 })
   for (const user of users?.users ?? []) {

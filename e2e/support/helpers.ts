@@ -47,6 +47,52 @@ export async function createAdmin() {
   return { email: user.email, password: user.password }
 }
 
+/**
+ * Creates a second, active venue `e2e-<kind>-<n>` with a name, daily hours and one court (T13.9), for the isolation
+ * flows. Open it at `http://<slug>.localhost:5179`. Teardown deletes every `e2e-*` venue.
+ */
+export async function createVenue(kind = 'venue') {
+  const service = serviceClient()
+  const slug = `e2e-${kind}-${Date.now().toString(36)}`
+  const name = `${E2E_PREFIX} ${kind} ${slug.slice(-4)}`
+  const { data: venue, error } = await service.from('venues').insert({ slug, status: 'active' }).select('id').single()
+  if (error) throw error
+  const { error: settingsError } = await service.from('venue_settings').insert({ venue_id: venue.id, name })
+  if (settingsError) throw settingsError
+  const hours = Array.from({ length: 7 }, (_, day_of_week) => ({ venue_id: venue.id, day_of_week, open_time: '06:00', close_time: '22:00' }))
+  const { error: hoursError } = await service.from('operating_hours').insert(hours)
+  if (hoursError) throw hoursError
+  const court = `${E2E_PREFIX} ${kind} Court`
+  const { error: courtError } = await service.from('courts').insert({ venue_id: venue.id, name: court, sport: 'tennis', default_hourly_rate: 700 })
+  if (courtError) throw courtError
+  return { id: venue.id, slug, name, court, url: `http://${slug}.localhost:5179` }
+}
+
+/** Removes a venue made by `createVenue`: hours, settings and courts don't cascade from `venues`. Members do. */
+export async function deleteVenue(id: string) {
+  const service = serviceClient()
+  for (const table of ['courts', 'operating_hours', 'venue_settings'] as const) {
+    const { error } = await service.from(table).delete().eq('venue_id', id)
+    if (error) throw error
+  }
+  const { error } = await service.from('venues').delete().eq('id', id)
+  if (error) throw error
+}
+
+/** Makes an existing user staff of `venueId`. */
+export async function addVenueStaff(venueId: string, userId: string) {
+  const { error } = await serviceClient().from('venue_members').insert({ venue_id: venueId, user_id: userId, role: 'staff' })
+  if (error) throw error
+}
+
+/** Creates a confirmed user who is a platform admin (the console's guard, T13.7). */
+export async function createPlatformAdmin() {
+  const user = await createPlayer('platform')
+  const { error } = await serviceClient().from('platform_admins').insert({ user_id: user.id })
+  if (error) throw error
+  return { email: user.email, password: user.password }
+}
+
 /** Fills and submits the /admin/login form (the page must already show it). */
 export async function submitAdminLogin(page: Page, email: string, password: string) {
   await expect(page.getByRole('heading', { name: 'Admin log in' })).toBeVisible()

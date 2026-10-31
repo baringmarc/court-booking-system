@@ -5,6 +5,9 @@ import { localSupabase } from './e2e/support/local.ts'
 // precedence over .env, which points at the linked project.
 const supabase = localSupabase()
 const PORT = 5179
+// Every flow runs under the demo venue's subdomain (T13.9): Chromium resolves *.localhost to loopback, and the app
+// reads the venue from the host. `app.localhost` (console) and other venues' hosts use full URLs in their specs.
+export const VENUE_HOST = `http://claudex-courts.localhost:${PORT}`
 
 export default defineConfig({
   testDir: 'e2e',
@@ -20,7 +23,7 @@ export default defineConfig({
   expect: { timeout: 10_000 },
   globalTeardown: './e2e/support/teardown.ts',
   use: {
-    baseURL: `http://127.0.0.1:${PORT}`,
+    baseURL: VENUE_HOST,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
@@ -39,8 +42,6 @@ export default defineConfig({
       VITE_SUPABASE_PUBLISHABLE_KEY: supabase.publishableKey,
       // Walk-ins are hidden in production builds (T11.2); the walk-in specs need them.
       VITE_FEATURE_WALK_INS: 'true',
-      // The e2e server is on 127.0.0.1 (no subdomain); T13.9 moves the flows under a venue subdomain.
-      VITE_DEFAULT_VENUE: 'claudex-courts',
     },
   },
 })
