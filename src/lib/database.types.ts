@@ -1554,6 +1554,7 @@ export type Database = {
         }
         Returns: string
       }
+      user_id_by_email: { Args: { p_email: string }; Returns: string }
     }
     Enums: {
       booking_source: "online" | "walk_in" | "moved"

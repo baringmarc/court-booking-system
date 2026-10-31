@@ -445,3 +445,7 @@ enabled = true
 # Called by the marketing site (plotline-site) with the publishable key, which is not a JWT, so the platform JWT
 # check must be off. The function checks the origin (SITE_ORIGINS), a honeypot, a timing check and Turnstile.
 verify_jwt = false
+
+[functions.invite-venue-owner]
+# Called by the platform console with the admin's session; the function checks platform_admins itself.
+verify_jwt = true
