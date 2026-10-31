@@ -6,8 +6,8 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
 
 > Update this section at the end of every session or task. Keep it short; it's the first thing the next session reads.
 
-- **Current milestone:** M13 Subdomains and Cloudflare hosting ✅ done on 2026-11-01 (breakdown approved on 2026-10-31). M12 ✅ done on 2026-10-31. M11 ✅ done on 2026-10-30 (brand in `docs/BRAND.md`). M10 ✅ done on 2026-10-26 and M9 on 2026-10-23 (M1–M10 all done). After M11 come the SaaS milestones (M12+, `docs/SAAS-PLAN.md`), each with its own breakdown and approval.
-- **Next task:** break down the next milestone (all M13 tasks done on 2026-11-01, milestone review PASS, SPEC §9 marks M13 ✅). H8 done on 2026-11-01. Then break down the next milestone (needs approval). `/retro` M13 done on 2026-11-01 (L3 added; harness task H8 queued before the next milestone). T13.8 done on 2026-11-01 (Cloudflare is live on `*.plotline.fit`). On 2026-11-01 the user set `PUBLIC_ROOT_DOMAIN=plotline.fit`, deployed `create-paymongo-checkout`, `email-guest-link` and `send-emails`, and confirmed the Supabase redirect URL `https://*.plotline.fit/**` and the Google origin, so merging `develop` into `master` is now safe (it turns on the Vercel redirect in `vercel.json`). T13.7 done on 2026-10-31. T13.6 done on 2026-10-31 (functions not deployed yet). T13.5 done on 2026-10-31 (migration pushed 2026-11-01). T13.4 done on 2026-10-31. T13.3 done on 2026-10-31. T13.2 done on 2026-10-31. T13.1 done on 2026-10-31 (RESEARCH M13). M13 breakdown approved on 2026-10-31. M12 milestone review PASS and `/retro` M12 done on 2026-10-31 (L2 added, L1 promoted). T12.11 done on 2026-10-31 (contract migration `20261030185106` live on the linked project). T12.10 done on 2026-10-31 (`create-paymongo-checkout` deployed; grant migration `20261030181759` live). T12.9 done on 2026-10-31. (T12.9: isolation suite `51_cross_venue_isolation`, tests only.) T12.8 done on 2026-10-30. T12.7 done on 2026-10-30, including the remote object copy. T12.1–T12.8 done on 2026-10-30; `venue_id` is live on every venue-owned table, RLS is venue-scoped, and every RPC reads its venue, all on the linked project. Only the zero-argument time helpers and `private.is_admin()` remain for T12.11. The M12 breakdown was approved on 2026-10-30; plan gates are not pre-approved. T11.15 done on 2026-10-30 (contract migration live). `develop` is merged into `master` and deployed.
+- **Current milestone:** M14 Platform console (breakdown approved 2026-11-01, not started). M13 Subdomains and Cloudflare hosting ✅ done on 2026-11-01 (breakdown approved on 2026-10-31). M12 ✅ done on 2026-10-31. M11 ✅ done on 2026-10-30 (brand in `docs/BRAND.md`). M10 ✅ done on 2026-10-26 and M9 on 2026-10-23 (M1–M10 all done). After M11 come the SaaS milestones (M12+, `docs/SAAS-PLAN.md`), each with its own breakdown and approval.
+- **Next task:** T14.1 Research: console, invites, cron, showcase (M14 breakdown approved by the user on 2026-11-01; every risky M14 task waits at its plan gate). Earlier: break down the next milestone (all M13 tasks done on 2026-11-01, milestone review PASS, SPEC §9 marks M13 ✅). H8 done on 2026-11-01. Then break down the next milestone (needs approval). `/retro` M13 done on 2026-11-01 (L3 added; harness task H8 queued before the next milestone). T13.8 done on 2026-11-01 (Cloudflare is live on `*.plotline.fit`). On 2026-11-01 the user set `PUBLIC_ROOT_DOMAIN=plotline.fit`, deployed `create-paymongo-checkout`, `email-guest-link` and `send-emails`, and confirmed the Supabase redirect URL `https://*.plotline.fit/**` and the Google origin, so merging `develop` into `master` is now safe (it turns on the Vercel redirect in `vercel.json`). T13.7 done on 2026-10-31. T13.6 done on 2026-10-31 (functions not deployed yet). T13.5 done on 2026-10-31 (migration pushed 2026-11-01). T13.4 done on 2026-10-31. T13.3 done on 2026-10-31. T13.2 done on 2026-10-31. T13.1 done on 2026-10-31 (RESEARCH M13). M13 breakdown approved on 2026-10-31. M12 milestone review PASS and `/retro` M12 done on 2026-10-31 (L2 added, L1 promoted). T12.11 done on 2026-10-31 (contract migration `20261030185106` live on the linked project). T12.10 done on 2026-10-31 (`create-paymongo-checkout` deployed; grant migration `20261030181759` live). T12.9 done on 2026-10-31. (T12.9: isolation suite `51_cross_venue_isolation`, tests only.) T12.8 done on 2026-10-30. T12.7 done on 2026-10-30, including the remote object copy. T12.1–T12.8 done on 2026-10-30; `venue_id` is live on every venue-owned table, RLS is venue-scoped, and every RPC reads its venue, all on the linked project. Only the zero-argument time helpers and `private.is_admin()` remain for T12.11. The M12 breakdown was approved on 2026-10-30; plan gates are not pre-approved. T11.15 done on 2026-10-30 (contract migration live). `develop` is merged into `master` and deployed.
 - **State:** M13 in progress; T13.1–T13.4 done on 2026-10-31. Admin is per venue (membership of the page's venue), admin reads are venue-filtered, and a member of 2+ venues gets a switcher. The app now needs a venue from its host or `VITE_DEFAULT_VENUE`. M12 done on 2026-10-31 (T12.1–T12.11; the contract is live on the linked project). Production runs the T12.10 frontend, so its admin tabs get no live booking refresh until `develop` (T12.11's per-venue topic) is merged into `master` and deployed. Still waiting on you: the ₱10 fee and the default waiver text (see Blockers / notes).
 - **Blockers / notes:**
   - **Waiting on you (T13.6, 2026-10-31):** (1) in Supabase Auth → URL configuration add the redirect URL `https://*.plotline.fit/**` (keep the existing ones); (2) say when to deploy `create-paymongo-checkout`, `email-guest-link` and `send-emails` (`npx supabase functions deploy`, you approved it in the plan); (3) set the secret `PUBLIC_ROOT_DOMAIN=plotline.fit` only once the wildcard DNS is live (T13.8). Until then links keep using `PUBLIC_SITE_URL`.
@@ -2015,6 +2015,80 @@ Out of scope for M12: subdomains and `getVenueSlug()` (Phase 2), the platform co
 - **Do:** Playwright runs under `<slug>.localhost`; a two-venue isolation flow (player and admin); update SPEC (§1 non-goal, §5 routing, §10), PLATFORM.md and the Handoff; milestone review and `/retro`.
 - **Acceptance:** `npm run verify` and `npm run test:e2e` pass; reviewer signs off.
 - **Notes:** Done on 2026-11-01. Tests (test-writer): `e2e/two-venues.spec.ts`, `e2e/console.spec.ts`; every existing flow now runs under `claudex-courts.localhost:5179`. Full gate passed (verify and e2e), reviewer PASS in round 1. One dispute, the brief's mistake: the spec's `afterAll` couldn't delete its venue because hours, settings and courts don't cascade, which left a second venue that broke later `venue_settings … .single()` flows; fixed with `deleteVenue` in the helpers. Restart the local stack after pulling (`config.toml` redirect URLs). Follow-up: the milestone review and `/retro` M13 are next.
+
+## Milestone 14: Platform console
+
+SaaS Phase 3 (`docs/SAAS-PLAN.md`). Staff-only tools on `app.plotline.fit`: leads, venue creation, owner invites, setup and publish, a venues list, invoicing, the demo reset and the showcase. Breakdown approved by the user on 2026-11-01. Scope notes from that approval: `leads` and `site-contact` come in here (T14.2) because the console needs real data; the plotline-site change that calls them stays in Phase 5. Invoices are not emailed by the app (staff mark them sent by hand). Invoice pages are **documentation of the amounts**, not the final legal invoice: what matters is the breakdown of amounts from the data. No tax work; the receipt wording is researched from existing examples (T14.1). Every risky task stops at the plan gate (none are pre-approved; approving a plan approves its `db:push`).
+
+### [ ] T14.1 Research: console, invites, cron, showcase
+- **Depends:** M13 done
+- **Do:** RESEARCH M14: (1) owner invite through a service-role function (`auth.admin.inviteUserByEmail`, landing on `<slug>.plotline.fit/admin`, redirect allow-list); (2) pg_cron for the monthly draft invoices and the nightly demo reset (how to restore seed data without touching other venues); (3) where the showcase's name, city and logo come from (`venue_settings` has the name; `venues` has no name); (4) existing wordings and layouts for a billing statement or invoice breakdown (documentation, not tax advice); (5) read `docs/drafts/phase5-site-backend/`. Record choices in SPEC §10.
+- **Acceptance:** each finding has a source or the query run; the plan for T14.2–T14.13 is adjusted if research changes it.
+
+### [ ] T14.2 Leads backend
+- **Depends:** T14.1
+- **Do:** PLATFORM.md first. Migration for `leads` (status `new` → `talking` → `won` / `lost`, notes, platform-admin-only RLS), the `site-contact` function and `_shared/siteForms.ts` (Turnstile, honeypot, timing check), from the drafts. pgTAP and Vitest.
+- **Acceptance:** anon cannot read `leads`; an invalid form is refused; a valid one stores a lead; pgTAP for RLS and the status values. **Risky** (migration, Edge Function).
+
+### [ ] T14.3 Console shell and leads inbox
+- **Depends:** T14.2
+- **Do:** navigation for the `app.` console; a leads list with a status filter; change status and edit notes.
+- **Acceptance:** component tests for loading, empty, error and the status change; non-platform-admins are still refused.
+
+### [ ] T14.4 RPC `create_venue`
+- **Depends:** T14.2
+- **Do:** platform admins only. Takes slug, name, timezone and payment mode; creates the venue as `draft` with its default settings rows. Refuses reserved or duplicate slugs.
+- **Acceptance:** pgTAP: platform admin ok, venue admin and anon refused, bad slugs refused, draft status, default rows present. **Risky** (RPC).
+
+### [ ] T14.5 Owner invite function
+- **Depends:** T14.4
+- **Do:** `invite-venue-owner` (service role; checks the caller is a platform admin): sends the Supabase invite, adds the `venue_members` row with the owner role, and the invite lands on the venue's `/admin`.
+- **Acceptance:** Vitest for the guard and the redirect URL; non-platform-admin refused; `smoke:proof` extended or a local invite check. **Risky** (Edge Function, auth).
+
+### [ ] T14.6 Create a venue from a lead (UI)
+- **Depends:** T14.3, T14.4, T14.5
+- **Do:** a form seeded from the lead; creating the venue invites the owner and marks the lead `won`.
+- **Acceptance:** component tests for the seeding, success and failure paths.
+
+### [ ] T14.7 Setup checklist and publish
+- **Depends:** T14.4
+- **Do:** a checklist in the venue admin (courts, rates, hours, payment details, photos); a `publish_venue` RPC moves `draft` → `active` and refuses until the required items exist.
+- **Acceptance:** pgTAP for the refusal and the success; component tests for the checklist. **Risky** (RPC).
+
+### [ ] T14.8 Venues list, suspend and reactivate
+- **Depends:** T14.4
+- **Do:** in the console: status, PayMongo status, this month's transactions and running total, open invoices; platform-admin RPCs to suspend and reactivate.
+- **Acceptance:** pgTAP for the RPCs (platform admin only) and the totals; component tests. **Risky** (RPC).
+
+### [ ] T14.9 Monthly draft invoices
+- **Depends:** T14.1
+- **Do:** a pg_cron job on the 1st creates a draft `invoices` row per venue with every charge of the previous month and sets `billing_charges.invoice_id`. Idempotent; every venue every month, whatever the amount.
+- **Acceptance:** pgTAP: charges attach once, a rerun changes nothing, later charges go to the next month. **Risky** (migration, cron).
+
+### [ ] T14.10 Invoice review UI
+- **Depends:** T14.9, T14.3
+- **Do:** review a draft with its breakdown (booking fees, venue-cancellation adjustments, total; each line links to its booking); mark sent and paid (method, reference); a printable page; flag invoices overdue past the grace days.
+- **Acceptance:** RPC pgTAP (platform admin only, status order) and component tests for the breakdown, printing and the overdue flag. **Risky** (RPC).
+
+### [ ] T14.11 Venue statement
+- **Depends:** T14.9
+- **Do:** in the venue admin: this month so far (transactions by payment method, venue cancellations credited, running total), past invoices, each line linking to its booking.
+- **Acceptance:** a venue sees only its own statement (pgTAP); component tests.
+
+### [ ] T14.12 Demo reset
+- **Depends:** T14.1
+- **Do:** a nightly job restores `claudex-courts` to its seed data and never touches another venue.
+- **Acceptance:** pgTAP with a second venue untouched after a reset. **Risky** (cron, destructive).
+
+### [ ] T14.13 Venue showcase
+- **Depends:** T14.7
+- **Do:** an opt-in column, the `public_venues` view (`slug, name, city, logo_url`) readable by anon for active, opted-in venues, and an admin toggle. PLATFORM.md first.
+- **Acceptance:** pgTAP: anon sees only active, opted-in venues. **Risky** (view, grant).
+
+### [ ] T14.14 e2e and close out M14
+- **Depends:** T14.3–T14.13
+- **Do:** a console flow (lead → create venue → invite → publish → showcase) and an invoice flow; update SPEC §9 and §10, PLATFORM.md and the Handoff; milestone review and `/retro`.
+- **Acceptance:** `npm run verify` and `npm run test:e2e` pass; the reviewer signs off.
 
 ---
 
