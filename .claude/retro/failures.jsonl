@@ -179,3 +179,7 @@
 {"ts":"2026-10-31T17:35:45.176Z","task":"T13.9","source":"gate","tier":"full","category":"test:e2e","summary":"Testing stopped early after 5 maximum allowed failures."}
 {"ts":"2026-10-31T17:37:13.435Z","task":"T13.9","source":"dispute","summary":"T13.9 two-venues afterAll could not delete venues (non-cascading FKs); fixed with deleteVenue helper"}
 {"ts":"2026-10-31T17:43:05.447Z","task":"T13.9","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"grep -rn \"127.0.0.1:5179\\|VITE_DEFAULT_VENUE\\|localhost:5179\" /Users/macbookpro/Documents/Projects/court-booking-system/e2e /Users/macbookpro/Documents/Projects/court-booking-system/scripts /Users/mac"}
+{"ts":"2026-10-31T18:33:23.359Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"grep -n \"M13\\|T13\" /Users/macbookpro/Documents/Projects/court-booking-system/TASKS.md"}
+{"ts":"2026-10-31T18:33:29.419Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"grep -n \"T13\\.\\|Milestone 13\\|M13\" /Users/macbookpro/Documents/Projects/court-booking-system/TASKS.md"}
+{"ts":"2026-10-31T18:34:51.014Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"git diff 5c02af4...HEAD -U0 -- e2e src supabase/tests -G \"\\.(skip|only)\\(|test\\.fixme\""}
+{"ts":"2026-10-31T18:36:05.456Z","task":"adhoc","source":"retro","milestone":"M13","summary":"2 proposals, 2 approved: L3; H8 reviewer test-diff check task"}
