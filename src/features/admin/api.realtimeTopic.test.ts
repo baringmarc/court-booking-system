@@ -1,4 +1,4 @@
-// T12.11: the private Realtime topic is per venue, admin:bookings:{venueId}, with the venue from currentAdminVenueId().
+// T12.11: the private Realtime topic is per venue, admin:bookings:{venueId}, with the venue from currentVenueId().
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const h = vi.hoisted(() => ({
@@ -7,7 +7,7 @@ const h = vi.hoisted(() => ({
   removed: 0,
 }))
 
-vi.mock('../auth/api', () => ({ currentAdminVenueId: vi.fn(async () => h.VENUE) }))
+vi.mock('../../lib/currentVenue', () => ({ currentVenueId: () => h.VENUE }))
 vi.mock('../../lib/supabase', () => {
   const channel = (name: string, config: unknown) => {
     h.channels.push({ name, config })

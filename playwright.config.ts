@@ -13,6 +13,8 @@ export default defineConfig({
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: 0,
+  // A systemic break (a bad deploy of the app, a down stack) fails every flow, each after its own 60 s timeout. Stop after a few.
+  maxFailures: 5,
   reporter: 'list',
   timeout: 60_000,
   expect: { timeout: 10_000 },
@@ -37,6 +39,8 @@ export default defineConfig({
       VITE_SUPABASE_PUBLISHABLE_KEY: supabase.publishableKey,
       // Walk-ins are hidden in production builds (T11.2); the walk-in specs need them.
       VITE_FEATURE_WALK_INS: 'true',
+      // The e2e server is on 127.0.0.1 (no subdomain); T13.9 moves the flows under a venue subdomain.
+      VITE_DEFAULT_VENUE: 'claudex-courts',
     },
   },
 })

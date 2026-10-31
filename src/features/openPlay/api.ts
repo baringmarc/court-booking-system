@@ -1,5 +1,6 @@
 import { supabase } from '../../lib/supabase'
 import { unwrap } from '../../lib/queryClient'
+import { currentVenueId } from '../../lib/currentVenue'
 import { toLinks, type OpenPlayLink } from './session'
 
 export type { OpenPlayLink } from './session'
@@ -25,8 +26,8 @@ export type OpenPlayInput = {
 }
 
 export const openPlayKeys = {
-  all: ['open-play'] as const,
-  upcoming: ['open-play', 'upcoming'] as const,
+  all: () => [currentVenueId(), 'open-play'] as const,
+  upcoming: () => [currentVenueId(), 'open-play', 'upcoming'] as const,
 }
 
 /** Sessions that haven't ended, soonest first. Public: /book's details, the admin list and the day view.
@@ -36,6 +37,7 @@ export async function fetchUpcomingOpenPlay(): Promise<OpenPlaySession[]> {
     await supabase
       .from('open_play_sessions')
       .select('id, title, details, links, starts_at, ends_at, open_play_courts(court_id)')
+      .eq('venue_id', currentVenueId())
       .gt('ends_at', new Date().toISOString())
       .order('starts_at'),
   )

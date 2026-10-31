@@ -2,6 +2,7 @@ import { FunctionsHttpError } from '@supabase/supabase-js'
 import { supabase } from '../../lib/supabase'
 import { ApiError, unwrap } from '../../lib/queryClient'
 import { parseTstzRange } from '../../lib/time'
+import { currentVenue } from '../../lib/currentVenue'
 import type { Enums } from '../../lib/database.types'
 import type { Slot, SlotStatus } from './selection'
 import type { BookingStatus } from './status'
@@ -102,7 +103,14 @@ const SLOT_STATUSES = new Set<string>(['free', 'booked', 'blackout', 'open_play'
 
 /** One row per active court × slot on a venue-local date ("YYYY-MM-DD"). Empty for closed or out-of-window days. */
 export async function fetchAvailability(date: string): Promise<Slot[]> {
-  const rows = unwrap(await supabase.rpc('get_availability', { p_date: date }))
+  const rows = unwrap(
+    await supabase.rpc('get_availability', {
+      p_date: date,
+      // All courts. The three-argument form has no default for it (T13.5 can add one); null is valid, the generated type just says string.
+      p_court_id: null as unknown as string,
+      p_venue_slug: currentVenue().slug,
+    }),
+  )
   return rows.map((r) => ({
     court_id: r.court_id,
     slot_start: r.slot_start,

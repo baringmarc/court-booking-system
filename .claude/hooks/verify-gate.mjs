@@ -88,7 +88,10 @@ if (FULL) {
   if (code.empty || state.fullPassed === code.hash) {
     console.log('Full checks already passed for these changes.')
   } else {
-    const r = runChecks('full', config.fullChecks)
+    // The Stop hook already ran the fast checks on exactly these changes: don't run them twice.
+    const reuseFast = state.fastPassed === code.hash
+    if (reuseFast) console.log(`- skip ${config.fastChecks.join(', ')} (the fast checks already passed for these changes)`)
+    const r = runChecks('full', reuseFast ? config.fullChecks.filter((c) => !config.fastChecks.includes(c)) : config.fullChecks)
     if (!r.ok) finish(1, `\nFULL VERIFY FAILED at \`npm run ${r.check}\`:\n\n${r.tail}\n\nFix it and run --full again. Don't weaken tests or lint rules.`)
     state.fullPassed = code.hash
     state.fastPassed = code.hash

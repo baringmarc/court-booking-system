@@ -3,6 +3,7 @@ import { Link, Navigate, Outlet, useLocation } from 'react-router-dom'
 import { ErrorMessage } from '../../components/ErrorMessage'
 import { PageLoader } from '../../components/PageLoader'
 import { useAuth } from '../auth/useAuth'
+import { useIsVenueAdmin } from '../auth/useIsVenueAdmin'
 
 /** Shown to a signed-in account that isn't an admin. Admin access itself is enforced by RLS (`private.is_venue_admin`). */
 export function AdminsOnly() {
@@ -47,7 +48,8 @@ export function AccountLoadError() {
 
 /** Layout route for every admin page except /admin/login. */
 export function AdminGuard() {
-  const { user, isAdmin, loading, profileError } = useAuth()
+  const { user, loading, profileError } = useAuth()
+  const isAdmin = useIsVenueAdmin()
   const location = useLocation()
 
   if (loading) return <PageLoader />

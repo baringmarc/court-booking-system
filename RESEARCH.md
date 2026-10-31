@@ -1218,3 +1218,43 @@ Answered by the user on 2026-10-29: all three as recommended (blank waiver, then
 1. **Venue pick until Phase 2: option A.** Public RPCs take an optional `p_venue_slug text default 'claudex-courts'`; the frontend is unchanged. Guard: the default raises a clear error once a second venue is `active`. Phase 2 passes the subdomain slug and removes the default.
 2. **`platform_pricing` stays global** in M12.
 3. **`create_walk_in` is left as it is** (made venue-aware only; the code flag keeps hiding it). A per-venue `walk_ins_enabled` can come later.
+
+## Milestone 13: Subdomains and Cloudflare hosting
+
+### Venue pick: what M12 left (T13.1, 2026-10-31)
+- **Status:** Decided (SPEC §10, 2026-10-31)
+- **Question:** which database paths still pick Claudex Courts by default, and which frontend reads break once a second venue is `active`?
+- **Findings:** (local database catalog queries on `pg_proc`, `pg_policy` and `information_schema.columns`, and a grep of `src/`, run on 2026-10-31)
+  - Only one public RPC takes a slug: `get_availability(p_date, p_court_id, p_venue_slug)`. Its two-argument form passes `null`, and `private.resolve_public_venue(null)` falls back to `private.default_venue_id()` (`slug = 'claudex-courts'`) unless more than one venue is `active` (`venue_required`). No other function calls `resolve_public_venue` or `default_venue_id`, and no column default uses them. The other booking RPCs take the venue from the court or booking row (T12.5).
+  - `venues` RLS: anon reads `status = 'active'`; members and platform admins also read their own draft venues. A slug lookup from the browser needs no new RPC.
+  - The frontend sends no venue at all: `booking/api.ts` calls the two-argument `get_availability`; `catalog/api.ts` reads `venue_settings` with `.single()` and reads `courts`, `operating_hours` and `blackouts` without a venue filter; `venue/api.ts` reads the socials, sections, amenities and payment accounts the same way. With two active venues, `.single()` errors and every list mixes both venues. Admin writes already name `venue_id` through `currentAdminVenueId()` (the first membership, T12.10).
+- **Gotchas:** RLS alone can't scope the public reads, because anon may read every active venue. Each read has to filter `venue_id = <current venue>` itself. Dropping the two-argument `get_availability` breaks the deployed frontend, so it waits until the T13.3 frontend is in production (expand → deploy → contract).
+- **Recommendation:** T13.3 resolves the venue once by slug (`venues` select) and passes `venue_id` to every public read and `p_venue_slug` to `get_availability`. T13.5 drops the two-argument `get_availability`, the `null` branch of `resolve_public_venue` and `default_venue_id()`, after T13.3 is deployed.
+
+### Hostnames and local subdomains (T13.1, 2026-10-31)
+- **Status:** Decided (SPEC §10, 2026-10-31)
+- **Question:** can dev, preview and e2e run under `<slug>.localhost`, and which hosts map to which mode?
+- **Findings:**
+  - Vite allows `.localhost` subdomains by default: "`localhost` and domains under `.localhost` and all IP addresses are allowed by default" for `server.allowedHosts` (https://vite.dev/config/server-options). No config change is needed for `npm run dev`.
+  - Chromium under Playwright resolves `*.localhost` to loopback on its own. Experiment (2026-10-31): a Node HTTP server on port 5199 and Playwright's Chromium opening `http://smash-arena.localhost:5199/x` returned `host=smash-arena.localhost:5199`, with no `/etc/hosts` entry.
+  - Reserved names (SAAS-PLAN §2, PLATFORM.md): `www`, `app`, `api`, `admin`, `demo`, `staging`, `mail`, `help`, `blog`, `status`, `support`. The `venues.slug` check already refuses them (T12.2).
+- **Gotchas:** localStorage, and so the Supabase session, is per origin. `claudex-courts.localhost` and `localhost` are different origins, so a login doesn't carry over. That's the intended per-venue login (SAAS-PLAN Phase 2). Bare `localhost` and Vercel/Cloudflare preview hosts have no slug, so they need the `?venue=` override.
+- **Recommendation:** `getVenueSlug()` maps `<slug>.plotline.fit` and `<slug>.localhost` to a slug, `app.` to the console, other reserved names to none, and anything else (bare `localhost`, previews) to a `?venue=` value saved in `sessionStorage`. e2e uses `http://claudex-courts.localhost:5179`.
+
+### Cloudflare Workers hosting (T13.1, 2026-10-31)
+- **Status:** Decided (SPEC §10, 2026-10-31)
+- **Question:** how does a static SPA build get served on `*.plotline.fit` for free?
+- **Findings:**
+  - Static assets with `assets.directory = "./dist/"` and `assets.not_found_handling = "single-page-application"` serve `/index.html` with 200 for any path that isn't a file (https://developers.cloudflare.com/workers/static-assets/routing/single-page-application/). With no `main` script, no Worker code runs, and "Requests to static assets are free and unlimited" (https://developers.cloudflare.com/workers/static-assets/billing-and-limitations/).
+  - A route pattern starting with `*.` "only matches all subhosts": `*.example.com/*` matches `www.example.com` but not the apex. Every hostname needs a DNS record proxied by Cloudflare (https://developers.cloudflare.com/workers/configuration/routing/routes/). A proxied wildcard record `*` covers the subdomains; the apex stays on the marketing site.
+- **Gotchas:** the route needs the zone on Cloudflare (Phase 0, the user's). Custom Domains are per hostname, so the wildcard has to be a route. `vercel.json`'s rewrite excludes `assets/`; the Workers SPA mode does the same on its own, because real files match first.
+- **Recommendation:** `wrangler.jsonc` with `assets` only (no `main`), route `*.plotline.fit/*` on the `plotline.fit` zone. Previews use `wrangler versions upload` preview URLs against staging, with `?venue=`.
+
+### Auth redirects and Edge Function origins (T13.1, 2026-10-31)
+- **Status:** Decided (SPEC §10, 2026-10-31)
+- **Question:** what changes for Supabase Auth redirects and the Edge Functions' origin checks?
+- **Findings:**
+  - Supabase redirect URLs are globs. `*` "matches any sequence of non-separator characters", `**` "any sequence of characters", and `.` and `/` are separators (https://supabase.com/docs/guides/auth/redirect-urls). So `https://*.plotline.fit/**` matches exactly one subdomain label with any path, which is what venues need. The docs advise exact URLs for production; a wildcard is the only way with one site per venue.
+  - The only origin check in our functions is `returnBase()` (`_shared/paymongo.ts`): an exact allow-list from `PUBLIC_SITE_URL`, else its first entry. `create-paymongo-checkout` and `email-guest-link` pass the request `Origin`; `send-emails` passes `null`, so every queued email links to the first site. None of the functions sets CORS headers of its own (grep for `Allow-Origin` and `OPTIONS` under `supabase/functions` returned nothing on 2026-10-31).
+- **Gotchas:** taking the subdomain from the `Origin` header without checking it would be an open redirect into PayMongo's success URL. The slug has to be a real venue, and it should be the booking's own venue, so a link from venue A's site can't produce venue B's page. Queued emails have no request, so their link has to come from the booking's venue slug.
+- **Recommendation:** replace the exact list with "the booking's venue slug under the configured base domain" (`PUBLIC_SITE_URL` keeps the exact local and staging origins as a fallback). `send-emails` builds links from `venues.slug` of the email's booking. The user adds `https://*.plotline.fit/**` to the Supabase redirect URLs in T13.6.

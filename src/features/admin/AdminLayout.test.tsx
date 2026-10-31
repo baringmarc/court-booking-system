@@ -2,16 +2,22 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { setCurrentVenue } from '../../lib/currentVenue'
+import { VenueContext } from '../venue/VenueContext'
 import { authState } from '../../test/authState'
 import { AuthContext } from '../auth/AuthContext'
 import { AdminLayout } from './AdminLayout'
 
+vi.mock('../auth/api', () => ({ fetchMemberVenues: vi.fn().mockResolvedValue([]) }))
 vi.mock('./api', async (importOriginal) => ({ ...(await importOriginal<object>()), subscribeToBookingChanges: () => () => {} }))
 
-function renderAdmin() {
+const VENUE = { id: 'venue-a', slug: 'a-venue', status: 'active' as const }
+beforeEach(() => setCurrentVenue(VENUE))
+
+function renderAdmin(auth = authState('admin')) {
   render(
-    <QueryClientProvider client={new QueryClient()}><AuthContext.Provider value={authState('admin')}>
+    <QueryClientProvider client={new QueryClient()}><VenueContext.Provider value={VENUE}><AuthContext.Provider value={auth}>
       <MemoryRouter initialEntries={['/admin']}>
         <Routes>
           <Route path="/admin" element={<AdminLayout />}>
@@ -20,7 +26,7 @@ function renderAdmin() {
           </Route>
         </Routes>
       </MemoryRouter>
-    </AuthContext.Provider></QueryClientProvider>,
+    </AuthContext.Provider></VenueContext.Provider></QueryClientProvider>,
   )
 }
 
@@ -39,5 +45,17 @@ describe('AdminLayout focus', () => {
     await userEvent.click(screen.getByRole('link', { name: 'Bookings' }))
     expect(await screen.findByRole('heading', { name: 'Bookings' })).toBeInTheDocument()
     expect(screen.getByRole('main')).toHaveFocus()
+  })
+})
+
+describe('AdminLayout nav per venue (T13.4)', () => {
+  it('shows the admin nav to a member of this venue', () => {
+    renderAdmin()
+    expect(screen.getByRole('navigation', { name: 'Admin' })).toBeInTheDocument()
+  })
+
+  it('hides the admin nav from a signed-in user who is a member of another venue only', () => {
+    renderAdmin(authState('admin', { venueIds: ['venue-b'] }))
+    expect(screen.queryByRole('navigation', { name: 'Admin' })).not.toBeInTheDocument()
   })
 })

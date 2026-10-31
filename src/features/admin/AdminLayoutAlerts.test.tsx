@@ -5,10 +5,12 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { authState } from '../../test/authState'
 import { AuthContext } from '../auth/AuthContext'
+import { VenueContext } from '../venue/VenueContext'
 import { subscribeToBookingChanges } from './api'
 import type { BookingChange } from './bookingAlerts'
 import { AdminLayout } from './AdminLayout'
 
+vi.mock('../auth/api', () => ({ fetchMemberVenues: vi.fn().mockResolvedValue([]) }))
 vi.mock('./api', async (importOriginal) => ({ ...(await importOriginal<object>()), subscribeToBookingChanges: vi.fn() }))
 vi.mock('../catalog/hooks', async (importOriginal) => ({
   ...(await importOriginal<object>()),
@@ -22,7 +24,7 @@ beforeEach(() => {
   vi.mocked(subscribeToBookingChanges).mockReset().mockImplementation((h: { onChange: (c: BookingChange) => void }) => { onChange = h.onChange; return () => {} })
   render(
     <QueryClientProvider client={new QueryClient()}>
-      <AuthContext.Provider value={authState('admin')}>
+      <VenueContext.Provider value={{ id: '00000000-0000-4000-8000-0000000000a1', slug: 'claudex-courts', status: 'active' }}><AuthContext.Provider value={authState('admin', { venueIds: ['00000000-0000-4000-8000-0000000000a1'] })}>
         <MemoryRouter initialEntries={['/admin']}>
           <Routes>
             <Route path="/admin" element={<AdminLayout />}>
@@ -31,7 +33,7 @@ beforeEach(() => {
             </Route>
           </Routes>
         </MemoryRouter>
-      </AuthContext.Provider>
+      </AuthContext.Provider></VenueContext.Provider>
     </QueryClientProvider>,
   )
 })

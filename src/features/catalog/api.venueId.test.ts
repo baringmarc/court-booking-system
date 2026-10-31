@@ -7,7 +7,7 @@ const h = vi.hoisted(() => ({
   ops: [] as { table: string; op: string; payload?: unknown; eqs: [string, unknown][] }[],
 }))
 
-vi.mock('../auth/api', () => ({ currentAdminVenueId: vi.fn(async () => h.VENUE) }))
+vi.mock('../../lib/currentVenue', () => ({ currentVenueId: () => h.VENUE }))
 vi.mock('../../lib/supabase', () => {
   const builder = (table: string) => {
     const rec = { table, op: 'select', payload: undefined as unknown, eqs: [] as [string, unknown][] }

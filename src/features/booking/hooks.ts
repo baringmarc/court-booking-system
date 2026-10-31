@@ -17,10 +17,12 @@ import {
   type NewBooking,
   type ProofSubmission,
 } from './api'
+import { currentVenueId } from '../../lib/currentVenue'
 
 export const bookingKeys = {
-  allAvailability: ['availability'] as const,
-  availability: (date: string) => ['availability', date] as const,
+  // Availability is venue data, so its keys start with the venue id; bookings are found by reference code.
+  allAvailability: () => [currentVenueId(), 'availability'] as const,
+  availability: (date: string) => [currentVenueId(), 'availability', date] as const,
   allDetails: ['booking'] as const,
   detail: (ref: string, token: string | null) => ['booking', ref.toUpperCase(), token] as const,
   platformFee: ['platform-fee'] as const,
@@ -50,8 +52,8 @@ export function useCreateBooking() {
     },
     // Success and "slot taken" both mean the grid is stale; a new booking also belongs in My bookings.
     onSettled: () => Promise.all([
-      qc.invalidateQueries({ queryKey: bookingKeys.allAvailability }),
-      qc.invalidateQueries({ queryKey: accountKeys.allMyBookings }),
+      qc.invalidateQueries({ queryKey: bookingKeys.allAvailability() }),
+      qc.invalidateQueries({ queryKey: accountKeys.allMyBookings() }),
     ]),
   })
 }
@@ -99,7 +101,7 @@ export function useSubmitPaymentProof(ref: string, token: string | null) {
     // Success moves the booking to payment_submitted; a hold_expired/invalid_state error also means it changed.
     onSettled: () => Promise.all([
       qc.invalidateQueries({ queryKey: bookingKeys.detail(ref, token) }),
-      qc.invalidateQueries({ queryKey: accountKeys.allMyBookings }),
+      qc.invalidateQueries({ queryKey: accountKeys.allMyBookings() }),
     ]),
   })
 }
@@ -111,8 +113,8 @@ export function useCancelBooking(ref: string, token: string | null) {
     // Success frees the slot; a cutoff or state error also means the page is out of date.
     onSettled: () => Promise.all([
       qc.invalidateQueries({ queryKey: bookingKeys.detail(ref, token) }),
-      qc.invalidateQueries({ queryKey: bookingKeys.allAvailability }),
-      qc.invalidateQueries({ queryKey: accountKeys.allMyBookings }),
+      qc.invalidateQueries({ queryKey: bookingKeys.allAvailability() }),
+      qc.invalidateQueries({ queryKey: accountKeys.allMyBookings() }),
     ]),
   })
 }
