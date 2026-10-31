@@ -1,6 +1,7 @@
 import { supabase } from '../../lib/supabase'
 import { unwrap } from '../../lib/queryClient'
 import type { Tables } from '../../lib/database.types'
+import { currentVenueId, type CurrentVenue } from '../../lib/currentVenue'
 
 // Public reads for the venue info (T9.11g). The admin writes are in admin/api.ts, out of the public bundle.
 export type SocialLink = Pick<Tables<'venue_social_links'>, 'platform' | 'url'>
@@ -8,26 +9,32 @@ export type InfoSection = Pick<Tables<'venue_info_sections'>, 'id' | 'title' | '
 export type Amenity = Pick<Tables<'venue_amenities'>, 'id' | 'builtin_key' | 'custom_name' | 'created_at'>
 export type PaymentAccount = Pick<Tables<'venue_payment_accounts'>, 'id' | 'label' | 'account_name' | 'account_number' | 'qr_path' | 'position'>
 
+// Every key starts with the venue id (see catalogKeys).
 export const venueKeys = {
-  socials: ['venue-socials'] as const,
-  sections: ['venue-sections'] as const,
-  amenities: ['venue-amenities'] as const,
-  paymentAccounts: ['venue-payment-accounts'] as const,
+  socials: () => [currentVenueId(), 'venue-socials'] as const,
+  sections: () => [currentVenueId(), 'venue-sections'] as const,
+  amenities: () => [currentVenueId(), 'venue-amenities'] as const,
+  paymentAccounts: () => [currentVenueId(), 'venue-payment-accounts'] as const,
+}
+
+/** The venue a page belongs to. RLS shows anon only active venues, so a draft or suspended venue is null here. */
+export async function fetchVenueBySlug(slug: string): Promise<CurrentVenue | null> {
+  return unwrap(await supabase.from('venues').select('id, slug, status').eq('slug', slug).maybeSingle())
 }
 
 export async function fetchSocialLinks(): Promise<SocialLink[]> {
-  return unwrap(await supabase.from('venue_social_links').select('platform, url'))
+  return unwrap(await supabase.from('venue_social_links').select('platform, url').eq('venue_id', currentVenueId()))
 }
 
 /** In display order. */
 export async function fetchInfoSections(): Promise<InfoSection[]> {
   return unwrap(
-    await supabase.from('venue_info_sections').select('id, title, body, sort_order').order('sort_order').order('created_at').order('id'),
+    await supabase.from('venue_info_sections').select('id, title, body, sort_order').eq('venue_id', currentVenueId()).order('sort_order').order('created_at').order('id'),
   )
 }
 
 export async function fetchAmenities(): Promise<Amenity[]> {
-  return unwrap(await supabase.from('venue_amenities').select('id, builtin_key, custom_name, created_at'))
+  return unwrap(await supabase.from('venue_amenities').select('id, builtin_key, custom_name, created_at').eq('venue_id', currentVenueId()))
 }
 
 /** Where players send manual payments (T11.10), in display order. */
@@ -35,6 +42,7 @@ export async function fetchPaymentAccounts(): Promise<PaymentAccount[]> {
   return unwrap(
     await supabase.from('venue_payment_accounts')
       .select('id, label, account_name, account_number, qr_path, position')
+      .eq('venue_id', currentVenueId())
       .order('position').order('created_at').order('id'),
   )
 }

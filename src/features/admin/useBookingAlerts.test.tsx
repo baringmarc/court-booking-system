@@ -62,7 +62,7 @@ describe('useBookingAlerts', () => {
     const { spy } = setup()
     act(() => handlers.onChange(hold))
     const keys = spy.mock.calls.map((c) => JSON.stringify((c[0] as { queryKey: unknown }).queryKey))
-    for (const key of [adminKeys.allBookings, adminKeys.proofQueue, adminKeys.allEarnings, adminKeys.allMovedParts, bookingKeys.allAvailability]) {
+    for (const key of [adminKeys.allBookings, adminKeys.proofQueue, adminKeys.allEarnings, adminKeys.allMovedParts, bookingKeys.allAvailability()]) {
       expect(keys).toContain(JSON.stringify(key))
     }
     expect(count()).toBe('0')
@@ -73,7 +73,7 @@ describe('useBookingAlerts', () => {
     act(() => handlers.onReconnect())
     const keys = spy.mock.calls.map((c) => JSON.stringify((c[0] as { queryKey: unknown }).queryKey))
     expect(keys).toContain(JSON.stringify(adminKeys.allBookings))
-    expect(keys).toContain(JSON.stringify(bookingKeys.allAvailability))
+    expect(keys).toContain(JSON.stringify(bookingKeys.allAvailability()))
     expect(count()).toBe('0')
   })
 

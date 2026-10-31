@@ -8,6 +8,7 @@ import { RedirectIfAuthed, RequireAuth } from '../features/auth/RouteGuards'
 import { BookPage } from '../features/booking/BookPage'
 import { BookingPage } from '../features/booking/BookingPage'
 import { CheckoutPage } from '../features/booking/CheckoutPage'
+import { VenueOpenGate } from '../features/venue/VenueProvider'
 import { HomePage } from './HomePage'
 import { NotFoundPage } from './NotFoundPage'
 
@@ -15,7 +16,7 @@ import { NotFoundPage } from './NotFoundPage'
 // Admin pages are lazy-loaded so players never download them.
 export const router = createBrowserRouter([
   {
-    element: <Layout />,
+    element: <VenueOpenGate><Layout /></VenueOpenGate>,
     hydrateFallbackElement: <PageLoader />,
     children: [
       { path: '/', element: <HomePage /> },

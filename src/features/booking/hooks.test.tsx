@@ -21,7 +21,7 @@ describe('booking mutations keep My bookings fresh', () => {
     const { wrapper, invalidatedKeys } = setup()
     const { result } = renderHook(() => useCancelBooking('CB-7KQ2XD', null), { wrapper })
     await act(() => result.current.mutateAsync({ bookingId: 'b1', reason: '' }))
-    expect(invalidatedKeys()).toEqual(expect.arrayContaining([['booking', 'CB-7KQ2XD', null], ['availability'], ['my-bookings']]))
+    expect(invalidatedKeys()).toEqual(expect.arrayContaining([['booking', 'CB-7KQ2XD', null], ['00000000-0000-4000-8000-0000000000a1', 'availability'], ['my-bookings']]))
   })
 
   it('creating a booking or submitting a proof refreshes My bookings', async () => {

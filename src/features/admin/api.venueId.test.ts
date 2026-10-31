@@ -1,4 +1,4 @@
-// T12.10: admin writes name their venue (currentAdminVenueId) instead of relying on the column default.
+// T12.10: admin writes name their venue (currentVenueId) instead of relying on the column default.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const h = vi.hoisted(() => ({
@@ -9,7 +9,7 @@ const h = vi.hoisted(() => ({
   uploads: [] as { bucket: string; path: string }[],
 }))
 
-vi.mock('../auth/api', () => ({ currentAdminVenueId: vi.fn(async () => h.VENUE) }))
+vi.mock('../../lib/currentVenue', () => ({ currentVenueId: () => h.VENUE }))
 vi.mock('../../lib/supabase', () => {
   // venue_settings (if anything still reads it for the folder) says a different venue, so a read there shows up.
   const row = { id: 'row-1', venue_id: h.OTHER, path: 'p', sort_order: 0 }
@@ -96,7 +96,7 @@ describe('admin writes pass venue_id (T12.10)', () => {
     expect(update.eqs.map(([c]) => c)).not.toContain('id')
   })
 
-  it('upload paths use the member\'s venue (currentAdminVenueId), without reading venue_settings', async () => {
+  it('upload paths use the member\'s venue (currentVenueId), without reading venue_settings', async () => {
     await addCourtPhoto('c1', webp, 0)
     await savePaymentAccount(null, { label: 'GCash', account_name: 'C', account_number: '1' }, { kind: 'set', image: png })
     expect(h.uploads.map((u) => u.path.split('/')[0])).toEqual([VENUE, VENUE])

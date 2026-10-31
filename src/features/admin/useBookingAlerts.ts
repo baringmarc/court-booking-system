@@ -32,7 +32,7 @@ export function useBookingAlerts(): { navCount: number } {
 
   useEffect(() => {
     const refresh = () => {
-      for (const queryKey of [adminKeys.allBookings, adminKeys.proofQueue, adminKeys.allEarnings, adminKeys.allMovedParts, bookingKeys.allAvailability]) {
+      for (const queryKey of [adminKeys.allBookings, adminKeys.proofQueue, adminKeys.allEarnings, adminKeys.allMovedParts, bookingKeys.allAvailability()]) {
         void qc.invalidateQueries({ queryKey })
       }
     }

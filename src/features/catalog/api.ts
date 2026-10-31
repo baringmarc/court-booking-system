@@ -2,7 +2,7 @@ import { supabase } from '../../lib/supabase'
 import { unwrap } from '../../lib/queryClient'
 import type { Tables, TablesInsert, TablesUpdate } from '../../lib/database.types'
 import { sortCourts } from './sportOrder'
-import { currentAdminVenueId } from '../auth/api'
+import { currentVenueId } from '../../lib/currentVenue'
 
 export type VenueSettings = Tables<'venue_settings'>
 export type Court = Tables<'courts'>
@@ -14,20 +14,21 @@ export type OperatingHours = Tables<'operating_hours'>
 export type Blackout = Tables<'blackouts'>
 export { SPORTS, SPORT_LABELS, type Sport } from './sports'
 
+// Every key starts with the venue id, so one venue's cache never answers for another's.
 export const catalogKeys = {
-  settings: ['venue-settings'] as const,
-  courts: (includeInactive: boolean) => ['courts', { includeInactive }] as const,
-  allCourts: ['courts'] as const,
-  court: (id: string) => ['court', id] as const,
-  rates: (courtId: string) => ['court-rates', courtId] as const,
-  hours: ['operating-hours'] as const,
-  blackouts: ['blackouts'] as const,
+  settings: () => [currentVenueId(), 'venue-settings'] as const,
+  courts: (includeInactive: boolean) => [currentVenueId(), 'courts', { includeInactive }] as const,
+  allCourts: () => [currentVenueId(), 'courts'] as const,
+  court: (id: string) => [currentVenueId(), 'court', id] as const,
+  rates: (courtId: string) => [currentVenueId(), 'court-rates', courtId] as const,
+  hours: () => [currentVenueId(), 'operating-hours'] as const,
+  blackouts: () => [currentVenueId(), 'blackouts'] as const,
 }
 
 // --- reads -------------------------------------------------------------------
 
 export async function fetchVenueSettings() {
-  return unwrap(await supabase.from('venue_settings').select('*').single())
+  return unwrap(await supabase.from('venue_settings').select('*').eq('venue_id', currentVenueId()).single())
 }
 
 // One literal, so supabase-js infers the embedded photos' type from it.
@@ -43,11 +44,11 @@ function withSortedPhotos<T extends { court_photos: CourtPhotoRow[] }>(court: T)
 
 /** Courts in display order: sports in the venue's sport_order, then sort_order and name (as get_availability). */
 export async function fetchCourts(includeInactive: boolean): Promise<CourtWithPhotos[]> {
-  let query = supabase.from('courts').select(COURT_SELECT)
+  let query = supabase.from('courts').select(COURT_SELECT).eq('venue_id', currentVenueId())
   if (!includeInactive) query = query.eq('is_active', true)
   const [courts, settings] = await Promise.all([
     query,
-    supabase.from('venue_settings').select('sport_order').single(),
+    supabase.from('venue_settings').select('sport_order').eq('venue_id', currentVenueId()).single(),
   ])
   return sortCourts(unwrap(courts).map(withSortedPhotos), unwrap(settings).sport_order)
 }
@@ -61,7 +62,7 @@ export async function fetchCourtRates(courtId: string) {
 }
 
 export async function fetchOperatingHours() {
-  return unwrap(await supabase.from('operating_hours').select('*').order('day_of_week'))
+  return unwrap(await supabase.from('operating_hours').select('*').eq('venue_id', currentVenueId()).order('day_of_week'))
 }
 
 /** Blackouts that haven't ended yet. */
@@ -70,6 +71,7 @@ export async function fetchUpcomingBlackouts() {
     await supabase
       .from('blackouts')
       .select('*')
+      .eq('venue_id', currentVenueId())
       .gte('ends_at', new Date().toISOString())
       .order('starts_at'),
   )
@@ -85,7 +87,7 @@ export type CourtInput = Pick<
 export async function saveCourt(id: string | null, input: CourtInput) {
   const query = id
     ? supabase.from('courts').update(input).eq('id', id).select().single()
-    : supabase.from('courts').insert({ ...input, venue_id: await currentAdminVenueId() }).select().single()
+    : supabase.from('courts').insert({ ...input, venue_id: currentVenueId() }).select().single()
   return unwrap(await query)
 }
 
@@ -96,7 +98,7 @@ export type RateChanges = {
 
 export async function saveCourtRates(courtId: string, { upserts, deletes }: RateChanges) {
   if (upserts.length) {
-    const venue_id = await currentAdminVenueId()
+    const venue_id = currentVenueId()
     unwrap(await supabase.from('court_rates').upsert(upserts.map((rate) => ({ ...rate, venue_id }))))
   }
   // One delete per weekday keeps the request count small.
@@ -125,7 +127,7 @@ export async function saveOperatingHours(rows: OperatingHours[]) {
 }
 
 export async function createBlackout(input: Omit<TablesInsert<'blackouts'>, 'venue_id'>) {
-  return unwrap(await supabase.from('blackouts').insert({ ...input, venue_id: await currentAdminVenueId() }).select().single())
+  return unwrap(await supabase.from('blackouts').insert({ ...input, venue_id: currentVenueId() }).select().single())
 }
 
 export async function deleteBlackout(id: string) {
@@ -133,5 +135,5 @@ export async function deleteBlackout(id: string) {
 }
 
 export async function updateVenueSettings(values: TablesUpdate<'venue_settings'>) {
-  return unwrap(await supabase.from('venue_settings').update(values).eq('venue_id', await currentAdminVenueId()).select().single())
+  return unwrap(await supabase.from('venue_settings').update(values).eq('venue_id', currentVenueId()).select().single())
 }

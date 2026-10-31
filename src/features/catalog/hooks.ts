@@ -21,7 +21,7 @@ import {
 } from './api'
 
 export function useVenueSettings() {
-  return useQuery({ queryKey: catalogKeys.settings, queryFn: fetchVenueSettings, staleTime: 5 * 60_000 })
+  return useQuery({ queryKey: catalogKeys.settings(), queryFn: fetchVenueSettings, staleTime: 5 * 60_000 })
 }
 
 export function useCourts({ includeInactive = false } = {}) {
@@ -48,11 +48,11 @@ export function useCourtRates(courtId: string | undefined) {
 }
 
 export function useOperatingHours() {
-  return useQuery({ queryKey: catalogKeys.hours, queryFn: fetchOperatingHours })
+  return useQuery({ queryKey: catalogKeys.hours(), queryFn: fetchOperatingHours })
 }
 
 export function useUpcomingBlackouts() {
-  return useQuery({ queryKey: catalogKeys.blackouts, queryFn: fetchUpcomingBlackouts })
+  return useQuery({ queryKey: catalogKeys.blackouts(), queryFn: fetchUpcomingBlackouts })
 }
 
 // --- mutations ---------------------------------------------------------------
@@ -64,7 +64,7 @@ export function useSaveCourt(id: string | null) {
     onSuccess: (court) => {
       // The saved row has no photos: merge it into the cached court rather than replacing it.
       qc.setQueryData<CourtWithPhotos>(catalogKeys.court(court.id), (old) => (old ? { ...old, ...court } : old))
-      return qc.invalidateQueries({ queryKey: catalogKeys.allCourts })
+      return qc.invalidateQueries({ queryKey: catalogKeys.allCourts() })
     },
   })
 }
@@ -81,7 +81,7 @@ export function useSaveOperatingHours() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (rows: OperatingHours[]) => saveOperatingHours(rows),
-    onSettled: () => qc.invalidateQueries({ queryKey: catalogKeys.hours }),
+    onSettled: () => qc.invalidateQueries({ queryKey: catalogKeys.hours() }),
   })
 }
 
@@ -89,7 +89,7 @@ export function useCreateBlackout() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (input: Omit<TablesInsert<'blackouts'>, 'venue_id'>) => createBlackout(input),
-    onSuccess: () => qc.invalidateQueries({ queryKey: catalogKeys.blackouts }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: catalogKeys.blackouts() }),
   })
 }
 
@@ -97,7 +97,7 @@ export function useDeleteBlackout() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => deleteBlackout(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: catalogKeys.blackouts }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: catalogKeys.blackouts() }),
   })
 }
 
@@ -105,6 +105,6 @@ export function useUpdateVenueSettings() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (values: TablesUpdate<'venue_settings'>) => updateVenueSettings(values),
-    onSuccess: (settings) => qc.setQueryData(catalogKeys.settings, settings),
+    onSuccess: (settings) => qc.setQueryData(catalogKeys.settings(), settings),
   })
 }

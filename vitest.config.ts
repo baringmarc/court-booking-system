@@ -14,6 +14,8 @@ export default mergeConfig(
       env: {
         VITE_SUPABASE_URL: 'http://localhost:54321',
         VITE_SUPABASE_PUBLISHABLE_KEY: 'test-publishable-key',
+        // Unset: a developer's .env default venue must not leak into the VenueProvider tests.
+        VITE_DEFAULT_VENUE: '',
       },
     },
   }),

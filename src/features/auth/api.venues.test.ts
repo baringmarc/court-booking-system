@@ -25,7 +25,7 @@ vi.mock('../../lib/supabase', () => {
   }
 })
 
-import { currentAdminVenueId, fetchAdminVenueIds } from './api'
+import { fetchAdminVenueIds } from './api'
 
 beforeEach(() => {
   h.rows = []
@@ -49,17 +49,5 @@ describe('fetchAdminVenueIds', () => {
   it('throws when the query fails', async () => {
     h.error = { message: 'boom' }
     await expect(fetchAdminVenueIds('u1')).rejects.toBeTruthy()
-  })
-})
-
-describe('currentAdminVenueId', () => {
-  it('returns the signed-in user\'s first membership', async () => {
-    h.rows = [{ venue_id: 'venue-a' }, { venue_id: 'venue-b' }]
-    await expect(currentAdminVenueId()).resolves.toBe('venue-a')
-    expect(h.tables).toContain('venue_members')
-  })
-
-  it('throws when the user has no venue', async () => {
-    await expect(currentAdminVenueId()).rejects.toThrow()
   })
 })

@@ -13,8 +13,8 @@ const h = vi.hoisted(() => ({
   listed: [] as { bucket: string; folder: string }[],
 }))
 
-// T12.10: the venue now comes from the admin's membership (currentAdminVenueId), no longer venue_settings.
-vi.mock('../auth/api', () => ({ currentAdminVenueId: vi.fn(async () => h.VENUE) }))
+// T12.10: the venue now comes from the admin's membership (currentVenueId), no longer venue_settings.
+vi.mock('../../lib/currentVenue', () => ({ currentVenueId: () => h.VENUE }))
 
 vi.mock('../../lib/supabase', () => {
   // A chainable, awaitable query builder: every method returns it; awaiting or .single() resolves with the venue row.

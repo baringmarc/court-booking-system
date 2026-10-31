@@ -21,7 +21,7 @@ function renderBanner() {
   )
   /** Resolves once the settings query has finished with `status`. */
   const settled = (status: 'success' | 'error') =>
-    waitFor(() => expect(client.getQueryState(catalogKeys.settings)?.status).toBe(status))
+    waitFor(() => expect(client.getQueryState(catalogKeys.settings())?.status).toBe(status))
   return { container, settled }
 }
 

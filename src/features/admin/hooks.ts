@@ -76,7 +76,7 @@ export function useReviewPayment() {
       qc.invalidateQueries({ queryKey: adminKeys.allBookings }),
       qc.invalidateQueries({ queryKey: adminKeys.proofQueue }),
       qc.invalidateQueries({ queryKey: adminKeys.allEarnings }),
-      qc.invalidateQueries({ queryKey: bookingKeys.allAvailability }),
+      qc.invalidateQueries({ queryKey: bookingKeys.allAvailability() }),
     ]),
   })
 }
@@ -89,7 +89,7 @@ export function useAdminCancelBooking() {
       qc.invalidateQueries({ queryKey: adminKeys.allBookings }),
       qc.invalidateQueries({ queryKey: adminKeys.proofQueue }),
       qc.invalidateQueries({ queryKey: adminKeys.allMovedParts }),
-      qc.invalidateQueries({ queryKey: bookingKeys.allAvailability }),
+      qc.invalidateQueries({ queryKey: bookingKeys.allAvailability() }),
     ]),
   })
 }
@@ -103,7 +103,7 @@ export function useRescheduleBooking() {
       qc.invalidateQueries({ queryKey: adminKeys.allBookings }),
       qc.invalidateQueries({ queryKey: adminKeys.allEarnings }),
       qc.invalidateQueries({ queryKey: adminKeys.allMovedParts }),
-      qc.invalidateQueries({ queryKey: bookingKeys.allAvailability }),
+      qc.invalidateQueries({ queryKey: bookingKeys.allAvailability() }),
       qc.invalidateQueries({ queryKey: bookingKeys.allDetails }),
       qc.invalidateQueries({ queryKey: accountKeys.allMyBookings }),
     ]),
@@ -146,7 +146,7 @@ export function useCreateWalkIn() {
     onSettled: () => Promise.all([
       qc.invalidateQueries({ queryKey: adminKeys.allBookings }),
       qc.invalidateQueries({ queryKey: adminKeys.allEarnings }),
-      qc.invalidateQueries({ queryKey: bookingKeys.allAvailability }),
+      qc.invalidateQueries({ queryKey: bookingKeys.allAvailability() }),
     ]),
   })
 }
@@ -185,8 +185,8 @@ export function useReorderCourts() {
     onSettled: () => {
       if (!isLast()) return
       return Promise.all([
-        qc.invalidateQueries({ queryKey: catalogKeys.allCourts }),
-        qc.invalidateQueries({ queryKey: bookingKeys.allAvailability }),
+        qc.invalidateQueries({ queryKey: catalogKeys.allCourts() }),
+        qc.invalidateQueries({ queryKey: bookingKeys.allAvailability() }),
       ])
     },
   })
@@ -201,23 +201,23 @@ export function useSaveSportOrder() {
     scope: { id: 'save-sport-order' },
     mutationFn: (order: Sport[]) => updateVenueSettings({ sport_order: order }),
     onMutate: (order) => {
-      const previous = qc.getQueryData<VenueSettings>(catalogKeys.settings)
-      if (previous) qc.setQueryData(catalogKeys.settings, { ...previous, sport_order: order })
-      void qc.cancelQueries({ queryKey: catalogKeys.settings }, { revert: false })
+      const previous = qc.getQueryData<VenueSettings>(catalogKeys.settings())
+      if (previous) qc.setQueryData(catalogKeys.settings(), { ...previous, sport_order: order })
+      void qc.cancelQueries({ queryKey: catalogKeys.settings() }, { revert: false })
       return { previous }
     },
     onSuccess: (saved) => {
-      if (isLast()) qc.setQueryData(catalogKeys.settings, saved)
+      if (isLast()) qc.setQueryData(catalogKeys.settings(), saved)
     },
     onError: (_error, _order, context) => {
-      if (isLast() && context?.previous) qc.setQueryData(catalogKeys.settings, context.previous)
+      if (isLast() && context?.previous) qc.setQueryData(catalogKeys.settings(), context.previous)
     },
     onSettled: () => {
       if (!isLast()) return
       // Settings come from the last save's response (onSuccess); courts and the grid refetch in the new order.
       return Promise.all([
-        qc.invalidateQueries({ queryKey: catalogKeys.allCourts }),
-        qc.invalidateQueries({ queryKey: bookingKeys.allAvailability }),
+        qc.invalidateQueries({ queryKey: catalogKeys.allCourts() }),
+        qc.invalidateQueries({ queryKey: bookingKeys.allAvailability() }),
       ])
     },
   })
@@ -231,9 +231,9 @@ export function useDeleteCourt(courtId: string) {
     onSuccess: () => {
       // Not awaited, so the page can navigate away straight after; the deleted court's own query is dropped.
       qc.removeQueries({ queryKey: catalogKeys.court(courtId) })
-      void qc.invalidateQueries({ queryKey: catalogKeys.allCourts })
-      void qc.invalidateQueries({ queryKey: catalogKeys.blackouts }) // its court blackouts went with it
-      void qc.invalidateQueries({ queryKey: bookingKeys.allAvailability })
+      void qc.invalidateQueries({ queryKey: catalogKeys.allCourts() })
+      void qc.invalidateQueries({ queryKey: catalogKeys.blackouts() }) // its court blackouts went with it
+      void qc.invalidateQueries({ queryKey: bookingKeys.allAvailability() })
     },
   })
 }
@@ -246,7 +246,7 @@ const REORDER_PHOTOS_KEY = ['reorder-court-photos'] as const
 function refreshCourt(qc: QueryClient, courtId: string) {
   return Promise.all([
     qc.invalidateQueries({ queryKey: catalogKeys.court(courtId) }),
-    qc.invalidateQueries({ queryKey: catalogKeys.allCourts }),
+    qc.invalidateQueries({ queryKey: catalogKeys.allCourts() }),
   ])
 }
 
@@ -303,8 +303,8 @@ function useBannerMutation<V>(run: (vars: V) => Promise<VenueSettings>) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: run,
-    onSuccess: (saved) => qc.setQueryData(catalogKeys.settings, saved),
-    onError: () => qc.invalidateQueries({ queryKey: catalogKeys.settings }),
+    onSuccess: (saved) => qc.setQueryData(catalogKeys.settings(), saved),
+    onError: () => qc.invalidateQueries({ queryKey: catalogKeys.settings() }),
   })
 }
 
@@ -321,8 +321,8 @@ export function useRemoveBanner(settings: Pick<VenueSettings, 'banner_path'>) {
 function useInvalidateOpenPlay() {
   const qc = useQueryClient()
   return () => {
-    void qc.invalidateQueries({ queryKey: openPlayKeys.all })
-    void qc.invalidateQueries({ queryKey: bookingKeys.allAvailability })
+    void qc.invalidateQueries({ queryKey: openPlayKeys.all() })
+    void qc.invalidateQueries({ queryKey: bookingKeys.allAvailability() })
   }
 }
 
@@ -346,7 +346,7 @@ export function useSaveSocialLinks() {
   return useMutation({
     mutationFn: (links: Record<SocialPlatform, string>) => saveSocialLinks(links),
     // Only on success: a refetch remounts the form, which would drop what the admin typed.
-    onSuccess: () => qc.invalidateQueries({ queryKey: venueKeys.socials }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: venueKeys.socials() }),
   })
 }
 
@@ -354,7 +354,7 @@ export function useSaveInfoSection() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ id, input }: { id: string | null; input: InfoSectionInput }) => saveInfoSection(id, input),
-    onSuccess: () => qc.invalidateQueries({ queryKey: venueKeys.sections }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: venueKeys.sections() }),
   })
 }
 
@@ -362,7 +362,7 @@ export function useDeleteInfoSection() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => deleteInfoSection(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: venueKeys.sections }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: venueKeys.sections() }),
   })
 }
 
@@ -380,19 +380,19 @@ export function useReorderInfoSections() {
     scope: { id: 'reorder-info-sections' },
     mutationFn: (ids: string[]) => reorderInfoSections(ids),
     onMutate: (ids) => {
-      const previous = qc.getQueryData<InfoSection[]>(venueKeys.sections)
+      const previous = qc.getQueryData<InfoSection[]>(venueKeys.sections())
       if (previous) {
         const byId = new Map(previous.map((s) => [s.id, s]))
-        qc.setQueryData(venueKeys.sections, ids.flatMap((id, i) => (byId.has(id) ? [{ ...byId.get(id)!, sort_order: i }] : [])))
+        qc.setQueryData(venueKeys.sections(), ids.flatMap((id, i) => (byId.has(id) ? [{ ...byId.get(id)!, sort_order: i }] : [])))
       }
-      void qc.cancelQueries({ queryKey: venueKeys.sections }, { revert: false })
+      void qc.cancelQueries({ queryKey: venueKeys.sections() }, { revert: false })
       return { previous }
     },
     onError: (_error, _ids, context) => {
-      if (isLast() && context?.previous) qc.setQueryData(venueKeys.sections, context.previous)
+      if (isLast() && context?.previous) qc.setQueryData(venueKeys.sections(), context.previous)
     },
     onSettled: () => {
-      if (isLast()) return qc.invalidateQueries({ queryKey: venueKeys.sections })
+      if (isLast()) return qc.invalidateQueries({ queryKey: venueKeys.sections() })
     },
   })
 }
@@ -403,11 +403,11 @@ export function useSetBuiltinAmenity() {
   return useMutation({
     mutationFn: ({ key, on }: { key: AmenityKey; on: boolean }) => setBuiltinAmenity(key, on),
     onSuccess: (_data, { key, on }) => {
-      qc.setQueryData<Amenity[]>(venueKeys.amenities, (rows = []) => on
+      qc.setQueryData<Amenity[]>(venueKeys.amenities(), (rows = []) => on
         ? [...rows.filter((r) => r.builtin_key !== key),
             { id: `saved-${key}`, builtin_key: key, custom_name: null, created_at: new Date().toISOString() }]
         : rows.filter((r) => r.builtin_key !== key))
-      void qc.invalidateQueries({ queryKey: venueKeys.amenities })
+      void qc.invalidateQueries({ queryKey: venueKeys.amenities() })
     },
   })
 }
@@ -416,7 +416,7 @@ export function useAddCustomAmenity() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (name: string) => addCustomAmenity(name),
-    onSuccess: () => qc.invalidateQueries({ queryKey: venueKeys.amenities }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: venueKeys.amenities() }),
   })
 }
 
@@ -424,7 +424,7 @@ export function useRemoveAmenity() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => removeAmenity(id),
-    onSettled: () => qc.invalidateQueries({ queryKey: venueKeys.amenities }),
+    onSettled: () => qc.invalidateQueries({ queryKey: venueKeys.amenities() }),
   })
 }
 
@@ -433,7 +433,7 @@ export function useSavePaymentAccount() {
   return useMutation({
     mutationFn: ({ existing, input, qr }: { existing: PaymentAccount | null; input: PaymentAccountInput; qr: QrChange }) =>
       savePaymentAccount(existing, input, qr),
-    onSettled: () => qc.invalidateQueries({ queryKey: venueKeys.paymentAccounts }),
+    onSettled: () => qc.invalidateQueries({ queryKey: venueKeys.paymentAccounts() }),
   })
 }
 
@@ -441,7 +441,7 @@ export function useDeletePaymentAccount() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (account: PaymentAccount) => deletePaymentAccount(account),
-    onSettled: () => qc.invalidateQueries({ queryKey: venueKeys.paymentAccounts }),
+    onSettled: () => qc.invalidateQueries({ queryKey: venueKeys.paymentAccounts() }),
   })
 }
 
@@ -456,19 +456,19 @@ export function useReorderPaymentAccounts() {
     scope: { id: 'reorder-payment-accounts' },
     mutationFn: (ids: string[]) => reorderPaymentAccounts(ids),
     onMutate: (ids) => {
-      const previous = qc.getQueryData<PaymentAccount[]>(venueKeys.paymentAccounts)
+      const previous = qc.getQueryData<PaymentAccount[]>(venueKeys.paymentAccounts())
       if (previous) {
         const byId = new Map(previous.map((a) => [a.id, a]))
-        qc.setQueryData(venueKeys.paymentAccounts, ids.flatMap((id, i) => (byId.has(id) ? [{ ...byId.get(id)!, position: i }] : [])))
+        qc.setQueryData(venueKeys.paymentAccounts(), ids.flatMap((id, i) => (byId.has(id) ? [{ ...byId.get(id)!, position: i }] : [])))
       }
-      void qc.cancelQueries({ queryKey: venueKeys.paymentAccounts }, { revert: false })
+      void qc.cancelQueries({ queryKey: venueKeys.paymentAccounts() }, { revert: false })
       return { previous }
     },
     onError: (_error, _ids, context) => {
-      if (isLast() && context?.previous) qc.setQueryData(venueKeys.paymentAccounts, context.previous)
+      if (isLast() && context?.previous) qc.setQueryData(venueKeys.paymentAccounts(), context.previous)
     },
     onSettled: () => {
-      if (isLast()) return qc.invalidateQueries({ queryKey: venueKeys.paymentAccounts })
+      if (isLast()) return qc.invalidateQueries({ queryKey: venueKeys.paymentAccounts() })
     },
   })
 }
