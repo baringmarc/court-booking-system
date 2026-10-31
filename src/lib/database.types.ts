@@ -664,6 +664,60 @@ export type Database = {
           },
         ]
       }
+      leads: {
+        Row: {
+          consented_at: string
+          courts: number
+          created_at: string
+          email: string
+          facebook: string | null
+          first_name: string
+          id: string
+          last_name: string
+          location: string
+          message: string | null
+          notes: string | null
+          phone: string
+          status: string
+          updated_at: string
+          venue_name: string
+        }
+        Insert: {
+          consented_at: string
+          courts: number
+          created_at?: string
+          email: string
+          facebook?: string | null
+          first_name: string
+          id?: string
+          last_name: string
+          location: string
+          message?: string | null
+          notes?: string | null
+          phone: string
+          status?: string
+          updated_at?: string
+          venue_name: string
+        }
+        Update: {
+          consented_at?: string
+          courts?: number
+          created_at?: string
+          email?: string
+          facebook?: string | null
+          first_name?: string
+          id?: string
+          last_name?: string
+          location?: string
+          message?: string | null
+          notes?: string | null
+          phone?: string
+          status?: string
+          updated_at?: string
+          venue_name?: string
+        }
+        Relationships: []
+      }
       open_play_courts: {
         Row: {
           court_id: string
