@@ -1372,6 +1372,10 @@ export type Database = {
         }
         Returns: string
       }
+      create_venue: {
+        Args: { p_name: string; p_slug: string; p_timezone: string }
+        Returns: string
+      }
       create_walk_in: {
         Args: {
           p_amount?: number

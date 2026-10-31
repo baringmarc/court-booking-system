@@ -464,7 +464,9 @@ select is_empty(
          -- public by design: they take a court or a slug and only ever act on that venue's own published data
          'create_booking', 'get_availability',
          -- by secret token or by the caller's own account: no venue id to cross
-         'get_guest_booking', 'claim_guest_bookings'
+         'get_guest_booking', 'claim_guest_bookings',
+         -- platform admins only: it makes a new venue and takes no venue id to cross (56_create_venue)
+         'create_venue'
        ]) $$,
   'every RPC a client can execute is probed above or exempt (a new venue-scoped RPC needs a cross-venue test here)');
 select is_empty(
