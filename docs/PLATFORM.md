@@ -26,6 +26,14 @@ Locally both repos sit side by side: `~/Documents/Projects/court-booking-system`
 - **DNS and TLS:** one Cloudflare zone for `plotline.fit`. The apex points at plotline-site; a proxied wildcard record `*.plotline.fit` routes to court-booking-system. Cloudflare's free certificate covers the apex and `*.plotline.fit`.
 - **Email:** `mail.plotline.fit` is in use (since 2026-10-30, T11.26): the verified Resend sending domain (SPF, DKIM and the bounce MX in the Cloudflare zone). Booking emails go from `bookings@mail.plotline.fit` with the venue's name, Supabase Auth emails from `no-reply@mail.plotline.fit` (T11.26).
 - **Hosting:** Cloudflare (Workers static assets, free plan, commercial use allowed). Today court-booking-system is still on Vercel (`court-booking-system-ashen.vercel.app`) and plotline-site isn't deployed.
+- **Deploying court-booking-system to Cloudflare (T13.8):** `wrangler.jsonc` serves `dist/` as static assets with SPA fallback (no Worker script) on the route `*.plotline.fit/*`.
+  1. Once: `npx wrangler login`; in the Cloudflare dashboard add a **proxied** DNS record `*` (type `AAAA`, `100::`) in the `plotline.fit` zone. The apex and `www` keep pointing at plotline-site.
+  2. Build with the production `.env` values (`npm run build`), then `npm run cf:deploy`. The Worker is named `court-booking-system` (it already held the route); the route is created from `wrangler.jsonc`.
+  3. Check `https://claudex-courts.plotline.fit/` and a deep link (`/book`, `/admin/login`).
+  4. Then set the secret `PUBLIC_ROOT_DOMAIN=plotline.fit` (`npx supabase secrets set`) and deploy the three functions (T13.6).
+  5. Last, the old Vercel URL redirects to `claudex-courts.plotline.fit` (`vercel.json`, temporary 307, path kept; browsers keep `#token=` fragments). It takes effect when `develop` is merged into `master`, so do steps 3–4 first: until `PUBLIC_ROOT_DOMAIN` is set, emails and PayMongo returns still point at the Vercel URL.
+  - Previews: `npm run cf:preview` uploads a version with its own preview URL. It has no venue subdomain, so open it with `?venue=<slug>`, and build it against staging.
+  - Local check: `npm run build && npm run cf:dev` serves deep links on http://localhost:8788.
 
 ## 3. Supabase projects
 

@@ -1,0 +1,13 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "court-booking-system",
+  "compatibility_date": "2026-10-30",
+  // Static assets only, no Worker script: requests for assets are free and unlimited.
+  // Unknown paths get /index.html with a 200, so deep links work (assets/ files match first).
+  "assets": {
+    "directory": "./dist/",
+    "not_found_handling": "single-page-application"
+  },
+  // Serves every venue subdomain (and app.) from one deployment. The apex and www belong to plotline-site.
+  "routes": [{ "pattern": "*.plotline.fit/*", "zone_name": "plotline.fit" }]
+}
