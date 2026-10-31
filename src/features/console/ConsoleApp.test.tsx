@@ -1,14 +1,14 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { authState } from '../../test/authState'
 import { AuthContext, type AuthState } from '../auth/AuthContext'
 
-vi.mock('./api', () => ({ fetchIsPlatformAdmin: vi.fn() }))
+vi.mock('./api', () => ({ fetchIsPlatformAdmin: vi.fn(), fetchLeads: vi.fn(), updateLead: vi.fn() }))
 vi.mock('../auth/api', () => ({ signInWithPassword: vi.fn() }))
 
-const { fetchIsPlatformAdmin } = await import('./api')
+const { fetchIsPlatformAdmin, fetchLeads } = await import('./api')
 const { ConsoleApp } = await import('./ConsoleApp')
 
 // Deliberately no VenueContext/VenueProvider: the console host has no venue.
@@ -18,13 +18,18 @@ function renderApp(auth: AuthState) {
 }
 
 describe('ConsoleApp', () => {
+  beforeEach(() => { vi.mocked(fetchLeads).mockReset() })
+
   it('shows the console shell to a platform admin, with their email and a log out button, without any venue context', async () => {
     vi.mocked(fetchIsPlatformAdmin).mockResolvedValue(true)
+    vi.mocked(fetchLeads).mockResolvedValue([])
     const auth = authState('admin')
     renderApp(auth)
     expect(await screen.findByRole('heading', { name: 'Platform console' })).toBeInTheDocument()
     expect(screen.getByText(/admin@example\.com/)).toBeInTheDocument()
-    expect(screen.getByText(/Nothing here yet/)).toBeInTheDocument()
+    const nav = screen.getByRole('navigation', { name: 'Console' })
+    expect(within(nav).getByText('Leads')).toHaveAttribute('aria-current', 'page')
+    expect(await screen.findByText('No leads yet.')).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Log out' }))
     expect(auth.signOut).toHaveBeenCalled()
   })
@@ -33,13 +38,15 @@ describe('ConsoleApp', () => {
     vi.mocked(fetchIsPlatformAdmin).mockResolvedValue(false)
     renderApp(authState('admin'))
     expect(await screen.findByRole('heading', { name: 'Platform admins only' })).toBeInTheDocument()
-    expect(screen.queryByText(/Nothing here yet/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('navigation', { name: 'Console' })).not.toBeInTheDocument()
+    expect(fetchLeads).not.toHaveBeenCalled()
   })
 
   it('asks a signed-out visitor to sign in', () => {
     renderApp(authState('anon'))
     expect(screen.getByRole('heading', { name: 'Platform console' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Sign in' })).toBeInTheDocument()
-    expect(screen.queryByText(/Nothing here yet/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('navigation', { name: 'Console' })).not.toBeInTheDocument()
+    expect(fetchLeads).not.toHaveBeenCalled()
   })
 })
