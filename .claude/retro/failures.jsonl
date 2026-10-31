@@ -162,3 +162,6 @@
 {"ts":"2026-10-31T03:42:02.524Z","task":"T13.3","source":"dispute","file":"src/features/booking/api.currentVenue.test.ts","summary":"3-arg get_availability has no default for p_court_id, call must pass p_court_id: null","outcome":"test fixed"}
 {"ts":"2026-10-31T03:54:48.607Z","task":"T13.3","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"git -C /Users/macbookpro/Documents/Projects/court-booking-system diff HEAD --stat"}
 {"ts":"2026-10-31T03:56:25.958Z","task":"T13.3","source":"reviewer","severity":"major","category":"docs-drift","file":"TASKS.md Handoff / SPEC.md §10","summary":"VITE_DEFAULT_VENUE must be set on Vercel before merging develop to master; not listed as a user step","round":1}
+{"ts":"2026-10-31T03:57:45.286Z","task":"T13.4","source":"guard","category":"protected-file","agent":"main","path":".claude/hooks/verify-gate.mjs"}
+{"ts":"2026-10-31T04:04:11.646Z","task":"T13.4","source":"guard","category":"protected-file","agent":"main","command":"git add playwright.config.ts .claude/retro/failures.jsonl && git commit -q -m \"chore(e2e): stop the run after 5 failures\n\nA systemic break fails every flow after its own 60 s timeout; this caps that c"}
+{"ts":"2026-10-31T04:04:12.562Z","task":"T13.4","source":"guard","category":"protected-file","agent":"main","path":".claude/hooks/verify-gate.mjs"}
