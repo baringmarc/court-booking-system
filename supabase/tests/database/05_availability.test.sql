@@ -62,11 +62,11 @@ select is(
 );
 
 select ok(
-  not exists (select 1 from public.get_availability((select d from fx)) where court_id = 'c0000000-0000-0000-0000-000000000003'),
+  not exists (select 1 from public.get_availability((select d from fx), null, 'claudex-courts') where court_id = 'c0000000-0000-0000-0000-000000000003'),
   'archived courts are not listed'
 );
 select cmp_ok(
-  (select count(distinct court_id)::int from public.get_availability((select d from fx))), '>=', 2,
+  (select count(distinct court_id)::int from public.get_availability((select d from fx), null, 'claudex-courts')), '>=', 2,
   'without p_court_id every active court is listed'
 );
 
@@ -104,11 +104,11 @@ select is(
 
 -- Window and closed days
 select is(
-  (select count(*)::int from public.get_availability(private.local_today(private.default_venue_id()) - 1)), 0,
+  (select count(*)::int from public.get_availability(private.local_today(private.default_venue_id()) - 1, null, 'claudex-courts')), 0,
   'yesterday returns no slots'
 );
 select is(
-  (select count(*)::int from public.get_availability(private.local_today(private.default_venue_id()) + (select booking_window_days from public.venue_settings) + 1)), 0,
+  (select count(*)::int from public.get_availability(private.local_today(private.default_venue_id()) + (select booking_window_days from public.venue_settings) + 1, null, 'claudex-courts')), 0,
   'a date past the booking window returns no slots'
 );
 select cmp_ok(
@@ -117,14 +117,14 @@ select cmp_ok(
 );
 update public.operating_hours set is_closed = true where day_of_week = extract(dow from (select d from fx))::smallint;
 select is(
-  (select count(*)::int from public.get_availability((select d from fx))), 0,
+  (select count(*)::int from public.get_availability((select d from fx), null, 'claudex-courts')), 0,
   'a closed day returns no slots'
 );
 update public.operating_hours set is_closed = false where day_of_week = extract(dow from (select d from fx))::smallint;
 
 -- Access
-select ok(has_function_privilege('anon', 'public.get_availability(date, uuid)', 'execute'), 'anon can call get_availability');
-select ok(has_function_privilege('authenticated', 'public.get_availability(date, uuid)', 'execute'), 'authenticated can call get_availability');
+select ok(has_function_privilege('anon', 'public.get_availability(date, uuid, text)', 'execute'), 'anon can call get_availability');
+select ok(has_function_privilege('authenticated', 'public.get_availability(date, uuid, text)', 'execute'), 'authenticated can call get_availability');
 set local role anon;
 select set_config('request.jwt.claims', '{"role": "anon"}', true);
 select is(

@@ -31,7 +31,7 @@ grant execute on function pg_temp.write_blocked(text) to anon, authenticated;
 create function pg_temp.reserved_rejected() returns int language plpgsql as $$
 declare s text; n int := 0;
 begin
-  foreach s in array array['www','app','api','admin','mail','demo','plotline','support','status','staging'] loop
+  foreach s in array array['www','app','api','admin','mail','demo','plotline','support','status','staging','help','blog'] loop
     begin
       insert into public.venues (slug) values (s);
     exception when check_violation then
@@ -75,7 +75,7 @@ select throws_ok($$insert into public.venues (slug) values ('Upper-Case')$$, '23
 select throws_ok($$insert into public.venues (slug) values ('ab')$$, '23514', null, 'constraint: slug shorter than 3 chars rejected');
 select throws_ok($$insert into public.venues (slug) values (repeat('a', 41))$$, '23514', null, 'constraint: slug longer than 40 chars rejected');
 select throws_ok($$insert into public.venues (slug) values ('under_score')$$, '23514', null, 'constraint: slug allows only a-z, 0-9 and hyphen');
-select is(pg_temp.reserved_rejected(), 10, 'constraint: all 10 reserved slugs are rejected');
+select is(pg_temp.reserved_rejected(), 12, 'constraint: all 12 reserved slugs are rejected');
 select throws_ok($$insert into public.venues (slug) values ('e2e-venue-a')$$, '23505', null, 'constraint: slug is unique');
 select throws_ok($$insert into public.venues (slug, status) values ('e2e-bad-status', 'open')$$, '23514', null, 'constraint: status must be draft/active/suspended/closed');
 select is(pg_temp.default_status(), 'draft', 'default: new venue status is draft');

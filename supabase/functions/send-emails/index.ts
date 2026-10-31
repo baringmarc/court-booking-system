@@ -7,7 +7,7 @@
 import { withSupabase } from 'npm:@supabase/server@1'
 import { emailAction, emailTransport, fromFor, sendEmail, workerAuthorized, workerSecret } from '../_shared/email.ts'
 import { renderEmail, type BookingStatus, type EmailData, type EmailKind } from '../_shared/emailTemplates.ts'
-import { returnBase } from '../_shared/paymongo.ts'
+import { venueSiteBase } from '../_shared/venueSite.ts'
 
 const json = (body: unknown, status = 200) => Response.json(body, { status })
 const BATCH = 20
@@ -36,10 +36,12 @@ export default {
     const resendKey = Deno.env.get('RESEND_API_KEY')
     const mailpitUrl = Deno.env.get('MAILPIT_URL')
     const transport = emailTransport({ transport: Deno.env.get('EMAIL_TRANSPORT'), resendKey, mailpitUrl, supabaseUrl })
-    const site = returnBase(null, Deno.env.get('PUBLIC_SITE_URL'))
-    if (transport === 'unavailable' || (transport !== 'disabled' && !site)) {
+    // Each email links to its booking's own venue site (looked up per row below).
+    const siteOptions = { rootDomain: Deno.env.get('PUBLIC_ROOT_DOMAIN'), allowList: Deno.env.get('PUBLIC_SITE_URL') }
+    const siteConfigured = Boolean(siteOptions.rootDomain) || venueSiteBase({ slug: null, origin: null, ...siteOptions }) !== null
+    if (transport === 'unavailable' || (transport !== 'disabled' && !siteConfigured)) {
       // Nothing is claimed, so the queue waits until the configuration is fixed.
-      console.error('send-emails: no usable email transport or PUBLIC_SITE_URL', transport)
+      console.error('send-emails: no usable email transport or site URL', transport)
       return json({ code: 'email_unavailable' }, 503)
     }
 
@@ -72,7 +74,13 @@ export default {
           if (issued.error) console.error('send-emails: issue_guest_link failed', row.id, issued.error.message)
           else guestToken = issued.data
         }
-        const email = renderEmail({ kind: row.kind, data: row.data, site: site!, forGuest: row.for_guest, currentStatus: row.booking_status, guestToken })
+        const venueRow = await admin.from('bookings').select('venues(slug)').eq('id', row.booking_id).maybeSingle()
+        const site = venueSiteBase({ slug: venueRow.data?.venues?.slug, origin: null, ...siteOptions })
+        if (!site) {
+          await finish(row.id, 'failed', 'No site URL for this venue.')
+          continue
+        }
+        const email = renderEmail({ kind: row.kind, data: row.data, site, forGuest: row.for_guest, currentStatus: row.booking_status, guestToken })
         const result = await sendEmail(fetch, transport, { from: fromFor(row.data.venue_name, Deno.env.get('EMAIL_FROM')), resendKey, mailpitUrl }, { to: row.to_email, ...email }, row.id)
         if (result.ok) {
           if (result.note) console.warn('send-emails:', row.id, result.note)

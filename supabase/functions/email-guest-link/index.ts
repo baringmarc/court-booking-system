@@ -9,7 +9,7 @@
 import { withSupabase } from 'npm:@supabase/server@1'
 import { emailAction, emailTransport, fromFor, sendEmail } from '../_shared/email.ts'
 import { renderEmail, type BookingStatus, type EmailData } from '../_shared/emailTemplates.ts'
-import { returnBase } from '../_shared/paymongo.ts'
+import { venueSiteBase } from '../_shared/venueSite.ts'
 import { normalizeReference } from '../_shared/payable.ts'
 import { ProofError } from '../_shared/proof.ts'
 
@@ -26,11 +26,13 @@ export default {
     const resendKey = Deno.env.get('RESEND_API_KEY')
     const mailpitUrl = Deno.env.get('MAILPIT_URL')
     const transport = emailTransport({ transport: Deno.env.get('EMAIL_TRANSPORT'), resendKey, mailpitUrl, supabaseUrl })
-    // Use the request's Origin only if it's an allowed site (same rule as the PayMongo return links).
-    const site = returnBase(req.headers.get('origin'), Deno.env.get('PUBLIC_SITE_URL'))
-    if (transport === 'unavailable' || (transport !== 'disabled' && !site)) {
+    // Links point at the booking's own venue site; the request's Origin counts only when it is that site or allow-listed
+    // (same rule as the PayMongo return links). The venue is known once the booking is claimed, so check config here.
+    const siteOptions = { rootDomain: Deno.env.get('PUBLIC_ROOT_DOMAIN'), allowList: Deno.env.get('PUBLIC_SITE_URL') }
+    const siteConfigured = Boolean(siteOptions.rootDomain) || venueSiteBase({ slug: null, origin: null, ...siteOptions }) !== null
+    if (transport === 'unavailable' || (transport !== 'disabled' && !siteConfigured)) {
       // Leave the row pending: the worker sends it later (without the link).
-      console.error('email-guest-link: no usable email transport or PUBLIC_SITE_URL', transport)
+      console.error('email-guest-link: no usable email transport or site URL', transport)
       return json({ code: 'email_unavailable', message: "We couldn't send the email right now." }, 503)
     }
 
@@ -62,7 +64,7 @@ export default {
       return json({ status: outcome === 'failed' ? 'queued' : outcome })
     }
 
-    const booking = await admin.from('bookings').select('status, expires_at').eq('id', row.booking_id).maybeSingle()
+    const booking = await admin.from('bookings').select('status, expires_at, venues(slug)').eq('id', row.booking_id).maybeSingle()
     if (booking.error || !booking.data) {
       console.error('email-guest-link: booking lookup failed', row.booking_id, booking.error?.message)
       return finish('failed', 'Booking lookup failed.')
@@ -73,7 +75,9 @@ export default {
     const next = emailAction(transport, 'booking_created', status)
     if (next.action === 'skip' || transport === 'disabled') return finish('skipped', next.action === 'skip' ? next.reason : undefined)
 
-    const email = renderEmail({ kind: 'booking_created', data: row.data, site: site!, forGuest: true, currentStatus: status, guestToken: token })
+    const site = venueSiteBase({ slug: booking.data.venues?.slug, origin: req.headers.get('origin'), ...siteOptions })
+    if (!site) return finish('failed', 'No site URL for this venue.')
+    const email = renderEmail({ kind: 'booking_created', data: row.data, site, forGuest: true, currentStatus: status, guestToken: token })
     const result = await sendEmail(fetch, transport, { from: fromFor(row.data.venue_name, Deno.env.get('EMAIL_FROM')), resendKey, mailpitUrl }, { to: row.to_email, ...email }, row.id)
     if (result.ok) {
       if (result.note) console.warn('email-guest-link:', row.id, result.note)

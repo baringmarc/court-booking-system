@@ -38,7 +38,7 @@ const HTML = new TextEncoder().encode('<html><script>alert(1)</script></html>')
 
 async function freeSlot(sb, offsetDays, hour) {
   const date = new Date(Date.now() + offsetDays * 86400000).toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' })
-  const { data, error } = await sb.rpc('get_availability', { p_date: date })
+  const { data, error } = await sb.rpc('get_availability', { p_date: date, p_venue_slug: 'claudex-courts' })
   if (error) throw error
   const slot = data.find((s) => s.status === 'free' && new Date(s.slot_start).toLocaleString('en-US', { timeZone: 'Asia/Manila', hour: 'numeric', hour12: false }) == hour)
   if (!slot) throw new Error('no free slot')

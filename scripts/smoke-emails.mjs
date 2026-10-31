@@ -53,7 +53,7 @@ const used = new Set()
 async function freeSlot(sb) {
   for (let days = 8; days <= 12; days++) {
     const date = new Date(Date.now() + days * 86400000).toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' })
-    const { data, error } = await sb.rpc('get_availability', { p_date: date })
+    const { data, error } = await sb.rpc('get_availability', { p_date: date, p_venue_slug: 'claudex-courts' })
     if (error) throw error
     const slot = data.find((s) => s.status === 'free' && !used.has(`${s.court_id}|${s.slot_start}`))
     if (slot) {

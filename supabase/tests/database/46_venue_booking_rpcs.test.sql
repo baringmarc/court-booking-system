@@ -121,9 +121,8 @@ select 'e1000000-0000-0000-0000-0000000000b1', 'c0000000-0000-0000-0000-00000000
 
 -- ---------------------------------------------------------------- resolve_public_venue, before A and B are active
 -- (only Claudex Courts is active here)
-select is(pg_temp.val($$ select private.resolve_public_venue() $$),
-  (select id::text from public.venues where slug = 'claudex-courts'),
-  'resolve: the default slug is Claudex Courts while it is the only active venue');
+select is(pg_temp.hint_of($$ select private.resolve_public_venue(null) $$), 'venue_required',
+  'resolve: no slug is venue_required even while Claudex Courts is the only active venue (T13.5)');
 select is(pg_temp.val($$ select private.resolve_public_venue('claudex-courts') $$),
   (select id::text from public.venues where slug = 'claudex-courts'),
   'resolve: an explicit active slug resolves to its venue id');
@@ -147,8 +146,8 @@ select is(pg_temp.val($$ select private.resolve_public_venue('e2e-vbr-a') $$), '
   'resolve: venue A by slug');
 select is(pg_temp.val($$ select private.resolve_public_venue('e2e-vbr-b') $$), 'b0000000-0000-0000-0000-00000000000b',
   'resolve: venue B by slug');
-select is(pg_temp.hint_of($$ select private.resolve_public_venue() $$), 'venue_required',
-  'resolve: the default slug is refused once a second venue is active');
+select is(pg_temp.hint_of($$ select private.resolve_public_venue(null) $$), 'venue_required',
+  'resolve: no slug is still venue_required with several venues active');
 select is(pg_temp.val($$ select private.resolve_public_venue('claudex-courts') $$),
   (select id::text from public.venues where slug = 'claudex-courts'),
   'resolve: naming Claudex Courts still works with several venues active');
@@ -234,9 +233,9 @@ select is(pg_temp.val($$ select count(*) from public.get_availability((select db
 select is(pg_temp.val($$ select count(*) from public.get_availability((select db from fx), 'c0000000-0000-0000-0000-0000000000b1') $$), '3',
   'availability: a court id alone is enough even with several venues active');
 select is(pg_temp.hint_of($$ select * from public.get_availability((select da from fx)) $$), 'venue_required',
-  'availability: no court and no slug is venue_required once a second venue is active');
+  'availability: no court and no slug is venue_required (T13.5)');
 select is(pg_temp.hint_of($$ select * from public.get_availability((select da from fx), null) $$), 'venue_required',
-  'availability: the old two-argument call without a court is venue_required too');
+  'availability: a null court and no slug is venue_required too');
 select is(pg_temp.hint_of($$ select * from public.get_availability((select da from fx), 'c0000000-0000-0000-0000-0000000000a1') $$), null,
   'availability: the old two-argument call with a court still works');
 select is(pg_temp.hint_of($$ select * from public.get_availability((select da from fx), null, 'e2e-vbr-c') $$), 'venue_unavailable',
