@@ -83,6 +83,7 @@
 | 2026-10-27 | Two repos, one database. court-booking-system is the **platform repo**: it owns every migration and Edge Function for every shared Supabase project. plotline-site is frontend only. Shared facts and the contract between them live in one file, [PLATFORM.md](PLATFORM.md). Not a monorepo for now. |
 | 2026-10-27 | plotline-site's backend moves here in Phase 5: `venue_signups` → `leads` (no account), `reviews` stays, `register` → `site-contact`, `feedback` → `site-review`, validation → `_shared/siteForms.ts` with an exact copy in plotline-site for instant feedback. |
 | 2026-10-27 | PayMongo per venue, hardened (Phase 4): every use of a venue's key is logged, the code uses keys only to create checkouts, register our webhook and refund late payments, a daily health check hides "Pay online" when a venue's key or webhook stops working, and each venue's setup is proven with one small live payment and refund during onboarding. |
+| 2026-11-01 | Pilot first, then Phase 4 when a venue wants online payments. The pilot stays on the current linked project (staging) until a separate production project is created; walk-ins stay hidden behind the code flag (the database does not refuse `create_walk_in`). The Terms already state how venues' PayMongo keys are stored, used and handled if one leaks (plotline-site `legal.ts`), so open question 6 is settled. The user removes the Terms and Privacy draft notice without a separate legal review. |
 
 ## 4. Open questions
 
@@ -92,8 +93,8 @@
    - limits on webhooks per account, and creating ours on the venue's account through the Webhooks API.
 2. ~~Domain~~ Settled on 2026-10-27: `plotline.fit`.
 3. ~~Demo slug~~ Settled on 2026-10-27: `claudex-courts`. Whether `demo.plotline.fit` also redirects to it is a Phase 2 detail.
-6. **Holding venues' PayMongo keys** (Phase 4): what our terms say about how we store and use them, and what we do if one leaks (rotate, tell the venue, review the key-use log).
-4. ~~**Walk-ins:** hide the form (kept for us and old data) or remove it?~~ Settled on 2026-10-26: hidden behind a code flag, off by default (M11, T11.2). Existing walk-in bookings on Claudex Courts stay as history. Still open: whether Phase 1 also refuses `create_walk_in` in the database, per venue. Note that a free blackout could still be used to hold a court for an offline customer; we accept that, as it hides the slot from players and costs the venue bookings.
+6. ~~**Holding venues' PayMongo keys** (Phase 4): what our terms say about how we store and use them, and what we do if one leaks (rotate, tell the venue, review the key-use log).~~ Settled on 2026-11-01: the Terms in plotline-site cover it.
+4. ~~**Walk-ins:** hide the form (kept for us and old data) or remove it?~~ Settled on 2026-10-26: hidden behind a code flag, off by default (M11, T11.2). Existing walk-in bookings on Claudex Courts stay as history. Settled on 2026-11-01: the database does not refuse `create_walk_in`; the form stays hidden. Note that a free blackout could still be used to hold a court for an offline customer; we accept that, as it hides the slot from players and costs the venue bookings.
 5. **Tax treatment of the fee:** the venue collects the ₱10 and passes it on to us. Ask an accountant how the venue and Plotline should each record and receipt it, before the first real invoice.
 
 ## 5. Billing rules
