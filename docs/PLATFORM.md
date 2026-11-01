@@ -52,7 +52,7 @@ Locally both repos sit side by side: `~/Documents/Projects/court-booking-system`
 
 Anything here is a **public API**: changing it can break the live marketing site. Follow §7.
 
-### Edge Functions (*target*; `site-contact` and the `leads` table are built here (T14.2; `site-contact` waits on its secrets and deploy approval), `site-review` and `reviews` come in Phase 5)
+### Edge Functions (*target*; `site-contact` and the `leads` table are built here (T14.2; `site-contact` deployed to the linked project on 2026-11-01), `site-review` and `reviews` come in Phase 5)
 
 Both are `POST`, called with `supabase.functions.invoke(name, { body })` and the publishable key (`verify_jwt = false`). Both answer `{ ok: true, … }` on success, and `{ ok: false, error }` with a readable message on 4xx/5xx. Bots (the honeypot filled, or the form sent within 3 seconds of first touch) get a fake success.
 
@@ -73,7 +73,7 @@ Both are `POST`, called with `supabase.functions.invoke(name, { body })` and the
 | `started` | number | ms timestamp of the first touch on the form |
 | `turnstileToken` | string | Cloudflare Turnstile token (required in production) |
 
-Replies: `200 { ok: true }`, `400 { ok: false, error }` for a validation error, `403` when Turnstile fails, `500` on a server error.
+Replies: `200 { ok: true }`, `400 { ok: false, error }` for a validation error, `403` when Turnstile fails, `503` when the project has no `TURNSTILE_SECRET_KEY` (the form is unavailable; show "message us instead"), `500` on a server error. `SITE_ORIGINS` is enforced by CORS: a browser on another origin gets no `Access-Control-Allow-Origin` header and cannot read the reply (a non-browser client can still post; Turnstile is what stops it).
 
 **`site-review`**: a review from a player or owner. Stored unapproved; shown once we approve it.
 
