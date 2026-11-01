@@ -664,6 +664,60 @@ export type Database = {
           },
         ]
       }
+      leads: {
+        Row: {
+          consented_at: string
+          courts: number
+          created_at: string
+          email: string
+          facebook: string | null
+          first_name: string
+          id: string
+          last_name: string
+          location: string
+          message: string | null
+          notes: string | null
+          phone: string
+          status: string
+          updated_at: string
+          venue_name: string
+        }
+        Insert: {
+          consented_at: string
+          courts: number
+          created_at?: string
+          email: string
+          facebook?: string | null
+          first_name: string
+          id?: string
+          last_name: string
+          location: string
+          message?: string | null
+          notes?: string | null
+          phone: string
+          status?: string
+          updated_at?: string
+          venue_name: string
+        }
+        Update: {
+          consented_at?: string
+          courts?: number
+          created_at?: string
+          email?: string
+          facebook?: string | null
+          first_name?: string
+          id?: string
+          last_name?: string
+          location?: string
+          message?: string | null
+          notes?: string | null
+          phone?: string
+          status?: string
+          updated_at?: string
+          venue_name?: string
+        }
+        Relationships: []
+      }
       open_play_courts: {
         Row: {
           court_id: string
@@ -953,14 +1007,17 @@ export type Database = {
         Row: {
           booking_fee: number
           id: boolean
+          invoice_grace_days: number
         }
         Insert: {
           booking_fee: number
           id?: boolean
+          invoice_grace_days?: number
         }
         Update: {
           booking_fee?: number
           id?: boolean
+          invoice_grace_days?: number
         }
         Relationships: []
       }
@@ -985,6 +1042,42 @@ export type Database = {
           id?: string
           phone?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      reviews: {
+        Row: {
+          approved: boolean
+          consented_at: string
+          created_at: string
+          id: string
+          name: string
+          quote: string
+          rating: number
+          role: string
+          venue: string | null
+        }
+        Insert: {
+          approved?: boolean
+          consented_at: string
+          created_at?: string
+          id?: string
+          name: string
+          quote: string
+          rating: number
+          role: string
+          venue?: string | null
+        }
+        Update: {
+          approved?: boolean
+          consented_at?: string
+          created_at?: string
+          id?: string
+          name?: string
+          quote?: string
+          rating?: number
+          role?: string
+          venue?: string | null
         }
         Relationships: []
       }
@@ -1135,6 +1228,7 @@ export type Database = {
           banner_path: string | null
           booking_window_days: number
           cancel_cutoff_hours: number
+          city: string
           currency: string
           maps_url: string
           max_rejections: number
@@ -1142,6 +1236,7 @@ export type Database = {
           online_payments_enabled: boolean
           payment_hold_minutes: number
           payment_instructions: string
+          showcase_opt_in: boolean
           slot_minutes: number
           sport_order: Database["public"]["Enums"]["sport"][]
           theme: string
@@ -1156,6 +1251,7 @@ export type Database = {
           banner_path?: string | null
           booking_window_days?: number
           cancel_cutoff_hours?: number
+          city?: string
           currency?: string
           maps_url?: string
           max_rejections?: number
@@ -1163,6 +1259,7 @@ export type Database = {
           online_payments_enabled?: boolean
           payment_hold_minutes?: number
           payment_instructions?: string
+          showcase_opt_in?: boolean
           slot_minutes?: number
           sport_order?: Database["public"]["Enums"]["sport"][]
           theme?: string
@@ -1177,6 +1274,7 @@ export type Database = {
           banner_path?: string | null
           booking_window_days?: number
           cancel_cutoff_hours?: number
+          city?: string
           currency?: string
           maps_url?: string
           max_rejections?: number
@@ -1184,6 +1282,7 @@ export type Database = {
           online_payments_enabled?: boolean
           payment_hold_minutes?: number
           payment_instructions?: string
+          showcase_opt_in?: boolean
           slot_minutes?: number
           sport_order?: Database["public"]["Enums"]["sport"][]
           theme?: string
@@ -1254,7 +1353,15 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      public_venues: {
+        Row: {
+          city: string | null
+          logo_url: string | null
+          name: string | null
+          slug: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       cancel_booking: {
@@ -1316,6 +1423,10 @@ export type Database = {
           p_start: string
           p_title: string
         }
+        Returns: string
+      }
+      create_venue: {
+        Args: { p_name: string; p_slug: string; p_timezone: string }
         Returns: string
       }
       create_walk_in: {
@@ -1388,7 +1499,14 @@ export type Database = {
           waiver_text: string
         }[]
       }
+      invoice_detail: { Args: { p_invoice_id: string }; Returns: Json }
+      invoices_overview: { Args: never; Returns: Json }
       issue_guest_link: { Args: { p_booking_id: string }; Returns: string }
+      mark_invoice_paid: {
+        Args: { p_invoice_id: string; p_method: string; p_reference: string }
+        Returns: undefined
+      }
+      mark_invoice_sent: { Args: { p_invoice_id: string }; Returns: undefined }
       paymongo_checkout_for: {
         Args: { p_booking_id: string }
         Returns: {
@@ -1404,6 +1522,8 @@ export type Database = {
           total_amount: number
         }[]
       }
+      publish_venue: { Args: { p_venue_id: string }; Returns: undefined }
+      reactivate_venue: { Args: { p_venue_id: string }; Returns: undefined }
       record_payment_proof: {
         Args: {
           p_account_id?: string
@@ -1484,6 +1604,7 @@ export type Database = {
         Args: { p_hours: Json; p_venue_id?: string }
         Returns: undefined
       }
+      suspend_venue: { Args: { p_venue_id: string }; Returns: undefined }
       update_open_play: {
         Args: {
           p_court_ids: string[]
@@ -1496,6 +1617,10 @@ export type Database = {
         }
         Returns: string
       }
+      user_id_by_email: { Args: { p_email: string }; Returns: string }
+      venue_setup_status: { Args: { p_venue_id: string }; Returns: Json }
+      venue_statement: { Args: { p_venue_id?: string }; Returns: Json }
+      venues_overview: { Args: never; Returns: Json }
     }
     Enums: {
       booking_source: "online" | "walk_in" | "moved"

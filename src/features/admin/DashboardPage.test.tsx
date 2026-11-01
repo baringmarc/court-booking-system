@@ -17,6 +17,7 @@ vi.mock('./hooks', () => ({
 vi.mock('../booking/hooks', () => ({ useAvailability: () => query([]) }))
 vi.mock('../openPlay/hooks', () => ({ useUpcomingOpenPlay: () => query([]) }))
 vi.mock('../booking/useNow', () => ({ useNow: () => new Date('2030-01-07T02:30:00.000Z') }))
+vi.mock('../venue/useVenue', () => ({ useVenue: () => ({ id: 'venue-a', slug: 'a-venue', status: 'active' }) }))
 vi.mock('./EarningsSection', () => ({ EarningsSection: () => null }))
 vi.mock('./DayView', () => ({ DayView: () => null }))
 vi.mock('./WalkInSection', () => ({ WalkInSection: () => <button type="button">+ Walk-in</button> }))
@@ -29,7 +30,7 @@ async function renderDashboard(walkInsEnabled: boolean) {
 }
 
 describe('DashboardPage walk-in flag', () => {
-  afterEach(() => vi.unstubAllEnvs())
+  afterEach(() => { vi.unstubAllEnvs() })
 
   it('has no walk-in action when the flag is off', async () => {
     await renderDashboard(false)

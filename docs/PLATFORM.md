@@ -39,7 +39,7 @@ Locally both repos sit side by side: `~/Documents/Projects/court-booking-system`
 
 | Project | Region | Used by | Status |
 | --- | --- | --- | --- |
-| **Production** | Singapore (`ap-southeast-1`) | Both repos | *Target*: not created yet (SAAS-PLAN Phase 0). Free until the first paying venue, then Pro. |
+| **Production** | Singapore (`ap-southeast-1`) | Both repos | `sfssolhsthteonzgzfos`. Created 2026-11-01; schema, functions, Vault and demo seed deployed the same day. The CLI stays linked to staging; deploy here deliberately with `npx supabase link --project-ref sfssolhsthteonzgzfos`, then link back. Secrets and Auth settings still to finish (see TASKS Handoff). Free until the first paying venue, then Pro. |
 | **Staging** | Singapore | Both repos, for previews and testing | Today's linked `court-booking-system` project. It also runs the current Vercel demo. |
 | plotline-site's own local project | (local only, ports 553xx) | plotline-site | **Transitional.** Never deployed. Retired when its tables and functions move here (§5). |
 
@@ -52,11 +52,11 @@ Locally both repos sit side by side: `~/Documents/Projects/court-booking-system`
 
 Anything here is a **public API**: changing it can break the live marketing site. Follow §7.
 
-### Edge Functions (*target*; moved from plotline-site in Phase 5)
+### Edge Functions (live on the linked project since 2026-11-01: `site-contact` (T15.2) and `site-review` (T15.4))
 
 Both are `POST`, called with `supabase.functions.invoke(name, { body })` and the publishable key (`verify_jwt = false`). Both answer `{ ok: true, … }` on success, and `{ ok: false, error }` with a readable message on 4xx/5xx. Bots (the honeypot filled, or the form sent within 3 seconds of first touch) get a fake success.
 
-**`site-contact`**: a venue owner's contact form. Stores a lead; no account is created.
+**`site-contact`**: a venue owner's contact form. Stores a lead and emails `LEAD_ALERT_TO` (best-effort: a failed alert never fails the save); no account is created. Only platform admins read leads (RLS); nothing in the marketing site reads them.
 
 | Field | Type | Rule |
 | --- | --- | --- |
@@ -73,9 +73,9 @@ Both are `POST`, called with `supabase.functions.invoke(name, { body })` and the
 | `started` | number | ms timestamp of the first touch on the form |
 | `turnstileToken` | string | Cloudflare Turnstile token (required in production) |
 
-Replies: `200 { ok: true }`, `400 { ok: false, error }` for a validation error, `403` when Turnstile fails, `500` on a server error.
+Replies: `200 { ok: true }`, `400 { ok: false, error }` for a validation error, `403` when Turnstile fails, `503` when the project has no `TURNSTILE_SECRET_KEY` (the form is unavailable; show "message us instead"), `500` on a server error. `SITE_ORIGINS` is enforced by CORS: a browser on another origin gets no `Access-Control-Allow-Origin` header and cannot read the reply (a non-browser client can still post; Turnstile is what stops it).
 
-**`site-review`**: a review from a player or owner. Stored unapproved; shown once we approve it.
+**`site-review`**: a review from a player or owner. Stored hidden (`approved = false`); shown once a platform admin approves it in the console's Reviews section. Only the honeypot and the 3-second timing check guard it (no Turnstile).
 
 | Field | Type | Rule |
 | --- | --- | --- |
@@ -96,7 +96,7 @@ Reply: `200 { ok: true, message }`.
 | Object | Access | Columns plotline-site uses |
 | --- | --- | --- |
 | `public.reviews` | anon `select`; RLS returns approved rows only | `id, name, venue, quote, role, rating, created_at` |
-| `public.public_venues` (*target*, Phase 3) | anon `select`: active venues that opted in to be listed | `slug, name, city, logo_url` (link: `https://<slug>.plotline.fit`) |
+| `public.public_venues` (T14.13) | anon `select`: active venues that opted in to be listed (`venue_settings.showcase_opt_in`) | `slug, name, city, logo_url` (link: `https://<slug>.plotline.fit`). `logo_url` is a path inside the public `venue-media` bucket (the venue's banner, else its first court photo, else null): prefix it with `<supabase url>/storage/v1/object/public/venue-media/`. `city` may be empty. |
 
 plotline-site never writes to tables directly and never reads `leads`.
 
@@ -110,10 +110,11 @@ M12 (done 2026-10-31) made the schema multi-venue (`venues`, `venue_members`, `p
 | plotline-site | `VITE_TURNSTILE_SITE_KEY` | Cloudflare Turnstile site key (public) |
 | this repo, Edge Function secrets | `SITE_ORIGINS` | Allowed origins for the site functions, comma-separated: `https://plotline.fit,https://www.plotline.fit` (plus `http://localhost:5173` on staging) |
 | this repo, Edge Function secrets | `TURNSTILE_SECRET_KEY` | Cloudflare Turnstile secret. Required on hosted projects; skipped locally when unset. |
+| this repo, Edge Function secrets | `LEAD_ALERT_TO` | Addresses (comma-separated) emailed when `site-contact` stores a lead. Unset: no alert. Uses the booking-email transport (`EMAIL_TRANSPORT`, `RESEND_API_KEY`, `EMAIL_FROM`). |
 | this repo, Edge Function secrets | `PUBLIC_ROOT_DOMAIN` | `plotline.fit` (T13.6). Booking return and email links go to `https://<venue slug>.plotline.fit`, built from the booking's own venue, never from a request value. Unset until the wildcard DNS is live (T13.8); `PUBLIC_SITE_URL` stays as the exact allow-list for localhost and the old Vercel URL. |
 | Supabase Auth, URL configuration | Redirect URLs | Add `https://*.plotline.fit/**` (done by hand in the dashboard; T13.6). Keep the existing entries until T13.8. |
 
-## 5. Moving plotline-site's backend here (Phase 5)
+## 5. Moving plotline-site's backend here (Phase 5) ✅ built here (M14–M15)
 
 Today plotline-site has its own migration (`venue_signups`, `reviews`) and Edge Functions (`register`, `feedback`), and its sign-up creates auth accounts with a 7-day trial. Under the plan, owners don't sign up and there's no trial, so:
 
@@ -125,7 +126,10 @@ Today plotline-site has its own migration (`venue_signups`, `reviews`) and Edge 
 | `feedback` function | `site-review` |
 | `_shared/validate.ts` | `_shared/siteForms.ts` (+ the copy in plotline-site) |
 
-The prepared drafts are in [`docs/drafts/phase5-site-backend/`](drafts/phase5-site-backend/) (and plotline-site's side in its `docs/drafts/phase5/`). After the move: delete plotline-site's `supabase/migrations`, `supabase/functions` and `supabase/tests`, and keep only what it needs to generate types.
+The backend side is done and live on the linked project (`leads` T14.2, `reviews` T15.4, `site-contact` T15.2, `site-review` T15.4, the lead alert T15.3); the drafts folder is deleted. **What plotline-site does next** (its own tasks, in its repo):
+1. **T1.8:** switch its forms to `site-contact` and `site-review` (already done in T1.7), then delete `features/signup`, `/welcome`, its `supabase/migrations`, `functions` and `tests`, and the old `db:*` scripts. Generate types from the shared project.
+2. **T1.11b:** set `VITE_TURNSTILE_SITE_KEY` (production widget), `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` in the Cloudflare Workers deploy, then deploy the apex and `www`.
+3. Keep `src/lib/siteForms.ts` byte-identical to `supabase/functions/_shared/siteForms.ts` (checked on 2026-11-01).
 
 ## 6. Shared values
 

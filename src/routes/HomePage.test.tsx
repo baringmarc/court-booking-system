@@ -36,7 +36,7 @@ function renderHome(enabled: boolean) {
 }
 
 describe('HomePage lead', () => {
-  beforeEach(() => vi.mocked(fetchVenueSettings).mockReset())
+  beforeEach(() => { vi.mocked(fetchVenueSettings).mockReset() })
 
   it('online payments on: mentions paying online with a card', async () => {
     renderHome(true)

@@ -43,7 +43,7 @@ beforeEach(() => {
   vi.mocked(prepareQrImage).mockReset().mockResolvedValue(new Blob(['png'], { type: 'image/png' }))
   vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:preview'), revokeObjectURL: vi.fn() }))
 })
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => { vi.unstubAllGlobals() })
 
 describe('PaymentAccountsSection', () => {
   it('lists the accounts in order, with their details and a QR badge', async () => {

@@ -15,7 +15,7 @@ const photos: CourtPhotoRow[] = [1, 2, 3].map((n) => ({
 Element.prototype.scrollTo ??= () => {}
 
 describe('CourtGallery', () => {
-  afterEach(() => vi.restoreAllMocks())
+  afterEach(() => { vi.restoreAllMocks() })
 
   it('lists every photo in order with alt text that says which one it is', () => {
     render(<CourtGallery court={court} photos={photos} />)

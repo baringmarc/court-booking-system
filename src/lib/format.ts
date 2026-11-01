@@ -11,6 +11,11 @@ export function formatMoney(amount: number, currency = 'PHP') {
   }).format(amount)
 }
 
+/** Money with centavos always shown, for statements where every amount must line up (invoices). */
+export function formatMoneyExact(amount: number, currency = 'PHP') {
+  return new Intl.NumberFormat('en-PH', { style: 'currency', currency, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount)
+}
+
 /** 6 → "6 AM", 13 → "1 PM", 24 → "12 AM" (midnight close). */
 export function formatHour(hour: number) {
   const h = hour % 24

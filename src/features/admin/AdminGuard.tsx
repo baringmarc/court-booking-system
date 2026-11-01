@@ -3,7 +3,9 @@ import { Link, Navigate, Outlet, useLocation } from 'react-router-dom'
 import { ErrorMessage } from '../../components/ErrorMessage'
 import { PageLoader } from '../../components/PageLoader'
 import { useAuth } from '../auth/useAuth'
+import { needsPassword } from '../auth/needsPassword'
 import { useIsVenueAdmin } from '../auth/useIsVenueAdmin'
+import { SetPasswordPrompt } from './SetPasswordPrompt'
 
 /** Shown to a signed-in account that isn't an admin. Admin access itself is enforced by RLS (`private.is_venue_admin`). */
 export function AdminsOnly() {
@@ -51,6 +53,7 @@ export function AdminGuard() {
   const { user, loading, profileError } = useAuth()
   const isAdmin = useIsVenueAdmin()
   const location = useLocation()
+  const [passwordHandled, setPasswordHandled] = useState(false)
 
   if (loading) return <PageLoader />
   if (!user) {
@@ -58,5 +61,6 @@ export function AdminGuard() {
   }
   if (profileError) return <AccountLoadError />
   if (!isAdmin) return <AdminsOnly />
+  if (!passwordHandled && needsPassword(user)) return <SetPasswordPrompt onDone={() => setPasswordHandled(true)} />
   return <Outlet />
 }

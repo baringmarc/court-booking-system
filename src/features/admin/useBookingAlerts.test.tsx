@@ -50,7 +50,7 @@ beforeEach(() => {
   unsubscribe.mockReset()
   vi.mocked(subscribeToBookingChanges).mockReset().mockImplementation((h: Handlers) => { handlers = h; return unsubscribe })
 })
-afterEach(() => setVisibility('visible'))
+afterEach(() => { setVisibility('visible') })
 
 describe('useBookingAlerts', () => {
   it('subscribes once and unsubscribes on unmount', () => {

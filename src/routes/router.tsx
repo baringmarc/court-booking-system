@@ -70,6 +70,10 @@ export const router = createBrowserRouter([
             path: 'settings',
             lazy: () => import('../features/admin/SettingsPage').then((m) => ({ Component: m.SettingsPage })),
           },
+          {
+            path: 'statement',
+            lazy: () => import('../features/admin/StatementPage').then((m) => ({ Component: m.StatementPage })),
+          },
           { path: '*', element: <NotFoundPage /> },
         ],
       },

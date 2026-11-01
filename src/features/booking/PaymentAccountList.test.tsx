@@ -30,7 +30,7 @@ beforeEach(() => {
   writeText = vi.fn(async () => {})
   Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
 })
-afterEach(() => vi.restoreAllMocks())
+afterEach(() => { vi.restoreAllMocks() })
 
 describe('PaymentAccountList', () => {
   it('says it is loading, then shows a card per account in order', async () => {

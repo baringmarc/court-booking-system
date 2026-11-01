@@ -12,6 +12,7 @@ const LINKS = [
   { to: '/admin/courts', label: 'Courts & rates' },
   { to: '/admin/schedule', label: 'Schedule' },
   { to: '/admin/open-play', label: 'Open play' },
+  { to: '/admin/statement', label: 'Statement' },
   { to: '/admin/settings', label: 'Settings' },
 ]
 

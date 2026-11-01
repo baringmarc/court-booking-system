@@ -846,3 +846,11 @@ details[open]::details-content { block-size: auto; }
 .qr-admin-preview { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .qr-admin-preview img { width: 160px; height: 160px; object-fit: contain; background: #ffffff; padding: 6px; border: 1px solid var(--border); border-radius: 10px; }
 .tap-44 { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
+
+/* T14.10: print only the open invoice. */
+@media print {
+  body * { visibility: hidden; }
+  .invoice-print, .invoice-print * { visibility: visible; }
+  .invoice-print { position: absolute; inset: 0 auto auto 0; width: 100%; box-shadow: none; border: 0; }
+  .no-print { display: none !important; }
+}

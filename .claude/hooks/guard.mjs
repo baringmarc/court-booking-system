@@ -21,6 +21,8 @@
 //
 // UNLOCK: when the user wants Claude to change the harness itself, they run
 //   `touch .claude/state/unlock-harness` themselves. Protected files are then editable for 2 hours.
+// GRANT: after the user approves a change in /retro, grant-harness.mjs lets Claude edit the named protected files
+//   (not the USER_ONLY ones in lib/harness.mjs) for up to 30 minutes. The main session only.
 //
 // A blocked call gets a "deny" with the reason, which Claude reads and adjusts to. Every block is logged to
 // .claude/retro/failures.jsonl for /retro.
@@ -34,7 +36,7 @@ import {
   existsInHead,
   existsSync,
   git,
-  harnessUnlocked,
+  harnessUnlockedFor,
   logEvent,
   matchesAny,
   paths,
@@ -132,11 +134,11 @@ function checkFileEdit() {
 
   if (agent === 'reviewer') deny('reviewer-readonly', 'The reviewer is read-only. Report the problem as a finding instead.', { path: p })
 
-  if (isProtected(p) && !harnessUnlocked()) {
+  if (isProtected(p) && !harnessUnlockedFor(p)) {
     deny(
       'protected-file',
       `${p} is part of the harness and is read-only for Claude. If it really needs changing, stop and ask the user ` +
-        '(they can unlock harness edits for 2 hours with `touch .claude/state/unlock-harness`).',
+        '(/retro grants a file for 30 minutes after the user approves it; the user can unlock all harness edits for 2 hours with `touch .claude/state/unlock-harness`).',
       { path: p },
     )
   }
@@ -220,20 +222,108 @@ const HARNESS_SCRIPT = {
     !/(^|[^0-9&])>>?(?!&)|\btee\b/.test(seg.replace(/'[^']*'|"[^"]*"/g, '')),
 }
 
+// True when the command redirects output into a file: any `>` outside quotes (`>`, `>>`, `1>`, `2>`, `>&file`, `&>`)
+// except a target of /dev/null or a descriptor copy such as `2>&1` and `>&2`.
+function writesFile(cmd) {
+  let quote = null
+  for (let i = 0; i < cmd.length; i++) {
+    const c = cmd[i]
+    if (quote) {
+      if (c === '\\' && quote === '"') i++
+      else if (c === quote) quote = null
+    } else if (c === '\\') i++
+    else if (c === '"' || c === "'") quote = c
+    else if (c === '>') {
+      const rest = cmd.slice(i + 1).replace(/^[>|&]?\s*/, (m) => (m.startsWith('&') ? '&' : ''))
+      if (/^&\d+-?(?=\s|$|[;&|)])/.test(rest) || /^\/dev\/null(\s|$)/.test(cmd.slice(i + 1).replace(/^>?\s*/, ''))) continue
+      return true
+    }
+  }
+  return false
+}
+
+// True when the command has a `{` outside quotes: brace expansion (`sort {-o,} out`) builds words after the checks ran.
+function hasUnquotedBrace(cmd) {
+  let quote = null
+  for (let i = 0; i < cmd.length; i++) {
+    const c = cmd[i]
+    if (quote) {
+      if (c === '\\' && quote === '"') i++
+      else if (c === quote) quote = null
+    } else if (c === '\\') i++
+    else if (c === '"' || c === "'") quote = c
+    else if (c === '{') return true
+  }
+  return false
+}
+
+// Allowed read tools that can still write or run code through their own arguments (H9). True when a segment does.
+// Where a tool has such options, it gets an allowlist of arguments instead of a denylist of flags.
+function unsafeArgs(rawSeg) {
+  // The shell removes quotes and backslashes before a program sees its arguments: judge the words it will get.
+  const seg = rawSeg.replace(/["'\\]/g, '')
+  const words = seg.split(/\s+/)
+  const cmd = words[0]
+  const args = words.slice(1)
+  if (cmd === 'git') return /(^|\s)--output(=|\s|$)/.test(seg)
+  if (cmd === 'find') return /(^|\s)-(f(print0?|printf|ls)\b|delete|exec|ok)/.test(seg)
+  if (cmd === 'rg') return /(^|\s)--(pre|hostname-bin)\b/.test(seg)
+  // sort: short flags from a safe set only (no -o, long options, --compress-program, -T); files are plain words.
+  if (cmd === 'sort') return args.some((w) => w.startsWith('-') && !/^-[rnuVfb]+$/.test(w))
+  // uniq IN OUT writes OUT (a lone `-` is stdin and counts as an argument): flags -c -d -u -i, at most one argument.
+  if (cmd === 'uniq') return args.some((w) => w.startsWith('-') && w !== '-' && !/^-[cdui]+$/.test(w)) || args.filter((w) => w === '-' || !w.startsWith('-')).length > 1
+  // file -C / --compile / -m write a compiled magic file.
+  if (cmd === 'file') return args.some((w) => w.startsWith('-') && !/^-[bi]+$/.test(w))
+  // sed -n may only print line ranges: its w, W, e, r and R commands write files or run code.
+  if (cmd === 'sed') return !/^sed\s+-n\s+\d+(,(\d+|\$))?p(\s+[^\s-]\S*)*$/.test(seg)
+  return false
+}
+
+// Splits a command into its simple commands at &&, ||, ;, | and newlines, but not inside quotes: a regex such as
+// -G "\.(skip|only)\(" is one argument, not two commands.
 function segments(cmd) {
-  return cmd
-    .split(/&&|\|\||;|\||\n/)
-    .map((s) => s.trim())
-    .filter(Boolean)
+  const out = []
+  let cur = ''
+  let quote = null
+  for (let i = 0; i < cmd.length; i++) {
+    const c = cmd[i]
+    if (quote) {
+      if (c === '\\' && quote === '"') {
+        cur += c + (cmd[++i] ?? '')
+        continue
+      }
+      if (c === quote) quote = null
+      cur += c
+    } else if (c === '\\') {
+      // A backslash outside quotes escapes the next character (an escaped quote opens nothing).
+      cur += c + (cmd[++i] ?? '')
+    } else if (c === '"' || c === "'") {
+      quote = c
+      cur += c
+    } else if (c === ';' || c === '|' || c === '&' || c === '\n') {
+      // `&&`, `||` and a lone `|` or `&` all end the command; `2>&1` is not a separator.
+      if (c === '&' && (cmd[i - 1] === '>' || cmd[i + 1] === '>')) {
+        cur += c
+        continue
+      }
+      out.push(cur)
+      cur = ''
+    } else {
+      cur += c
+    }
+  }
+  out.push(cur)
+  return out.map((x) => x.trim()).filter(Boolean)
 }
 
 const REVIEWER_ALLOWED = [
-  /^git\s+(diff|status|log|show|blame|ls-files|rev-parse|cat-file|merge-base)\b/,
-  /^(ls|cat|grep|rg|head|tail|wc|nl|sort|uniq|cut|jq|echo|pwd|pgrep|file|stat|diff)\b/,
+  /^git\s+(diff|status|log|show|blame|ls-files|rev-parse|cat-file|merge-base)(\s|$)/,
+  /^(ls|cat|grep|rg|head|tail|wc|nl|sort|uniq|cut|jq|echo|pwd|pgrep|file|stat|diff)(\s|$)/,
   /^sed\s+-n\b/,
-  /^find\b(?!.*(-delete|-exec|-ok))/,
-  /^npm\s+run\s+(test|test:db|typecheck|lint)(\s|$)/,
-  /^npx\s+vitest\s+run\b/,
+  /^find(\s|$)/,
+  /^node\s+(\.\/)?\.claude\/hooks\/test-diff-check\.mjs(\s+[\w./~^-]+)?$/,
+  /^npm\s+run\s+(test|test:db|typecheck|lint)$/, // no extra arguments: `-- --fix` and `-- -u` rewrite files
+  /^npx\s+vitest\s+run(\s+[^\s"'\\-][^\s"'\\]*)*$/, // paths only: -u, --outputFile and --coverage write files
   /^cd\s/,
 ]
 
@@ -241,8 +331,20 @@ function checkBash() {
   const cmd = String(args.command ?? '')
 
   if (agent === 'reviewer') {
-    const bad = segments(cmd).find((s) => !REVIEWER_ALLOWED.some((re) => re.test(s)))
-    if (bad || /(^|[^0-9&])>(?!&)/.test(cmd.replace(/2>\/dev\/null|2>&1/g, ''))) {
+    // One plain line only: a newline or heredoc lets a quote in a comment or heredoc body desync the scanners below
+    // from the shell (`echo hi # it's` + newline + `echo x > f`).
+    if (hasUnquotedBrace(cmd)) {
+      deny('reviewer-readonly', 'The reviewer is read-only; brace expansion ({…}) outside quotes is not allowed.', { command: cmd.slice(0, 200) })
+    }
+    if (/[\n\r]|<</.test(cmd)) {
+      deny('reviewer-readonly', 'The reviewer is read-only; send one single-line command at a time (no newlines or heredocs).', { command: cmd.slice(0, 200) })
+    }
+    // Shapes the segment check can't see into: command or process substitution, variable expansion (`${IFS}`), ANSI-C quotes, `&>`.
+    if (/\$\(|`|<\(|>\(|\$['{A-Za-z_]|&>/.test(cmd)) {
+      deny('reviewer-readonly', 'The reviewer is read-only; command substitution, process substitution, variable expansion, $\'…\' and &> are not allowed.', { command: cmd.slice(0, 200) })
+    }
+    const bad = segments(cmd).find((s) => !REVIEWER_ALLOWED.some((re) => re.test(s)) || unsafeArgs(s))
+    if (bad || writesFile(cmd)) {
       deny('reviewer-readonly', `The reviewer is read-only; "${bad ?? cmd}" isn't on its allowed command list.`, { command: cmd.slice(0, 200) })
     }
   }
@@ -265,12 +367,16 @@ function checkBash() {
     deny('protected-file', 'Only the user may unlock the harness.', { command: cmd.slice(0, 200) })
   }
 
+  if (/grant-harness\.mjs/.test(cmd) && agent !== 'main') {
+    deny('protected-file', 'Only the main session may grant harness edits, and only after the user approves the change (/retro).', { command: cmd.slice(0, 200) })
+  }
+
   // Pipes are kept inside a segment here, so `cat x | tee .claude/hooks/y` is still seen as one write.
   for (const seg of cmd.split(/&&|\|\||;|\n/).map((s) => s.trim())) {
     if (!WRITE_OPS.test(seg)) continue
     const mentioned = (seg.match(/[\w./@-]+/g) ?? []).map((t) => rel(t)).filter(Boolean)
     for (const p of mentioned) {
-      if (isProtected(p) && !harnessUnlocked() && !HARNESS_SCRIPT.test(seg)) {
+      if (isProtected(p) && !harnessUnlockedFor(p) && !HARNESS_SCRIPT.test(seg)) {
         deny('protected-file', `This command would change ${p}, which is part of the harness. Ask the user.`, { command: cmd.slice(0, 200) })
       }
       if (isMigration(p) && existsInHead(p)) {

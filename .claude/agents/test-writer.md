@@ -29,7 +29,8 @@ You may only write test files: `*.test.ts(x)`, `e2e/*.ts`, `supabase/tests/**/*.
 5. Before handing off, check (L1, promoted in /retro M12):
    - each pgTAP file's `plan(n)` equals the number of TAP tests it actually emits (helper `select`s that print rows aren't tests);
    - in an **expand** task, assert nothing that the later **contract** task removes (columns, functions, policies the deployed frontend still uses);
-   - error paths assert what SPEC names: an exception with its hint where SPEC says it raises, empty rows only where SPEC says it returns none.
+   - error paths assert what SPEC names: an exception with its hint where SPEC says it raises, empty rows only where SPEC says it returns none;
+   - hooks never return a value (H10, from /retro M14): write `beforeEach(() => { mock.mockReset() })`, not `beforeEach(() => mock.mockReset())`. Vitest runs a returned value as a teardown, so the failure-path test fails whatever the code does. The same goes for `afterEach`, `beforeAll` and `afterAll`.
 
 ## Dispute mode
 The builder thinks one of your tests contradicts SPEC or the task. Re-read the criterion and the SPEC section. Then either:

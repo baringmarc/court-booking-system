@@ -12,6 +12,8 @@
     "test:watch": "vitest",
     "test:db": "node scripts/with-lock.mjs sh scripts/with-docker.sh sh scripts/test-db.sh",
     "smoke:proof": "node scripts/smoke-payment-proof.mjs",
+    "smoke:invite": "node scripts/smoke-invite-owner.mjs",
+    "smoke:contact": "node scripts/smoke-site-contact.mjs",
     "smoke:paymongo": "node scripts/smoke-paymongo.mjs",
     "smoke:emails": "node scripts/smoke-emails.mjs",
     "test:e2e": "node scripts/with-lock.mjs playwright test",
