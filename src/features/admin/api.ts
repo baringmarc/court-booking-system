@@ -77,6 +77,7 @@ export const adminKeys = {
   allMovedParts: () => [currentVenueId(), 'admin-moved-parts'] as const,
   movedParts: (bookingId: string) => [currentVenueId(), 'admin-moved-parts', bookingId] as const,
   setup: () => [currentVenueId(), 'admin-setup'] as const,
+  statement: () => [currentVenueId(), 'admin-statement'] as const,
 }
 
 // One literal: supabase-js infers the row type from this string.
@@ -625,4 +626,20 @@ export async function fetchSetupStatus(): Promise<SetupStatus> {
 /** Moves the venue from draft to active; the database refuses until the required items exist. */
 export async function publishVenue(): Promise<void> {
   unwrap(await supabase.rpc('publish_venue', { p_venue_id: currentVenueId() }))
+}
+
+/** The venue's statement (T14.11): this month's billing charges and its invoices, as venue_statement returns them. */
+export type VenueStatement = {
+  month: string
+  fee_count: number
+  fee_total: number
+  adjustment_total: number
+  total: number
+  by_method: { method: string | null; paid_with: string | null; count: number; fee_total: number }[]
+  lines: { charge_id: string; booking_id: string; reference_code: string; kind: string; amount: number; charged_at: string }[]
+  invoices: { invoice_id: string; billing_month: string; status: string; total: number; sent_at: string | null; paid_at: string | null }[]
+}
+
+export async function fetchStatement(): Promise<VenueStatement> {
+  return unwrap(await supabase.rpc('venue_statement', { p_venue_id: currentVenueId() })) as unknown as VenueStatement
 }

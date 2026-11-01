@@ -1569,6 +1569,7 @@ export type Database = {
       }
       user_id_by_email: { Args: { p_email: string }; Returns: string }
       venue_setup_status: { Args: { p_venue_id: string }; Returns: Json }
+      venue_statement: { Args: { p_venue_id?: string }; Returns: Json }
       venues_overview: { Args: never; Returns: Json }
     }
     Enums: {

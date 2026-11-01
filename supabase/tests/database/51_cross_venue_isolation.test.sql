@@ -469,6 +469,8 @@ select is_empty(
          'create_venue',
          -- venue admins and platform admins only: take a venue id and refuse anyone who doesn't run it (58_publish_venue)
          'venue_setup_status', 'publish_venue',
+         -- venue admins only: names a venue id and refuses anyone who doesn't run it (62_venue_statement)
+         'venue_statement',
          -- platform admins only: refuse anyone who is not a platform admin (59_venues_overview, 61_invoice_review)
          'venues_overview', 'suspend_venue', 'reactivate_venue',
          'invoices_overview', 'invoice_detail', 'mark_invoice_sent', 'mark_invoice_paid'

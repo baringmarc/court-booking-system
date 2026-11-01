@@ -10,6 +10,7 @@ import {
   fetchEarnings,
   fetchProofQueueCount,
   fetchSetupStatus,
+  fetchStatement,
   publishVenue,
   fetchProofUrl,
   deleteCourt,
@@ -489,4 +490,8 @@ export function usePublishVenue() {
       qc.invalidateQueries({ queryKey: ['venue'] }),
     ]),
   })
+}
+
+export function useStatement() {
+  return useQuery({ queryKey: adminKeys.statement(), queryFn: fetchStatement, staleTime: 30_000 })
 }
