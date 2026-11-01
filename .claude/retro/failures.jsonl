@@ -288,3 +288,8 @@
 {"ts":"2026-10-31T18:50:50.251Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"sed -n 1p {-i,} file"}
 {"ts":"2026-10-31T18:50:50.348Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"sort {-o,} out f"}
 {"ts":"2026-10-31T18:50:50.447Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"echo {a,b}"}
+{"ts":"2026-10-31T19:58:41.204Z","task":"T14.5b","source":"guard","category":"commit-before-full-verify","agent":"main","command":"node .claude/hooks/verify-gate.mjs --full 2>&1 | tail -n 2 && git add SPEC.md TASKS.md package.json scripts src supabase && git commit -q -m \"feat(console): T14.5 invite-venue-owner function\n\nCo-Autho"}
+{"ts":"2026-11-01T02:42:36.382Z","task":"T14.5b","source":"gate","tier":"full","category":"test","summary":"❯ src/features/admin/SetPasswordPrompt.test.tsx (6 tests | 1 failed) 629ms"}
+{"ts":"2026-11-01T02:48:03.820Z","task":"T14.5b","source":"gate","tier":"fast","category":"test","summary":"❯ src/features/admin/SetPasswordPrompt.test.tsx (6 tests | 1 failed) 1196ms"}
+{"ts":"2026-11-01T02:48:18.593Z","task":"T14.5b","source":"dispute","file":"src/features/admin/SetPasswordPrompt.test.tsx","summary":"beforeEach returned the mock, run by Vitest as teardown, calling the rejecting mock","outcome":"test fixed"}
+{"ts":"2026-11-01T02:54:03.885Z","task":"T14.5b","source":"reviewer","severity":"blocker","category":"missing-test","file":"src/features/admin/SetPasswordPrompt.test.tsx:beforeEach","summary":"beforeEach returned the mock, so Vitest ran it as teardown and failed the failure-path test (test fixed)","round":1}

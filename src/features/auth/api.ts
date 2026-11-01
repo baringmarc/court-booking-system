@@ -26,3 +26,9 @@ export async function fetchMemberVenues(userId: string): Promise<{ id: string; s
     .flatMap((r) => (r.venues ? [{ id: r.venues.id, slug: r.venues.slug }] : []))
     .sort((a, b) => a.slug.localeCompare(b.slug))
 }
+
+/** Sets the signed-in user's password and flags it, so an invited owner isn't asked again (T14.5b). Throws the AuthError. */
+export async function setPassword(password: string): Promise<void> {
+  const { error } = await supabase.auth.updateUser({ password, data: { password_set: true } })
+  if (error) throw error
+}
