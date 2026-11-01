@@ -2061,6 +2061,12 @@ SaaS Phase 3 (`docs/SAAS-PLAN.md`). Staff-only tools on `app.plotline.fit`: lead
 - Test dispute: src/features/admin/SetPasswordPrompt.test.tsx "failure: shows the error in an alert and does not call onDone": `beforeEach(() => mockSet.mockReset())` returns the mock, which Vitest runs as a teardown, so it calls the rejecting `setPassword` after the test and fails it with that error, whatever the component does vs. the criterion (failure path shows the message and doesn't finish). Fix: `beforeEach(() => { mockSet.mockReset() })`.
 - **Notes:** the prompt shows in `AdminGuard` for an invited email user without `password_set` (`needsPassword`), sets it through `setPassword` (`auth.updateUser`), and can be skipped until reload. Tests: `needsPassword.test.ts`, `api.setPassword.test.ts`, `SetPasswordPrompt.test.tsx`, `AdminGuard.setPassword.test.tsx`. The test dispute (a `beforeEach` that returned the mock, which Vitest ran as a teardown) was upheld and fixed. The reviewer passed it in round 2; full verify and e2e passed.
 
+### [x] T14.5c Invite link signs the owner in
+- **Depends:** T14.5b
+- **Do:** found in production on 2026-11-02: the emailed invite link landed on the login page, with no set-password step. `inviteUserByEmail` links are implicit-flow (session in the URL hash) and the client is PKCE, which rejects them. Ignore invite hashes in the client and sign the invitee in with `setSession` before first render.
+- **Acceptance:** unit tests for the hash parser and `consumeInviteLink`; an e2e opens a real generated invite link and sees the set-password step with the tokens gone from the URL; the e2e fails without the fix.
+- **Notes:** `src/lib/inviteLink.ts` (+ test), `detectSessionInUrl` function in `src/lib/supabase.ts`, `consumeInviteLink` in `src/main.tsx`, `e2e/invite-link.spec.ts`. Needs a frontend deploy to production to take effect.
+
 ### [x] T14.6 Create a venue from a lead (UI)
 - **Depends:** T14.3, T14.4, T14.5, T14.5b
 - **Do:** a form seeded from the lead; creating the venue invites the owner and marks the lead `won`.
