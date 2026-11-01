@@ -75,7 +75,7 @@ describe('VenuesList', () => {
     expect(second.getByText(/₱\s?0/)).toBeInTheDocument()
   })
 
-  it('shows Suspend on an active venue, Reactivate on a suspended one, and no button on a draft or closed one', async () => {
+  it('shows Suspend on an active venue, Reactivate on a suspended one, and neither on a draft or closed one', async () => {
     vi.mocked(fetchVenuesOverview).mockResolvedValue([
       venue({ venue_id: 'a', name: 'Active One', slug: 'e2e-a', status: 'active' }),
       venue({ venue_id: 's', name: 'Suspended One', slug: 'e2e-s', status: 'suspended' }),
@@ -89,8 +89,11 @@ describe('VenuesList', () => {
     expect(a.queryByRole('button', { name: /^Reactivate/ })).toBeNull()
     expect(s.getByRole('button', { name: /^Reactivate/ })).toBeInTheDocument()
     expect(s.queryByRole('button', { name: /^Suspend/ })).toBeNull()
-    expect(d.queryByRole('button')).toBeNull()
-    expect(c.queryByRole('button')).toBeNull()
+    // Every venue also has "Resend invite" (T14.5d); a draft or closed one has no Suspend or Reactivate.
+    for (const row of [d, c]) {
+      expect(row.queryByRole('button', { name: /^(Suspend|Reactivate)/ })).toBeNull()
+      expect(row.getByRole('button', { name: 'Resend invite' })).toBeInTheDocument()
+    }
   })
 
   it('asks for confirmation before suspending and calls suspendVenue with the venue id when confirmed', async () => {

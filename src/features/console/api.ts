@@ -29,8 +29,7 @@ export async function createVenue(input: { slug: string; name: string; timezone:
   return unwrap(await supabase.rpc('create_venue', { p_slug: input.slug, p_name: input.name, p_timezone: input.timezone }))
 }
 
-/** Invites the venue's first owner through the `invite-venue-owner` function (platform admins only). */
-export async function inviteVenueOwner(input: { venueId: string; email: string }): Promise<{ invited: boolean }> {
+async function callInviteVenueOwner(input: { venueId: string; email: string }): Promise<{ invited?: unknown; sent?: unknown } | null> {
   const { data, error } = await supabase.functions.invoke('invite-venue-owner', {
     body: { venue_id: input.venueId, email: input.email },
   })
@@ -42,7 +41,21 @@ export async function inviteVenueOwner(input: { venueId: string; email: string }
     }
     throw new ApiError('Could not reach the server. Please check your connection and try again.')
   }
-  return { invited: (data as { invited?: unknown } | null)?.invited === true }
+  return data as { invited?: unknown; sent?: unknown } | null
+}
+
+/** Invites the venue's first owner through the `invite-venue-owner` function (platform admins only). */
+export async function inviteVenueOwner(input: { venueId: string; email: string }): Promise<{ invited: boolean }> {
+  return { invited: (await callInviteVenueOwner(input))?.invited === true }
+}
+
+/** What a resend did: a new invite, a fresh sign-in link for an invited owner, or nothing (the owner has a password). */
+export type OwnerInviteSent = 'invite' | 'link' | 'none'
+
+/** Re-sends a venue's owner a way in (T14.5d): the first invite can be used up, expired or never delivered. */
+export async function resendOwnerInvite(input: { venueId: string; email: string }): Promise<{ sent: OwnerInviteSent }> {
+  const body = await callInviteVenueOwner(input)
+  return { sent: body?.sent === 'invite' || body?.sent === 'link' ? body.sent : 'none' }
 }
 
 export type VenueOverview = {

@@ -7,6 +7,9 @@ describe('parseInviteHash (T14.5c)', () => {
   it('reads the tokens of an invite link', () => {
     expect(parseInviteHash(HASH)).toEqual({ accessToken: 'acc.tok.en', refreshToken: 'ref123' })
   })
+  it('reads the tokens of a resent sign-in link', () => {
+    expect(parseInviteHash(HASH.replace('type=invite', 'type=magiclink'))).toEqual({ accessToken: 'acc.tok.en', refreshToken: 'ref123' })
+  })
   it('ignores other link types, missing tokens and empty hashes', () => {
     expect(parseInviteHash(HASH.replace('type=invite', 'type=recovery'))).toBeNull()
     expect(parseInviteHash('#access_token=a&type=invite')).toBeNull()
@@ -20,7 +23,8 @@ describe('parseInviteHash (T14.5c)', () => {
 describe('isInviteCallback', () => {
   it('is true only for the params of an invite link', () => {
     expect(isInviteCallback({ access_token: 'a', refresh_token: 'r', type: 'invite' })).toBe(true)
-    expect(isInviteCallback({ access_token: 'a', refresh_token: 'r', type: 'magiclink' })).toBe(false)
+    expect(isInviteCallback({ access_token: 'a', refresh_token: 'r', type: 'magiclink' })).toBe(true)
+    expect(isInviteCallback({ access_token: 'a', refresh_token: 'r', type: 'recovery' })).toBe(false)
     expect(isInviteCallback({ code: 'abc' })).toBe(false)
   })
 })

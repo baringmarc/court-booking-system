@@ -1,21 +1,23 @@
-// An owner invite (`auth.admin.inviteUserByEmail`) can only be sent as an implicit-flow link: the session arrives in the
-// URL hash. The client is PKCE (Google, sign-up), and a PKCE client rejects such a hash, so the invitee would land
+// An owner invite (`auth.admin.inviteUserByEmail`) or the resend that follows it (an admin-generated magic link, T14.5d)
+// can only be sent as an implicit-flow link: the session arrives in the URL hash. The client is PKCE (Google, sign-up), and a PKCE client rejects such a hash, so the invitee would land
 // signed out. The client is told to ignore invite hashes, and `consumeInviteLink` signs the invitee in before render.
 
 type InviteParams = Record<string, string | undefined>
 
-/** The tokens of an invite link's hash, or null for any other hash. */
+const LINK_TYPES = ['invite', 'magiclink']
+
+/** The tokens of an invite or sign-in link's hash, or null for any other hash. */
 export function parseInviteHash(hash: string): { accessToken: string; refreshToken: string } | null {
   const params = new URLSearchParams(hash.replace(/^#/, ''))
   const accessToken = params.get('access_token')
   const refreshToken = params.get('refresh_token')
-  if (params.get('type') !== 'invite' || !accessToken || !refreshToken) return null
+  if (!LINK_TYPES.includes(params.get('type') ?? '') || !accessToken || !refreshToken) return null
   return { accessToken, refreshToken }
 }
 
 /** True for the URL params of an invite link, which the client must leave alone (`consumeInviteLink` handles it). */
 export function isInviteCallback(params: InviteParams): boolean {
-  return params.type === 'invite' && Boolean(params.access_token && params.refresh_token)
+  return LINK_TYPES.includes(params.type ?? '') && Boolean(params.access_token && params.refresh_token)
 }
 
 type AuthLike = { auth: { setSession(tokens: { access_token: string; refresh_token: string }): Promise<unknown> } }

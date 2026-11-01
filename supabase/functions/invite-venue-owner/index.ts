@@ -1,12 +1,13 @@
 // POST JSON { venue_id, email } from the platform console (T14.5). Platform admins only.
 //   1. the caller (a verified session) must have a platform_admins row
 //   2. the venue must exist
-//   3. an email with no account gets a Supabase invite that lands on <venue site>/admin; one that already has an
-//      account gets no email
+//   3. an email with no account gets a Supabase invite that lands on <venue site>/admin; an account that was invited
+//      but never set a password gets a fresh sign-in link by email (a resend, T14.5d); any other account gets none
 //   4. either way the user becomes an owner of the venue (venue_members)
 import { withSupabase } from 'npm:@supabase/server@1'
 import { callerUserId } from '../_shared/payable.ts'
-import { inviteOutcome, inviteRedirectTo, parseInviteBody } from '../_shared/ownerInvite.ts'
+import { emailTransport, fromFor, sendEmail } from '../_shared/email.ts'
+import { inviteRedirectTo, ownerLinkAction, ownerLinkEmail, parseInviteBody } from '../_shared/ownerInvite.ts'
 
 const json = (body: unknown, status = 200) => Response.json(body, { status })
 
@@ -42,14 +43,32 @@ export default {
     }
 
     let userId = existing.data as string | null
-    const { invite } = inviteOutcome(userId)
-    if (invite) {
+    let account = null
+    if (userId) {
+      const found = await admin.auth.admin.getUserById(userId)
+      if (found.error || !found.data.user) {
+        console.error('invite-venue-owner: user lookup failed', found.error?.message)
+        return json({ code: 'server_error', message: 'Something went wrong. Please try again.' }, 500)
+      }
+      account = found.data.user
+    }
+    const action = ownerLinkAction(account)
+
+    let link: string | null = null
+    if (action === 'invite') {
       const invited = await admin.auth.admin.inviteUserByEmail(parsed.email, { redirectTo })
       if (invited.error || !invited.data.user) {
         console.error('invite-venue-owner: invite failed', invited.error?.message)
         return json({ code: 'invite_failed', message: "We couldn't send the invite." }, 502)
       }
       userId = invited.data.user.id
+    } else if (action === 'link') {
+      const generated = await admin.auth.admin.generateLink({ type: 'magiclink', email: parsed.email, options: { redirectTo } })
+      link = generated.data?.properties?.action_link ?? null
+      if (generated.error || !link) {
+        console.error('invite-venue-owner: link failed', generated.error?.message)
+        return json({ code: 'invite_failed', message: "We couldn't create a sign-in link." }, 502)
+      }
     }
 
     const { error } = await admin
@@ -59,6 +78,28 @@ export default {
       console.error('invite-venue-owner: membership failed', error.message)
       return json({ code: 'server_error', message: 'Something went wrong. Please try again.' }, 500)
     }
-    return json({ ok: true, invited: invite })
+
+    if (link) {
+      const resendKey = Deno.env.get('RESEND_API_KEY')
+      const mailpitUrl = Deno.env.get('MAILPIT_URL')
+      const transport = emailTransport({ transport: Deno.env.get('EMAIL_TRANSPORT'), resendKey, mailpitUrl, supabaseUrl: Deno.env.get('SUPABASE_URL') })
+      if (transport !== 'resend' && transport !== 'mailpit') {
+        console.error('invite-venue-owner: email transport is', transport)
+        return json({ code: 'email_unavailable', message: 'Email sending is not configured.' }, 503)
+      }
+      const { data: settings } = await admin.from('venue_settings').select('name').eq('venue_id', venue.id).maybeSingle()
+      const sent = await sendEmail(
+        fetch,
+        transport,
+        { from: fromFor(settings?.name, Deno.env.get('EMAIL_FROM')), resendKey, mailpitUrl },
+        { to: parsed.email, ...ownerLinkEmail({ venueName: settings?.name ?? '', link }) },
+        `owner-link-${userId}-${Date.now()}`,
+      )
+      if (!sent.ok) {
+        console.error('invite-venue-owner: send failed', sent.error)
+        return json({ code: 'invite_failed', message: "We couldn't send the email." }, 502)
+      }
+    }
+    return json({ ok: true, invited: action === 'invite', sent: action })
   }),
 }
