@@ -320,3 +320,4 @@
 {"ts":"2026-11-01T05:30:17.353Z","task":"T14.11","source":"gate","tier":"fast","category":"test","summary":"❯ src/features/admin/StatementPage.test.tsx (7 tests | 2 failed) 2356ms"}
 {"ts":"2026-11-01T08:29:27.239Z","task":"T14.13","source":"gate","tier":"fast","category":"typecheck","summary":"src/features/admin/SettingsPage.tsx(40,28): error TS2739: Type '{ address: string; banner_alt: string | null; banner_path: string | null; booking_window_days: number; cancel_cutoff_hours: number; currency: string; maps_url: string; max_reje"}
 {"ts":"2026-11-01T08:49:21.067Z","task":"T14.14","source":"gate","tier":"full","category":"test:e2e","summary":"Testing stopped early after 5 maximum allowed failures."}
+{"ts":"2026-11-01T08:59:24.368Z","task":"adhoc","source":"retro","milestone":"M14","summary":"3 proposals, 2 approved: H10 beforeEach mock-return check, H11 reviewer allowlist; L3 extension declined"}
