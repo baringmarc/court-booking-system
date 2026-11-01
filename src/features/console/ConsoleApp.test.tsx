@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { authState } from '../../test/authState'
 import { AuthContext, type AuthState } from '../auth/AuthContext'
 
-vi.mock('./api', () => ({ fetchIsPlatformAdmin: vi.fn(), fetchLeads: vi.fn(), updateLead: vi.fn() }))
+vi.mock('./api', () => ({ fetchIsPlatformAdmin: vi.fn(), fetchLeads: vi.fn(), updateLead: vi.fn(), fetchVenuesOverview: vi.fn(async () => []) }))
 vi.mock('../auth/api', () => ({ signInWithPassword: vi.fn() }))
 
 const { fetchIsPlatformAdmin, fetchLeads } = await import('./api')

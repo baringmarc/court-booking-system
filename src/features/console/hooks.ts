@@ -1,6 +1,8 @@
 import { useRef } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { createVenue, fetchIsPlatformAdmin, fetchLeads, inviteVenueOwner, updateLead, type Lead, type LeadStatus } from './api'
+import {
+  createVenue, fetchIsPlatformAdmin, fetchLeads, fetchVenuesOverview, inviteVenueOwner, reactivateVenue, suspendVenue, updateLead, type Lead, type LeadStatus,
+} from './api'
 
 export function useIsPlatformAdmin(userId: string | undefined) {
   const query = useQuery({
@@ -37,5 +39,25 @@ export function useCreateVenueFromLead() {
       await updateLead(input.lead.id, { status: 'won' })
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['leads'] }),
+  })
+}
+
+export function useVenuesOverview() {
+  return useQuery({ queryKey: ['venues-overview'], queryFn: fetchVenuesOverview })
+}
+
+export function useSuspendVenue() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (venueId: string) => suspendVenue(venueId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['venues-overview'] }),
+  })
+}
+
+export function useReactivateVenue() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (venueId: string) => reactivateVenue(venueId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['venues-overview'] }),
   })
 }

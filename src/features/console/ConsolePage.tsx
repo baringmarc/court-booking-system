@@ -1,5 +1,6 @@
 import { useAuth } from '../auth/useAuth'
 import { LeadsInbox } from './LeadsInbox'
+import { VenuesList } from './VenuesList'
 
 /** The platform console shell (docs/SAAS-PLAN.md Phase 3). More sections join the nav as they are built. */
 export function ConsolePage() {
@@ -11,9 +12,11 @@ export function ConsolePage() {
       <nav aria-label="Console">
         <ul className="list">
           <li><span aria-current="page">Leads</span></li>
+          <li><a href="#venues-heading">Venues</a></li>
         </ul>
       </nav>
       <LeadsInbox />
+      <VenuesList />
       <div className="form-actions">
         <button type="button" className="btn btn-ghost" onClick={() => void signOut()}>Log out</button>
       </div>

@@ -468,7 +468,9 @@ select is_empty(
          -- platform admins only: it makes a new venue and takes no venue id to cross (56_create_venue)
          'create_venue',
          -- venue admins and platform admins only: take a venue id and refuse anyone who doesn't run it (58_publish_venue)
-         'venue_setup_status', 'publish_venue'
+         'venue_setup_status', 'publish_venue',
+         -- platform admins only: refuse anyone who is not a platform admin (59_venues_overview)
+         'venues_overview', 'suspend_venue', 'reactivate_venue'
        ]) $$,
   'every RPC a client can execute is probed above or exempt (a new venue-scoped RPC needs a cross-venue test here)');
 select is_empty(

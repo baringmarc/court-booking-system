@@ -2072,10 +2072,12 @@ SaaS Phase 3 (`docs/SAAS-PLAN.md`). Staff-only tools on `app.plotline.fit`: lead
 - **Notes:** migration `20261101031821_venue_setup_publish` is live on the linked project (db:push ran 2026-11-01). `venue_setup_status` and `publish_venue` (venue admins and platform admins) hold the checklist rules; `SetupChecklist` shows on the dashboard of a draft venue. Tests: `58_publish_venue.test.sql` (50), `api.setup.test.ts`, `hooks.setup.test.tsx`, `SetupChecklist.test.tsx`, `DashboardPage.setup.test.tsx`; `51_cross_venue_isolation` exempts both RPCs and `DashboardPage.test.tsx` mocks `useVenue`. One test dispute (a status read hidden by RLS) was upheld and fixed. The reviewer passed it.
 - Test dispute: supabase/tests/database/58_publish_venue.test.sql "and it is still a draft" (test 37): reads `venues.status` of a draft venue while acting as another venue's admin, but RLS hides draft venues from them, so it returns NULL whatever `publish_venue` does vs. the criterion (a refused publish leaves the venue a draft). Fix: read the status after `reset role` (as postgres) or as the owner.
 
-### [ ] T14.8 Venues list, suspend and reactivate
+### [x] T14.8 Venues list, suspend and reactivate
 - **Depends:** T14.4
 - **Do:** in the console: status, PayMongo status, this month's transactions and running total, open invoices; platform-admin RPCs to suspend and reactivate.
 - **Acceptance:** pgTAP for the RPCs (platform admin only) and the totals; component tests. **Risky** (RPC).
+- Test dispute: supabase/tests/database/59_venues_overview.test.sql "another venue's charges and invoices are counted for that venue only" (test 26): compares the text `1|20.00|1` it gets against `'1|20|1'`, so it depends on the numeric scale of a `numeric(10,2)` sum rather than on the value vs. the criterion (the running total is the sum of the charges; JSON numbers 20 and 20.00 are equal). Fix: compare `month_total` as numeric (as test 24 does).
+- **Notes:** migration `20261101034239_venues_overview` (`venues_overview`, `suspend_venue`, `reactivate_venue`, platform admins only) is live on the linked project. Tests: `59_venues_overview.test.sql` (40), `api.venues.test.ts`, `VenuesList.test.tsx`; `51_cross_venue_isolation` exempts the three RPCs. One test dispute (test 26 depended on numeric scale) was upheld and fixed. Reviewer PASS in round 2; full verify and e2e passed. **Follow-up:** the list has no PayMongo status (the approved plan left it out; add `venue_settings.online_payments_enabled` to `venues_overview` if wanted).
 
 ### [ ] T14.9 Monthly draft invoices
 - **Depends:** T14.1

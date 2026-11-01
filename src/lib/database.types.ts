@@ -1463,6 +1463,7 @@ export type Database = {
         }[]
       }
       publish_venue: { Args: { p_venue_id: string }; Returns: undefined }
+      reactivate_venue: { Args: { p_venue_id: string }; Returns: undefined }
       record_payment_proof: {
         Args: {
           p_account_id?: string
@@ -1543,6 +1544,7 @@ export type Database = {
         Args: { p_hours: Json; p_venue_id?: string }
         Returns: undefined
       }
+      suspend_venue: { Args: { p_venue_id: string }; Returns: undefined }
       update_open_play: {
         Args: {
           p_court_ids: string[]
@@ -1557,6 +1559,7 @@ export type Database = {
       }
       user_id_by_email: { Args: { p_email: string }; Returns: string }
       venue_setup_status: { Args: { p_venue_id: string }; Returns: Json }
+      venues_overview: { Args: never; Returns: Json }
     }
     Enums: {
       booking_source: "online" | "walk_in" | "moved"

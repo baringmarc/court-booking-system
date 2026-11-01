@@ -44,3 +44,27 @@ export async function inviteVenueOwner(input: { venueId: string; email: string }
   }
   return { invited: (data as { invited?: unknown } | null)?.invited === true }
 }
+
+export type VenueOverview = {
+  venue_id: string
+  slug: string
+  name: string
+  status: string
+  month_transactions: number
+  month_total: number
+  open_invoices: number
+}
+
+/** Every venue with its status, this month's booking-fee count and total, and open invoices (platform admins only). */
+export async function fetchVenuesOverview(): Promise<VenueOverview[]> {
+  const rows = unwrap(await supabase.rpc('venues_overview'))
+  return (Array.isArray(rows) ? rows : []) as VenueOverview[]
+}
+
+export async function suspendVenue(venueId: string): Promise<void> {
+  unwrap(await supabase.rpc('suspend_venue', { p_venue_id: venueId }))
+}
+
+export async function reactivateVenue(venueId: string): Promise<void> {
+  unwrap(await supabase.rpc('reactivate_venue', { p_venue_id: venueId }))
+}
