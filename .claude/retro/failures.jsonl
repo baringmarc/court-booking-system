@@ -329,3 +329,4 @@
 {"ts":"2026-11-01T10:03:00.253Z","task":"T15.4","source":"dispute","file":"supabase/tests/database/65_reviews.test.sql","summary":"plan(27) but file asserts 26 (platform admin block has 6 tests, not 7)","outcome":"test fixed"}
 {"ts":"2026-11-01T10:33:34.343Z","task":"T15.6","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"cmp supabase/functions/_shared/siteForms.ts ../plotline-site/src/lib/siteForms.ts"}
 {"ts":"2026-11-01T10:33:34.422Z","task":"T15.6","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"npm run check:drift"}
+{"ts":"2026-11-01T12:45:30.089Z","task":"T15.6","source":"reviewer","severity":"major","category":"docs-drift","file":"SPEC.md:420","summary":"M15 not marked done in SPEC §9","round":1}
