@@ -52,7 +52,7 @@ Locally both repos sit side by side: `~/Documents/Projects/court-booking-system`
 
 Anything here is a **public API**: changing it can break the live marketing site. Follow §7.
 
-### Edge Functions (*target*; `site-contact` and the `leads` table move here in T14.2, `site-review` and `reviews` in Phase 5)
+### Edge Functions (*target*; `site-contact` and the `leads` table are built here (T14.2; `site-contact` waits on its secrets and deploy approval), `site-review` and `reviews` come in Phase 5)
 
 Both are `POST`, called with `supabase.functions.invoke(name, { body })` and the publishable key (`verify_jwt = false`). Both answer `{ ok: true, … }` on success, and `{ ok: false, error }` with a readable message on 4xx/5xx. Bots (the honeypot filled, or the form sent within 3 seconds of first touch) get a fake success.
 

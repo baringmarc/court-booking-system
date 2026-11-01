@@ -67,6 +67,11 @@ export default async function teardown() {
   if (venuesError) throw venuesError
   const venueIds = (e2eVenues ?? []).map((v) => v.id)
   if (venueIds.length) {
+    // Billing rows reference venues without a cascade (T14.14); the charges of tagged bookings are already gone.
+    for (const table of ['billing_charges', 'invoices'] as const) {
+      const { error: billingError } = await service.from(table).delete().in('venue_id', venueIds)
+      if (billingError) throw billingError
+    }
     for (const table of ['operating_hours', 'venue_settings'] as const) {
       const { error: childError } = await service.from(table).delete().in('venue_id', venueIds)
       if (childError) throw childError
@@ -74,6 +79,10 @@ export default async function teardown() {
     const { error: deleteVenuesError } = await service.from('venues').delete().in('id', venueIds)
     if (deleteVenuesError) throw deleteVenuesError
   }
+
+  // Tagged leads (T14.14, through their venue name).
+  const { error: leadsError } = await service.from('leads').delete().like('venue_name', `${E2E_PREFIX}%`)
+  if (leadsError) throw leadsError
 
   const { data: users } = await service.auth.admin.listUsers({ perPage: 1000 })
   for (const user of users?.users ?? []) {
