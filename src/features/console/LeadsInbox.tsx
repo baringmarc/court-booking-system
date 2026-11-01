@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { Lead, LeadStatus } from './api'
+import { CreateVenueForm } from './CreateVenueForm'
 import { useLeads, useUpdateLead } from './hooks'
 
 const LEAD_STATUSES: readonly LeadStatus[] = ['new', 'talking', 'won', 'lost']
@@ -8,6 +9,7 @@ const STATUS_LABEL: Record<LeadStatus, string> = { new: 'New', talking: 'Talking
 function LeadItem({ lead }: { lead: Lead }) {
   const update = useUpdateLead()
   const [notes, setNotes] = useState(lead.notes ?? '')
+  const [creating, setCreating] = useState(false)
   return (
     <li className="card stack">
       <strong>{lead.venue_name}</strong>
@@ -39,6 +41,12 @@ function LeadItem({ lead }: { lead: Lead }) {
           Save notes
         </button>
       </div>
+      {(lead.status === 'new' || lead.status === 'talking') && !creating && (
+        <div className="form-actions">
+          <button type="button" className="btn" onClick={() => setCreating(true)}>Create venue</button>
+        </div>
+      )}
+      {creating && <CreateVenueForm lead={lead} onClose={() => setCreating(false)} />}
       {update.error && <p className="form-error" role="alert">{update.error.message}</p>}
     </li>
   )

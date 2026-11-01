@@ -1,5 +1,6 @@
+import { FunctionsHttpError } from '@supabase/supabase-js'
 import type { Tables } from '../../lib/database.types'
-import { unwrap } from '../../lib/queryClient'
+import { ApiError, unwrap } from '../../lib/queryClient'
 import { supabase } from '../../lib/supabase'
 
 /** Whether the user is a platform admin (RLS lets them read only their own `platform_admins` row). */
@@ -21,4 +22,25 @@ export async function fetchLeads(status: LeadStatus | 'all'): Promise<Lead[]> {
 /** Platform admins may change only `status` and `notes` (column grant). */
 export async function updateLead(id: string, patch: { status?: LeadStatus; notes?: string | null }): Promise<void> {
   unwrap(await supabase.from('leads').update(patch).eq('id', id))
+}
+
+/** Creates a draft venue (platform admins only) and returns its id. Errors carry the RPC's hint, e.g. `slug_taken`. */
+export async function createVenue(input: { slug: string; name: string; timezone: string }): Promise<string> {
+  return unwrap(await supabase.rpc('create_venue', { p_slug: input.slug, p_name: input.name, p_timezone: input.timezone }))
+}
+
+/** Invites the venue's first owner through the `invite-venue-owner` function (platform admins only). */
+export async function inviteVenueOwner(input: { venueId: string; email: string }): Promise<{ invited: boolean }> {
+  const { data, error } = await supabase.functions.invoke('invite-venue-owner', {
+    body: { venue_id: input.venueId, email: input.email },
+  })
+  if (error) {
+    if (error instanceof FunctionsHttpError) {
+      const response = error.context as Response
+      const body = (await response.json().catch(() => null)) as { code?: string; message?: string } | null
+      throw new ApiError(body?.message ?? "We couldn't send the invite.", String(response.status), body?.code)
+    }
+    throw new ApiError('Could not reach the server. Please check your connection and try again.')
+  }
+  return { invited: (data as { invited?: unknown } | null)?.invited === true }
 }

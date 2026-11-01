@@ -1,5 +1,6 @@
+import { useRef } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { fetchIsPlatformAdmin, fetchLeads, updateLead, type LeadStatus } from './api'
+import { createVenue, fetchIsPlatformAdmin, fetchLeads, inviteVenueOwner, updateLead, type Lead, type LeadStatus } from './api'
 
 export function useIsPlatformAdmin(userId: string | undefined) {
   const query = useQuery({
@@ -18,6 +19,23 @@ export function useUpdateLead() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: ({ id, patch }: { id: string; patch: { status?: LeadStatus; notes?: string | null } }) => updateLead(id, patch),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['leads'] }),
+  })
+}
+
+/**
+ * Creates the venue, invites its owner and marks the lead won. The created venue id is kept, so retrying after a
+ * failed invite does not create the venue twice; the lead is marked won only once the invite went out.
+ */
+export function useCreateVenueFromLead() {
+  const queryClient = useQueryClient()
+  const createdVenueId = useRef<string | null>(null)
+  return useMutation({
+    mutationFn: async (input: { lead: Lead; slug: string; name: string; timezone: string; email: string }) => {
+      createdVenueId.current ??= await createVenue({ slug: input.slug, name: input.name, timezone: input.timezone })
+      await inviteVenueOwner({ venueId: createdVenueId.current, email: input.email })
+      await updateLead(input.lead.id, { status: 'won' })
+    },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['leads'] }),
   })
 }
