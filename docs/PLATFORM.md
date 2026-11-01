@@ -52,7 +52,7 @@ Locally both repos sit side by side: `~/Documents/Projects/court-booking-system`
 
 Anything here is a **public API**: changing it can break the live marketing site. Follow §7.
 
-### Edge Functions (*target*; `site-contact` and the `leads` table are built here (T14.2; `site-contact` deployed to the linked project on 2026-11-01), `site-review` and `reviews` are built here (T15.4))
+### Edge Functions (live on the linked project since 2026-11-01: `site-contact` (T15.2) and `site-review` (T15.4))
 
 Both are `POST`, called with `supabase.functions.invoke(name, { body })` and the publishable key (`verify_jwt = false`). Both answer `{ ok: true, … }` on success, and `{ ok: false, error }` with a readable message on 4xx/5xx. Bots (the honeypot filled, or the form sent within 3 seconds of first touch) get a fake success.
 
@@ -114,7 +114,7 @@ M12 (done 2026-10-31) made the schema multi-venue (`venues`, `venue_members`, `p
 | this repo, Edge Function secrets | `PUBLIC_ROOT_DOMAIN` | `plotline.fit` (T13.6). Booking return and email links go to `https://<venue slug>.plotline.fit`, built from the booking's own venue, never from a request value. Unset until the wildcard DNS is live (T13.8); `PUBLIC_SITE_URL` stays as the exact allow-list for localhost and the old Vercel URL. |
 | Supabase Auth, URL configuration | Redirect URLs | Add `https://*.plotline.fit/**` (done by hand in the dashboard; T13.6). Keep the existing entries until T13.8. |
 
-## 5. Moving plotline-site's backend here (Phase 5)
+## 5. Moving plotline-site's backend here (Phase 5) ✅ built here (M14–M15)
 
 Today plotline-site has its own migration (`venue_signups`, `reviews`) and Edge Functions (`register`, `feedback`), and its sign-up creates auth accounts with a 7-day trial. Under the plan, owners don't sign up and there's no trial, so:
 
@@ -126,7 +126,10 @@ Today plotline-site has its own migration (`venue_signups`, `reviews`) and Edge 
 | `feedback` function | `site-review` |
 | `_shared/validate.ts` | `_shared/siteForms.ts` (+ the copy in plotline-site) |
 
-The prepared drafts are in [`docs/drafts/phase5-site-backend/`](drafts/phase5-site-backend/) (and plotline-site's side in its `docs/drafts/phase5/`). After the move: delete plotline-site's `supabase/migrations`, `supabase/functions` and `supabase/tests`, and keep only what it needs to generate types.
+The backend side is done and live on the linked project (`leads` T14.2, `reviews` T15.4, `site-contact` T15.2, `site-review` T15.4, the lead alert T15.3); the drafts folder is deleted. **What plotline-site does next** (its own tasks, in its repo):
+1. **T1.8:** switch its forms to `site-contact` and `site-review` (already done in T1.7), then delete `features/signup`, `/welcome`, its `supabase/migrations`, `functions` and `tests`, and the old `db:*` scripts. Generate types from the shared project.
+2. **T1.11b:** set `VITE_TURNSTILE_SITE_KEY` (production widget), `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` in the Cloudflare Workers deploy, then deploy the apex and `www`.
+3. Keep `src/lib/siteForms.ts` byte-identical to `supabase/functions/_shared/siteForms.ts` (checked on 2026-11-01).
 
 ## 6. Shared values
 

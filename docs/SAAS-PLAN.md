@@ -301,7 +301,7 @@ Expand-then-contract migrations, as the M9 contract migration did.
 - [ ] **Contact form.**
   - Replace the owner sign-up and trial with a lead form: name, phone, email, venue, location, courts, message. No auth account.
   - A Turnstile check, then an insert into `leads` in the production project. We get an email alert.
-- [ ] **Move the backend to this repo** (drafts prepared and tested on 2026-10-27 in `docs/drafts/phase5-site-backend/`; PLATFORM.md §5):
+- [x] **Move the backend to this repo** (done in M14–M15, 2026-11-01; the drafts folder is deleted; PLATFORM.md §5). Left for plotline-site: its T1.8 cleanup and deploy:
   - a migration for `leads` (status and notes, admin-only) and `reviews` (anon reads approved rows; admins approve);
   - the Edge Functions `site-contact` (Turnstile, honeypot, timing check) and `site-review`, with `SITE_ORIGINS` for CORS;
   - `_shared/siteForms.ts` with Vitest, and pgTAP for both tables.

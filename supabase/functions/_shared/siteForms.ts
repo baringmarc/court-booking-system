@@ -4,7 +4,7 @@
 //
 // Pure TypeScript with no Deno or browser imports, so Vitest can test it. The CHECK constraints in the
 // `leads` migration (20261031190437) are the last line; keep these limits in step with them. The review
-// validator stays so this file remains identical to plotline-site's copy; `site-review` itself is Phase 5.
+// validator stays so this file remains identical to plotline-site's copy; `site-review` is the function that uses it.
 
 export const MIN_FILL_MS = 3_000
 export const MAX_COURTS = 50
