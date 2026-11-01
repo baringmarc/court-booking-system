@@ -331,3 +331,7 @@
 {"ts":"2026-11-01T10:33:34.422Z","task":"T15.6","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"npm run check:drift"}
 {"ts":"2026-11-01T12:45:30.089Z","task":"T15.6","source":"reviewer","severity":"major","category":"docs-drift","file":"SPEC.md:420","summary":"M15 not marked done in SPEC §9","round":1}
 {"ts":"2026-11-01T12:54:05.261Z","task":"adhoc","source":"retro","milestone":"M15","summary":"0 proposals, none approved: 9 events, no repeated pattern"}
+{"ts":"2026-11-01T18:27:55.655Z","task":"T16.2","source":"guard","category":"test-writer-scope","agent":"test-writer","path":"scripts/lib/backup.test.mjs"}
+{"ts":"2026-11-01T18:52:10.061Z","task":"T16.2","source":"gate","tier":"fast","category":"test","summary":"❯ src/features/admin/EarningsSection.test.tsx (18 tests | 1 failed) 4654ms"}
+{"ts":"2026-11-01T18:56:24.327Z","task":"T16.2","source":"guard","category":"commit-before-full-verify","agent":"main","command":"git commit -q -m \"$(cat <<'EOF'\nfix(auth): T14.5c invite link signs the owner in\n\ninviteUserByEmail links are implicit-flow (session in the URL hash), which the\nPKCE client rejects, so an invited owne"}
+{"ts":"2026-11-01T19:14:54.947Z","task":"T16.2","source":"guard","category":"protected-file","agent":"main","command":"curl -s https://api.github.com/repos/baringmarc/court-booking-system/contents/.github/workflows?ref=master | head -5; git branch -a; (node .claude/hooks/verify-gate.mjs --full 2>&1 | tail -n 40 > /pri"}
