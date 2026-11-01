@@ -39,7 +39,7 @@ Locally both repos sit side by side: `~/Documents/Projects/court-booking-system`
 
 | Project | Region | Used by | Status |
 | --- | --- | --- | --- |
-| **Production** | Singapore (`ap-southeast-1`) | Both repos | *Target*: not created yet (SAAS-PLAN Phase 0). Free until the first paying venue, then Pro. |
+| **Production** | Singapore (`ap-southeast-1`) | Both repos | `sfssolhsthteonzgzfos`. Created 2026-11-01; schema, functions, Vault and demo seed deployed the same day. The CLI stays linked to staging; deploy here deliberately with `npx supabase link --project-ref sfssolhsthteonzgzfos`, then link back. Secrets and Auth settings still to finish (see TASKS Handoff). Free until the first paying venue, then Pro. |
 | **Staging** | Singapore | Both repos, for previews and testing | Today's linked `court-booking-system` project. It also runs the current Vercel demo. |
 | plotline-site's own local project | (local only, ports 553xx) | plotline-site | **Transitional.** Never deployed. Retired when its tables and functions move here (§5). |
 
