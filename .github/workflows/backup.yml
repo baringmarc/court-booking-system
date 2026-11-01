@@ -26,6 +26,10 @@ jobs:
           echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
           sudo apt-get update
           sudo apt-get install -y postgresql-client-17 age
+          # The runner image ships Postgres 16 and its wrapper picks that version, so put 17 first on the PATH.
+          echo /usr/lib/postgresql/17/bin >> "$GITHUB_PATH"
+      - name: Show tool versions
+        run: pg_dump --version && psql --version && age --version
       - name: Back up production
         run: node scripts/backup-production.mjs
         env:
