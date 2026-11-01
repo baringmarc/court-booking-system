@@ -13,7 +13,7 @@ vi.mock('../auth/api', () => ({ fetchMemberVenues: vi.fn().mockResolvedValue([])
 vi.mock('./api', async (importOriginal) => ({ ...(await importOriginal<object>()), subscribeToBookingChanges: () => () => {} }))
 
 const VENUE = { id: 'venue-a', slug: 'a-venue', status: 'active' as const }
-beforeEach(() => setCurrentVenue(VENUE))
+beforeEach(() => { setCurrentVenue(VENUE) })
 
 describe('AdminLayout statement link', () => {
   it('has a "Statement" link to /admin/statement in the admin nav', () => {

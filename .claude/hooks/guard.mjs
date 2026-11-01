@@ -21,6 +21,8 @@
 //
 // UNLOCK: when the user wants Claude to change the harness itself, they run
 //   `touch .claude/state/unlock-harness` themselves. Protected files are then editable for 2 hours.
+// GRANT: after the user approves a change in /retro, grant-harness.mjs lets Claude edit the named protected files
+//   (not the USER_ONLY ones in lib/harness.mjs) for up to 30 minutes. The main session only.
 //
 // A blocked call gets a "deny" with the reason, which Claude reads and adjusts to. Every block is logged to
 // .claude/retro/failures.jsonl for /retro.
@@ -34,7 +36,7 @@ import {
   existsInHead,
   existsSync,
   git,
-  harnessUnlocked,
+  harnessUnlockedFor,
   logEvent,
   matchesAny,
   paths,
@@ -132,11 +134,11 @@ function checkFileEdit() {
 
   if (agent === 'reviewer') deny('reviewer-readonly', 'The reviewer is read-only. Report the problem as a finding instead.', { path: p })
 
-  if (isProtected(p) && !harnessUnlocked()) {
+  if (isProtected(p) && !harnessUnlockedFor(p)) {
     deny(
       'protected-file',
       `${p} is part of the harness and is read-only for Claude. If it really needs changing, stop and ask the user ` +
-        '(they can unlock harness edits for 2 hours with `touch .claude/state/unlock-harness`).',
+        '(/retro grants a file for 30 minutes after the user approves it; the user can unlock all harness edits for 2 hours with `touch .claude/state/unlock-harness`).',
       { path: p },
     )
   }
@@ -365,12 +367,16 @@ function checkBash() {
     deny('protected-file', 'Only the user may unlock the harness.', { command: cmd.slice(0, 200) })
   }
 
+  if (/grant-harness\.mjs/.test(cmd) && agent !== 'main') {
+    deny('protected-file', 'Only the main session may grant harness edits, and only after the user approves the change (/retro).', { command: cmd.slice(0, 200) })
+  }
+
   // Pipes are kept inside a segment here, so `cat x | tee .claude/hooks/y` is still seen as one write.
   for (const seg of cmd.split(/&&|\|\||;|\n/).map((s) => s.trim())) {
     if (!WRITE_OPS.test(seg)) continue
     const mentioned = (seg.match(/[\w./@-]+/g) ?? []).map((t) => rel(t)).filter(Boolean)
     for (const p of mentioned) {
-      if (isProtected(p) && !harnessUnlocked() && !HARNESS_SCRIPT.test(seg)) {
+      if (isProtected(p) && !harnessUnlockedFor(p) && !HARNESS_SCRIPT.test(seg)) {
         deny('protected-file', `This command would change ${p}, which is part of the harness. Ask the user.`, { command: cmd.slice(0, 200) })
       }
       if (isMigration(p) && existsInHead(p)) {

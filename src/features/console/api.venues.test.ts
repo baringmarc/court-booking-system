@@ -6,7 +6,7 @@ vi.mock('../../lib/supabase', () => ({ supabase: { rpc: (...args: unknown[]) => 
 
 const { fetchVenuesOverview, suspendVenue, reactivateVenue } = await import('./api')
 
-beforeEach(() => rpc.mockReset())
+beforeEach(() => { rpc.mockReset() })
 
 describe('venues overview api', () => {
   it('fetchVenuesOverview calls venues_overview and returns the array as is', async () => {

@@ -22,7 +22,7 @@ function lead(over: Partial<Lead> = {}): Lead {
   }
 }
 
-beforeEach(() => vi.mocked(fetchLeads).mockReset())
+beforeEach(() => { vi.mocked(fetchLeads).mockReset() })
 
 function renderInbox() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })

@@ -60,7 +60,9 @@ Then ask with **one** AskUserQuestion call, `multiSelect: true`, one option per 
   `- **L<n>** <the rule>. _Why:_ <the mistake, briefly>. _(categories: timezone; added <date> from /retro <milestone>)_`
   Number rules in order and never reuse a number. Edit an existing rule in place when extending it.
 - **Prunes:** delete the rule line.
-- **Promotions and fixes:** add the task(s) to TASKS.md and mention them in the Handoff.
+- **Promotions and fixes:** add the task(s) to TASKS.md and mention them in the Handoff. A promotion whose edit is small and already approved (for example a line in `eslint.config.js`) can be applied in this step under the harness-edit rule below, instead of waiting for a task.
+- **Harness edits** (any protected file in `harness.json`, such as `eslint.config.js`, `.claude/hooks/verify-gate.mjs` or the agent files' checks): grant only the files the approved changes name, make the edits, then revoke:
+  `node .claude/hooks/grant-harness.mjs '{"files":["eslint.config.js"],"minutes":15,"approved":"retro M14: H10 lint rule"}'`, then the edits, then `node .claude/hooks/grant-harness.mjs --revoke`. A grant lasts at most 30 minutes and is logged. Never grant `.claude/hooks/guard.mjs`, `.claude/hooks/grant-harness.mjs`, `.claude/hooks/lib/`, `.claude/settings.json`, `.claude/harness.json`, `.claude/state/` or `.claude/retro/`: those are user-only, so propose them as a note for the user to make. Only grant for a change the user approved in step 4.
 - Change nothing that wasn't approved. Commit the CLAUDE.md and TASKS.md edits on their own, with a message like `chore(harness): retro M11 lessons` plus the attribution line. Never push.
 
 ## 6. Log and report

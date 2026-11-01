@@ -3,7 +3,7 @@ import { currentVenue, currentVenueId, setCurrentVenue, type CurrentVenue } from
 
 const venue: CurrentVenue = { id: 'b0000000-0000-4000-8000-0000000000b1', slug: 'bay-courts', status: 'active' }
 
-beforeEach(() => setCurrentVenue(null))
+beforeEach(() => { setCurrentVenue(null) })
 
 describe('currentVenue (T13.3)', () => {
   it('throws "No venue is selected." when nothing is set', () => {

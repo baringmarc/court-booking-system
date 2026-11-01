@@ -15,6 +15,7 @@ export const paths = {
   stateDir: join(root, '.claude', 'state'), // gitignored: locks, locked tests, unlock flag
   lockedTests: join(root, '.claude', 'state', 'locked-tests.json'),
   unlockFlag: join(root, '.claude', 'state', 'unlock-harness'),
+  grant: join(root, '.claude', 'state', 'harness-grant.json'), // gitignored: /retro's file-scoped grant
   failureLog: join(root, '.claude', 'retro', 'failures.jsonl'), // committed: /retro reads it
 }
 
@@ -110,6 +111,35 @@ export function harnessUnlocked() {
   } catch {
     return false
   }
+}
+
+// Only the user can change these, even with a grant: the guard, this library, the grant script, the settings, and the state and logs.
+export const USER_ONLY = [
+  '^\\.claude/hooks/guard\\.mjs$',
+  '^\\.claude/hooks/grant-harness\\.mjs$',
+  '^\\.claude/hooks/lib/',
+  '^\\.claude/settings\\.json$',
+  '^\\.claude/harness\\.json$',
+  '^\\.claude/state/',
+  '^\\.claude/retro/',
+  '^\\.claude/\\.verify-state\\.json$',
+]
+
+/** The grant /retro writes after the user approves a harness change: { files, until, approved, granted }. */
+export function readGrant() {
+  return readJson(paths.grant, null)
+}
+
+/** True when a retro grant is still live and names this file. */
+export function grantCovers(relPath) {
+  const grant = readGrant()
+  return Boolean(grant && grant.until > Date.now() && grant.files.includes(relPath))
+}
+
+/** True when Claude may edit this protected file now: the user's unlock, or a live grant for it (never for USER_ONLY). */
+export function harnessUnlockedFor(relPath) {
+  if (harnessUnlocked()) return true
+  return !matchesAny(relPath, USER_ONLY) && grantCovers(relPath)
 }
 
 export { existsSync }

@@ -40,7 +40,7 @@ beforeEach(() => {
   vi.mocked(markInvoiceSent).mockReset().mockResolvedValue(undefined)
   vi.mocked(markInvoicePaid).mockReset().mockResolvedValue(undefined)
 })
-afterEach(() => vi.restoreAllMocks())
+afterEach(() => { vi.restoreAllMocks() })
 
 describe('InvoiceDetail', () => {
   it('shows a loading state, then an error with Retry when the detail fails', async () => {

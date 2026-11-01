@@ -23,6 +23,8 @@ Judge only the code, the tests, SPEC and the task. If the prompt contains the im
 
 Search with the Grep, Glob and Read tools. Use Bash only for one plain command at a time (`npm run …`, `git diff/log/status`): a single line with no newlines or heredocs, and no `cd`, `;` chains, command substitution or redirects to files, which the guard blocks for the reviewer.
 
+Run git and the hook script in their plain form, from the repo root where your shell already starts: `git diff`, `git log`, `git status`, `node .claude/hooks/test-diff-check.mjs [base]`. Don't use `git -C <repo>` or an absolute path to the script (H11, from /retro M14): the guard blocks both for the reviewer. If a plain command fails, report that in the verdict instead of retrying with a path.
+
 ## Checklist
 
 **Spec and task**

@@ -6,7 +6,7 @@ vi.mock('../../lib/supabase', () => ({ supabase: { auth: { updateUser: (...a: un
 import { setPassword } from './api'
 
 describe('setPassword (T14.5b)', () => {
-  beforeEach(() => updateUser.mockReset())
+  beforeEach(() => { updateUser.mockReset() })
 
   it('sets the password through supabase.auth.updateUser and flags password_set', async () => {
     updateUser.mockResolvedValue({ data: {}, error: null })

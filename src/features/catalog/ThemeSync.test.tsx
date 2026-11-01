@@ -21,7 +21,7 @@ describe('ThemeSync', () => {
     vi.stubGlobal('localStorage', { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => store.set(k, v) })
     delete document.documentElement.dataset.theme
   })
-  afterEach(() => vi.unstubAllGlobals())
+  afterEach(() => { vi.unstubAllGlobals() })
 
   it("applies and caches the venue's preset once settings load", async () => {
     vi.mocked(fetchVenueSettings).mockResolvedValue(settings('sunset'))

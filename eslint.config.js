@@ -18,5 +18,12 @@ export default defineConfig([
     languageOptions: {
       globals: globals.browser,
     },
+    rules: {
+      // H10: Vitest runs a value returned from a hook as a teardown, so `beforeEach(() => mock.mockReset())` fails whatever the code does.
+      'no-restricted-syntax': ['error', {
+        selector: 'CallExpression[callee.name=/^(beforeEach|afterEach|beforeAll|afterAll)$/] > ArrowFunctionExpression[expression=true] > CallExpression',
+        message: 'Hooks never return a value (Vitest runs a returned value as a teardown). Use a block body: beforeEach(() => { mock.mockReset() }).',
+      }],
+    },
   },
 ])

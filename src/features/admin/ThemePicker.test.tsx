@@ -30,7 +30,7 @@ describe('ThemePicker', () => {
     vi.mocked(updateVenueSettings).mockReset()
     delete document.documentElement.dataset.theme
   })
-  afterEach(() => vi.unstubAllGlobals())
+  afterEach(() => { vi.unstubAllGlobals() })
 
   it('shows every preset, with the saved one pressed', () => {
     renderPicker(settings('ocean'))

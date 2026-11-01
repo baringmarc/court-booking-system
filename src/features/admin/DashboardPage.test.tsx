@@ -30,7 +30,7 @@ async function renderDashboard(walkInsEnabled: boolean) {
 }
 
 describe('DashboardPage walk-in flag', () => {
-  afterEach(() => vi.unstubAllEnvs())
+  afterEach(() => { vi.unstubAllEnvs() })
 
   it('has no walk-in action when the flag is off', async () => {
     await renderDashboard(false)

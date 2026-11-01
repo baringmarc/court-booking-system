@@ -8,7 +8,7 @@ const { fetchInvoicesOverview, fetchInvoiceDetail, markInvoiceSent, markInvoiceP
 
 const failure = { data: null, error: { message: 'x', details: '', hint: 'invalid_status', code: 'P0001', name: 'PostgrestError' } }
 
-beforeEach(() => rpc.mockReset())
+beforeEach(() => { rpc.mockReset() })
 
 describe('invoice review api', () => {
   it('fetchInvoicesOverview calls invoices_overview and returns the array as is', async () => {

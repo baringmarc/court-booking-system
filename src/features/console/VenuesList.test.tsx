@@ -30,7 +30,7 @@ beforeEach(() => {
   vi.mocked(suspendVenue).mockReset().mockResolvedValue(undefined)
   vi.mocked(reactivateVenue).mockReset().mockResolvedValue(undefined)
 })
-afterEach(() => vi.restoreAllMocks())
+afterEach(() => { vi.restoreAllMocks() })
 
 describe('VenuesList', () => {
   it('shows a loading state while the venues load', () => {
