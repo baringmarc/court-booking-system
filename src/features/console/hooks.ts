@@ -1,8 +1,8 @@
 import { useRef } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  createVenue, fetchInvoiceDetail, fetchInvoicesOverview, fetchIsPlatformAdmin, fetchLeads, fetchVenuesOverview, inviteVenueOwner, markInvoicePaid, markInvoiceSent,
-  reactivateVenue, suspendVenue, updateLead, type Lead, type LeadStatus,
+  createVenue, fetchInvoiceDetail, fetchInvoicesOverview, fetchIsPlatformAdmin, fetchLeads, fetchReviews, fetchVenuesOverview, inviteVenueOwner, markInvoicePaid, markInvoiceSent,
+  reactivateVenue, setReviewApproved, suspendVenue, updateLead, type Lead, type LeadStatus,
 } from './api'
 
 export function useIsPlatformAdmin(userId: string | undefined) {
@@ -90,4 +90,16 @@ export function useMarkInvoiceSent() {
 
 export function useMarkInvoicePaid() {
   return useInvoiceMutation((input: { invoiceId: string; method: string; reference: string }) => markInvoicePaid(input))
+}
+
+export function useReviews() {
+  return useQuery({ queryKey: ['reviews'], queryFn: fetchReviews })
+}
+
+export function useSetReviewApproved() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, approved }: { id: string; approved: boolean }) => setReviewApproved(id, approved),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['reviews'] }),
+  })
 }

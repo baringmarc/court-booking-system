@@ -1045,6 +1045,42 @@ export type Database = {
         }
         Relationships: []
       }
+      reviews: {
+        Row: {
+          approved: boolean
+          consented_at: string
+          created_at: string
+          id: string
+          name: string
+          quote: string
+          rating: number
+          role: string
+          venue: string | null
+        }
+        Insert: {
+          approved?: boolean
+          consented_at: string
+          created_at?: string
+          id?: string
+          name: string
+          quote: string
+          rating: number
+          role: string
+          venue?: string | null
+        }
+        Update: {
+          approved?: boolean
+          consented_at?: string
+          created_at?: string
+          id?: string
+          name?: string
+          quote?: string
+          rating?: number
+          role?: string
+          venue?: string | null
+        }
+        Relationships: []
+      }
       venue_amenities: {
         Row: {
           builtin_key: string | null

@@ -118,3 +118,15 @@ export async function markInvoiceSent(invoiceId: string): Promise<void> {
 export async function markInvoicePaid(input: { invoiceId: string; method: string; reference: string }): Promise<void> {
   unwrap(await supabase.rpc('mark_invoice_paid', { p_invoice_id: input.invoiceId, p_method: input.method, p_reference: input.reference }))
 }
+
+export type Review = Tables<'reviews'>
+
+/** Reviews from the marketing site, newest first. Platform admins see all of them (RLS). */
+export async function fetchReviews(): Promise<Review[]> {
+  return unwrap(await supabase.from('reviews').select('*').order('created_at', { ascending: false }))
+}
+
+/** Approving shows a review on the marketing site; hiding takes it down. Platform admins only (column grant). */
+export async function setReviewApproved(id: string, approved: boolean): Promise<void> {
+  unwrap(await supabase.from('reviews').update({ approved }).eq('id', id))
+}
