@@ -9,6 +9,8 @@ import {
   fetchPaymentsForExport,
   fetchEarnings,
   fetchProofQueueCount,
+  fetchSetupStatus,
+  publishVenue,
   fetchProofUrl,
   deleteCourt,
   reorderCourts,
@@ -470,5 +472,21 @@ export function useReorderPaymentAccounts() {
     onSettled: () => {
       if (isLast()) return qc.invalidateQueries({ queryKey: venueKeys.paymentAccounts() })
     },
+  })
+}
+
+export function useSetupStatus() {
+  return useQuery({ queryKey: adminKeys.setup(), queryFn: fetchSetupStatus })
+}
+
+/** Publishing refreshes the checklist and the venue itself (VenueProvider's `['venue', …]` query), so the checklist goes away. */
+export function usePublishVenue() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: publishVenue,
+    onSuccess: () => Promise.all([
+      qc.invalidateQueries({ queryKey: adminKeys.setup() }),
+      qc.invalidateQueries({ queryKey: ['venue'] }),
+    ]),
   })
 }

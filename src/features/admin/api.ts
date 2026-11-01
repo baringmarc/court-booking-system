@@ -76,6 +76,7 @@ export const adminKeys = {
   allEarnings: () => [currentVenueId(), 'admin-earnings'] as const,
   allMovedParts: () => [currentVenueId(), 'admin-moved-parts'] as const,
   movedParts: (bookingId: string) => [currentVenueId(), 'admin-moved-parts', bookingId] as const,
+  setup: () => [currentVenueId(), 'admin-setup'] as const,
 }
 
 // One literal: supabase-js infers the row type from this string.
@@ -611,4 +612,17 @@ export function subscribeToBookingChanges({ onChange, onReconnect }: { onChange:
     closed = true
     if (channel) void supabase.removeChannel(channel)
   }
+}
+
+/** One line of the setup checklist of a draft venue (T14.7). The rules live in `venue_setup_status`. */
+export type SetupItem = { key: string; label: string; required: boolean; done: boolean }
+export type SetupStatus = { items: SetupItem[]; ready: boolean }
+
+export async function fetchSetupStatus(): Promise<SetupStatus> {
+  return unwrap(await supabase.rpc('venue_setup_status', { p_venue_id: currentVenueId() })) as unknown as SetupStatus
+}
+
+/** Moves the venue from draft to active; the database refuses until the required items exist. */
+export async function publishVenue(): Promise<void> {
+  unwrap(await supabase.rpc('publish_venue', { p_venue_id: currentVenueId() }))
 }

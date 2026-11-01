@@ -15,6 +15,8 @@ import { operatingDayBookings } from './dashboard'
 import { useAdminBookings, useProofQueueCount } from './hooks'
 import { DayView } from './DayView'
 import { EarningsSection } from './EarningsSection'
+import { SetupChecklist } from './SetupChecklist'
+import { useVenue } from '../venue/useVenue'
 
 // Walk-ins are off unless the build sets VITE_FEATURE_WALK_INS=true. The flag is read inline here, not through a
 // shared constant: only an inline `import.meta.env` check is folded at build time, which drops the WalkInSection
@@ -24,6 +26,7 @@ const WalkInSection = import.meta.env.VITE_FEATURE_WALK_INS === 'true'
   : null
 
 export function DashboardPage() {
+  const venue = useVenue()
   const settings = useVenueSettings()
   const courts = useCourts()
   const hours = useOperatingHours()
@@ -31,6 +34,7 @@ export function DashboardPage() {
   return (
     <section className="page">
       <h1>Dashboard</h1>
+      {venue.status === 'draft' && <SetupChecklist />}
       {settings.isPending || courts.isPending || hours.isPending ? (
         <PageLoader />
       ) : settings.isError ? (

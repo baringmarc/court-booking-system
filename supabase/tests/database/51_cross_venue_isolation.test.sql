@@ -466,7 +466,9 @@ select is_empty(
          -- by secret token or by the caller's own account: no venue id to cross
          'get_guest_booking', 'claim_guest_bookings',
          -- platform admins only: it makes a new venue and takes no venue id to cross (56_create_venue)
-         'create_venue'
+         'create_venue',
+         -- venue admins and platform admins only: take a venue id and refuse anyone who doesn't run it (58_publish_venue)
+         'venue_setup_status', 'publish_venue'
        ]) $$,
   'every RPC a client can execute is probed above or exempt (a new venue-scoped RPC needs a cross-venue test here)');
 select is_empty(

@@ -1462,6 +1462,7 @@ export type Database = {
           total_amount: number
         }[]
       }
+      publish_venue: { Args: { p_venue_id: string }; Returns: undefined }
       record_payment_proof: {
         Args: {
           p_account_id?: string
@@ -1555,6 +1556,7 @@ export type Database = {
         Returns: string
       }
       user_id_by_email: { Args: { p_email: string }; Returns: string }
+      venue_setup_status: { Args: { p_venue_id: string }; Returns: Json }
     }
     Enums: {
       booking_source: "online" | "walk_in" | "moved"
