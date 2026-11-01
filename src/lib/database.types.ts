@@ -1007,14 +1007,17 @@ export type Database = {
         Row: {
           booking_fee: number
           id: boolean
+          invoice_grace_days: number
         }
         Insert: {
           booking_fee: number
           id?: boolean
+          invoice_grace_days?: number
         }
         Update: {
           booking_fee?: number
           id?: boolean
+          invoice_grace_days?: number
         }
         Relationships: []
       }
@@ -1446,7 +1449,14 @@ export type Database = {
           waiver_text: string
         }[]
       }
+      invoice_detail: { Args: { p_invoice_id: string }; Returns: Json }
+      invoices_overview: { Args: never; Returns: Json }
       issue_guest_link: { Args: { p_booking_id: string }; Returns: string }
+      mark_invoice_paid: {
+        Args: { p_invoice_id: string; p_method: string; p_reference: string }
+        Returns: undefined
+      }
+      mark_invoice_sent: { Args: { p_invoice_id: string }; Returns: undefined }
       paymongo_checkout_for: {
         Args: { p_booking_id: string }
         Returns: {

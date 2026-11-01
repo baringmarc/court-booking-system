@@ -1,7 +1,8 @@
 import { useRef } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  createVenue, fetchIsPlatformAdmin, fetchLeads, fetchVenuesOverview, inviteVenueOwner, reactivateVenue, suspendVenue, updateLead, type Lead, type LeadStatus,
+  createVenue, fetchInvoiceDetail, fetchInvoicesOverview, fetchIsPlatformAdmin, fetchLeads, fetchVenuesOverview, inviteVenueOwner, markInvoicePaid, markInvoiceSent,
+  reactivateVenue, suspendVenue, updateLead, type Lead, type LeadStatus,
 } from './api'
 
 export function useIsPlatformAdmin(userId: string | undefined) {
@@ -60,4 +61,33 @@ export function useReactivateVenue() {
     mutationFn: (venueId: string) => reactivateVenue(venueId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['venues-overview'] }),
   })
+}
+
+export function useInvoices() {
+  return useQuery({ queryKey: ['invoices'], queryFn: fetchInvoicesOverview })
+}
+
+export function useInvoiceDetail(invoiceId: string) {
+  return useQuery({ queryKey: ['invoices', invoiceId], queryFn: () => fetchInvoiceDetail(invoiceId) })
+}
+
+function useInvoiceMutation<T>(mutationFn: (input: T) => Promise<void>) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn,
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['invoices'] }),
+        queryClient.invalidateQueries({ queryKey: ['venues-overview'] }),
+      ])
+    },
+  })
+}
+
+export function useMarkInvoiceSent() {
+  return useInvoiceMutation((invoiceId: string) => markInvoiceSent(invoiceId))
+}
+
+export function useMarkInvoicePaid() {
+  return useInvoiceMutation((input: { invoiceId: string; method: string; reference: string }) => markInvoicePaid(input))
 }

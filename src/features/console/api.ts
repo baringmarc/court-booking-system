@@ -68,3 +68,53 @@ export async function suspendVenue(venueId: string): Promise<void> {
 export async function reactivateVenue(venueId: string): Promise<void> {
   unwrap(await supabase.rpc('reactivate_venue', { p_venue_id: venueId }))
 }
+
+export type InvoiceOverview = {
+  invoice_id: string
+  venue_id: string
+  slug: string
+  name: string
+  /** `YYYY-MM-01`. */
+  billing_month: string
+  status: 'draft' | 'sent' | 'paid'
+  sent_at: string | null
+  paid_at: string | null
+  paid_method: string | null
+  paid_reference: string | null
+  fee_count: number
+  fee_total: number
+  /** Zero or negative. */
+  adjustment_total: number
+  total: number
+  due_at: string | null
+  overdue: boolean
+}
+
+export type InvoiceLine = {
+  charge_id: string
+  booking_id: string
+  reference_code: string
+  kind: 'booking_fee' | 'adjustment'
+  amount: number
+  charged_at: string
+}
+
+export type InvoiceDetailData = InvoiceOverview & { lines: InvoiceLine[] }
+
+/** Every invoice, newest month first, with totals and the overdue flag (platform admins only). */
+export async function fetchInvoicesOverview(): Promise<InvoiceOverview[]> {
+  const rows = unwrap(await supabase.rpc('invoices_overview'))
+  return (Array.isArray(rows) ? rows : []) as InvoiceOverview[]
+}
+
+export async function fetchInvoiceDetail(invoiceId: string): Promise<InvoiceDetailData> {
+  return unwrap(await supabase.rpc('invoice_detail', { p_invoice_id: invoiceId })) as unknown as InvoiceDetailData
+}
+
+export async function markInvoiceSent(invoiceId: string): Promise<void> {
+  unwrap(await supabase.rpc('mark_invoice_sent', { p_invoice_id: invoiceId }))
+}
+
+export async function markInvoicePaid(input: { invoiceId: string; method: string; reference: string }): Promise<void> {
+  unwrap(await supabase.rpc('mark_invoice_paid', { p_invoice_id: input.invoiceId, p_method: input.method, p_reference: input.reference }))
+}
