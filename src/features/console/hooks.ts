@@ -2,6 +2,7 @@ import { useRef } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   createVenue, fetchInvoiceDetail, fetchInvoicesOverview, fetchIsPlatformAdmin, fetchLeads, fetchReviews, fetchVenuesOverview, inviteVenueOwner, markInvoicePaid, markInvoiceSent,
+  resendOwnerInvite,
   reactivateVenue, setReviewApproved, suspendVenue, updateLead, type Lead, type LeadStatus,
 } from './api'
 
@@ -41,6 +42,11 @@ export function useCreateVenueFromLead() {
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['leads'] }),
   })
+}
+
+/** Sends a venue's owner a fresh invite or sign-in link (T14.5d). */
+export function useResendOwnerInvite() {
+  return useMutation({ mutationFn: (input: { venueId: string; email: string }) => resendOwnerInvite(input) })
 }
 
 export function useVenuesOverview() {
