@@ -96,7 +96,7 @@ Reply: `200 { ok: true, message }`.
 | Object | Access | Columns plotline-site uses |
 | --- | --- | --- |
 | `public.reviews` | anon `select`; RLS returns approved rows only | `id, name, venue, quote, role, rating, created_at` |
-| `public.public_venues` (*target*, Phase 3) | anon `select`: active venues that opted in to be listed | `slug, name, city, logo_url` (link: `https://<slug>.plotline.fit`) |
+| `public.public_venues` (T14.13) | anon `select`: active venues that opted in to be listed (`venue_settings.showcase_opt_in`) | `slug, name, city, logo_url` (link: `https://<slug>.plotline.fit`). `logo_url` is a path inside the public `venue-media` bucket (the venue's banner, else its first court photo, else null): prefix it with `<supabase url>/storage/v1/object/public/venue-media/`. `city` may be empty. |
 
 plotline-site never writes to tables directly and never reads `leads`.
 

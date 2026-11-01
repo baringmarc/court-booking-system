@@ -1192,6 +1192,7 @@ export type Database = {
           banner_path: string | null
           booking_window_days: number
           cancel_cutoff_hours: number
+          city: string
           currency: string
           maps_url: string
           max_rejections: number
@@ -1199,6 +1200,7 @@ export type Database = {
           online_payments_enabled: boolean
           payment_hold_minutes: number
           payment_instructions: string
+          showcase_opt_in: boolean
           slot_minutes: number
           sport_order: Database["public"]["Enums"]["sport"][]
           theme: string
@@ -1213,6 +1215,7 @@ export type Database = {
           banner_path?: string | null
           booking_window_days?: number
           cancel_cutoff_hours?: number
+          city?: string
           currency?: string
           maps_url?: string
           max_rejections?: number
@@ -1220,6 +1223,7 @@ export type Database = {
           online_payments_enabled?: boolean
           payment_hold_minutes?: number
           payment_instructions?: string
+          showcase_opt_in?: boolean
           slot_minutes?: number
           sport_order?: Database["public"]["Enums"]["sport"][]
           theme?: string
@@ -1234,6 +1238,7 @@ export type Database = {
           banner_path?: string | null
           booking_window_days?: number
           cancel_cutoff_hours?: number
+          city?: string
           currency?: string
           maps_url?: string
           max_rejections?: number
@@ -1241,6 +1246,7 @@ export type Database = {
           online_payments_enabled?: boolean
           payment_hold_minutes?: number
           payment_instructions?: string
+          showcase_opt_in?: boolean
           slot_minutes?: number
           sport_order?: Database["public"]["Enums"]["sport"][]
           theme?: string
@@ -1311,7 +1317,15 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      public_venues: {
+        Row: {
+          city: string | null
+          logo_url: string | null
+          name: string | null
+          slug: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       cancel_booking: {

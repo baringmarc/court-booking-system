@@ -10,6 +10,7 @@ import { InfoSectionsSection } from './InfoSectionsSection'
 import { LocationSection } from './LocationSection'
 import { OnlinePaymentsStatus } from './OnlinePaymentsStatus'
 import { PaymentAccountsSection } from './PaymentAccountsSection'
+import { ShowcaseSection } from './ShowcaseSection'
 import { SocialLinksSection } from './SocialLinksSection'
 import { SportOrderSection } from './SportOrderSection'
 import { ThemePicker } from './ThemePicker'
@@ -36,6 +37,7 @@ export function SettingsPage() {
           <BannerSection settings={settings.data} />
           <LocationSection settings={settings.data} />
           <WaiverSection settings={settings.data} />
+          <ShowcaseSection settings={settings.data} />
           <SocialLinksSection />
           <InfoSectionsSection />
           <AmenitiesSection />
