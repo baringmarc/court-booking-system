@@ -56,7 +56,7 @@ Anything here is a **public API**: changing it can break the live marketing site
 
 Both are `POST`, called with `supabase.functions.invoke(name, { body })` and the publishable key (`verify_jwt = false`). Both answer `{ ok: true, … }` on success, and `{ ok: false, error }` with a readable message on 4xx/5xx. Bots (the honeypot filled, or the form sent within 3 seconds of first touch) get a fake success.
 
-**`site-contact`**: a venue owner's contact form. Stores a lead; no account is created. Only platform admins read leads (RLS); nothing in the marketing site reads them.
+**`site-contact`**: a venue owner's contact form. Stores a lead and emails `LEAD_ALERT_TO` (best-effort: a failed alert never fails the save); no account is created. Only platform admins read leads (RLS); nothing in the marketing site reads them.
 
 | Field | Type | Rule |
 | --- | --- | --- |
@@ -110,6 +110,7 @@ M12 (done 2026-10-31) made the schema multi-venue (`venues`, `venue_members`, `p
 | plotline-site | `VITE_TURNSTILE_SITE_KEY` | Cloudflare Turnstile site key (public) |
 | this repo, Edge Function secrets | `SITE_ORIGINS` | Allowed origins for the site functions, comma-separated: `https://plotline.fit,https://www.plotline.fit` (plus `http://localhost:5173` on staging) |
 | this repo, Edge Function secrets | `TURNSTILE_SECRET_KEY` | Cloudflare Turnstile secret. Required on hosted projects; skipped locally when unset. |
+| this repo, Edge Function secrets | `LEAD_ALERT_TO` | Addresses (comma-separated) emailed when `site-contact` stores a lead. Unset: no alert. Uses the booking-email transport (`EMAIL_TRANSPORT`, `RESEND_API_KEY`, `EMAIL_FROM`). |
 | this repo, Edge Function secrets | `PUBLIC_ROOT_DOMAIN` | `plotline.fit` (T13.6). Booking return and email links go to `https://<venue slug>.plotline.fit`, built from the booking's own venue, never from a request value. Unset until the wildcard DNS is live (T13.8); `PUBLIC_SITE_URL` stays as the exact allow-list for localhost and the old Vercel URL. |
 | Supabase Auth, URL configuration | Redirect URLs | Add `https://*.plotline.fit/**` (done by hand in the dashboard; T13.6). Keep the existing entries until T13.8. |
 

@@ -63,6 +63,12 @@ try {
   if (hosted) check('the allowed origin is echoed back', r1.cors === origin, String(r1.cors))
   const stored = await leadCount(okForm.email)
   if (!hosted) check('the lead is stored', stored === 1, String(stored))
+  if (!hosted) {
+    const alerts = (email) => fetch(`http://127.0.0.1:54324/api/v1/search?query=${encodeURIComponent(`subject:"New lead" ${email}`)}`)
+      .then((r) => r.json()).then((j) => j.messages?.length ?? 0).catch(() => -1)
+    await new Promise((r) => setTimeout(r, 500))
+    check('the lead alert reached Mailpit (needs LEAD_ALERT_TO in supabase/functions/.env and a stack restart)', (await alerts(okForm.venueName)) === 1)
+  }
 
   const r2 = await post(form({ email: 'not-an-email' }))
   check('an invalid form is 400', r2.status === 400 && r2.body?.ok === false, JSON.stringify(r2))
@@ -73,6 +79,7 @@ try {
   const r4 = await post(form({ email: botEmail, started: Date.now() }))
   check('a too-fast form gets the fake success', r4.status === 200 && r4.body?.ok === true, JSON.stringify(r4))
   if (!hosted) check('bots store nothing', (await leadCount(botEmail)) === 0)
+  if (!hosted) check('bots and invalid forms send no alert', (await fetch(`http://127.0.0.1:54324/api/v1/search?query=${encodeURIComponent(`subject:"New lead" ${botEmail}`)}`).then((r) => r.json()).then((j) => j.messages?.length ?? 0)) === 0)
 
   if (hosted) {
     const r5 = await post(form({ email: `e2e-contact-origin-${tag}@example.com` }), { Origin: 'https://evil.example' })
