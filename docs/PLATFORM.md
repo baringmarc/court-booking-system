@@ -147,3 +147,9 @@ The backend side is done and live on the linked project (`leads` T14.2, `reviews
 5. Remove anything old only after both are live.
 
 For Claude Code: start in one repo and add the other with `claude --add-dir ../plotline-site` (or `../court-booking-system`), or `/add-dir` during a session.
+
+## Approved M17 transition (2026-11-03; not deployed)
+
+The user approved platform-admin-only Showcase control and a live marketing feed, superseding venue-editable opt-in and plotline-site’s demo-only list decision. T17.7 will introduce platform-owned approval; existing selections are retained for review before activation. The public view keeps exactly `slug, name, city, logo_url` and their types; `logo_url` remains a path in `venue-media`. Only active approved venues appear. City stays venue-editable. Legacy flag writes must be guarded without breaking ordinary settings.
+
+Current §4 describes the existing implementation until that migration ships. Platform implementation precedes the marketing consumer; staging and production release each require separate approval. Marketing uses its existing public client/query cache, bounded refetch and loading/empty/error states. The separate demo CTA remains; the featured feed must not fall back to unapproved or unpublished venues. No siteForms or Edge Function contract change is planned.
