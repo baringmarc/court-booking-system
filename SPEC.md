@@ -312,6 +312,8 @@ Guest access uses a random token. It is shown once (in the confirmation page lin
 
 ## 7. Pages (React Router)
 
+The static HTML title is `Plotline` until a venue resolves and its `venue_settings.name` loads. Venue public and admin pages then use that saved name; settings cache updates refresh it. Unknown venues and failed settings loads keep the neutral title. The `app.` console sets `Plotline Admin` before its lazy module loads. Background booking alerts temporarily prefix the venue title and restore the current name when seen.
+
 Every route below belongs to one venue, chosen by the host (M13): `<slug>.plotline.fit` (locally `<slug>.localhost`, or `?venue=<slug>` on previews). An unknown or non-public venue shows "Venue not found"; a suspended one "not taking bookings". The same build serves `app.plotline.fit`, where it mounts only the platform console (platform admins only). Sessions are per host, so staff of several venues sign in on each subdomain and switch between them from the admin header.
 
 | Route               | Access             | Content                                                                                                                                  |

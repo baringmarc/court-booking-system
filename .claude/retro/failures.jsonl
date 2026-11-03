@@ -340,3 +340,6 @@
 {"ts":"2026-11-01T19:45:04.428Z","task":"T16.2","source":"gate","tier":"fast","category":"lint","summary":"8:18  error  Hooks never return a value (Vitest runs a returned value as a teardown). Use a block body: beforeEach(() => { mock.mockReset() })  no-restricted-syntax"}
 {"ts":"2026-11-01T19:54:17.189Z","task":"T16.3","source":"gate","tier":"full","category":"test:e2e","summary":"Error: locator.fill: Test timeout of 60000ms exceeded."}
 {"ts":"2026-11-01T19:54:46.207Z","task":"T16.3","source":"gate","tier":"full","category":"test:e2e","summary":"Error: http://127.0.0.1:5179 is already used, make sure that nothing is running on the port/url or set reuseExistingServer:true in config.webServer."}
+{"ts":"2026-11-03T13:01:36.854Z","task":"T16.3","source":"gate","tier":"full","category":"test:db","summary":"Docker is installed but not running. Start Docker Desktop and try again."}
+{"ts":"2026-11-03T23:36:21.697Z","task":"T16.3","source":"reviewer","severity":"blocker","category":"missing-test","file":"e2e/venue-titles.spec.ts:10","summary":"Logout title assertion missing","round":1}
+{"ts":"2026-11-03T23:36:21.821Z","task":"T16.3","source":"reviewer","severity":"blocker","category":"missing-test","file":"src/features/admin/useBookingAlerts.test.tsx:103","summary":"No alert restoration test after venue rename","round":1}

@@ -22,6 +22,7 @@ export function useBookingAlerts(): { navCount: number } {
   // Read inside the subscription callback without resubscribing on every navigation.
   const pathRef = useRef(pathname)
   const titleRef = useRef<string | null>(null)
+  const previousVenueName = useRef(venueName)
 
   useEffect(() => {
     pathRef.current = pathname
@@ -56,6 +57,8 @@ export function useBookingAlerts(): { navCount: number } {
   }, [])
 
   useEffect(() => {
+    if (titleRef.current !== null && previousVenueName.current !== venueName) titleRef.current = venueName
+    previousVenueName.current = venueName
     if (hiddenCount === 0) {
       if (titleRef.current !== null) {
         document.title = titleRef.current

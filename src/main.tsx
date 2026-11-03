@@ -6,6 +6,7 @@ import { GuestBookingClaimer } from './features/account/GuestBookingClaimer'
 import { AuthProvider } from './features/auth/AuthProvider'
 import { ThemeSync } from './features/catalog/ThemeSync'
 import { VenueProvider } from './features/venue/VenueProvider'
+import { VenueTitleSync } from './features/venue/VenueTitleSync'
 import { bootMode } from './bootMode'
 import { consumeInviteLink } from './lib/inviteLink'
 import { queryClient } from './lib/queryClient'
@@ -16,6 +17,7 @@ import './index.css'
 const root = document.getElementById('root')!
 
 if (bootMode(window.location.hostname, window.location.search, window.sessionStorage) === 'console') {
+  document.title = 'Plotline Admin'
   // The platform console (app. host) is its own lazy chunk: no venue is resolved for it.
   void import('./features/console/mountConsole').then((m) => m.mountConsole(root))
 } else {
@@ -26,6 +28,7 @@ if (bootMode(window.location.hostname, window.location.search, window.sessionSto
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
             <VenueProvider>
+              <VenueTitleSync />
               <ThemeSync />
               <GuestBookingClaimer />
               <RouterProvider router={router} />
