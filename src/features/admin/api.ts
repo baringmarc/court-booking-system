@@ -17,6 +17,7 @@ import { newMediaPath, storageErrorMessage } from './mediaInput'
 import { qrStorageMessage } from './qrImage'
 import { PAYMENT_QR_BUCKET } from '../venue/api'
 import { clearStoredMedia, replaceStoredMedia } from './mediaReplace'
+import { setupStatusKey } from './setupKeys'
 
 export type AdminPayment = {
   id: string
@@ -76,7 +77,7 @@ export const adminKeys = {
   allEarnings: () => [currentVenueId(), 'admin-earnings'] as const,
   allMovedParts: () => [currentVenueId(), 'admin-moved-parts'] as const,
   movedParts: (bookingId: string) => [currentVenueId(), 'admin-moved-parts', bookingId] as const,
-  setup: () => [currentVenueId(), 'admin-setup'] as const,
+  setup: setupStatusKey,
   statement: () => [currentVenueId(), 'admin-statement'] as const,
 }
 

@@ -92,15 +92,18 @@ export function PaymentInstructionsForm({ initial }: { initial: VenueSettings })
   const save = useUpdateVenueSettings()
   const setDirty = useSettingsDirty('payment-instructions')
   const [instructions, setInstructions] = useState(initial.payment_instructions)
+  const example = 'Please send payment to the account listed above. Include your booking reference in the payment note, then upload your proof of payment.'
   function handleSubmit(event: FormEvent) {
     event.preventDefault()
     save.mutate({ payment_instructions: instructions }, { onSuccess: () => setDirty(false) })
   }
   return <section className="card stack"><h2>Payment instructions</h2>
+    <p className="muted">Tell players how to pay after booking. This example is only a starting point; review it and save your own instructions.</p>
     <form className="stack" aria-label="Payment instructions" onSubmit={handleSubmit}>
       <label className="field"><span className="muted small">Shown to players after they book. Include account names and numbers.</span>
         <textarea rows={7} value={instructions} onChange={(event) => { setInstructions(event.target.value); setDirty(true) }} />
       </label>
+      <div><button type="button" className="btn btn-small btn-ghost" onClick={() => { setInstructions(example); setDirty(true) }}>Use example</button></div>
       <div className="form-actions"><button type="submit" className="btn" disabled={save.isPending}>{save.isPending ? 'Saving…' : 'Save instructions'}</button><SaveStatus isSuccess={save.isSuccess} error={save.error} /></div>
     </form>
   </section>

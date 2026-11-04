@@ -17,6 +17,7 @@ const incomplete: SetupStatus = {
     item('rates', 'Set court prices', true, false),
     item('hours', 'Set opening hours', true, true),
     item('payment', 'Add payment details', true, false),
+    item('payment_instructions', 'Add payment instructions', true, false),
     item('photos', 'Add court photos', false, false),
   ],
   ready: false,
@@ -27,6 +28,7 @@ const ready: SetupStatus = {
     item('rates', 'Set court prices', true, true),
     item('hours', 'Set opening hours', true, true),
     item('payment', 'Add payment details', true, true),
+    item('payment_instructions', 'Add payment instructions', true, true),
     item('photos', 'Add court photos', false, false),
   ],
   ready: true,
@@ -71,11 +73,28 @@ describe('SetupChecklist', () => {
     expect(within(row('Add a court')).queryByText('Optional')).not.toBeInTheDocument()
   })
 
+  it('shows account details Done independently from payment instructions To do', async () => {
+    vi.mocked(fetchSetupStatus).mockResolvedValue({
+      items: [
+        item('payment', 'Add a payment account with an account number', true, true),
+        item('payment_instructions', 'Add payment instructions', true, false),
+      ],
+      ready: false,
+    })
+    renderChecklist()
+    const account = await screen.findByText('Add a payment account with an account number')
+    expect(within(account.closest('li') as HTMLElement).getByText('Done')).toBeInTheDocument()
+    const instructions = screen.getByText('Add payment instructions')
+    expect(within(instructions.closest('li') as HTMLElement).getByText('To do')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Publish venue' })).toBeDisabled()
+  })
+
   it('links the missing items to where they are fixed', async () => {
     renderChecklist()
     await screen.findByText('Add a court')
     expect(within(row('Add a court')).getByRole('link')).toHaveAttribute('href', '/admin/courts')
-    expect(within(row('Add payment details')).getByRole('link')).toHaveAttribute('href', '/admin/settings')
+    expect(within(row('Add payment details')).getByRole('link')).toHaveAttribute('href', '/admin/settings/payments')
+    expect(within(row('Add payment instructions')).getByRole('link')).toHaveAttribute('href', '/admin/settings/payments')
   })
 
   it('has no link on an item that is done', async () => {

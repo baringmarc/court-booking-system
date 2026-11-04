@@ -49,7 +49,7 @@ test('a lead becomes a published, showcased venue', async ({ page }) => {
     expect(won!.status).toBe('won')
     await service.auth.admin.updateUserById(ownerId!, { password: PASSWORD, email_confirm: true, user_metadata: { password_set: true } })
 
-    // The owner finishes the setup (a court with a rate and a payment account) and publishes from the dashboard.
+    // The owner finishes setup. Account details and player instructions remain independent publication requirements.
     await service.from('courts').insert({ venue_id: venue!.id, name: `${E2E_PREFIX} Flow Court`, sport: 'tennis', default_hourly_rate: 600 }).throwOnError()
     await service.from('venue_payment_accounts').insert({ venue_id: venue!.id, label: `${E2E_PREFIX} GCash`, account_name: 'Ana Reyes', account_number: '0917 000 1111' }).throwOnError()
     const owner = await page.context().browser()!.newContext()
@@ -62,6 +62,24 @@ test('a lead becomes a published, showcased venue', async ({ page }) => {
       await ownerPage.getByLabel('Password').fill(PASSWORD)
       await ownerPage.getByRole('button', { name: 'Sign in' }).click()
       await expect(ownerPage.getByRole('heading', { name: 'Set up your venue' })).toBeVisible()
+      const accountRow = ownerPage.getByRole('listitem').filter({ hasText: 'Add a payment account with an account number' })
+      const instructionsRow = ownerPage.getByRole('listitem').filter({ hasText: 'Add payment instructions' })
+      await expect(accountRow.getByText('Done')).toBeVisible()
+      await expect(instructionsRow.getByText('To do')).toBeVisible()
+      await expect(ownerPage.getByRole('button', { name: 'Publish venue' })).toBeDisabled()
+
+      await ownerPage.goto(`http://${slug}.localhost:5179/admin/settings/payments`)
+      const instructions = ownerPage.getByRole('textbox', { name: /shown to players/i })
+      await ownerPage.getByRole('button', { name: 'Use example' }).click()
+      await expect(instructions).not.toHaveValue('')
+      expect((await service.from('venue_settings').select('payment_instructions').eq('venue_id', venue!.id).single().throwOnError()).data!.payment_instructions).toBe('')
+      await ownerPage.getByRole('button', { name: 'Save instructions' }).click()
+      await expect(ownerPage.getByText('Saved')).toBeVisible()
+      await expect.poll(async () => (await service.from('venue_settings').select('payment_instructions').eq('venue_id', venue!.id).single()).data?.payment_instructions)
+        .not.toBe('')
+
+      await ownerPage.goto(`http://${slug}.localhost:5179/admin`)
+      await expect(ownerPage.getByRole('listitem').filter({ hasText: 'Add payment instructions' }).getByText('Done')).toBeVisible()
       await ownerPage.getByRole('button', { name: 'Publish venue' }).click()
       await expect(ownerPage.getByRole('heading', { name: 'Set up your venue' })).toHaveCount(0)
 

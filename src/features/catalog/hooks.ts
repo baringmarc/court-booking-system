@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { setupStatusKey } from '../admin/setupKeys'
 import type { TablesInsert, TablesUpdate } from '../../lib/database.types'
 import {
   catalogKeys,
@@ -105,6 +106,9 @@ export function useUpdateVenueSettings() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (values: TablesUpdate<'venue_settings'>) => updateVenueSettings(values),
-    onSuccess: (settings) => qc.setQueryData(catalogKeys.settings(), settings),
+    onSuccess: (settings) => {
+      qc.setQueryData(catalogKeys.settings(), settings)
+      return qc.invalidateQueries({ queryKey: setupStatusKey() })
+    },
   })
 }
