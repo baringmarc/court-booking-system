@@ -22,7 +22,7 @@ test('an admin adds a payment account with a QR code, and a guest sees it while 
   test.skip((count ?? 0) >= 10, 'the local venue already lists 10 payment accounts')
 
   const admin = await createAdmin()
-  await logInAdmin(page, admin.email, admin.password, '/admin/settings')
+  await logInAdmin(page, admin.email, admin.password, '/admin/settings/payments')
   const form = page.getByRole('form', { name: 'New payment account' })
   await form.getByLabel(/^Label/).fill(LABEL)
   await form.getByLabel('Account name').fill('Claudex Courts')

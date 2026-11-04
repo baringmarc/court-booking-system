@@ -2,18 +2,20 @@ import { useState, type FormEvent } from 'react'
 import { SaveStatus } from '../../components/SaveStatus'
 import type { VenueSettings } from '../catalog/api'
 import { useUpdateVenueSettings } from '../catalog/hooks'
+import { useSettingsDirty } from './settingsDraft'
 
 const CITY_MAX = 80
 
 /** Opt in to be listed on the Plotline website (T14.13). Only the name, city and a photo are shown. */
 export function ShowcaseSection({ settings }: { settings: Pick<VenueSettings, 'city' | 'showcase_opt_in'> }) {
   const save = useUpdateVenueSettings()
+  const setDirty = useSettingsDirty('showcase')
   const [city, setCity] = useState(settings.city)
   const [optIn, setOptIn] = useState(settings.showcase_opt_in)
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
-    save.mutate({ city: city.trim(), showcase_opt_in: optIn })
+    save.mutate({ city: city.trim(), showcase_opt_in: optIn }, { onSuccess: () => setDirty(false) })
   }
 
   return (
@@ -23,10 +25,10 @@ export function ShowcaseSection({ settings }: { settings: Pick<VenueSettings, 'c
         <label className="field">
           <span>City</span>
           <input type="text" maxLength={CITY_MAX} value={city} placeholder="e.g. Makati"
-            onChange={(e) => setCity(e.target.value)} />
+            onChange={(e) => { setCity(e.target.value); setDirty(true) }} />
         </label>
         <label className="check">
-          <input type="checkbox" checked={optIn} onChange={(e) => setOptIn(e.target.checked)} />
+          <input type="checkbox" checked={optIn} onChange={(e) => { setOptIn(e.target.checked); setDirty(true) }} />
           <span>List this venue on the Plotline website</span>
         </label>
         <p className="muted small">

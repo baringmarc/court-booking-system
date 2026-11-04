@@ -69,7 +69,7 @@ test('a lead becomes a published, showcased venue', async ({ page }) => {
       const { url, publishableKey } = localSupabase()
       const anon = createClient(url, publishableKey, { auth: { persistSession: false } })
       expect((await anon.from('public_venues').select('slug').eq('slug', slug)).data).toHaveLength(0)
-      await ownerPage.goto(`http://${slug}.localhost:5179/admin/settings`)
+      await ownerPage.goto(`http://${slug}.localhost:5179/admin/settings/venue`)
       const showcase = ownerPage.getByRole('form', { name: 'Showcase' })
       await showcase.getByLabel('City').fill('Makati')
       await showcase.getByLabel('List this venue on the Plotline website').check()

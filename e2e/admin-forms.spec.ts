@@ -21,8 +21,8 @@ async function rowCounts(page: Page, label: string) {
 
 test('the booking rules fields wrap into even rows at every width', async ({ page }) => {
   const admin = await createAdmin()
-  await logInAdmin(page, admin.email, admin.password, '/admin/settings')
-  await expect(page.getByRole('heading', { name: 'Booking rules' })).toBeVisible()
+  await logInAdmin(page, admin.email, admin.password, '/admin/settings/booking')
+  await expect(page.getByRole('heading', { name: 'Booking rules', exact: true })).toBeVisible()
 
   for (const [width, expected] of [[360, [1, 1, 1, 1]], [820, [2, 2]], [1280, [4]]] as const) {
     await page.setViewportSize({ width, height: 900 })
@@ -32,7 +32,7 @@ test('the booking rules fields wrap into even rows at every width', async ({ pag
 
 test('the social links fields (seven) never leave one alone on a row', async ({ page }) => {
   const admin = await createAdmin()
-  await logInAdmin(page, admin.email, admin.password, '/admin/settings')
+  await logInAdmin(page, admin.email, admin.password, '/admin/settings/venue')
   const facebook = page.getByRole('form', { name: 'Social links' }).getByLabel('Facebook')
   await expect(facebook).toBeVisible()
 

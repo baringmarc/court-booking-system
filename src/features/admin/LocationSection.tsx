@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { SaveStatus } from '../../components/SaveStatus'
 import type { VenueSettings } from '../catalog/api'
 import { useUpdateVenueSettings } from '../catalog/hooks'
+import { useSettingsDirty } from './settingsDraft'
 import { MAPS_URL_MAX, mapsUrlProblem, placeNameFromMapsUrl } from '../venue/map'
 
 const MAX = 300
@@ -9,6 +10,7 @@ const MAX = 300
 /** The venue's address and its pasted Google Maps link (T11.9). Players see the address, linked to the map. */
 export function LocationSection({ settings }: { settings: Pick<VenueSettings, 'address' | 'maps_url'> }) {
   const save = useUpdateVenueSettings()
+  const setDirty = useSettingsDirty('location')
   const [address, setAddress] = useState(settings.address)
   const [link, setLink] = useState(settings.maps_url)
   const [linkError, setLinkError] = useState<string | null>(null)
@@ -29,7 +31,7 @@ export function LocationSection({ settings }: { settings: Pick<VenueSettings, 'a
     const problem = mapsUrlProblem(url)
     setLinkError(problem)
     if (problem) return
-    save.mutate({ address: address.trim(), maps_url: url })
+    save.mutate({ address: address.trim(), maps_url: url }, { onSuccess: () => setDirty(false) })
   }
 
   return (
@@ -39,13 +41,13 @@ export function LocationSection({ settings }: { settings: Pick<VenueSettings, 'a
         <label className="field">
           <span>Address</span>
           <textarea rows={2} maxLength={MAX} value={address} placeholder="e.g. 123 Rizal Ave, Makati City"
-            onChange={(e) => setAddress(e.target.value)} />
+            onChange={(e) => { setAddress(e.target.value); setDirty(true) }} />
         </label>
         <label className="field">
           <span>Google Maps link <span className="muted small">(optional: in Google Maps, tap Share and copy the link)</span></span>
           <input type="url" inputMode="url" maxLength={MAPS_URL_MAX} value={link} placeholder="https://maps.app.goo.gl/…"
             aria-invalid={linkError ? true : undefined} aria-describedby={linkError ? 'maps-link-error' : undefined}
-            onChange={(e) => changeLink(e.target.value)} />
+            onChange={(e) => { changeLink(e.target.value); setDirty(true) }} />
         </label>
         {linkError && <p id="maps-link-error" className="form-error" role="alert">{linkError}</p>}
         <p className="muted small">Players see the address with a pin. With a link, tapping it opens Google Maps.</p>

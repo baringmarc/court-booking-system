@@ -35,7 +35,7 @@ test.afterEach(async () => {
 
 test('an admin sets an amenity, an info section and a social link, and anyone can read them', async ({ page }) => {
   const admin = await createAdmin()
-  await logInAdmin(page, admin.email, admin.password, '/admin/settings')
+  await logInAdmin(page, admin.email, admin.password, '/admin/settings/appearance')
 
   // An amenity that is off: switch it on (it saves right away).
   const amenities = page.getByRole('region', { name: 'Amenities' })
@@ -76,6 +76,7 @@ test('an admin sets an amenity, an info section and a social link, and anyone ca
   expect(await axeBothSchemes(page, '[aria-label="Info sections in order"]'), 'info sections').toEqual([])
 
   // A social link: a wrong host is refused before saving, then a right one saves.
+  await page.goto('/admin/settings/venue')
   const socials = page.getByRole('form', { name: 'Social links' })
   await socials.getByLabel('TikTok').fill('https://www.facebook.com/claudex')
   await socials.getByRole('button', { name: 'Save links' }).click()
