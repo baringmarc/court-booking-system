@@ -74,6 +74,17 @@ export async function fetchVenuesOverview(): Promise<VenueOverview[]> {
   return (Array.isArray(rows) ? rows : []) as VenueOverview[]
 }
 
+export type ShowcaseApproval = Pick<Tables<'venues'>, 'id' | 'showcase_approved'>
+
+/** Separate from the overview so a failed approval read leaves other console actions available. */
+export async function fetchShowcaseApprovals(): Promise<ShowcaseApproval[]> {
+  return unwrap(await supabase.from('venues').select('id, showcase_approved'))
+}
+
+export async function setVenueShowcaseApproval(input: { venueId: string; approved: boolean }): Promise<void> {
+  unwrap(await supabase.rpc('set_venue_showcase_approval', { p_venue_id: input.venueId, p_approved: input.approved }))
+}
+
 export async function suspendVenue(venueId: string): Promise<void> {
   unwrap(await supabase.rpc('suspend_venue', { p_venue_id: venueId }))
 }

@@ -3,7 +3,7 @@
 // their invoices and charges, and E2E-tagged leads.
 import { expect, test, type Page } from '@playwright/test'
 import {
-  E2E_PREFIX, PASSWORD, createPlatformAdmin, createPlayer, createVenue, addVenueStaff, deleteVenue, serviceClient,
+  E2E_PREFIX, PASSWORD, axeBothSchemes, createPlatformAdmin, createPlayer, createVenue, addVenueStaff, deleteVenue, serviceClient,
 } from './support/helpers.ts'
 import { localSupabase } from './support/local.ts'
 import { createClient } from '@supabase/supabase-js'
@@ -33,7 +33,7 @@ test('a lead becomes a published, showcased venue', async ({ page }) => {
   }).throwOnError()
 
   try {
-    const platformAdmin = await signInConsole(page)
+    await signInConsole(page)
     const lead = page.getByRole('listitem').filter({ hasText: venueName })
     await lead.getByRole('button', { name: 'Create venue' }).click()
     await lead.getByLabel('Subdomain').fill(slug)
@@ -89,15 +89,53 @@ test('a lead becomes a published, showcased venue', async ({ page }) => {
       const anon = createClient(url, publishableKey, { auth: { persistSession: false } })
       expect((await anon.from('public_venues').select('slug').eq('slug', slug)).data).toHaveLength(0)
       await ownerPage.goto(`http://${slug}.localhost:5179/admin/settings/venue`)
-      const showcase = ownerPage.getByRole('form', { name: 'Showcase' })
-      await showcase.getByLabel('City').fill('Makati')
-      await showcase.getByRole('button', { name: 'Save showcase' }).click()
-      await expect(showcase.getByText('Saved')).toBeVisible()
-      const platform = createClient(url, publishableKey, { auth: { persistSession: false } })
-      await platform.auth.signInWithPassword({ email: platformAdmin.email, password: platformAdmin.password })
-      await platform.rpc('set_venue_showcase_approval', { p_venue_id: venue!.id, p_approved: true }).throwOnError()
+      await expect(ownerPage.getByLabel('List this venue on the Plotline website')).toHaveCount(0)
+      await ownerPage.getByLabel('City').fill('Makati')
+      await ownerPage.getByRole('button', { name: 'Save city' }).click()
+      await expect(ownerPage.getByText('Saved')).toBeVisible()
+      await ownerPage.reload()
+      await expect(ownerPage.getByLabel('City')).toHaveValue('Makati')
+      expect(await axeBothSchemes(ownerPage)).toEqual([])
+
+      // An owner cannot call the platform action or reach its console controls.
+      const ownerClient = createClient(url, publishableKey, { auth: { persistSession: false } })
+      await ownerClient.auth.signInWithPassword({ email: ownerEmail, password: PASSWORD })
+      const denied = await ownerClient.rpc('set_venue_showcase_approval', { p_venue_id: venue!.id, p_approved: true })
+      expect(denied.error?.hint).toBe('not_platform_admin')
+      await ownerPage.goto(CONSOLE)
+      await ownerPage.getByLabel('Email').fill(ownerEmail)
+      await ownerPage.getByLabel('Password').fill(PASSWORD)
+      await ownerPage.getByRole('button', { name: 'Sign in' }).click()
+      await expect(ownerPage.getByRole('heading', { name: 'Platform admins only' })).toBeVisible()
+      await expect(ownerPage.getByRole('button', { name: 'Approve showcase' })).toHaveCount(0)
+
+      // Platform staff approve in the console; the public read and reload reflect the saved decision.
+      await page.reload()
+      const venueCard = page.getByRole('region', { name: 'Venues', exact: true }).getByRole('listitem').filter({ hasText: slug })
+      await expect(venueCard.getByText('Showcase: Not approved', { exact: true })).toBeVisible()
+      await venueCard.getByRole('button', { name: 'Approve showcase' }).click()
+      await expect(venueCard.getByText('Showcase: Approved', { exact: true })).toBeVisible()
       await expect.poll(async () => (await anon.from('public_venues').select('slug, city').eq('slug', slug)).data)
         .toEqual([{ slug, city: 'Makati' }])
+      await page.reload()
+      await expect(venueCard.getByText('Showcase: Approved', { exact: true })).toBeVisible()
+      await expect(venueCard.getByRole('button', { name: 'Resend invite' })).toBeVisible()
+      expect(await axeBothSchemes(page, '[aria-labelledby="venues-heading"]')).toEqual([])
+
+      page.once('dialog', (dialog) => dialog.accept())
+      await venueCard.getByRole('button', { name: 'Suspend', exact: true }).click()
+      await expect(venueCard.getByRole('button', { name: 'Reactivate', exact: true })).toBeVisible()
+      await expect.poll(async () => (await anon.from('public_venues').select('slug').eq('slug', slug)).data).toEqual([])
+      await venueCard.getByRole('button', { name: 'Reactivate', exact: true }).click()
+      await expect(venueCard.getByRole('button', { name: 'Suspend', exact: true })).toBeVisible()
+      await expect.poll(async () => (await anon.from('public_venues').select('slug').eq('slug', slug)).data).toEqual([{ slug }])
+
+      await venueCard.getByRole('button', { name: 'Remove from showcase' }).click()
+      await expect(venueCard.getByText('Showcase: Not approved', { exact: true })).toBeVisible()
+      await expect.poll(async () => (await anon.from('public_venues').select('slug').eq('slug', slug)).data).toEqual([])
+      await page.reload()
+      await expect(venueCard.getByText('Showcase: Not approved', { exact: true })).toBeVisible()
+
     } finally {
       await owner.close()
     }
@@ -111,8 +149,10 @@ test('a lead becomes a published, showcased venue', async ({ page }) => {
     if (created) {
       await service.from('venue_payment_accounts').delete().eq('venue_id', created.id)
       await deleteVenue(created.id)
+      expect((await service.from('venues').select('id').eq('id', created.id).throwOnError()).data).toEqual([])
     }
-    await service.from('leads').delete().eq('venue_name', venueName)
+    await service.from('leads').delete().eq('venue_name', venueName).throwOnError()
+    expect((await service.from('leads').select('id').eq('venue_name', venueName).throwOnError()).data).toEqual([])
   }
 })
 

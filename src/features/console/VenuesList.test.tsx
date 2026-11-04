@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { VenueOverview } from './api'
 
 vi.mock('./api', () => ({
+  fetchShowcaseApprovals: vi.fn().mockResolvedValue([{ id: 'v1', showcase_approved: false }]), setVenueShowcaseApproval: vi.fn(),
   fetchVenuesOverview: vi.fn(), suspendVenue: vi.fn(), reactivateVenue: vi.fn(), fetchIsPlatformAdmin: vi.fn(),
   fetchLeads: vi.fn(), updateLead: vi.fn(),
 }))

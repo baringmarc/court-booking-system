@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { formatMoney } from '../../lib/format'
 import type { VenueOverview } from './api'
 import { useReactivateVenue, useResendOwnerInvite, useSuspendVenue, useVenuesOverview } from './hooks'
+import { ShowcaseControl } from './ShowcaseControl'
 
 /** Re-sends the owner a way in: the first invite can be used up, expired or never delivered (T14.5d). */
 function ResendInvite({ venue }: { venue: VenueOverview }) {
@@ -44,6 +45,7 @@ function VenueItem({ venue }: { venue: VenueOverview }) {
       <p className="muted">{venue.slug} · {venue.status}</p>
       <p>{venue.month_transactions} transactions · {formatMoney(venue.month_total)} this month</p>
       <p className="muted">{venue.open_invoices} open {venue.open_invoices === 1 ? 'invoice' : 'invoices'}</p>
+      <ShowcaseControl venue={venue} />
       <div className="form-actions"><ResendInvite venue={venue} /></div>
       {venue.status === 'active' && (
         <div className="form-actions">

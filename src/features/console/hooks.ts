@@ -2,7 +2,7 @@ import { useRef } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   createVenue, fetchInvoiceDetail, fetchInvoicesOverview, fetchIsPlatformAdmin, fetchLeads, fetchReviews, fetchVenuesOverview, inviteVenueOwner, markInvoicePaid, markInvoiceSent,
-  resendOwnerInvite,
+  resendOwnerInvite, fetchShowcaseApprovals, setVenueShowcaseApproval,
   reactivateVenue, setReviewApproved, suspendVenue, updateLead, type Lead, type LeadStatus,
 } from './api'
 
@@ -51,6 +51,23 @@ export function useResendOwnerInvite() {
 
 export function useVenuesOverview() {
   return useQuery({ queryKey: ['venues-overview'], queryFn: fetchVenuesOverview })
+}
+
+export function useShowcaseApprovals() {
+  return useQuery({ queryKey: ['showcase-approvals'], queryFn: fetchShowcaseApprovals, refetchOnWindowFocus: true })
+}
+
+export function useSetVenueShowcaseApproval() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: { venueId: string; approved: boolean }) => setVenueShowcaseApproval(input),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['showcase-approvals'] }),
+        queryClient.invalidateQueries({ queryKey: ['venues-overview'] }),
+      ])
+    },
+  })
 }
 
 export function useSuspendVenue() {

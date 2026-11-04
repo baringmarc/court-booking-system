@@ -87,13 +87,14 @@ describe('T17.4 settings category pages', () => {
     expect(await screen.findByRole('link', { name: /Venue Profile/ })).toBeInTheDocument()
   })
 
-  it('preserves all venue, location, city, showcase and social fields on Venue Profile', async () => {
+  it('preserves venue, location, city and social fields while removing venue showcase controls', async () => {
     mount('/admin/settings/venue')
     expect(await screen.findByLabelText('Venue name')).toHaveValue(INITIAL.name)
     expect(screen.getByLabelText('City')).toHaveValue(INITIAL.city)
     expect(screen.getByLabelText('Address')).toHaveValue(INITIAL.address)
     expect(screen.getByLabelText(/Google Maps link/)).toHaveValue('')
-    expect(screen.getByLabelText('List this venue on the Plotline website')).not.toBeChecked()
+    expect(screen.queryByLabelText('List this venue on the Plotline website')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Save city' })).toBeInTheDocument()
     expect(await screen.findByRole('heading', { name: 'Social links' })).toBeInTheDocument()
     for (const text of ['Asia/Manila', 'PHP', '60 min']) expect(screen.getByText(text)).toBeInTheDocument()
   })
