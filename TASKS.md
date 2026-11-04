@@ -4,7 +4,7 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
 
 ## Handoff
 
-- **Active work (2026-11-04):** M17 Admin and scheduling improvements, approved by the user after the source audit. T17.1–T17.9 complete locally (reviewer PASS); **Next task:** T17.10 RPCs: schedule read, preview and atomic save (plan gate pending). M16 T16.3–T16.6 remain queued, not completed or cancelled. This entry supersedes the historical Current milestone/Next task entries below.
+- **Active work (2026-11-05):** M17 Admin and scheduling improvements, approved by the user after the source audit. T17.1–T17.10 complete (reviewer PASS); all six pending migrations through T17.10 were pushed to linked staging with the user's approval. **Next task:** T17.11 Booking engine: effective periods (plan gate pending). M16 T16.3–T16.6 remain queued, not completed or cancelled. This entry supersedes the historical Current milestone/Next task entries below.
 - **Release boundary:** M17 scope approval does not authorize hosted migrations, deployment or push. DB/security tasks retain detailed plan gates; local validation is allowed during implementation.
 
 > Update this section at the end of every session or task. Keep it short; it's the first thing the next session reads.
@@ -2276,10 +2276,11 @@ Approved 2026-11-03. Source: `docs/PLOTLINE_ADMIN_SCHEDULING_IMPLEMENTATION_SPEC
 - **Acceptance:** pgTAP parity for seven days, closed/full-day/overnight schedules; composite venue ownership, default inheritance and overlap constraints; no public behavior switch.
 - **Notes:** Migrations `20261104145453_schedule_expansion.sql` and `20261104151923_t17_9_schedule_expansion_followups.sql` add the inactive schedule model, legacy-hour synchronization, backfill/initialization, overlap rules and admin-only reads. `67_schedule_expansion.test.sql` (55 assertions), `51_cross_venue_isolation.test.sql`, and the existing `24_overnight_hours.test.sql` pass; generated local `database.types.ts`. The test-writer corrected both disputes (isolated week-wrap fixture; scoped backfill assertion), accepted by reviewer. Full gate passed; reviewer PASS round 2, no findings. Local only; no hosted migration or push.
 
-### [ ] T17.10 RPCs: schedule read, preview and atomic save
+### [x] T17.10 RPCs: schedule read, preview and atomic save
 - **Depends:** T17.9
 - **Do:** Explicit authorized venue; atomic mode/period/rate edits; snapshot custom defaults; copy; revision conflicts; impact preview. Risky RPC gate.
 - **Acceptance:** pgTAP rejects unauthorized/cross-venue and overlapping writes including Sunday wrap; no partial saves; snapshots and stale revisions tested; preview pagination/horizon documented.
+- **Notes:** Migrations `20261104163426_t17_10_schedule_rpcs.sql` and `20261104163928_t17_10_schedule_rpc_fixups.sql` add the venue-admin-only read, impact preview and atomic save RPCs with explicit venue authorization, revision checks and court locks. Custom mode snapshots venue defaults; rate copying is explicit. Preview is paginated, capped at a 90-day horizon, ignores expired pending holds and reports conflicts without changing reservations or open play. Tests: `68_schedule_rpcs.test.sql` (48 assertions) and cross-venue RPC coverage in `51_cross_venue_isolation.test.sql`. Full gate passed, including 3,063 database assertions and desktop/phone e2e; reviewer PASS round 2, no findings. The reviewer accepted the resolved test dispute: the cross-venue revision assertion resets role before reading the other venue's state. `npm run db:push` applied all six pending migrations (T17.5, T17.7, T17.9 and T17.10) to linked staging with the user's explicit approval; generated database types from the linked schema. No production deployment.
 
 ### [ ] T17.11 Booking engine: effective periods
 - **Depends:** T17.10

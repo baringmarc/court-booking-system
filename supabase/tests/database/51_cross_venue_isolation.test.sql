@@ -474,6 +474,8 @@ select is_empty(
          'venue_setup_status', 'publish_venue',
          -- venue admins only: names a venue id and refuses anyone who doesn't run it (62_venue_statement)
          'venue_statement',
+         -- venue schedule RPCs are cross-venue tested in 68_schedule_rpcs
+         'get_schedule', 'preview_schedule_impact', 'save_schedule',
          -- platform admins only: refuse anyone who is not a platform admin (59_venues_overview, 61_invoice_review, 66_showcase_authority)
          'venues_overview', 'suspend_venue', 'reactivate_venue',
          'invoices_overview', 'invoice_detail', 'mark_invoice_sent', 'mark_invoice_paid', 'set_venue_showcase_approval'

@@ -1,6 +1,11 @@
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.18";
+  };
   graphql_public: {
     Tables: {
       [_ in never]: never;
@@ -10,7 +15,12 @@ export type Database = {
     };
     Functions: {
       graphql: {
-        Args: { extensions?: Json; operationName?: string; query?: string; variables?: Json };
+        Args: {
+          extensions?: Json;
+          operationName?: string;
+          query?: string;
+          variables?: Json;
+        };
         Returns: Json;
       };
     };
@@ -34,7 +44,6 @@ export type Database = {
           kind: string;
           venue_id: string;
         };
-        ComputedFields: never;
         Insert: {
           amount: number;
           billing_month: string;
@@ -90,7 +99,6 @@ export type Database = {
           starts_at: string;
           venue_id: string;
         };
-        ComputedFields: never;
         Insert: {
           court_id?: string | null;
           created_at?: string;
@@ -149,7 +157,6 @@ export type Database = {
           reason: string;
           venue_id: string;
         };
-        ComputedFields: never;
         Insert: {
           booking_id: string;
           changed_at?: string;
@@ -252,9 +259,8 @@ export type Database = {
           waiver_accepted_at: string | null;
           waiver_text: string | null;
         };
-        ComputedFields: never;
         Insert: {
-          amount_due?: never;
+          amount_due?: number;
           booking_fee?: number;
           cancel_reason?: string | null;
           cancelled_at?: string | null;
@@ -284,7 +290,7 @@ export type Database = {
           waiver_text?: string | null;
         };
         Update: {
-          amount_due?: never;
+          amount_due?: number;
           booking_fee?: number;
           cancel_reason?: string | null;
           cancelled_at?: string | null;
@@ -368,7 +374,6 @@ export type Database = {
           start_minute: number;
           venue_id: string;
         };
-        ComputedFields: never;
         Insert: {
           court_id: string;
           created_at?: string;
@@ -406,7 +411,6 @@ export type Database = {
           sort_order: number;
           venue_id: string;
         };
-        ComputedFields: never;
         Insert: {
           court_id: string;
           created_at?: string;
@@ -448,7 +452,6 @@ export type Database = {
           start_hour: number;
           venue_id: string;
         };
-        ComputedFields: never;
         Insert: {
           court_id: string;
           day_of_week: number;
@@ -488,7 +491,6 @@ export type Database = {
           updated_at: string;
           venue_id: string;
         };
-        ComputedFields: never;
         Insert: {
           court_id: string;
           schedule_mode?: string;
@@ -526,7 +528,6 @@ export type Database = {
           updated_at: string;
           venue_id: string;
         };
-        ComputedFields: never;
         Insert: {
           created_at?: string;
           default_hourly_rate: number;
@@ -567,7 +568,7 @@ export type Database = {
           booking_id: string;
           change_id: string | null;
           created_at: string;
-          data: NonNullable<Json>;
+          data: Json;
           for_guest: boolean;
           id: string;
           kind: Database["public"]["Enums"]["email_kind"];
@@ -580,13 +581,12 @@ export type Database = {
           to_email: string;
           venue_id: string;
         };
-        ComputedFields: never;
         Insert: {
           attempts?: number;
           booking_id: string;
           change_id?: string | null;
           created_at?: string;
-          data: NonNullable<Json>;
+          data: Json;
           for_guest: boolean;
           id?: string;
           kind: Database["public"]["Enums"]["email_kind"];
@@ -604,7 +604,7 @@ export type Database = {
           booking_id?: string;
           change_id?: string | null;
           created_at?: string;
-          data?: NonNullable<Json>;
+          data?: Json;
           for_guest?: boolean;
           id?: string;
           kind?: Database["public"]["Enums"]["email_kind"];
@@ -655,7 +655,6 @@ export type Database = {
           token_hash: string;
           venue_id: string;
         };
-        ComputedFields: never;
         Insert: {
           booking_id: string;
           created_at?: string;
@@ -697,7 +696,6 @@ export type Database = {
           status: string;
           venue_id: string;
         };
-        ComputedFields: never;
         Insert: {
           billing_month: string;
           created_at?: string;
@@ -748,7 +746,6 @@ export type Database = {
           updated_at: string;
           venue_name: string;
         };
-        ComputedFields: never;
         Insert: {
           consented_at: string;
           courts: number;
@@ -792,7 +789,6 @@ export type Database = {
           session_id: string;
           venue_id: string;
         };
-        ComputedFields: never;
         Insert: {
           court_id: string;
           during: unknown;
@@ -836,20 +832,19 @@ export type Database = {
           details: string;
           ends_at: string;
           id: string;
-          links: NonNullable<Json>;
+          links: Json;
           starts_at: string;
           title: string;
           updated_at: string;
           venue_id: string;
         };
-        ComputedFields: never;
         Insert: {
           created_at?: string;
           created_by?: string | null;
           details?: string;
           ends_at: string;
           id?: string;
-          links?: NonNullable<Json>;
+          links?: Json;
           starts_at: string;
           title: string;
           updated_at?: string;
@@ -861,7 +856,7 @@ export type Database = {
           details?: string;
           ends_at?: string;
           id?: string;
-          links?: NonNullable<Json>;
+          links?: Json;
           starts_at?: string;
           title?: string;
           updated_at?: string;
@@ -892,7 +887,6 @@ export type Database = {
           open_time: string;
           venue_id: string;
         };
-        ComputedFields: never;
         Insert: {
           close_time: string;
           day_of_week: number;
@@ -939,7 +933,6 @@ export type Database = {
           submitted_at: string;
           venue_id: string;
         };
-        ComputedFields: never;
         Insert: {
           amount: number;
           booking_id: string;
@@ -1029,7 +1022,6 @@ export type Database = {
           created_at: string;
           venue_id: string;
         };
-        ComputedFields: never;
         Insert: {
           amount_centavos: number;
           booking_id: string;
@@ -1067,7 +1059,6 @@ export type Database = {
         Row: {
           user_id: string;
         };
-        ComputedFields: never;
         Insert: {
           user_id: string;
         };
@@ -1082,7 +1073,6 @@ export type Database = {
           id: boolean;
           invoice_grace_days: number;
         };
-        ComputedFields: never;
         Insert: {
           booking_fee: number;
           id?: boolean;
@@ -1103,7 +1093,6 @@ export type Database = {
           phone: string | null;
           updated_at: string;
         };
-        ComputedFields: never;
         Insert: {
           created_at?: string;
           full_name?: string | null;
@@ -1132,7 +1121,6 @@ export type Database = {
           role: string;
           venue: string | null;
         };
-        ComputedFields: never;
         Insert: {
           approved?: boolean;
           consented_at: string;
@@ -1165,7 +1153,6 @@ export type Database = {
           id: string;
           venue_id: string;
         };
-        ComputedFields: never;
         Insert: {
           builtin_key?: string | null;
           created_at?: string;
@@ -1200,7 +1187,6 @@ export type Database = {
           updated_at: string;
           venue_id: string;
         };
-        ComputedFields: never;
         Insert: {
           body?: string;
           created_at?: string;
@@ -1235,7 +1221,6 @@ export type Database = {
           user_id: string;
           venue_id: string;
         };
-        ComputedFields: never;
         Insert: {
           role: string;
           user_id: string;
@@ -1265,7 +1250,6 @@ export type Database = {
           start_minute: number;
           venue_id: string;
         };
-        ComputedFields: never;
         Insert: {
           created_at?: string;
           day_of_week: number;
@@ -1304,7 +1288,6 @@ export type Database = {
           updated_at: string;
           venue_id: string;
         };
-        ComputedFields: never;
         Insert: {
           account_name?: string;
           account_number?: string;
@@ -1344,7 +1327,6 @@ export type Database = {
           updated_at: string;
           venue_id: string;
         };
-        ComputedFields: never;
         Insert: {
           schedule_revision?: number;
           schedule_v2_active?: boolean;
@@ -1391,7 +1373,6 @@ export type Database = {
           venue_id: string;
           waiver_text: string;
         };
-        ComputedFields: never;
         Insert: {
           address?: string;
           banner_alt?: string | null;
@@ -1455,7 +1436,6 @@ export type Database = {
           url: string;
           venue_id: string;
         };
-        ComputedFields: never;
         Insert: {
           platform: Database["public"]["Enums"]["venue_social_platform"];
           updated_at?: string;
@@ -1486,7 +1466,6 @@ export type Database = {
           slug: string;
           status: string;
         };
-        ComputedFields: never;
         Insert: {
           created_at?: string;
           id?: string;
@@ -1512,7 +1491,6 @@ export type Database = {
           name: string | null;
           slug: string | null;
         };
-        ComputedFields: never;
         Relationships: [];
       };
     };
@@ -1539,7 +1517,7 @@ export type Database = {
           to_email: string;
         }[];
       };
-      claim_guest_bookings: { Args: Record<PropertyKey, never>; Returns: number };
+      claim_guest_bookings: { Args: never; Returns: number };
       claim_guest_link_email: {
         Args: { p_reference_code: string; p_token: string };
         Returns: {
@@ -1617,7 +1595,10 @@ export type Database = {
           status: string;
         }[];
       };
-      get_earnings: { Args: { p_from: string; p_to: string; p_venue_id?: string }; Returns: Json };
+      get_earnings: {
+        Args: { p_from: string; p_to: string; p_venue_id?: string };
+        Returns: Json;
+      };
       get_guest_booking: {
         Args: { p_reference_code: string; p_token: string };
         Returns: {
@@ -1649,8 +1630,9 @@ export type Database = {
           waiver_text: string;
         }[];
       };
+      get_schedule: { Args: { p_venue_id: string }; Returns: Json };
       invoice_detail: { Args: { p_invoice_id: string }; Returns: Json };
-      invoices_overview: { Args: Record<PropertyKey, never>; Returns: Json };
+      invoices_overview: { Args: never; Returns: Json };
       issue_guest_link: { Args: { p_booking_id: string }; Returns: string };
       mark_invoice_paid: {
         Args: { p_invoice_id: string; p_method: string; p_reference: string };
@@ -1663,6 +1645,17 @@ export type Database = {
           checkout_id: string;
           checkout_url: string;
         }[];
+      };
+      preview_schedule_impact: {
+        Args: {
+          p_draft: Json;
+          p_from: string;
+          p_limit: number;
+          p_offset: number;
+          p_to: string;
+          p_venue_id: string;
+        };
+        Returns: Json;
       };
       proof_target: {
         Args: { p_reference_code: string; p_token: string; p_user_id: string };
@@ -1714,12 +1707,18 @@ export type Database = {
           payment_id: string;
         }[];
       };
-      reorder_court_photos: { Args: { p_court_id: string; p_ids: string[] }; Returns: undefined };
+      reorder_court_photos: {
+        Args: { p_court_id: string; p_ids: string[] };
+        Returns: undefined;
+      };
       reorder_courts: {
         Args: { p_ids: string[]; p_sport: Database["public"]["Enums"]["sport"] };
         Returns: undefined;
       };
-      reorder_info_sections: { Args: { p_ids: string[]; p_venue_id?: string }; Returns: undefined };
+      reorder_info_sections: {
+        Args: { p_ids: string[]; p_venue_id?: string };
+        Returns: undefined;
+      };
       reorder_payment_accounts: {
         Args: { p_ids: string[]; p_venue_id?: string };
         Returns: undefined;
@@ -1744,7 +1743,18 @@ export type Database = {
           status: Database["public"]["Enums"]["booking_status"];
         }[];
       };
-      set_operating_hours: { Args: { p_hours: Json; p_venue_id?: string }; Returns: undefined };
+      save_schedule: {
+        Args: {
+          p_changes: Json;
+          p_expected_revision: number;
+          p_venue_id: string;
+        };
+        Returns: Json;
+      };
+      set_operating_hours: {
+        Args: { p_hours: Json; p_venue_id?: string };
+        Returns: undefined;
+      };
       set_venue_showcase_approval: {
         Args: { p_approved: boolean; p_venue_id: string };
         Returns: undefined;
@@ -1765,7 +1775,7 @@ export type Database = {
       user_id_by_email: { Args: { p_email: string }; Returns: string };
       venue_setup_status: { Args: { p_venue_id: string }; Returns: Json };
       venue_statement: { Args: { p_venue_id?: string }; Returns: Json };
-      venues_overview: { Args: Record<PropertyKey, never>; Returns: Json };
+      venues_overview: { Args: never; Returns: Json };
     };
     Enums: {
       booking_source: "online" | "walk_in" | "moved";
@@ -1815,7 +1825,9 @@ export type Tables<
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
     : never) = never,
-> = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals;
+}
   ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
       DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
       Row: infer R;
@@ -1839,7 +1851,9 @@ export type TablesInsert<
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never) = never,
-> = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals;
+}
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Insert: infer I;
     }
@@ -1862,7 +1876,9 @@ export type TablesUpdate<
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never) = never,
-> = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals;
+}
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Update: infer U;
     }
@@ -1885,7 +1901,9 @@ export type Enums<
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
     : never) = never,
-> = DefaultSchemaEnumNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals;
+}
   ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
     ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
@@ -1900,7 +1918,9 @@ export type CompositeTypes<
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
     : never) = never,
-> = PublicCompositeTypeNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals;
+}
   ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
     ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
