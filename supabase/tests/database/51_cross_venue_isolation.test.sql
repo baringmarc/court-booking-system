@@ -471,9 +471,9 @@ select is_empty(
          'venue_setup_status', 'publish_venue',
          -- venue admins only: names a venue id and refuses anyone who doesn't run it (62_venue_statement)
          'venue_statement',
-         -- platform admins only: refuse anyone who is not a platform admin (59_venues_overview, 61_invoice_review)
+         -- platform admins only: refuse anyone who is not a platform admin (59_venues_overview, 61_invoice_review, 66_showcase_authority)
          'venues_overview', 'suspend_venue', 'reactivate_venue',
-         'invoices_overview', 'invoice_detail', 'mark_invoice_sent', 'mark_invoice_paid'
+         'invoices_overview', 'invoice_detail', 'mark_invoice_sent', 'mark_invoice_paid', 'set_venue_showcase_approval'
        ]) $$,
   'every RPC a client can execute is probed above or exempt (a new venue-scoped RPC needs a cross-venue test here)');
 select is_empty(

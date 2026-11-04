@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Json } from '../../lib/database.types'
 import { fetchBookingsForExport, fetchEarnings, fetchPaymentsForExport, type ExportBooking } from './api'
 import { fetchPlatformFee } from '../booking/api'
@@ -63,6 +63,10 @@ function expectRow(row: HTMLElement, label: string, amount: string, sentence?: s
 }
 
 const FEE_NOTE = /per confirmed online booking, paid by the player/
+
+beforeAll(async () => {
+  await import('../../components/Calendar')
+})
 
 function renderSection() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })

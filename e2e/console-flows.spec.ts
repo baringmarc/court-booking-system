@@ -18,6 +18,7 @@ async function signInConsole(page: Page) {
   await page.getByLabel('Password').fill(admin.password)
   await page.getByRole('button', { name: 'Sign in' }).click()
   await expect(page.getByText(`Signed in as ${admin.email}`)).toBeVisible()
+  return admin
 }
 
 test('a lead becomes a published, showcased venue', async ({ page }) => {
@@ -32,7 +33,7 @@ test('a lead becomes a published, showcased venue', async ({ page }) => {
   }).throwOnError()
 
   try {
-    await signInConsole(page)
+    const platformAdmin = await signInConsole(page)
     const lead = page.getByRole('listitem').filter({ hasText: venueName })
     await lead.getByRole('button', { name: 'Create venue' }).click()
     await lead.getByLabel('Subdomain').fill(slug)
@@ -83,16 +84,18 @@ test('a lead becomes a published, showcased venue', async ({ page }) => {
       await ownerPage.getByRole('button', { name: 'Publish venue' }).click()
       await expect(ownerPage.getByRole('heading', { name: 'Set up your venue' })).toHaveCount(0)
 
-      // Opted in with a city, the venue is on the public showcase; before that it is not.
+      // The venue can still save its city, but platform approval controls public listing.
       const { url, publishableKey } = localSupabase()
       const anon = createClient(url, publishableKey, { auth: { persistSession: false } })
       expect((await anon.from('public_venues').select('slug').eq('slug', slug)).data).toHaveLength(0)
       await ownerPage.goto(`http://${slug}.localhost:5179/admin/settings/venue`)
       const showcase = ownerPage.getByRole('form', { name: 'Showcase' })
       await showcase.getByLabel('City').fill('Makati')
-      await showcase.getByLabel('List this venue on the Plotline website').check()
       await showcase.getByRole('button', { name: 'Save showcase' }).click()
       await expect(showcase.getByText('Saved')).toBeVisible()
+      const platform = createClient(url, publishableKey, { auth: { persistSession: false } })
+      await platform.auth.signInWithPassword({ email: platformAdmin.email, password: platformAdmin.password })
+      await platform.rpc('set_venue_showcase_approval', { p_venue_id: venue!.id, p_approved: true }).throwOnError()
       await expect.poll(async () => (await anon.from('public_venues').select('slug, city').eq('slug', slug)).data)
         .toEqual([{ slug, city: 'Makati' }])
     } finally {

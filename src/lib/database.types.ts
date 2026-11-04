@@ -1,17 +1,6 @@
-export type Json =
-  | string
-  | number
-  | boolean
-  | null
-  | { [key: string]: Json | undefined }
-  | Json[]
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.18"
-  }
   graphql_public: {
     Tables: {
       [_ in never]: never
@@ -21,12 +10,7 @@ export type Database = {
     }
     Functions: {
       graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
+        Args: { extensions?: Json; operationName?: string; query?: string; variables?: Json }
         Returns: Json
       }
     }
@@ -50,6 +34,7 @@ export type Database = {
           kind: string
           venue_id: string
         }
+        ComputedFields: never
         Insert: {
           amount: number
           billing_month: string
@@ -91,7 +76,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "venues"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       blackouts: {
@@ -105,6 +90,7 @@ export type Database = {
           starts_at: string
           venue_id: string
         }
+        ComputedFields: never
         Insert: {
           court_id?: string | null
           created_at?: string
@@ -146,7 +132,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "venues"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       booking_changes: {
@@ -163,6 +149,7 @@ export type Database = {
           reason: string
           venue_id: string
         }
+        ComputedFields: never
         Insert: {
           booking_id: string
           changed_at?: string
@@ -231,7 +218,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "venues"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       bookings: {
@@ -265,8 +252,9 @@ export type Database = {
           waiver_accepted_at: string | null
           waiver_text: string | null
         }
+        ComputedFields: never
         Insert: {
-          amount_due?: number
+          amount_due?: never
           booking_fee?: number
           cancel_reason?: string | null
           cancelled_at?: string | null
@@ -296,7 +284,7 @@ export type Database = {
           waiver_text?: string | null
         }
         Update: {
-          amount_due?: number
+          amount_due?: never
           booking_fee?: number
           cancel_reason?: string | null
           cancelled_at?: string | null
@@ -367,7 +355,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "venues"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       court_photos: {
@@ -379,6 +367,7 @@ export type Database = {
           sort_order: number
           venue_id: string
         }
+        ComputedFields: never
         Insert: {
           court_id: string
           created_at?: string
@@ -409,7 +398,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "venues"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       court_rates: {
@@ -420,6 +409,7 @@ export type Database = {
           start_hour: number
           venue_id: string
         }
+        ComputedFields: never
         Insert: {
           court_id: string
           day_of_week: number
@@ -448,7 +438,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "venues"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       courts: {
@@ -464,6 +454,7 @@ export type Database = {
           updated_at: string
           venue_id: string
         }
+        ComputedFields: never
         Insert: {
           created_at?: string
           default_hourly_rate: number
@@ -495,7 +486,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "venues"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       email_outbox: {
@@ -504,7 +495,7 @@ export type Database = {
           booking_id: string
           change_id: string | null
           created_at: string
-          data: Json
+          data: NonNullable<Json>
           for_guest: boolean
           id: string
           kind: Database["public"]["Enums"]["email_kind"]
@@ -517,12 +508,13 @@ export type Database = {
           to_email: string
           venue_id: string
         }
+        ComputedFields: never
         Insert: {
           attempts?: number
           booking_id: string
           change_id?: string | null
           created_at?: string
-          data: Json
+          data: NonNullable<Json>
           for_guest: boolean
           id?: string
           kind: Database["public"]["Enums"]["email_kind"]
@@ -540,7 +532,7 @@ export type Database = {
           booking_id?: string
           change_id?: string | null
           created_at?: string
-          data?: Json
+          data?: NonNullable<Json>
           for_guest?: boolean
           id?: string
           kind?: Database["public"]["Enums"]["email_kind"]
@@ -581,7 +573,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "venues"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       guest_link_tokens: {
@@ -591,6 +583,7 @@ export type Database = {
           token_hash: string
           venue_id: string
         }
+        ComputedFields: never
         Insert: {
           booking_id: string
           created_at?: string
@@ -617,7 +610,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "venues"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       invoices: {
@@ -632,6 +625,7 @@ export type Database = {
           status: string
           venue_id: string
         }
+        ComputedFields: never
         Insert: {
           billing_month: string
           created_at?: string
@@ -661,7 +655,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "venues"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       leads: {
@@ -682,6 +676,7 @@ export type Database = {
           updated_at: string
           venue_name: string
         }
+        ComputedFields: never
         Insert: {
           consented_at: string
           courts: number
@@ -725,6 +720,7 @@ export type Database = {
           session_id: string
           venue_id: string
         }
+        ComputedFields: never
         Insert: {
           court_id: string
           during: unknown
@@ -758,7 +754,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "venues"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       open_play_sessions: {
@@ -768,19 +764,20 @@ export type Database = {
           details: string
           ends_at: string
           id: string
-          links: Json
+          links: NonNullable<Json>
           starts_at: string
           title: string
           updated_at: string
           venue_id: string
         }
+        ComputedFields: never
         Insert: {
           created_at?: string
           created_by?: string | null
           details?: string
           ends_at: string
           id?: string
-          links?: Json
+          links?: NonNullable<Json>
           starts_at: string
           title: string
           updated_at?: string
@@ -792,7 +789,7 @@ export type Database = {
           details?: string
           ends_at?: string
           id?: string
-          links?: Json
+          links?: NonNullable<Json>
           starts_at?: string
           title?: string
           updated_at?: string
@@ -812,7 +809,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "venues"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       operating_hours: {
@@ -823,6 +820,7 @@ export type Database = {
           open_time: string
           venue_id: string
         }
+        ComputedFields: never
         Insert: {
           close_time: string
           day_of_week: number
@@ -844,7 +842,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "venues"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       payments: {
@@ -869,6 +867,7 @@ export type Database = {
           submitted_at: string
           venue_id: string
         }
+        ComputedFields: never
         Insert: {
           amount: number
           booking_id: string
@@ -946,7 +945,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "venues"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       paymongo_checkouts: {
@@ -958,6 +957,7 @@ export type Database = {
           created_at: string
           venue_id: string
         }
+        ComputedFields: never
         Insert: {
           amount_centavos: number
           booking_id: string
@@ -988,13 +988,14 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "venues"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       platform_admins: {
         Row: {
           user_id: string
         }
+        ComputedFields: never
         Insert: {
           user_id: string
         }
@@ -1009,6 +1010,7 @@ export type Database = {
           id: boolean
           invoice_grace_days: number
         }
+        ComputedFields: never
         Insert: {
           booking_fee: number
           id?: boolean
@@ -1029,6 +1031,7 @@ export type Database = {
           phone: string | null
           updated_at: string
         }
+        ComputedFields: never
         Insert: {
           created_at?: string
           full_name?: string | null
@@ -1057,6 +1060,7 @@ export type Database = {
           role: string
           venue: string | null
         }
+        ComputedFields: never
         Insert: {
           approved?: boolean
           consented_at: string
@@ -1089,6 +1093,7 @@ export type Database = {
           id: string
           venue_id: string
         }
+        ComputedFields: never
         Insert: {
           builtin_key?: string | null
           created_at?: string
@@ -1110,7 +1115,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "venues"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       venue_info_sections: {
@@ -1123,6 +1128,7 @@ export type Database = {
           updated_at: string
           venue_id: string
         }
+        ComputedFields: never
         Insert: {
           body?: string
           created_at?: string
@@ -1148,7 +1154,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "venues"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       venue_members: {
@@ -1157,6 +1163,7 @@ export type Database = {
           user_id: string
           venue_id: string
         }
+        ComputedFields: never
         Insert: {
           role: string
           user_id: string
@@ -1174,7 +1181,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "venues"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       venue_payment_accounts: {
@@ -1189,6 +1196,7 @@ export type Database = {
           updated_at: string
           venue_id: string
         }
+        ComputedFields: never
         Insert: {
           account_name?: string
           account_number?: string
@@ -1218,7 +1226,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "venues"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       venue_settings: {
@@ -1245,6 +1253,7 @@ export type Database = {
           venue_id: string
           waiver_text: string
         }
+        ComputedFields: never
         Insert: {
           address?: string
           banner_alt?: string | null
@@ -1298,7 +1307,7 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "venues"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       venue_social_links: {
@@ -1308,6 +1317,7 @@ export type Database = {
           url: string
           venue_id: string
         }
+        ComputedFields: never
         Insert: {
           platform: Database["public"]["Enums"]["venue_social_platform"]
           updated_at?: string
@@ -1327,25 +1337,29 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "venues"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       venues: {
         Row: {
           created_at: string
           id: string
+          showcase_approved: boolean
           slug: string
           status: string
         }
+        ComputedFields: never
         Insert: {
           created_at?: string
           id?: string
+          showcase_approved?: boolean
           slug: string
           status?: string
         }
         Update: {
           created_at?: string
           id?: string
+          showcase_approved?: boolean
           slug?: string
           status?: string
         }
@@ -1360,6 +1374,7 @@ export type Database = {
           name: string | null
           slug: string | null
         }
+        ComputedFields: never
         Relationships: []
       }
     }
@@ -1386,7 +1401,7 @@ export type Database = {
           to_email: string
         }[]
       }
-      claim_guest_bookings: { Args: never; Returns: number }
+      claim_guest_bookings: { Args: Record<PropertyKey, never>; Returns: number }
       claim_guest_link_email: {
         Args: { p_reference_code: string; p_token: string }
         Returns: {
@@ -1464,10 +1479,7 @@ export type Database = {
           status: string
         }[]
       }
-      get_earnings: {
-        Args: { p_from: string; p_to: string; p_venue_id?: string }
-        Returns: Json
-      }
+      get_earnings: { Args: { p_from: string; p_to: string; p_venue_id?: string }; Returns: Json }
       get_guest_booking: {
         Args: { p_reference_code: string; p_token: string }
         Returns: {
@@ -1500,7 +1512,7 @@ export type Database = {
         }[]
       }
       invoice_detail: { Args: { p_invoice_id: string }; Returns: Json }
-      invoices_overview: { Args: never; Returns: Json }
+      invoices_overview: { Args: Record<PropertyKey, never>; Returns: Json }
       issue_guest_link: { Args: { p_booking_id: string }; Returns: string }
       mark_invoice_paid: {
         Args: { p_invoice_id: string; p_method: string; p_reference: string }
@@ -1564,18 +1576,12 @@ export type Database = {
           payment_id: string
         }[]
       }
-      reorder_court_photos: {
-        Args: { p_court_id: string; p_ids: string[] }
-        Returns: undefined
-      }
+      reorder_court_photos: { Args: { p_court_id: string; p_ids: string[] }; Returns: undefined }
       reorder_courts: {
         Args: { p_ids: string[]; p_sport: Database["public"]["Enums"]["sport"] }
         Returns: undefined
       }
-      reorder_info_sections: {
-        Args: { p_ids: string[]; p_venue_id?: string }
-        Returns: undefined
-      }
+      reorder_info_sections: { Args: { p_ids: string[]; p_venue_id?: string }; Returns: undefined }
       reorder_payment_accounts: {
         Args: { p_ids: string[]; p_venue_id?: string }
         Returns: undefined
@@ -1600,8 +1606,9 @@ export type Database = {
           status: Database["public"]["Enums"]["booking_status"]
         }[]
       }
-      set_operating_hours: {
-        Args: { p_hours: Json; p_venue_id?: string }
+      set_operating_hours: { Args: { p_hours: Json; p_venue_id?: string }; Returns: undefined }
+      set_venue_showcase_approval: {
+        Args: { p_approved: boolean; p_venue_id: string }
         Returns: undefined
       }
       suspend_venue: { Args: { p_venue_id: string }; Returns: undefined }
@@ -1620,7 +1627,7 @@ export type Database = {
       user_id_by_email: { Args: { p_email: string }; Returns: string }
       venue_setup_status: { Args: { p_venue_id: string }; Returns: Json }
       venue_statement: { Args: { p_venue_id?: string }; Returns: Json }
-      venues_overview: { Args: never; Returns: Json }
+      venues_overview: { Args: Record<PropertyKey, never>; Returns: Json }
     }
     Enums: {
       booking_source: "online" | "walk_in" | "moved"
@@ -1638,13 +1645,7 @@ export type Database = {
         | "booking_cancelled"
         | "booking_rescheduled"
       email_status: "pending" | "sending" | "sent" | "skipped" | "failed"
-      payment_method:
-        | "gcash"
-        | "maya"
-        | "bank_transfer"
-        | "cash"
-        | "paymongo"
-        | "account"
+      payment_method: "gcash" | "maya" | "bank_transfer" | "cash" | "paymongo" | "account"
       payment_review_status: "pending" | "approved" | "rejected"
       sport: "badminton" | "pickleball" | "basketball" | "tennis"
       venue_social_platform:
@@ -1675,20 +1676,16 @@ export type Tables<
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never) = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
+    : never) = never
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
   ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
       DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
       Row: infer R
     }
     ? R
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])
-    ? (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] & DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
         Row: infer R
       }
       ? R
@@ -1703,10 +1700,8 @@ export type TablesInsert<
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never) = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
+    : never) = never
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Insert: infer I
     }
@@ -1728,10 +1723,8 @@ export type TablesUpdate<
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never) = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
+    : never) = never
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Update: infer U
     }
@@ -1753,10 +1746,8 @@ export type Enums<
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never) = never,
-> = DefaultSchemaEnumNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
+    : never) = never
+> = DefaultSchemaEnumNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
   ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
     ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
@@ -1770,10 +1761,8 @@ export type CompositeTypes<
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never) = never,
-> = PublicCompositeTypeNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
+    : never) = never
+> = PublicCompositeTypeNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
   ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
     ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
@@ -1781,7 +1770,7 @@ export type CompositeTypes<
 
 export const Constants = {
   graphql_public: {
-    Enums: {},
+    Enums: {}
   },
   public: {
     Enums: {
@@ -1792,24 +1781,17 @@ export const Constants = {
         "confirmed",
         "expired",
         "rejected",
-        "cancelled",
+        "cancelled"
       ],
       email_kind: [
         "booking_created",
         "payment_confirmed",
         "proof_rejected",
         "booking_cancelled",
-        "booking_rescheduled",
+        "booking_rescheduled"
       ],
       email_status: ["pending", "sending", "sent", "skipped", "failed"],
-      payment_method: [
-        "gcash",
-        "maya",
-        "bank_transfer",
-        "cash",
-        "paymongo",
-        "account",
-      ],
+      payment_method: ["gcash", "maya", "bank_transfer", "cash", "paymongo", "account"],
       payment_review_status: ["pending", "approved", "rejected"],
       sport: ["badminton", "pickleball", "basketball", "tennis"],
       venue_social_platform: [
@@ -1819,8 +1801,8 @@ export const Constants = {
         "youtube",
         "x",
         "messenger",
-        "website",
-      ],
-    },
-  },
+        "website"
+      ]
+    }
+  }
 } as const

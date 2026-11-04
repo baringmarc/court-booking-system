@@ -1,6 +1,5 @@
--- T14.13: venue_settings.city / showcase_opt_in and the public.public_venues view (slug, name, city, logo_url): the
--- venues that are active AND opted in to the Plotline website showcase. Venue admins edit both columns through the
--- existing venue_settings UPDATE policy; the view is read-only for anon and authenticated.
+-- T14.13 / T17.7: venue_settings.city and retained showcase_opt_in plus the public.public_venues view
+-- (slug, name, city, logo_url). Active, platform-approved venues appear; the legacy selection is preserved and guarded.
 begin;
 create extension if not exists pgtap with schema extensions;
 select plan(34);
@@ -21,6 +20,10 @@ insert into public.venues (id, slug, status) values
   ('a0000000-0000-0000-0000-0000000064a6', 'e2e-vsh-foxtrot', 'draft'),
   ('a0000000-0000-0000-0000-0000000064a7', 'e2e-vsh-golf', 'suspended'),
   ('a0000000-0000-0000-0000-0000000064a8', 'e2e-vsh-hotel', 'closed');
+update public.venues set showcase_approved = true where id in (
+  'a0000000-0000-0000-0000-0000000064a1', 'a0000000-0000-0000-0000-0000000064a2',
+  'a0000000-0000-0000-0000-0000000064a3', 'a0000000-0000-0000-0000-0000000064a4'
+);
 insert into public.venue_settings (venue_id, name, timezone, city, showcase_opt_in, banner_path, banner_alt) values
   ('a0000000-0000-0000-0000-0000000064a1', 'E2E VSH Alpha', 'Asia/Manila', 'Cebu', true, 'a0000000-0000-0000-0000-0000000064a1/banner/aaaaaaaa-0000-0000-0000-0000000064a1.webp', 'Alpha banner'),
   ('a0000000-0000-0000-0000-0000000064a2', 'E2E VSH Bravo', 'Asia/Manila', 'Davao', true, null, null),
@@ -83,7 +86,7 @@ set local role anon;
 select results_eq(
   $$ select slug from public.public_venues where slug like 'e2e-vsh-%' order by slug $$,
   $$ values ('e2e-vsh-alpha'::text), ('e2e-vsh-bravo'), ('e2e-vsh-charlie'), ('e2e-vsh-delta') $$,
-  'anon sees only active, opted-in venues (draft, suspended, closed and not-opted-in are hidden)');
+  'anon sees only active approved venues (draft, suspended, closed and unapproved are hidden)');
 select results_eq(
   $$ select slug, name, city from public.public_venues where slug like 'e2e-vsh-%' order by slug $$,
   $$ values ('e2e-vsh-alpha'::text, 'E2E VSH Alpha'::text, 'Cebu'::text), ('e2e-vsh-bravo', 'E2E VSH Bravo', 'Davao'),
@@ -117,7 +120,8 @@ select is((select city || '/' || showcase_opt_in::text from public.venue_setting
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000064a1","role":"authenticated"}';
 select lives_ok($$update public.venue_settings set city = 'Cebu City' where venue_id = 'a0000000-0000-0000-0000-0000000064a1'$$, 'the venue admin can set the city');
-select lives_ok($$update public.venue_settings set showcase_opt_in = true where venue_id = 'a0000000-0000-0000-0000-0000000064a1'$$, 'the venue admin can set the opt-in');
+select throws_ok($$update public.venue_settings set showcase_opt_in = false where venue_id = 'a0000000-0000-0000-0000-0000000064a1'$$,
+  '42501', null, 'the venue admin cannot change the preserved legacy selection');
 -- Another venue's settings: alpha's admin cannot touch echo or bravo.
 update public.venue_settings set city = 'Hacked', showcase_opt_in = true where venue_id in ('a0000000-0000-0000-0000-0000000064a5', 'a0000000-0000-0000-0000-0000000064a2');
 reset role;
@@ -127,16 +131,13 @@ select is((select string_agg(venue_id::text || ':' || city || ':' || showcase_op
   'a0000000-0000-0000-0000-0000000064a2:Davao:true,a0000000-0000-0000-0000-0000000064a5::false',
   'another venue''s admin cannot change a different venue''s city or opt-in');
 
--- The view follows the admin's edits and the venue status.
-set local role authenticated;
-set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000064a1","role":"authenticated"}';
-update public.venue_settings set showcase_opt_in = false where venue_id = 'a0000000-0000-0000-0000-0000000064a1';
-reset role;
-select is((select count(*)::int from public.public_venues where slug = 'e2e-vsh-alpha'), 0, 'opting out removes the venue from the view');
-update public.venue_settings set showcase_opt_in = true where venue_id = 'a0000000-0000-0000-0000-0000000064a1';
-select is((select city from public.public_venues where slug = 'e2e-vsh-alpha'), 'Cebu City', 'opting back in lists it with the new city');
+-- The view follows platform approval and venue status, not the preserved legacy flag.
+update public.venues set showcase_approved = false where id = 'a0000000-0000-0000-0000-0000000064a1';
+select is((select count(*)::int from public.public_venues where slug = 'e2e-vsh-alpha'), 0, 'removing platform approval removes the venue from the view');
+update public.venues set showcase_approved = true where id = 'a0000000-0000-0000-0000-0000000064a1';
+select is((select city from public.public_venues where slug = 'e2e-vsh-alpha'), 'Cebu City', 'reapproving lists the venue with its current city');
 update public.venues set status = 'suspended' where id = 'a0000000-0000-0000-0000-0000000064a1';
-select is((select count(*)::int from public.public_venues where slug = 'e2e-vsh-alpha'), 0, 'suspending an opted-in venue removes it from the view');
+select is((select count(*)::int from public.public_venues where slug = 'e2e-vsh-alpha'), 0, 'suspending an approved venue removes it from the view');
 update public.venues set status = 'active' where id = 'a0000000-0000-0000-0000-0000000064a1';
 delete from public.court_photos where venue_id = 'a0000000-0000-0000-0000-0000000064a2';
 select is((select logo_url from public.public_venues where slug = 'e2e-vsh-bravo'), null, 'deleting the last photo leaves logo_url null');
