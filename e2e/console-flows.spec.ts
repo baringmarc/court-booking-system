@@ -136,8 +136,10 @@ test('an invoice goes from draft to sent to paid, and the venue sees it on its s
       await staffPage.getByLabel('Email').fill(staff.email)
       await staffPage.getByLabel('Password').fill(staff.password)
       await staffPage.getByRole('button', { name: 'Log in' }).click()
-      await expect(staffPage.getByRole('navigation', { name: 'Admin' })).toBeVisible()
-      await staffPage.getByRole('link', { name: 'Statement' }).click()
+      await expect(staffPage.getByRole('button', { name: 'Account', exact: true })).toBeVisible()
+      const openNavigation = staffPage.getByRole('button', { name: 'Open navigation' })
+      if (await openNavigation.isVisible()) await openNavigation.click()
+      await staffPage.getByRole('navigation', { name: 'Admin' }).getByRole('link', { name: 'Reports', exact: true }).click()
       await expect(staffPage.getByRole('heading', { name: 'Past invoices' })).toBeVisible()
       await expect(staffPage.getByText(/January 2026 · paid · ₱10/)).toBeVisible()
     } finally {

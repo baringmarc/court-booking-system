@@ -105,7 +105,8 @@ export async function submitAdminLogin(page: Page, email: string, password: stri
 export async function logInAdmin(page: Page, email: string, password: string, path = '/admin') {
   await page.goto(path)
   await submitAdminLogin(page, email, password)
-  await expect(page.getByRole('navigation', { name: 'Admin' })).toBeVisible()
+  await expect(page.getByRole('main')).toBeVisible()
+  await expect(page.getByRole('link', { name: 'View public site' })).toBeVisible()
   await expect.poll(() => {
     const url = new URL(page.url())
     return url.pathname + url.search

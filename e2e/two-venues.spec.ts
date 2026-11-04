@@ -66,7 +66,7 @@ test('an admin of both venues gets a venue switcher linking to the other venue',
 
   await page.goto('/admin/login')
   await submitAdminLogin(page, player.email, player.password)
-  await expect(page.getByRole('navigation', { name: 'Admin' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Account', exact: true })).toBeVisible()
 
   const switcher = page.getByRole('navigation', { name: 'Venues' })
   await expect(switcher).toBeVisible()
@@ -77,10 +77,10 @@ test('an admin of both venues gets a venue switcher linking to the other venue',
   // Sessions are per origin, so the other venue may ask for a login first.
   await expect(page).toHaveURL(new RegExp(`^${other.url.replace(/[.]/g, '\\.')}/admin`))
   const loginHeading = page.getByRole('heading', { name: 'Admin log in' })
-  const adminNav = page.getByRole('navigation', { name: 'Admin' })
+  const adminNav = page.getByRole('button', { name: 'Account', exact: true })
   await expect(loginHeading.or(adminNav)).toBeVisible()
   if (await loginHeading.isVisible()) {
     await submitAdminLogin(page, player.email, player.password)
   }
-  await expect(page.getByRole('navigation', { name: 'Admin' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Account', exact: true })).toBeVisible()
 })
