@@ -4,11 +4,14 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
 
 ## Handoff
 
+- **Active work (2026-11-04):** M17 Admin and scheduling improvements, approved by the user after the source audit. T17.1 and T17.2 complete (reviewer PASS); **Next task: T17.3 Admin sidebar and mobile drawer**. M16 T16.3–T16.6 remain queued, not completed or cancelled. This entry supersedes the historical Current milestone/Next task entries below.
+- **Release boundary:** M17 scope approval does not authorize hosted migrations, deployment or push. DB/security tasks retain detailed plan gates; local validation is allowed during implementation.
+
 > Update this section at the end of every session or task. Keep it short; it's the first thing the next session reads.
 
 - **Current milestone:** M15 Go live and collect leads ✅ done on 2026-11-01 (breakdown approved 2026-11-01; T15.1–T15.6). M14 Platform console ✅ done on 2026-11-01.
 - **Next task:** T16.3 Sentry (risky: plan gate). T16.2 done on 2026-11-02 (backup live in R2, restore proven locally). T16.1 done on 2026-11-02 (RESEARCH M16). M16 breakdown approved 2026-11-02. T15.6 done on 2026-11-01 (`e2e/site-forms.spec.ts`). T15.5 done on 2026-11-01. T15.4 done on 2026-11-01. T15.3 done on 2026-11-01. T15.2 done on 2026-11-01. T15.1 done on 2026-11-01 (RESEARCH M15). H11 done on 2026-11-01 (`reviewer.md` documents plain git and hook commands; guard unchanged). H10 done on 2026-11-01 (test-writer checklist, 16 hook fixes, ESLint `no-restricted-syntax` rule). Harness grant built on 2026-11-01 (`.claude/hooks/grant-harness.mjs`, `harness.mjs` `USER_ONLY`/`harnessUnlockedFor`, `/retro` step 5, CLAUDE.md guard line): /retro can grant named protected files for up to 30 minutes after the user approves; simulated in a scratch copy (14 guard cases plus expiry). Not yet exercised by a real /retro run, and the guard can't verify the approval, only log it. The user chose to start M15 first. M14 milestone review PASS and `/retro` M14 done on 2026-11-01 (all tasks T14.1–T14.14 done). `/retro` M14 done on 2026-11-01 (milestone review PASS; harness tasks H10 and H11 queued before the next milestone, see the Harness backlog). T14.14 done on 2026-11-01 (`e2e/console-flows.spec.ts`). T14.13 Venue showcase done on 2026-11-01 (`public_venues` live; Settings → Showcase). T14.12 Demo reset done on 2026-11-01 (`demo-reset` cron live). T14.11 Venue statement done on 2026-11-01 (`venue_statement` live; `/admin/statement`). T14.10 Invoice review UI done on 2026-11-01 (`invoices_overview`, `invoice_detail`, `mark_invoice_sent`, `mark_invoice_paid` live; `platform_pricing.invoice_grace_days`). T14.9 Monthly draft invoices done on 2026-11-01 (`monthly-invoices` cron live). T14.8 done on 2026-11-01 (`venues_overview`, `suspend_venue`, `reactivate_venue` live). T14.7 done on 2026-11-01 (`publish_venue` live). T14.6 done on 2026-11-01. T14.5b done on 2026-11-01. T14.5 done on 2026-11-01 (`invite-venue-owner` deployed to the linked project on 2026-11-01 with the user's approval). T14.4 done on 2026-11-01 (`create_venue` live). T14.3 done on 2026-11-01. T14.2 done on 2026-11-01 (`leads` live; `site-contact` waits on the user's secrets and deploy approval). T14.1 done on 2026-11-01 (RESEARCH M14). Earlier: break down the next milestone (all M13 tasks done on 2026-11-01, milestone review PASS, SPEC §9 marks M13 ✅). H8 done on 2026-11-01. Then break down the next milestone (needs approval). `/retro` M13 done on 2026-11-01 (L3 added; harness task H8 queued before the next milestone). T13.8 done on 2026-11-01 (Cloudflare is live on `*.plotline.fit`). On 2026-11-01 the user set `PUBLIC_ROOT_DOMAIN=plotline.fit`, deployed `create-paymongo-checkout`, `email-guest-link` and `send-emails`, and confirmed the Supabase redirect URL `https://*.plotline.fit/**` and the Google origin, so merging `develop` into `master` is now safe (it turns on the Vercel redirect in `vercel.json`). T13.7 done on 2026-10-31. T13.6 done on 2026-10-31 (functions not deployed yet). T13.5 done on 2026-10-31 (migration pushed 2026-11-01). T13.4 done on 2026-10-31. T13.3 done on 2026-10-31. T13.2 done on 2026-10-31. T13.1 done on 2026-10-31 (RESEARCH M13). M13 breakdown approved on 2026-10-31. M12 milestone review PASS and `/retro` M12 done on 2026-10-31 (L2 added, L1 promoted). T12.11 done on 2026-10-31 (contract migration `20261030185106` live on the linked project). T12.10 done on 2026-10-31 (`create-paymongo-checkout` deployed; grant migration `20261030181759` live). T12.9 done on 2026-10-31. (T12.9: isolation suite `51_cross_venue_isolation`, tests only.) T12.8 done on 2026-10-30. T12.7 done on 2026-10-30, including the remote object copy. T12.1–T12.8 done on 2026-10-30; `venue_id` is live on every venue-owned table, RLS is venue-scoped, and every RPC reads its venue, all on the linked project. Only the zero-argument time helpers and `private.is_admin()` remain for T12.11. The M12 breakdown was approved on 2026-10-30; plan gates are not pre-approved. T11.15 done on 2026-10-30 (contract migration live). `develop` is merged into `master` and deployed.
-- **State:** M15 Go live and collect leads done on 2026-11-01 (T15.1–T15.6; `site-contact` and `site-review` live, e2e in `e2e/site-forms.spec.ts`); milestone review PASS and `/retro` M15 done (no proposals). Earlier: M14 Platform console done on 2026-11-01 (T14.1–T14.14), milestone review PASS, retro done. Earlier: M13 in progress; T13.1–T13.4 done on 2026-10-31. Admin is per venue (membership of the page's venue), admin reads are venue-filtered, and a member of 2+ venues gets a switcher. The app now needs a venue from its host or `VITE_DEFAULT_VENUE`. M12 done on 2026-10-31 (T12.1–T12.11; the contract is live on the linked project). Production runs the T12.10 frontend, so its admin tabs get no live booking refresh until `develop` (T12.11's per-venue topic) is merged into `master` and deployed. Still waiting on you: the ₱10 fee and the default waiver text (see Blockers / notes).
+- **State:** M17 T17.1–T17.2 complete locally; venue titles now follow venue settings and booking alert restoration, with full gate and reviewer PASS. Earlier: M15 Go live and collect leads done on 2026-11-01 (T15.1–T15.6; `site-contact` and `site-review` live, e2e in `e2e/site-forms.spec.ts`); milestone review PASS and `/retro` M15 done (no proposals). Earlier: M14 Platform console done on 2026-11-01 (T14.1–T14.14), milestone review PASS, retro done. Earlier: M13 in progress; T13.1–T13.4 done on 2026-10-31. Admin is per venue (membership of the page's venue), admin reads are venue-filtered, and a member of 2+ venues gets a switcher. The app now needs a venue from its host or `VITE_DEFAULT_VENUE`. M12 done on 2026-10-31 (T12.1–T12.11; the contract is live on the linked project). Production runs the T12.10 frontend, so its admin tabs get no live booking refresh until `develop` (T12.11's per-venue topic) is merged into `master` and deployed. Still waiting on you: the ₱10 fee and the default waiver text (see Blockers / notes).
 - **Blockers / notes:**
   - **Production project live (2026-11-02):** `sfssolhsthteonzgzfos` has the schema, functions, Vault worker secret and demo seed; its secrets and Auth settings are set, the court-booking-system Workers build and plotline-site (Vercel) point at it, the user is in `platform_admins`, and a real contact-form lead reached the console and the alert email arrived (after fixing `EMAIL_FROM` to a bare address). The CLI stays linked to staging; `.env` still points at staging. Production deploys: `npx supabase link --project-ref sfssolhsthteonzgzfos`, deploy, then link back; build the app with `.env.production.local`. Left: plotline-site T1.8 and T1.11b, and the apex/`www` deploy on Cloudflare.
   - **Done by you (2026-11-01):** `LEAD_ALERT_TO` and the real `TURNSTILE_SECRET_KEY` are set on the linked project (secrets list shows both updated today). plotline-site is clean and its `siteForms.ts` is byte-identical to the platform's. Not yet proven end to end on the hosted project with a real Turnstile token: do one real form submit from the site.
@@ -2213,6 +2216,106 @@ SaaS Phase 6 (`docs/SAAS-PLAN.md`). Breakdown approved by the user on 2026-11-02
 - **Acceptance:** `npm run verify` passes; the reviewer signs off.
 
 ---
+
+## Milestone 17: Admin and scheduling improvements
+
+Approved 2026-11-03. Source: `docs/PLOTLINE_ADMIN_SCHEDULING_IMPLEMENTATION_SPEC.md`; technical findings: RESEARCH M17. Each frontend task uses existing api/hooks, lazy routes and test infrastructure. Every task requires the full Codex gate and reviewer PASS; changed journeys require desktop/360px e2e and axe coverage. DB tasks require new migrations and pgTAP; detailed SQL/security plans still require approval. Never push or deploy under this approval.
+
+### [x] T17.1 Research and contract decisions
+- **Depends:** none
+- **Do:** Record the approved audit in RESEARCH, SPEC and PLATFORM; preserve M16 and identify superseded decisions.
+- **Acceptance:** Source-backed dependency inventory, time and preservation decisions, staged rollout and remaining technical design gates are documented.
+- **Notes (2026-11-03):** RESEARCH M17, SPEC §9–10 and PLATFORM transition recorded. Full Codex gate passed (documentation-only; no code suite rerun); check:drift and git diff --check passed; reviewer PASS with no findings. Supplied implementation specification remains pre-existing/untracked: preserve it when transferring to another checkout. No migrations or deployment.
+
+### [x] T17.2 Neutral and venue-specific titles
+- **Depends:** T17.1
+- **Do:** Neutral Plotline HTML; immediate Plotline Admin console title; venue_settings.name titles coordinated with booking alerts.
+- **Acceptance:** Component and cold-load e2e tests cover unknown/loading/error venues, rename, logout, console and alert restoration; no Claudex title on another venue.
+- **Notes (2026-11-04):** `VenueTitleSync.test.tsx`, `useBookingAlerts.titleRename.test.tsx`, `e2e/venue-titles.spec.ts` and `e2e/venue-title-logout.spec.ts` cover the title lifecycle. Full gate passed, including local e2e; reviewer PASS with no findings. No migration or deployment.
+
+### [ ] T17.3 Admin sidebar and mobile drawer
+- **Depends:** T17.1
+- **Do:** Seven destinations, collapse, mobile drawer, top-bar venue/account actions; Reports wraps Statement and preserves /admin/statement.
+- **Acceptance:** One alert subscription; role guards and switching preserved; keyboard focus, Escape, route dismissal, skip link and 360px journeys pass.
+
+### [ ] T17.4 Settings category pages
+- **Depends:** T17.3
+- **Do:** Five focused routes/cards per implementation specification; reuse sections, preserve all fields and immediate-save semantics; dirty/save/error states and navigation protection.
+- **Acceptance:** Values survive navigation/save; unrelated auto-saves do not erase dirty forms; old /admin/settings works; component/e2e coverage.
+
+### [ ] T17.5 Migration: publication requirements
+- **Depends:** T17.1
+- **Do:** Add trimmed payment_instructions as a separate venue_setup_status requirement consumed by publish_venue. Risky DB/RPC plan gate.
+- **Acceptance:** pgTAP proves whitespace rejection, account-number requirement, authorized publication, cross-venue refusal and no active-venue shutdown.
+
+### [ ] T17.6 Payment setup and checklist clarity
+- **Depends:** T17.4, T17.5
+- **Do:** Fix checklist links/reasons; editable example instructions; invalidate setup after relevant mutations.
+- **Acceptance:** Account Done/instructions To do shown independently; example is not auto-saved; onboarding e2e publishes only after valid instructions.
+
+### [ ] T17.7 Migration: platform Showcase authority
+- **Depends:** T17.1
+- **Do:** Dedicated platform-owned approval state and authorized RPC; guard legacy showcase_opt_in writes; compatible public_venues. Risky DB/RPC/RLS gate; PLATFORM first.
+- **Acceptance:** pgTAP proves only platform admins toggle, ordinary settings still save, active+approved filtering, identical view columns/types and preserved existing selections.
+
+### [ ] T17.8 Showcase console controls
+- **Depends:** T17.4, T17.7
+- **Do:** Console toggle/status; remove venue Showcase toggle, retain city in Venue Profile.
+- **Acceptance:** Component/e2e authorization and refresh checks; preserve resend invite, suspend/reactivate and other console actions.
+
+### [ ] T17.9 Migration: schedule expansion and backfill
+- **Depends:** T17.1
+- **Do:** Add venue periods, court inheritance/custom periods, revision and activation state; legacy authoritative until cutover. Risky schema/RLS gate.
+- **Acceptance:** pgTAP parity for seven days, closed/full-day/overnight schedules; composite venue ownership, default inheritance and overlap constraints; no public behavior switch.
+
+### [ ] T17.10 RPCs: schedule read, preview and atomic save
+- **Depends:** T17.9
+- **Do:** Explicit authorized venue; atomic mode/period/rate edits; snapshot custom defaults; copy; revision conflicts; impact preview. Risky RPC gate.
+- **Acceptance:** pgTAP rejects unauthorized/cross-venue and overlapping writes including Sunday wrap; no partial saves; snapshots and stale revisions tested; preview pagination/horizon documented.
+
+### [ ] T17.11 Booking engine: effective periods
+- **Depends:** T17.10
+- **Do:** Court-aware day ownership, availability, pricing and booking/walk-in/reschedule validation; keep activation disabled. Risky RPC gate.
+- **Acceptance:** pgTAP proves closed gaps, one-period containment, midnight pricing, blackouts, active holds and exclusion protection; multi-connection races have deterministic complete-version outcomes.
+
+### [ ] T17.12 Scheduling dependants
+- **Depends:** T17.11
+- **Do:** Update open play, earnings, readiness and venue initialization; audit seed/demo/delete paths and payment preservation. Risky DB/RPC gate.
+- **Acceptance:** pgTAP covers every selected open-play court, preserved existing sessions/bookings, unchanged amounts and normal payment/rejection/expiry/revival; reporting semantics documented.
+
+### [ ] T17.13 Public scheduling consumers
+- **Depends:** T17.11, T17.12
+- **Do:** Update date navigation, checkout, hours summaries and slot boundaries for effective court periods.
+- **Acceptance:** Component/e2e tests cover custom-only open days, gaps, touching-period boundaries and overnight ownership; public privacy unchanged.
+
+### [ ] T17.14 Staff scheduling consumers
+- **Depends:** T17.11, T17.12
+- **Do:** Update dashboard, walk-in, reschedule and open-play controls; keep protected reservations visible outside changed hours.
+- **Acceptance:** Component/e2e tests retain booking visibility, restrict new destinations and prevent duration choices across gaps; walk-ins remain off by default.
+
+### [ ] T17.15 Weekly Hours & Rates editor
+- **Depends:** T17.10, T17.13, T17.14
+- **Do:** Venue/court selection, inheritance/custom draft, whole-hour split periods, weekly overrides and Temporary Closures.
+- **Acceptance:** Component/e2e tests prove snapshot behavior, closed gaps, rates retained when hours move, errors/dirty state and atomic saves.
+
+### [ ] T17.16 Copying and impact warnings
+- **Depends:** T17.15
+- **Do:** Copy weekdays/courts with independent rates checkbox; explicit overwrite/revert confirmations; backend impact warnings.
+- **Acceptance:** Tests prove hours-only copies preserve rates, target custom mode requires agreement, cancellation preserves draft, and stale previews never affect protection.
+
+### [ ] T17.17 Cutover rehearsal and compatibility
+- **Depends:** T17.13, T17.14, T17.16
+- **Do:** Local activation rehearsal; old-client write guards; replace court weekly editor with Schedule link; prepare release/rollback instructions. Risky DB gate; no hosted activation without separate approval.
+- **Acceptance:** Two-venue e2e and concurrency tests pass; all consumers switch together; old clients cannot overwrite split hours; rollback never widens gaps; marketing handoff ready.
+
+### [ ] T17.18 Polish and close-out
+- **Depends:** T17.2–T17.8, T17.17; marketing companion task
+- **Do:** Dashboard/court scanability, accessibility, docs, milestone review and /retro.
+- **Acceptance:** Full gate, desktop/360px/axe journeys and reviewer PASS; both-repo Showcase refresh proven locally; no required initiative work left.
+
+**Marketing companion (ID assigned in plotline-site):** depends on T17.7–T17.8. Read public_venues through existing api/hooks and TanStack Query; reuse VenueCard/Slider, map venue-media paths, handle loading/empty/error, refetch without redeployment. Supersedes demo-only decision; keep the separate demo CTA, never substitute unapproved venues into the featured feed. Its own full gate/reviewer and a local cross-repository journey are required. No backend changes in that repo.
+
+**Later contract task:** remove legacy hours/Showcase structures only after deployed references and old clients are proven gone. Not required for initial activation.
 
 ## Harness backlog
 - [x] H1 Vitest + `npm run verify` (typecheck, lint, test, build)

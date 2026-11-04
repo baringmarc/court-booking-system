@@ -20,6 +20,12 @@
   - The venue receives the fees with each booking's payment, and every fee is billed back on one monthly invoice per venue.
   - PayMongo and manual venues are billed the same way. The payment method only decides where the player's money goes, never how we collect.
 - **Venues pay their invoices** by GCash or bank transfer: 7 days' grace, then suspension.
+- **Fee changes:** we give the venue at least 1 week's notice before the booking fee changes. A change applies only to bookings made after it takes effect (plotline-site Terms, 2026-10-29).
+- **Leaving (plotline-site Terms, 2026-10-29):**
+  - A venue can leave any time by email, with no notice period. We close its booking page; bookings already made stay the venue's to honor or cancel with its players.
+  - Fees for bookings confirmed before it leaves go on a final invoice, due within 7 days.
+  - Its admin pages and CSV export stay open for 30 days, then its data is deleted, except what the law requires us to keep (such as invoices).
+  - Contact-form leads are kept 1 year after our last contact.
 
 ## 2. Architecture
 
@@ -84,6 +90,7 @@
 | 2026-10-27 | plotline-site's backend moves here in Phase 5: `venue_signups` → `leads` (no account), `reviews` stays, `register` → `site-contact`, `feedback` → `site-review`, validation → `_shared/siteForms.ts` with an exact copy in plotline-site for instant feedback. |
 | 2026-10-27 | PayMongo per venue, hardened (Phase 4): every use of a venue's key is logged, the code uses keys only to create checkouts, register our webhook and refund late payments, a daily health check hides "Pay online" when a venue's key or webhook stops working, and each venue's setup is proven with one small live payment and refund during onboarding. |
 | 2026-11-01 | Pilot first, then Phase 4 when a venue wants online payments. The pilot stays on the current linked project (staging) until a separate production project is created; walk-ins stay hidden behind the code flag (the database does not refuse `create_walk_in`). The Terms already state how venues' PayMongo keys are stored, used and handled if one leaks (plotline-site `legal.ts`), so open question 6 is settled. The user removes the Terms and Privacy draft notice without a separate legal review. |
+| 2026-11-02 | The leaving terms, the 1-week fee-change notice and the 1-year lead retention that plotline-site's Terms and Privacy state are recorded in §1 (the user asked for them to be copied here, where business terms are decided). They were set by the user on 2026-10-29. |
 
 ## 4. Open questions
 
