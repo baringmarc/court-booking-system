@@ -6,6 +6,7 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
 
 - **Active work (2026-11-05):** M17 Admin and scheduling improvements, approved by the user after the source audit. T17.1–T17.10 complete (reviewer PASS); all six pending migrations through T17.10 were pushed to linked staging with the user's approval. **Next task:** T17.11 Booking engine: effective periods (plan gate pending). M16 T16.3–T16.6 remain queued, not completed or cancelled. This entry supersedes the historical Current milestone/Next task entries below.
 - **Release boundary:** M17 scope approval does not authorize hosted migrations, deployment or push. DB/security tasks retain detailed plan gates; local validation is allowed during implementation.
+- **Scope added (2026-11-05, /propose):** T17.18–T17.29 cover console navigation/pagination, stronger slot fills, clearer Reports, Booking Rules hints, complete owner PDF and invitation delivery, guarded deletion and separately reviewed production test-data cleanup. Close-out is now T17.30. T17.24–T17.25 are high-priority requirements before inviting real owners; the guide must match the released screens. Task numbering does not change the current next task T17.11. No production cleanup is authorized until its exact records and deletion plan are approved in T17.29.
 
 > Update this section at the end of every session or task. Keep it short; it's the first thing the next session reads.
 
@@ -2071,6 +2072,7 @@ SaaS Phase 3 (`docs/SAAS-PLAN.md`). Staff-only tools on `app.plotline.fit`: lead
 - **Notes:** `src/lib/inviteLink.ts` (+ test), `detectSessionInUrl` function in `src/lib/supabase.ts`, `consumeInviteLink` in `src/main.tsx`, `e2e/invite-link.spec.ts`. Needs a frontend deploy to production to take effect.
 
 ### [x] T14.5d Resend the owner invite
+- **Planned replacement (2026-11-05):** T17.25 retains replacement-link access and replaces the existing-account no-email branch with a welcome email, full guide and ordinary sign-in link; it also unifies invitation delivery. Current behavior remains until implementation/release.
 - **Depends:** T14.5c
 - **Do:** the console had no way to re-invite once a venue existed, and `invite-venue-owner` sent nothing to an existing account, so a used-up, expired or undelivered first invite left the owner stuck. Add a **Resend invite** button to each venue in the venues list (the admin types the owner's email). The function now decides by account state: no account gets a Supabase invite; an invited account with no password gets a fresh sign-in link (`generateLink` magiclink) emailed by the function itself; any other account gets nothing and the console says so. `consumeInviteLink` also accepts `type=magiclink`.
 - **Acceptance:** unit tests for `ownerLinkAction`, `ownerLinkEmail`, `resendOwnerInvite`, the Resend invite UI and the magiclink hash; an e2e where a platform admin re-sends to an invited owner, the email arrives and its link shows the set-password step.
@@ -2317,8 +2319,78 @@ Approved 2026-11-03. Source: `docs/PLOTLINE_ADMIN_SCHEDULING_IMPLEMENTATION_SPEC
 - **Do:** Local activation rehearsal; old-client write guards; replace court weekly editor with Schedule link; prepare release/rollback instructions. Risky DB gate; no hosted activation without separate approval.
 - **Acceptance:** Two-venue e2e and concurrency tests pass; all consumers switch together; old clients cannot overwrite split hours; rollback never widens gaps; marketing handoff ready.
 
-### [ ] T17.18 Polish and close-out
-- **Depends:** T17.2–T17.8, T17.17; marketing companion task
+### [ ] T17.18 Migration: paginated console reads
+- **Depends:** T17.8
+- **Priority:** low–medium
+- **Do:** The user's calls, 2026-11-05: support separate console pages with bounded server reads, initially 25 results per page. Audit `venues_overview`, `invoices_overview`, `invoice_detail`, Showcase reads and direct `leads`/`reviews` queries; add compatible read contracts for pagination, stable ordering with unique tie-breakers, search and relevant status/month filters. Do not fetch all rows then slice in the UI. Keep aggregates independent of page size and authorization platform-admin-only. New migrations for changed RPCs; detailed DB plan gate. Preserve old consumers during rollout.
+- **Acceptance:** pgTAP covers platform-admin versus venue-staff/player/anon access, filters, stable paging across tied sort values, complete totals and old-contract compatibility. API tests cover bounded direct-table reads, escaped search and filter/page reset semantics; no dropped records at the page boundary.
+
+### [ ] T17.19 Console navigation and scalable lists in the UI
+- **Depends:** T17.18
+- **Priority:** low–medium
+- **Do:** The user's calls, 2026-11-05: replace `ConsolePage`'s 420px single-page stack with a sidebar, separate routed Leads/Venues/Invoices/Reviews pages and roughly 1,280px desktop workspace. Compact rows open record details instead of showing every editor at once; search, status/month filters and Previous/Next controls initially show 25 records. Mobile drawer and stacked records; preserve URL state/back navigation and unsaved notes. Retain lead conversion/retry, invite/resend, suspension/reactivation, Showcase and invoice/review actions through existing api/hooks. Loading, empty and error states per page; adapt to T17.25's new welcome-email outcome when available.
+- **Acceptance:** Component/API and desktop/360px e2e tests cover direct routes, navigation/focus, filtering/paging, detail editing and all existing actions with multiple pages of fixtures. Axe clean in both themes; no horizontal page overflow or unbounded reads.
+
+### [ ] T17.20 Stronger public slot status fills
+- **Depends:** T17.13
+- **Priority:** medium
+- **Do:** The user's calls, 2026-11-05: make status backgrounds in `SlotGrid` clearly visible across the full slot, especially open play; coordinate available, selected, booked, closed and past states with the legend. Keep selection strongest, words/checkmark/patterns, hover/focus states and existing click behavior. Audit shared CSS effects on the staff day grid. No availability or booking-rule change.
+- **Acceptance:** Component and desktop/360px booking e2e cover selection, disabled slots, open-play dialog, merged blocks and legend parity. Validate text/state contrast in light/dark themes, axe and keyboard focus; no privacy or scheduling regression.
+
+### [ ] T17.21 Migration: paginated statements and payable summaries
+- **Depends:** T17.12, T17.18
+- **Priority:** medium
+- **Do:** The user's calls, 2026-11-05: extend or add backward-compatible reads alongside `venue_statement` for period selection, bounded searchable charge pages and invoice history/detail. Return authoritative full-period fee totals/credits and issued unpaid invoice totals with due dates using existing billing rules. Keep draft invoices and current accrual separate from amounts due; avoid double-counting and never derive summary totals from the visible page. Enforce venue membership/platform authorization, stable ordering and bounded inputs. Detailed DB/RPC plan gate; preserve existing callers and billing ledger semantics.
+- **Acceptance:** pgTAP proves cross-venue/anon refusal, empty periods, pagination beyond one page, reference search, credits, draft/sent/paid distinctions, due dates and totals unchanged by paging/filtering of detail rows. Existing fee, cancellation and invoice tests remain valid; compatibility and API types documented.
+
+### [ ] T17.22 Reports and statement clarity in the UI
+- **Depends:** T17.3, T17.21
+- **Priority:** medium
+- **Do:** The user's calls, 2026-11-05: improve `StatementPage` within Reports with prominent Amount due for issued unpaid invoices and This month's fees so far for accrual. Show invoice status/due dates and fee-minus-credit breakdown, month selection, booking-reference search, paginated charges and expandable invoice details/history. Link a charge to its actual booking search/detail. Currency uses venue settings; preserve `/admin/statement` alias and complete totals while paging.
+- **Acceptance:** Component/API and desktop/360px e2e cover no charges, credits, multiple unpaid invoices, drafts, paid invoices, period/search/page changes, actual booking navigation and loading/errors. Axe clean; amounts never suggest accrual/drafts are immediately due, and totals never shrink to the current page.
+
+### [ ] T17.23 Booking Rules arrangement and hints
+- **Depends:** T17.4
+- **Priority:** low–medium
+- **Do:** The user's calls, 2026-11-05: arrange `BookingRulesForm` as one setting per row with label, input, units and persistent associated hint. Cover `booking_window_days`, `payment_hold_minutes`, `cancel_cutoff_hours` and `max_rejections`. Confirm each hint against the database's actual boundaries/consequences, including zero cutoff and proof rejections; use plain language and examples where useful. Preserve min/max values, save behavior and dirty-navigation protection.
+- **Acceptance:** Component tests verify accessible hint associations, all four values/constraints and saved/unsaved behavior. Desktop/360px settings e2e and axe pass; text reflects real rules and inputs remain usable without wide empty fields.
+
+### [ ] T17.24 Complete owner PDF manual and download
+- **Depends:** T17.17, T17.22, T17.23
+- **Priority:** high; required before real-owner onboarding
+- **Do:** The user's calls, 2026-11-05: create an editable source and complete branded PDF with quick-start checklist, screenshots, step-by-step setup/daily operations, Dashboard, Bookings/payment review, Schedule, Open Play, Courts, Reports, Settings and troubleshooting. Explain first access/password setup versus existing-account login, publication readiness, fee statements and how to request help/a call. Use `plotline.admin1@gmail.com`, the marketing configuration's Facebook and Messenger URLs, and demo-only screenshots. Finalize against the admin version that will ship; drafting may start earlier. Provide a version/date and stable download URL, with a versioned attachment asset for T17.25; document how to regenerate/update it. Keep the document small enough for practical email delivery.
+- **Acceptance:** Render and visually review every PDF page, verify links, screenshots and instructions against the finished admin journeys, and check no real customer data or private access tokens are present. A new-owner walkthrough can complete setup using the guide; the published asset is readable/downloadable on desktop and phone. Local artifact preparation is authorized; hosting/deployment remains a separate release approval. Guide and email release together before inviting real owners.
+
+### [ ] T17.25 Structured owner invitations and welcome email
+- **Depends:** T14.5d, T17.24
+- **Priority:** high; required before real-owner onboarding
+- **Do:** The user's calls, 2026-11-05: update `invite-venue-owner`, `_shared/ownerInvite.ts`, shared email transport and console feedback to send consistent branded messages explaining which venue the recipient will manage and what the button does. New accounts receive account-setup invitations; invited owners without a password receive replacement access links; existing working accounts receive a welcome email with the normal venue-admin sign-in URL, without password reset. Attach T17.24's complete PDF and include its download link. Verified-domain sender with Plotline identity; reply-to/support `plotline.admin1@gmail.com`, Facebook `https://www.facebook.com/profile.php?id=61595759948011`, Messenger `https://m.me/61595759948011`; offer to arrange a call by contacting support. Use configured expiry or neutral expiry wording, not an unverified fixed lifetime. Plan custom delivery using Supabase-generated links and Resend attachments; preserve account/membership authorization, redirect restrictions and old clients, handle partial failures/retries without duplicate venues or misleading success. Detailed auth/Edge Function plan gate; no hosted change under this scope approval.
+- **Acceptance:** Unit/component and local Mailpit desktop/360px e2e cover all three account states, first access/password setup, expired/replacement links, ordinary sign-in, HTML/text/support links, reply-to, PDF attachment and download. Prove authorization/cross-venue protections, denied redirects, retries after link/account/membership/send failure and no false lead-conversion success. Tokens absent from logs; shared booking-email delivery remains compatible; axe clean for changed UI. Update SPEC §6/§10 and console response handling together.
+- **Research:** [Supabase generateLink](https://supabase.com/docs/reference/javascript/auth-admin-generatelink) supports custom delivery of invite links; [Resend attachments](https://resend.com/docs/dashboard/emails/attachments) supports remote or encoded attachments. Recheck provider requirements during implementation.
+
+### [ ] T17.26 Migration: guarded lead and unused-venue deletion
+- **Depends:** T17.17
+- **Do:** The user's calls, 2026-11-05: add platform-admin-only deletion contracts and dependency preview. Lead deletion removes only that lead and its notes, not an already-created venue/account; future form submission remains possible. Unused-venue deletion requires matching venue identity and refuses any booking, payment/checkout, billing charge/invoice history or open-play sessions, regardless of current status. Protect Claudex demo and any system-reserved venue; preserve auth users and memberships/data of other venues. Include all venue configuration/schedule dependencies and define a race-safe eligibility check plus write exclusion while deletion runs. Design a durable, retryable handoff for file cleanup; no transaction-history purge API. Detailed schema/RPC/security plan gate; no broad direct DELETE grants. Record the explicit-deletion exception to normal lead retention in the business/platform documentation as implementation requires.
+- **Acceptance:** pgTAP covers platform-admin authority, venue-staff/player/anon refusal, test/demo protection, every disqualifying dependency, incorrect confirmation, concurrent booking/config writes and rollback/retry behavior. Lead deletion never cascades to venues/users; re-submission succeeds; deleting one eligible venue leaves another venue and shared users intact. No SQL-only deletion of Storage object metadata as a substitute for deleting files.
+
+### [ ] T17.27 Unused-venue file cleanup orchestration
+- **Depends:** T17.26
+- **Do:** Implement the approved deletion plan through a trusted backend/Edge Function where required. Use Storage APIs to remove only inventoried files belonging to the eligible venue; coordinate database finalization and retryable cleanup state so partial failure cannot report success or strand inaccessible files. Preview counts and authorization must be checked on the server, not inferred from names or UI flags. Preserve global auth accounts and unrelated files; disable activity for the target during cleanup. Detailed Edge Function/security plan gate; no hosted deletion authorized.
+- **Acceptance:** Local integration tests with real Storage fixtures and failure injection cover file/API/database failure, safe retry, concurrent changes and exact target boundaries. Confirm files and all eligible venue records are removed, shared accounts and other venues survive, and the subdomain is reusable only after successful finalization.
+
+### [ ] T17.28 Lead and unused-venue deletion in the console
+- **Depends:** T17.19, T17.26, T17.27
+- **Do:** The user's calls, 2026-11-05: add platform-admin-only Delete lead and Delete unused venue actions in details. Lead confirmation names the contact/venue and warns that notes are lost; venue confirmation shows name, subdomain and dependency counts, requires typing the exact slug and explains account preservation. Show why historical venues cannot be deleted and direct test-history cleanup to the separately reviewed process. Handle pending/partial failure/retry and invalidate list/detail/count caches after success; keep pagination usable when the last row on a page is deleted. Do not add bulk venue deletion or infer test status from a name.
+- **Acceptance:** Component/API and desktop/360px e2e cover cancel, wrong slug, unauthorized access, blocked historical/demo venues, successful deletion, partial failure/retry and page correction. A fresh contact submission with the same email is accepted; deleting a lead preserves its created venue; ordinary owner accounts remain usable. Axe clean and confirmation focus managed.
+
+### [ ] T17.29 Separately reviewed production test-data cleanup
+- **Depends:** T17.26, T17.27
+- **Priority:** operational cleanup requested by the user; separate from normal console deletion
+- **Do:** Inventory the production test leads/venues the user wants removed, with exact IDs, slugs and linked bookings, payments/checkouts, charges/invoices, memberships, queued emails and uploaded files. Do not classify by name alone or assume any payment is a test payment. Prepare a concrete deletion manifest, dependency order, backup/recovery approach and retained-record list for review. Test historical-venue cleanup against local representative fixtures. Obtain explicit approval for the exact production manifest before executing; stop if revalidation reveals changed dependencies. Preserve real transactions, demo/system venues, shared accounts and other venues. This task adds no general-purpose historical purge button and does not change real-venue departure terms.
+- **Acceptance:** Reviewed inventory and local rehearsal prove complete removal and preservation boundaries, including foreign-key order, Storage and queued work. After exact-manifest approval, production cleanup is verified by IDs and remaining files/dependencies, and a redacted outcome is recorded without committing contact details or secrets. Without that approval the task remains pending; no deletion is implied by `/propose` acceptance.
+
+### [ ] T17.30 Polish and close-out
+- **Depends:** T17.2–T17.8, T17.17–T17.29; marketing companion task
 - **Do:** Dashboard/court scanability, accessibility, docs, milestone review and /retro.
 - **Acceptance:** Full gate, desktop/360px/axe journeys and reviewer PASS; both-repo Showcase refresh proven locally; no required initiative work left.
 
