@@ -8,6 +8,7 @@ import type { QrChange } from './api'
 import { useDeletePaymentAccount, useReorderPaymentAccounts, useSavePaymentAccount } from './hooks'
 import { checkQrFile, prepareQrImage } from './qrImage'
 import { SortableList } from './SortableList'
+import { useSettingsDirty } from './settingsDraft'
 
 export const PAYMENT_ACCOUNTS_MAX = 10
 const LABEL_MAX = 40
@@ -23,6 +24,8 @@ export function PaymentAccountsSection() {
   const move = useReorderPaymentAccounts()
   const [editingId, setEditingId] = useState<string | null>(null)
   const [addKey, setAddKey] = useState(0) // bumped after adding, so the add form empties
+  const setEditDirty = useSettingsDirty(`payment-accounts:edit:${editingId ?? ''}`)
+  const setAddDirty = useSettingsDirty('payment-accounts:add')
 
   function startEdit(id: string | null) {
     save.reset()
@@ -56,9 +59,9 @@ export function PaymentAccountsSection() {
               disabled={editingId !== null}
               onReorder={(ids) => move.mutate(ids)}
               renderItem={(a) => editingId === a.id ? (
-                <AccountForm key={a.id} initial={a} label={`Edit ${a.label}`} saving={save.isPending} error={save.error}
-                  onCancel={() => startEdit(null)}
-                  onSave={(input, qr) => save.mutate({ existing: a, input, qr }, { onSuccess: () => setEditingId(null) })} />
+                <AccountForm key={a.id} dirtyKey={`payment-accounts:edit:${a.id}`} initial={a} label={`Edit ${a.label}`} saving={save.isPending} error={save.error}
+                  onCancel={() => { setEditDirty(false); startEdit(null) }}
+                  onSave={(input, qr) => save.mutate({ existing: a, input, qr }, { onSuccess: () => { setEditingId(null); setEditDirty(false) } })} />
               ) : (
                 <span className="list-row">
                   <span className="account-summary">
@@ -68,7 +71,7 @@ export function PaymentAccountsSection() {
                   </span>
                   <span className="list-row-end">
                     <button type="button" className="btn btn-small btn-outline" aria-label={`Edit ${a.label}`}
-                      onClick={() => startEdit(a.id)}>Edit</button>
+                      disabled={editingId !== null} onClick={() => startEdit(a.id)}>Edit</button>
                     <button type="button" className="btn btn-small btn-ghost" aria-label={`Delete ${a.label}`}
                       disabled={remove.isPending} onClick={() => handleDelete(a)}>Delete</button>
                   </span>
@@ -81,8 +84,8 @@ export function PaymentAccountsSection() {
           {accounts.data.length >= PAYMENT_ACCOUNTS_MAX ? (
             <p className="muted">You can list up to {PAYMENT_ACCOUNTS_MAX} accounts. Delete one to add another.</p>
           ) : (
-            <AccountForm key={addKey} initial={null} label="New payment account" saving={add.isPending} error={add.error}
-              onSave={(input, qr) => add.mutate({ existing: null, input, qr }, { onSuccess: () => { add.reset(); setAddKey((k) => k + 1) } })} />
+            <AccountForm key={addKey} dirtyKey="payment-accounts:add" initial={null} label="New payment account" saving={add.isPending} error={add.error}
+              onSave={(input, qr) => add.mutate({ existing: null, input, qr }, { onSuccess: () => { add.reset(); setAddKey((k) => k + 1); setAddDirty(false) } })} />
           )}
         </>
       )}
@@ -92,14 +95,16 @@ export function PaymentAccountsSection() {
 
 type Draft = { kind: 'none' } | { kind: 'file'; file: File; preview: string } | { kind: 'clear' }
 
-function AccountForm({ initial, label, saving, error, onSave, onCancel }: {
+function AccountForm({ initial, label, dirtyKey, saving, error, onSave, onCancel }: {
   initial: PaymentAccount | null
   label: string
+  dirtyKey: string
   saving: boolean
   error: Error | null
   onSave: (input: { label: string; account_name: string; account_number: string }, qr: QrChange) => void
   onCancel?: () => void
 }) {
+  const setDirty = useSettingsDirty(dirtyKey)
   const [name, setName] = useState(initial?.label ?? '')
   const [accountName, setAccountName] = useState(initial?.account_name ?? '')
   const [accountNumber, setAccountNumber] = useState(initial?.account_number ?? '')
@@ -149,15 +154,15 @@ function AccountForm({ initial, label, saving, error, onSave, onCancel }: {
       <div className="form-grid">
         <label className="field">
           <span>Label <span className="muted small">(e.g. GCash, Maya, BPI)</span></span>
-          <input required maxLength={LABEL_MAX} value={name} onChange={(e) => setName(e.target.value)} />
+          <input required maxLength={LABEL_MAX} value={name} onChange={(e) => { setName(e.target.value); setDirty(true) }} />
         </label>
         <label className="field">
           <span>Account name</span>
-          <input maxLength={NAME_MAX} value={accountName} onChange={(e) => setAccountName(e.target.value)} />
+          <input maxLength={NAME_MAX} value={accountName} onChange={(e) => { setAccountName(e.target.value); setDirty(true) }} />
         </label>
         <label className="field">
           <span>Account or mobile number</span>
-          <input maxLength={NUMBER_MAX} value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} />
+          <input maxLength={NUMBER_MAX} value={accountNumber} onChange={(e) => { setAccountNumber(e.target.value); setDirty(true) }} />
         </label>
       </div>
       <div className="field">
@@ -166,6 +171,7 @@ function AccountForm({ initial, label, saving, error, onSave, onCancel }: {
           aria-invalid={fileError ? true : undefined} aria-describedby={fileError ? `${fileId}-error` : undefined}
           onChange={(e) => {
             chooseFile(e.target.files?.[0])
+            setDirty(true)
             e.target.value = '' // so picking the same file again still counts
           }} ref={fileInput} />
         {fileError && <p id={`${fileId}-error`} className="form-error" role="alert">{fileError}</p>}
@@ -175,6 +181,7 @@ function AccountForm({ initial, label, saving, error, onSave, onCancel }: {
           <img src={shownQr} alt={`QR code for ${name.trim() || 'this account'}`} width={160} height={160} />
           <button type="button" className="btn btn-small btn-ghost" onClick={() => {
             setDraft({ kind: initial?.qr_path ? 'clear' : 'none' })
+            setDirty(true)
             fileInput.current?.focus() // this button goes away with the preview
           }}>
             Remove QR code

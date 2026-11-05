@@ -19,7 +19,7 @@ test('a cold venue load starts with neutral HTML, then uses that venue name on p
   await addVenueStaff(venue.id, staff.id)
   await page.goto(`${venue.url}/admin/login`)
   await submitAdminLogin(page, staff.email, staff.password)
-  await expect(page.getByRole('navigation', { name: 'Admin' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Account', exact: true })).toBeVisible()
   await expect(page).toHaveTitle(venue.name)
 
   const updated = `${venue.name} Renamed`

@@ -16,7 +16,7 @@ const VENUE = { id: 'venue-a', slug: 'a-venue', status: 'active' as const }
 beforeEach(() => { setCurrentVenue(VENUE) })
 
 describe('AdminLayout statement link', () => {
-  it('has a "Statement" link to /admin/statement in the admin nav', () => {
+  it('has a "Reports" link to /admin/reports in the admin nav', () => {
     render(
       <QueryClientProvider client={new QueryClient()}><VenueContext.Provider value={VENUE}><AuthContext.Provider value={authState('admin')}>
         <MemoryRouter initialEntries={['/admin']}>
@@ -24,6 +24,6 @@ describe('AdminLayout statement link', () => {
         </MemoryRouter>
       </AuthContext.Provider></VenueContext.Provider></QueryClientProvider>,
     )
-    expect(screen.getByRole('link', { name: 'Statement' })).toHaveAttribute('href', '/admin/statement')
+    expect(screen.getByRole('link', { name: 'Reports' })).toHaveAttribute('href', '/admin/reports')
   })
 })

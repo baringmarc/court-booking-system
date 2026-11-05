@@ -8,14 +8,15 @@ test('an admin deep link goes through /admin/login and back; logging out returns
 
   // The admin shell replaces the public header.
   await expect(page.getByRole('navigation', { name: 'Main' })).toHaveCount(0)
-  await expect(page.getByRole('link', { name: 'View site' })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'View public site' })).toBeVisible()
 
   // Signed in as an admin, the public header still doesn't advertise the admin area.
-  await page.getByRole('link', { name: 'View site' }).click()
+  await page.getByRole('link', { name: 'View public site' }).click()
   await expect(page.getByRole('navigation', { name: 'Main' })).toBeVisible()
   await expect(page.getByRole('link', { name: 'Admin', exact: true })).toHaveCount(0)
 
   await page.goto('/admin')
+  await page.getByRole('button', { name: 'Account', exact: true }).click()
   await page.getByRole('button', { name: 'Log out' }).click()
   await expect(page).toHaveURL(/\/admin\/login$/)
   await expect(page.getByRole('heading', { name: 'Admin log in' })).toBeVisible()

@@ -436,7 +436,10 @@ export function useSavePaymentAccount() {
   return useMutation({
     mutationFn: ({ existing, input, qr }: { existing: PaymentAccount | null; input: PaymentAccountInput; qr: QrChange }) =>
       savePaymentAccount(existing, input, qr),
-    onSettled: () => qc.invalidateQueries({ queryKey: venueKeys.paymentAccounts() }),
+    onSettled: () => Promise.all([
+      qc.invalidateQueries({ queryKey: venueKeys.paymentAccounts() }),
+      qc.invalidateQueries({ queryKey: adminKeys.setup() }),
+    ]),
   })
 }
 
@@ -444,7 +447,10 @@ export function useDeletePaymentAccount() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (account: PaymentAccount) => deletePaymentAccount(account),
-    onSettled: () => qc.invalidateQueries({ queryKey: venueKeys.paymentAccounts() }),
+    onSettled: () => Promise.all([
+      qc.invalidateQueries({ queryKey: venueKeys.paymentAccounts() }),
+      qc.invalidateQueries({ queryKey: adminKeys.setup() }),
+    ]),
   })
 }
 
@@ -471,7 +477,10 @@ export function useReorderPaymentAccounts() {
       if (isLast() && context?.previous) qc.setQueryData(venueKeys.paymentAccounts(), context.previous)
     },
     onSettled: () => {
-      if (isLast()) return qc.invalidateQueries({ queryKey: venueKeys.paymentAccounts() })
+      if (isLast()) return Promise.all([
+        qc.invalidateQueries({ queryKey: venueKeys.paymentAccounts() }),
+        qc.invalidateQueries({ queryKey: adminKeys.setup() }),
+      ])
     },
   })
 }

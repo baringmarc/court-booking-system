@@ -6,6 +6,7 @@ import type { SocialLink } from '../venue/api'
 import { useSocialLinks } from '../venue/hooks'
 import { SOCIAL_PLATFORMS, SOCIAL_URL_MAX, socialUrlProblem, type SocialPlatform } from '../venue/social'
 import { useSaveSocialLinks } from './hooks'
+import { useSettingsDirty } from './settingsDraft'
 
 /** One optional link per platform (T9.11h). The database checks each platform's hosts too. */
 export function SocialLinksSection() {
@@ -32,6 +33,7 @@ function byPlatform(value: (platform: SocialPlatform) => string): Record<SocialP
 }
 
 function SocialLinksForm({ initial, save }: { initial: SocialLink[]; save: ReturnType<typeof useSaveSocialLinks> }) {
+  const setDirty = useSettingsDirty('social-links')
   const [values, setValues] = useState(() => byPlatform((platform) => initial.find((l) => l.platform === platform)?.url ?? ''))
   const [problem, setProblem] = useState<{ platform: SocialPlatform; message: string } | null>(null)
 
@@ -46,7 +48,7 @@ function SocialLinksForm({ initial, save }: { initial: SocialLink[]; save: Retur
       }
     }
     setProblem(null)
-    save.mutate(trimmed)
+    save.mutate(trimmed, { onSuccess: () => setDirty(false) })
   }
 
   return (
@@ -57,7 +59,7 @@ function SocialLinksForm({ initial, save }: { initial: SocialLink[]; save: Retur
             <span>{label}</span>
             <input type="url" inputMode="url" maxLength={SOCIAL_URL_MAX} placeholder={example} value={values[platform]}
               aria-invalid={problem?.platform === platform || undefined}
-              onChange={(e) => setValues((v) => ({ ...v, [platform]: e.target.value }))} />
+              onChange={(e) => { setValues((v) => ({ ...v, [platform]: e.target.value })); setDirty(true) }} />
           </label>
         ))}
       </div>

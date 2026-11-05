@@ -6,6 +6,7 @@ import type { InfoSection } from '../venue/api'
 import { useInfoSections } from '../venue/hooks'
 import { useDeleteInfoSection, useReorderInfoSections, useSaveInfoSection } from './hooks'
 import { SortableList } from './SortableList'
+import { useSettingsDirty } from './settingsDraft'
 
 const TITLE_MAX = 80
 const BODY_MAX = 5000
@@ -19,6 +20,8 @@ export function InfoSectionsSection() {
   const move = useReorderInfoSections()
   const [editingId, setEditingId] = useState<string | null>(null)
   const [addKey, setAddKey] = useState(0) // bumped after adding, so the add form empties
+  const setEditDirty = useSettingsDirty(`info-sections:edit:${editingId ?? ''}`)
+  const setAddDirty = useSettingsDirty('info-sections:add')
 
   function startEdit(id: string | null) {
     save.reset()
@@ -53,15 +56,15 @@ export function InfoSectionsSection() {
               disabled={editingId !== null}
               onReorder={(ids) => move.mutate(ids)}
               renderItem={(s) => editingId === s.id ? (
-                <SectionForm key={s.id} initial={s} label={`Edit ${s.title}`} saving={save.isPending} error={save.error}
-                  onCancel={() => startEdit(null)}
-                  onSave={(input) => save.mutate({ id: s.id, input }, { onSuccess: () => setEditingId(null) })} />
+                <SectionForm key={s.id} dirtyKey={`info-sections:edit:${s.id}`} initial={s} label={`Edit ${s.title}`} saving={save.isPending} error={save.error}
+                  onCancel={() => { setEditDirty(false); startEdit(null) }}
+                  onSave={(input) => save.mutate({ id: s.id, input }, { onSuccess: () => { setEditingId(null); setEditDirty(false) } })} />
               ) : (
                 <span className="list-row">
                   <strong>{s.title}</strong>
                   <span className="list-row-end">
                     <button type="button" className="btn btn-small btn-outline" aria-label={`Edit ${s.title}`}
-                      onClick={() => startEdit(s.id)}>Edit</button>
+                      disabled={editingId !== null} onClick={() => startEdit(s.id)}>Edit</button>
                     <button type="button" className="btn btn-small btn-ghost" aria-label={`Delete ${s.title}`}
                       disabled={remove.isPending} onClick={() => handleDelete(s)}>Delete</button>
                   </span>
@@ -71,22 +74,24 @@ export function InfoSectionsSection() {
           )}
           {(remove.error || move.error) && <p className="form-error" role="alert">{errorMessage(remove.error ?? move.error)}</p>}
           <h3>Add a section</h3>
-          <SectionForm key={addKey} initial={null} label="New info section" saving={add.isPending} error={add.error}
-            onSave={(input) => add.mutate({ id: null, input }, { onSuccess: () => { add.reset(); setAddKey((k) => k + 1) } })} />
+          <SectionForm key={addKey} dirtyKey="info-sections:add" initial={null} label="New info section" saving={add.isPending} error={add.error}
+            onSave={(input) => add.mutate({ id: null, input }, { onSuccess: () => { add.reset(); setAddKey((k) => k + 1); setAddDirty(false) } })} />
         </>
       )}
     </section>
   )
 }
 
-function SectionForm({ initial, label, saving, error, onSave, onCancel }: {
+function SectionForm({ initial, label, dirtyKey, saving, error, onSave, onCancel }: {
   initial: InfoSection | null
   label: string
+  dirtyKey: string
   saving: boolean
   error: Error | null
   onSave: (input: { title: string; body: string }) => void
   onCancel?: () => void
 }) {
+  const setDirty = useSettingsDirty(dirtyKey)
   const [title, setTitle] = useState(initial?.title ?? '')
   const [body, setBody] = useState(initial?.body ?? '')
 
@@ -99,11 +104,11 @@ function SectionForm({ initial, label, saving, error, onSave, onCancel }: {
     <form className="stack info-section-form" aria-label={label} onSubmit={handleSubmit}>
       <label className="field">
         <span>Title</span>
-        <input required maxLength={TITLE_MAX} value={title} onChange={(e) => setTitle(e.target.value)} />
+        <input required maxLength={TITLE_MAX} value={title} onChange={(e) => { setTitle(e.target.value); setDirty(true) }} />
       </label>
       <label className="field">
         <span>Text</span>
-        <textarea rows={5} maxLength={BODY_MAX} value={body} onChange={(e) => setBody(e.target.value)} />
+        <textarea rows={5} maxLength={BODY_MAX} value={body} onChange={(e) => { setBody(e.target.value); setDirty(true) }} />
       </label>
       <div className="form-actions">
         <button type="submit" className="btn" disabled={saving}>{saving ? 'Saving…' : initial ? 'Save section' : 'Add section'}</button>

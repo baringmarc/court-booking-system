@@ -36,7 +36,7 @@ test('an admin adds a blackout with the pickers, and a guest picking that date i
   await logInAdmin(page, admin.email, admin.password, '/admin/schedule')
   const reason = `${E2E_PREFIX} Floor repair ${Date.now()}`
 
-  await page.getByLabel('Court').selectOption({ label: 'Badminton 2' })
+  await page.getByRole('combobox', { name: 'Court', exact: true }).selectOption({ label: 'Badminton 2' })
   await page.getByLabel('Reason').fill(reason)
   // The calendar dialog, open: axe and the 360px fit.
   await page.getByRole('group', { name: 'Starts on' }).getByRole('button', { name: /^Choose a date/ }).click()

@@ -3,7 +3,7 @@
 -- setup items exist (courts, rates, hours, payment); photos are optional.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(50);
+select plan(52);
 
 -- Returns 'SQLSTATE|hint|detail' of the error a statement raises, or 'ok' if it succeeds.
 create function pg_temp.err(p_sql text) returns text language plpgsql as $$
@@ -36,6 +36,11 @@ insert into public.venues (id, slug, status) values
   ('a0000000-0000-0000-0000-0000000058a4', 'e2e-pv-closed', 'closed'),
   ('a0000000-0000-0000-0000-0000000058a5', 'e2e-pv-active', 'active'),
   ('a0000000-0000-0000-0000-0000000058a6', 'e2e-pv-six', 'draft');
+insert into public.venue_settings (venue_id, name, payment_instructions)
+select v, 'E2E Publication Venue', ''
+from unnest(array['a0000000-0000-0000-0000-0000000058a1', 'a0000000-0000-0000-0000-0000000058a2',
+  'a0000000-0000-0000-0000-0000000058a3', 'a0000000-0000-0000-0000-0000000058a4',
+  'a0000000-0000-0000-0000-0000000058a5', 'a0000000-0000-0000-0000-0000000058a6']::uuid[]) v;
 insert into public.venue_members (venue_id, user_id, role) values
   ('a0000000-0000-0000-0000-0000000058a1', '00000000-0000-0000-0000-0000000058a3', 'owner'),
   ('a0000000-0000-0000-0000-0000000058a2', '00000000-0000-0000-0000-0000000058a4', 'owner');
@@ -56,6 +61,9 @@ from unnest(array['a0000000-0000-0000-0000-0000000058a3', 'a0000000-0000-0000-00
 insert into public.venue_payment_accounts (venue_id, label, account_name, account_number)
 select v, 'GCash', 'E2E', '0917 000 0000'
 from unnest(array['a0000000-0000-0000-0000-0000000058a3', 'a0000000-0000-0000-0000-0000000058a4', 'a0000000-0000-0000-0000-0000000058a6']::uuid[]) v;
+update public.venue_settings set payment_instructions = 'Pay using the account above.'
+where venue_id in ('a0000000-0000-0000-0000-0000000058a2', 'a0000000-0000-0000-0000-0000000058a3', 'a0000000-0000-0000-0000-0000000058a4',
+  'a0000000-0000-0000-0000-0000000058a6');
 insert into public.operating_hours (venue_id, day_of_week, open_time, close_time)
 select v, d, time '06:00', time '22:00'
 from unnest(array['a0000000-0000-0000-0000-0000000058a3', 'a0000000-0000-0000-0000-0000000058a4']::uuid[]) v, generate_series(0, 6) d;
@@ -96,15 +104,15 @@ set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000058a3","r
 select is(public.venue_setup_status('a0000000-0000-0000-0000-0000000058a1') ->> 'ready', 'false', 'a fresh venue is not ready');
 select is(
   (select array_agg(i ->> 'key' order by o) from jsonb_array_elements(public.venue_setup_status('a0000000-0000-0000-0000-0000000058a1') -> 'items') with ordinality t(i, o)),
-  array['courts', 'rates', 'hours', 'payment', 'photos'], 'the items are courts, rates, hours, payment, photos in that order');
+  array['courts', 'rates', 'hours', 'payment', 'payment_instructions', 'photos'], 'the items include separate payment and instruction requirements in order');
 select is(
   (select count(*)::int from jsonb_array_elements(public.venue_setup_status('a0000000-0000-0000-0000-0000000058a1') -> 'items') i
     where jsonb_typeof(i -> 'label') = 'string' and length(i ->> 'label') > 0
       and jsonb_typeof(i -> 'required') = 'boolean' and jsonb_typeof(i -> 'done') = 'boolean'),
-  5, 'every item has a non-empty label and boolean required and done');
+  6, 'every item has a non-empty label and boolean required and done');
 select is(
   (select array_agg(i ->> 'key' order by o) from jsonb_array_elements(public.venue_setup_status('a0000000-0000-0000-0000-0000000058a1') -> 'items') with ordinality t(i, o) where (i ->> 'required')::boolean),
-  array['courts', 'rates', 'hours', 'payment'], 'courts, rates, hours and payment are required');
+  array['courts', 'rates', 'hours', 'payment', 'payment_instructions'], 'payment account and instructions are separate required items');
 select is(pg_temp.item('a0000000-0000-0000-0000-0000000058a1', 'photos', 'required'), 'false', 'photos are optional');
 select is(pg_temp.item('a0000000-0000-0000-0000-0000000058a1', 'courts', 'done'), 'false', 'no courts: courts is not done');
 select is(pg_temp.item('a0000000-0000-0000-0000-0000000058a1', 'rates', 'done'), 'false', 'no courts: rates is not done');
@@ -115,7 +123,7 @@ select is(pg_temp.item('a0000000-0000-0000-0000-0000000058a1', 'photos', 'done')
 
 -- publish refuses, naming what is missing
 select is(pg_temp.err($$select public.publish_venue('a0000000-0000-0000-0000-0000000058a1')$$),
-  'P0001|setup_incomplete|courts,rates,payment', 'publishing a fresh venue is setup_incomplete and the detail lists courts,rates,payment');
+  'P0001|setup_incomplete|courts,rates,payment,payment_instructions', 'publishing a fresh venue lists account and instructions as separate missing requirements');
 select is((select status from public.venues where id = 'a0000000-0000-0000-0000-0000000058a1'), 'draft', 'a refused publish leaves the venue a draft');
 
 -- ---------------------------------------------------------------- the items, one at a time (built as the service role)
@@ -173,14 +181,19 @@ insert into public.venue_payment_accounts (venue_id, label, account_name, accoun
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000058a3","role":"authenticated"}';
 select is(pg_temp.item('a0000000-0000-0000-0000-0000000058a1', 'payment', 'done'), 'false', 'an account with an empty number leaves payment not done');
+select is(pg_temp.item('a0000000-0000-0000-0000-0000000058a1', 'payment_instructions', 'done'), 'false', 'blank instructions leave their separate item not done');
 select is(pg_temp.err($$select public.publish_venue('a0000000-0000-0000-0000-0000000058a1')$$),
-  'P0001|setup_incomplete|payment', 'with only payment missing the detail is just payment');
+  'P0001|setup_incomplete|payment,payment_instructions', 'missing account and instructions are listed independently');
 reset role;
 insert into public.venue_payment_accounts (venue_id, label, account_name, account_number) values
   ('a0000000-0000-0000-0000-0000000058a1', 'GCash', 'E2E', '0917 000 0000');
+reset role;
+update public.venue_settings set payment_instructions = 'Pay using account 0917 000 0000.'
+where venue_id = 'a0000000-0000-0000-0000-0000000058a1';
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000058a3","role":"authenticated"}';
 select is(pg_temp.item('a0000000-0000-0000-0000-0000000058a1', 'payment', 'done'), 'true', 'an account with a number makes payment done');
+select is(pg_temp.item('a0000000-0000-0000-0000-0000000058a1', 'payment_instructions', 'done'), 'true', 'instructions are independently complete');
 select is(public.venue_setup_status('a0000000-0000-0000-0000-0000000058a1') ->> 'ready', 'true',
   'ready is true with every required item done, with no photos');
 
@@ -217,7 +230,7 @@ select is(substr(pg_temp.err($$select public.publish_venue('a0000000-0000-0000-0
 select is(substr(pg_temp.err($$select public.publish_venue('a0000000-0000-0000-0000-0000000058a5')$$), 1, 16),
   'P0001|not_draft|', 'an active venue that is missing setup is still not_draft (status is checked before setup)');
 select is(pg_temp.err($$select public.publish_venue('a0000000-0000-0000-0000-0000000058a2')$$),
-  'P0001|setup_incomplete|payment', 'a platform admin is held to the same setup rules (venue two lacks payment)');
+  'P0001|setup_incomplete|payment', 'a platform admin is held to the same setup rules (venue two lacks an account number)');
 select lives_ok($$select public.publish_venue('a0000000-0000-0000-0000-0000000058a6')$$, 'a platform admin can publish a ready venue');
 reset role;
 select is((select status from public.venues where id = 'a0000000-0000-0000-0000-0000000058a6'), 'active', 'and it is active');

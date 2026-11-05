@@ -176,6 +176,9 @@ insert into public.courts (id, venue_id, name, sport, default_hourly_rate) value
   ('c0000000-0000-0000-0000-0000000000a2', 'a0000000-0000-0000-0000-00000000000a', 'E2E Iso A2', 'tennis', 500),
   ('c0000000-0000-0000-0000-0000000000b1', 'b0000000-0000-0000-0000-00000000000b', 'E2E Iso B1', 'tennis', 600),
   ('c0000000-0000-0000-0000-0000000000b2', 'b0000000-0000-0000-0000-00000000000b', 'E2E Iso B2', 'tennis', 600);
+insert into public.court_open_periods (venue_id, court_id, day_of_week, start_minute, end_minute) values
+  ('a0000000-0000-0000-0000-00000000000a', 'c0000000-0000-0000-0000-0000000000a1', 1, 540, 1020),
+  ('b0000000-0000-0000-0000-00000000000b', 'c0000000-0000-0000-0000-0000000000b1', 1, 540, 1020);
 insert into public.court_rates (court_id, day_of_week, start_hour, price) values
   ('c0000000-0000-0000-0000-0000000000a1', 1, 9, 550),
   ('c0000000-0000-0000-0000-0000000000b1', 1, 9, 650);
@@ -296,7 +299,7 @@ select is_empty(
      where tbl not in (select tbl from pg_temp.tpl where venue_id = 'a0000000-0000-0000-0000-00000000000a')
         or tbl not in (select tbl from pg_temp.tpl where venue_id = 'b0000000-0000-0000-0000-00000000000b') $$,
   'every table with a venue_id has fixture rows in venue A and in venue B (add rows here when a table is added)');
-select is((select count(*)::int from pg_temp.swp), 21, 'the catalog sweep finds the 21 venue-owned tables of T12.2 to T12.8');
+select is((select count(*)::int from pg_temp.swp), 25, 'the catalog sweep includes the four schedule tables');
 select is(
   (select count(*)::int from pg_temp.swp where tbl in ('billing_charges', 'invoices', 'venue_members', 'guest_link_tokens', 'bookings', 'payments')),
   6, 'the sweep includes the billing, membership, booking and payment tables');
@@ -471,9 +474,11 @@ select is_empty(
          'venue_setup_status', 'publish_venue',
          -- venue admins only: names a venue id and refuses anyone who doesn't run it (62_venue_statement)
          'venue_statement',
-         -- platform admins only: refuse anyone who is not a platform admin (59_venues_overview, 61_invoice_review)
+         -- venue schedule RPCs are cross-venue tested in 68_schedule_rpcs
+         'get_schedule', 'preview_schedule_impact', 'save_schedule',
+         -- platform admins only: refuse anyone who is not a platform admin (59_venues_overview, 61_invoice_review, 66_showcase_authority)
          'venues_overview', 'suspend_venue', 'reactivate_venue',
-         'invoices_overview', 'invoice_detail', 'mark_invoice_sent', 'mark_invoice_paid'
+         'invoices_overview', 'invoice_detail', 'mark_invoice_sent', 'mark_invoice_paid', 'set_venue_showcase_approval'
        ]) $$,
   'every RPC a client can execute is probed above or exempt (a new venue-scoped RPC needs a cross-venue test here)');
 select is_empty(

@@ -18,7 +18,7 @@ test('an admin sets the banner, players see it on / only, and removing it hides 
   test.skip(!!before?.banner_path, 'A banner is already set locally.')
 
   const admin = await createAdmin()
-  await logInAdmin(page, admin.email, admin.password, '/admin/settings')
+  await logInAdmin(page, admin.email, admin.password, '/admin/settings/appearance')
   const form = page.getByRole('form', { name: 'Banner' })
 
   // Alt text is required
@@ -49,7 +49,7 @@ test('an admin sets the banner, players see it on / only, and removing it hides 
   await expect(page.getByRole('img', { name: alt })).toHaveCount(0)
 
   // Remove
-  await page.goto('/admin/settings')
+  await page.goto('/admin/settings/appearance')
   await page.getByRole('button', { name: 'Remove banner' }).click()
   await expect(preview).toBeHidden()
   await expect(page.getByLabel('Banner image')).toBeVisible()

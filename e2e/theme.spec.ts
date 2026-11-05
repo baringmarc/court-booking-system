@@ -21,7 +21,7 @@ test.afterEach(async () => setTheme(saved))
 test("an admin's preset shows for a signed-out player", async ({ page, browser }) => {
   await setTheme('plotline')
   const admin = await createAdmin()
-  await logInAdmin(page, admin.email, admin.password, '/admin/settings')
+  await logInAdmin(page, admin.email, admin.password, '/admin/settings/appearance')
   const picker = page.getByRole('group', { name: 'Website colors' })
   await expect(picker.getByRole('button', { name: 'Plotline' })).toHaveAttribute('aria-pressed', 'true')
 

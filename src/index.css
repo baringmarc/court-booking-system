@@ -854,3 +854,50 @@ details[open]::details-content { block-size: auto; }
   .invoice-print { position: absolute; inset: 0 auto auto 0; width: 100%; box-shadow: none; border: 0; }
   .no-print { display: none !important; }
 }
+
+/* Venue admin shell: one navigation, presented as a sidebar or a modal drawer. */
+.admin-topbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+.admin-topbar .auth-area { display: flex; flex-wrap: wrap; gap: 6px; margin-left: auto; min-width: 0; }
+.admin-venue-name { font-weight: 700; overflow-wrap: anywhere; min-width: 0; flex: 1; }
+.admin-alert-link { display: inline-flex; align-items: center; gap: 6px; }
+.admin-sidebar { display: none; }
+.admin-navigation { display: flex; flex-direction: column; gap: 24px; }
+.admin-nav-group { display: flex; flex-direction: column; gap: 4px; }
+.admin-nav-group-label { color: var(--muted); font-size: .75rem; font-weight: 700; padding: 8px 12px; text-transform: uppercase; letter-spacing: .06em; }
+.admin-navigation a { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 10px 12px; border-radius: 8px; color: var(--text); text-decoration: none; }
+.admin-navigation a:hover { background: var(--accent-soft); }
+.admin-navigation a.active { background: var(--btn); color: var(--btn-text); box-shadow: inset 0 0 0 1.5px var(--accent); font-weight: 700; }
+.admin-navigation a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.admin-navigation svg { flex-shrink: 0; }
+.admin-navigation .nav-count { margin-left: auto; }
+.admin-account { position: relative; }
+.admin-account-panel { position: absolute; right: 0; top: calc(100% + 8px); z-index: 20; display: flex; flex-direction: column; gap: 12px; padding: 16px; width: min(260px, 85vw); border: 1px solid var(--border); border-radius: 12px; background: var(--surface); box-shadow: 0 8px 24px #0002; }
+.admin-account-panel .user-name { white-space: normal; overflow-wrap: anywhere; }
+.admin-drawer { margin: 0; padding: 0; width: min(300px, calc(100vw - 40px)); max-width: none; height: 100dvh; max-height: 100dvh; border: 0; border-right: 1px solid var(--border); color: var(--text); background: var(--surface); }
+.admin-drawer::backdrop { background: #0007; }
+.admin-drawer-content { min-height: 100%; padding: 16px; }
+.admin-drawer-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 24px; }
+.settings-category-grid { display: grid; gap: 16px; margin-top: 24px; }
+.modal-backdrop { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(0, 0, 0, .5); }
+.modal-backdrop .dialog { margin: 0; max-height: calc(100vh - 32px); overflow: auto; padding: 20px; }
+.settings-category-card { display: flex; flex-direction: column; gap: 8px; color: var(--text); text-decoration: none; }
+.settings-category-card h2, .settings-category-card p { margin: 0; }
+.settings-category-card .btn { align-self: flex-start; margin-top: auto; }
+.settings-category .page-head { align-items: flex-start; }
+.settings-category .back-link { display: inline-block; margin-bottom: 8px; }
+.settings-unsaved { margin: -8px 0 16px; font-weight: 700; }
+@media (min-width: 700px) { .settings-category-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 900px) {
+  .admin-workspace { --sidebar-width: 240px; display: grid; grid-template-columns: var(--sidebar-width) minmax(0, 1fr); grid-template-rows: auto 1fr; }
+  .admin-workspace.sidebar-collapsed { --sidebar-width: 76px; }
+  .admin-sidebar { position: sticky; top: 0; grid-column: 1; grid-row: 1 / span 2; display: flex; flex-direction: column; gap: 24px; padding: 24px 12px; height: 100dvh; overflow-y: auto; border-right: 1px solid var(--border); background: var(--surface); }
+  .admin-sidebar .admin-brand { padding: 0 8px; }
+  .sidebar-toggle { margin-top: auto; display: flex; align-items: center; gap: 8px; }
+  .sidebar-collapsed .admin-sidebar :is(.admin-nav-label, .admin-nav-group-label, .admin-brand .badge) { display: none; }
+  .sidebar-collapsed .admin-sidebar .admin-brand { overflow: hidden; padding: 0; }
+  .sidebar-collapsed .admin-sidebar .admin-navigation a { position: relative; justify-content: center; }
+  .sidebar-collapsed .admin-sidebar .nav-count { position: absolute; right: 0; top: 0; font-size: .65rem; }
+  .admin-workspace > .admin-topbar, .admin-workspace > main { grid-column: 2; min-width: 0; }
+  .admin-menu-trigger { display: none; }
+}
+@media (min-width: 1100px) { .settings-category-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }

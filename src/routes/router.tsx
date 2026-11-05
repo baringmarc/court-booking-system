@@ -68,7 +68,18 @@ export const router = createBrowserRouter([
           },
           {
             path: 'settings',
-            lazy: () => import('../features/admin/SettingsPage').then((m) => ({ Component: m.SettingsPage })),
+            children: [
+              { index: true, lazy: () => import('../features/admin/SettingsPage').then((m) => ({ Component: m.SettingsPage })) },
+              { path: 'venue', lazy: () => import('../features/admin/VenueProfileSettingsPage').then((m) => ({ Component: m.VenueProfileSettingsPage })) },
+              { path: 'payments', lazy: () => import('../features/admin/PaymentSettingsPage').then((m) => ({ Component: m.PaymentSettingsPage })) },
+              { path: 'booking', lazy: () => import('../features/admin/BookingRulesSettingsPage').then((m) => ({ Component: m.BookingRulesSettingsPage })) },
+              { path: 'appearance', lazy: () => import('../features/admin/AppearanceSettingsPage').then((m) => ({ Component: m.AppearanceSettingsPage })) },
+              { path: 'policies', lazy: () => import('../features/admin/PoliciesSettingsPage').then((m) => ({ Component: m.PoliciesSettingsPage })) },
+            ],
+          },
+          {
+            path: 'reports',
+            lazy: () => import('../features/admin/StatementPage').then((m) => ({ Component: m.StatementPage })),
           },
           {
             path: 'statement',

@@ -5,6 +5,7 @@ import { mediaUrl } from '../catalog/media'
 import { useRemoveBanner, useSaveBanner } from './hooks'
 import type { BannerInput } from './api'
 import { downscaleImage } from './imageResize'
+import { useSettingsDirty } from './settingsDraft'
 import {
   ACCEPTED_IMAGE_TYPES,
   BANNER_ALT_MAX,
@@ -16,12 +17,13 @@ import {
 
 /** The optional home page banner: an image with required alt text (SPEC §7). */
 export function BannerSection({ settings }: { settings: VenueSettings }) {
+  const setDirty = useSettingsDirty('banner')
   const save = useSaveBanner(settings)
   const remove = useRemoveBanner(settings)
 
   function handleSave(input: BannerInput) {
     remove.reset()
-    save.mutate(input)
+    save.mutate(input, { onSuccess: () => setDirty(false) })
   }
 
   function handleRemove() {
@@ -72,6 +74,7 @@ type FormProps = { settings: VenueSettings; busy: boolean; saving: boolean; onSa
 type Errors = { alt?: string; file?: string }
 
 function BannerForm({ settings, busy, saving, onSave }: FormProps) {
+  const setDirty = useSettingsDirty('banner')
   const hasBanner = !!settings.banner_path
   const [alt, setAlt] = useState(settings.banner_alt ?? '')
   const [file, setFile] = useState<File | null>(null)
@@ -82,6 +85,7 @@ function BannerForm({ settings, busy, saving, onSave }: FormProps) {
   function handleFile(e: ChangeEvent<HTMLInputElement>) {
     const chosen = e.currentTarget.files?.[0] ?? null
     setFile(chosen)
+    setDirty(true)
     setErrors((prev) => ({ ...prev, file: chosen ? checkImageFile(chosen) ?? undefined : undefined }))
   }
 
@@ -135,7 +139,7 @@ function BannerForm({ settings, busy, saving, onSave }: FormProps) {
         <label htmlFor="banner-alt">Alt text</label>
         <input id="banner-alt" value={alt} maxLength={BANNER_ALT_MAX + 50} disabled={disabled}
           aria-invalid={errors.alt ? true : undefined} aria-describedby={describedBy('alt', 'banner-alt-hint')}
-          onChange={(e) => setAlt(e.target.value)} />
+          onChange={(e) => { setAlt(e.target.value); setDirty(true) }} />
         <p id="banner-alt-hint" className="muted small">
           Describe what the picture shows, for people who can't see it. Required, up to {BANNER_ALT_MAX} characters.
         </p>

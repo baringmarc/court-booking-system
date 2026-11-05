@@ -8,6 +8,8 @@ import { createAdmin, E2E_PREFIX, logInAdmin, pickFirstFreeSlot, uploadProof, ve
 test('the admin sees a new booking arrive without reloading', async ({ page, browser }) => {
   const admin = await createAdmin()
   await logInAdmin(page, admin.email, admin.password, '/admin')
+  const openNavigation = page.getByRole('button', { name: 'Open navigation' })
+  if (await openNavigation.isVisible()) await openNavigation.click()
   const nav = page.getByRole('navigation', { name: 'Admin' })
   await expect(nav.getByRole('link', { name: 'Bookings', exact: true })).toBeVisible()
 
@@ -31,6 +33,7 @@ test('the admin sees a new booking arrive without reloading', async ({ page, bro
   await nav.getByRole('link', { name: 'Bookings, 1 new' }).click()
   await expect(page).toHaveURL(/\/admin\/bookings/)
   await expect(page.getByRole('button', { name: new RegExp(reference) })).toBeVisible()
+  if (await openNavigation.isVisible()) await openNavigation.click()
   await expect(nav.getByRole('link', { name: 'Bookings', exact: true })).toBeVisible()
   await expect(nav.getByRole('link', { name: /new$/ })).toHaveCount(0)
   await guestContext.close()
