@@ -7,7 +7,6 @@ import { useCourt, useCourts, useSaveCourt } from '../catalog/hooks'
 import { SPORT_LABELS, SPORTS, type Court, type Sport } from '../catalog/api'
 import { nextSortOrder } from '../catalog/sportOrder'
 import { CourtPhotosSection } from './CourtPhotosSection'
-import { CourtRatesSection } from './CourtRatesSection'
 import { DeleteCourtSection } from './DeleteCourtSection'
 
 export function CourtEditPage() {
@@ -33,7 +32,9 @@ export function CourtEditPage() {
           {/* Keys remount each section for another court; prefixed, since sibling keys must differ. */}
           <CourtForm key={`form-${court.data.id}`} court={court.data} />
           <CourtPhotosSection court={court.data} />
-          <CourtRatesSection court={court.data} />
+          <p>
+            Hourly rates by day and time are set in <Link to="/admin/schedule">Weekly Hours &amp; Rates</Link>.
+          </p>
           <DeleteCourtSection key={`delete-${court.data.id}`} court={court.data} />
         </>
       )}

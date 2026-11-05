@@ -8,6 +8,14 @@ describe('errorMessage', () => {
     expect(errorMessage(new ApiError('Online payment is unavailable.', '503', 'payments_unavailable'))).toBe('Online payment is unavailable.')
   })
 
+  it('explains the schedule_v2_managed guard in plain words (T17.17)', () => {
+    const message = errorMessage(new ApiError('Schedule is managed in Weekly Hours & Rates.', 'P0001', 'schedule_v2_managed'))
+    expect(message).toMatch(/Weekly Hours & Rates/)
+    expect(message).not.toBe(GENERIC_ERROR)
+    // Even if the raw error arrives without the P0001 code, the hint is recognized.
+    expect(errorMessage(new ApiError('raw', '', 'schedule_v2_managed'))).toMatch(/Weekly Hours & Rates/)
+  })
+
   it('translates raw database errors from admin saves', () => {
     expect(errorMessage(new ApiError('new row for relation "courts" violates check constraint "courts_name_check"', '23514')))
       .toBe("Some values aren't valid. Check the form and try again.")
