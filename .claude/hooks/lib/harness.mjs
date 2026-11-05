@@ -79,7 +79,45 @@ export function writeJson(file, value) {
   writeFileSync(file, JSON.stringify(value, null, 2) + '\n')
 }
 
-/** The task in progress: "**Next task:** T11.12 …" in the TASKS.md Handoff section, or "adhoc". */
+// ---------- per-session edit tracking ----------
+// Several Claude sessions can share one working tree. The guard records, per session_id, that the session changed
+// code (not *.md, not .claude/); the Stop gate then runs the fast checks only for a session that did. Without a
+// session_id the gate behaves as before (always runs), so this can only skip work, never hide a failure.
+
+const sessionFile = (id) => join(paths.stateDir, 'sessions', `${String(id).replace(/[^\w-]/g, '_')}.json`)
+
+/** True for paths that count as code for the fast gate (the same set as CODE_PATHSPECS). */
+export function isCodePath(relPath) {
+  return !!relPath && !relPath.endsWith('.md') && !relPath.startsWith('.claude/')
+}
+
+export function markSessionEdit(sessionId, what) {
+  if (!sessionId) return
+  try {
+    const file = sessionFile(sessionId)
+    const cur = readJson(file, { files: [] })
+    const files = cur.files.includes(what) ? cur.files : [...cur.files, what].slice(-50)
+    writeJson(file, { edited: true, files, at: new Date().toISOString() })
+  } catch {
+    // Tracking is best effort: a failure here means the gate runs, which is the safe direction.
+  }
+}
+
+/** False only when we know this session made no code edits since its last passing gate. Unknown means true. */
+export function sessionEdited(sessionId) {
+  if (!sessionId) return true
+  const rec = readJson(sessionFile(sessionId), null)
+  return rec ? rec.edited !== false : false
+}
+
+export function clearSessionEdit(sessionId) {
+  if (!sessionId) return
+  const file = sessionFile(sessionId)
+  const rec = readJson(file, null)
+  if (rec) writeJson(file, { ...rec, edited: false })
+}
+
+/** The task in progress:"**Next task:** T11.12 …" in the TASKS.md Handoff section, or "adhoc". */
 export function currentTask() {
   try {
     const tasks = readFileSync(join(root, 'TASKS.md'), 'utf8')

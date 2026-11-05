@@ -4,6 +4,8 @@
 // FAST, as the Stop hook: Claude can't finish a turn while the fast checks (typecheck, lint, unit tests) fail.
 //   Runs only when code changed since the last passing run. The fingerprint covers tracked and untracked
 //   changes, excluding *.md and .claude/, so Q&A and doc-only turns end instantly.
+//   Skipped for a session that has not edited code itself (several sessions can share one working tree):
+//   guard.mjs records edits per session_id; the record clears when the fast checks pass. No session_id = runs.
 //   After MAX_ATTEMPTS consecutive blocks in one turn it lets Claude stop, which must then report the
 //   failure. That state isn't retried until the code changes.
 //
@@ -21,7 +23,7 @@
 import { spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { codeFingerprint, config, existsSync, logEvent, paths, readJson, root, uiFingerprint, writeJson } from './lib/harness.mjs'
+import { clearSessionEdit, codeFingerprint, config, existsSync, logEvent, paths, readJson, root, sessionEdited, uiFingerprint, writeJson } from './lib/harness.mjs'
 
 const MAX_ATTEMPTS = 3
 const FULL = process.argv.includes('--full')
@@ -127,6 +129,12 @@ function respond(obj) {
 
 if (code.empty || state.fastPassed === code.hash || state.fullPassed === code.hash) respond()
 
+// Another session may have left the working tree dirty. This session only answers for code it edited itself
+// (recorded by guard.mjs per session_id); a full run and the commit check still cover the whole tree.
+if (!sessionEdited(input.session_id)) {
+  respond({ systemMessage: 'verify-gate: this session has not edited code, so the fast checks were skipped (other changes in the tree belong to another session).' })
+}
+
 if (state.gaveUp === code.hash) {
   respond({ systemMessage: 'verify-gate: fast checks are still failing for the current changes (gave up earlier). Not re-running until code changes.' })
 }
@@ -138,11 +146,13 @@ const r = runChecks('fast', config.fastChecks)
 if (r.ok) {
   state.fastPassed = code.hash
   state.attempts = 0
+  clearSessionEdit(input.session_id)
   respond({ systemMessage: `verify-gate: fast checks passed (${config.fastChecks.join(', ')}). Run --full before committing.` })
 }
 
 if (attempts + 1 >= MAX_ATTEMPTS) {
   Object.assign(state, { attempts: 0, gaveUp: code.hash })
+  clearSessionEdit(input.session_id)
   respond({ systemMessage: `verify-gate: npm run ${r.check} still failing after ${MAX_ATTEMPTS} attempts; allowing stop.` })
 }
 
