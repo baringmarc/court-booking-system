@@ -9,6 +9,8 @@ import {
   fetchCourtRates,
   fetchCourts,
   fetchOperatingHours,
+  fetchPublicSchedule,
+  fetchStaffSchedule,
   fetchUpcomingBlackouts,
   fetchVenueSettings,
   saveCourt,
@@ -50,6 +52,14 @@ export function useCourtRates(courtId: string | undefined) {
 
 export function useOperatingHours() {
   return useQuery({ queryKey: catalogKeys.hours(), queryFn: fetchOperatingHours })
+}
+
+export function usePublicSchedule() {
+  return useQuery({ queryKey: [...catalogKeys.hours(), 'public-schedule'], queryFn: fetchPublicSchedule })
+}
+
+export function useStaffSchedule(date: string) {
+  return useQuery({ queryKey: [...catalogKeys.hours(), 'staff-schedule', date], queryFn: () => fetchStaffSchedule(date) })
 }
 
 export function useUpcomingBlackouts() {

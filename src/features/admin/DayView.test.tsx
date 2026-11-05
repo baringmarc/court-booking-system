@@ -17,10 +17,10 @@ const bookings = [{
   id: 'b1', reference_code: 'CB-7KQ2XD', court_name: 'Badminton 1', slot_start: at(18), slot_end: at(20), guest_name: 'Ana Maria Santos',
 }]
 
-function renderDay(s = slots) {
+function renderDay(s = slots, shownBookings = bookings) {
   render(
     <MemoryRouter>
-      <DayView date="2030-01-07" courts={courts} slots={s} bookings={bookings} timeZone="Asia/Manila" />
+      <DayView date="2030-01-07" courts={courts} slots={s} bookings={shownBookings} timeZone="Asia/Manila" />
     </MemoryRouter>,
   )
 }
@@ -104,7 +104,7 @@ describe('DayView', () => {
   })
 
   it('says when the venue is closed', () => {
-    renderDay([])
+    renderDay([], [])
     expect(screen.getByText('The venue is closed on this day.')).toBeInTheDocument()
     expect(screen.queryByRole('table')).not.toBeInTheDocument()
   })

@@ -8,7 +8,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { authState } from '../../test/authState'
 import { AuthContext } from '../auth/AuthContext'
 import {
-  fetchCourts, fetchOperatingHours, fetchVenueSettings, type CourtWithPhotos, type OperatingHours, type VenueSettings,
+  fetchCourts, fetchPublicSchedule, fetchVenueSettings, type CourtWithPhotos, type PublicSchedulePeriod, type VenueSettings,
 } from '../catalog/api'
 import { fetchInfoSections } from '../venue/api'
 import { fetchAvailability, fetchPlatformFee, type Slot } from './api'
@@ -17,7 +17,7 @@ import { CheckoutPage } from './CheckoutPage'
 vi.mock('../catalog/api', async (importOriginal) => ({
   ...(await importOriginal<object>()),
   fetchCourts: vi.fn(),
-  fetchOperatingHours: vi.fn(),
+  fetchPublicSchedule: vi.fn(),
   fetchVenueSettings: vi.fn(),
 }))
 vi.mock('../venue/api', async (importOriginal) => ({ ...(await importOriginal<object>()), fetchInfoSections: vi.fn() }))
@@ -31,7 +31,7 @@ vi.mock('./api', async (importOriginal) => ({
 const COURT = '0c0c0c0c-0000-4000-8000-000000000001'
 const court = { id: COURT, name: 'Pickleball 1', sport: 'pickleball', description: null, is_active: true, court_photos: [] }
 const settings = { timezone: 'Asia/Manila', currency: 'PHP', payment_hold_minutes: 30, booking_window_days: 30 } as VenueSettings
-const allDay = [0, 1, 2, 3, 4, 5, 6].map((d) => ({ day_of_week: d, open_time: '06:00:00', close_time: '24:00:00', is_closed: false })) as OperatingHours[]
+const allDay: PublicSchedulePeriod[] = [{ court_id: COURT, operating_date: '2030-01-07', period_start: '2030-01-06T22:00:00.000Z', period_end: '2030-01-07T16:00:00.000Z', booking_start: '2030-01-07', booking_end: '2030-02-06' }]
 
 const slot = (start: string, end: string, price: number): Slot => ({
   court_id: COURT, slot_start: start, slot_end: end, price, status: 'free', booker_first_name: null, open_play_session_id: null, block_key: null,
@@ -73,7 +73,7 @@ async function amountFor(label: string) {
 beforeEach(() => {
   vi.mocked(fetchVenueSettings).mockReset().mockResolvedValue(settings)
   vi.mocked(fetchCourts).mockReset().mockResolvedValue([court as unknown as CourtWithPhotos])
-  vi.mocked(fetchOperatingHours).mockReset().mockResolvedValue(allDay)
+  vi.mocked(fetchPublicSchedule).mockReset().mockResolvedValue(allDay)
   vi.mocked(fetchInfoSections).mockReset().mockResolvedValue([])
   vi.mocked(fetchAvailability).mockReset().mockResolvedValue([...MORNING, ...NIGHT])
   vi.mocked(fetchPlatformFee).mockReset().mockResolvedValue(10)

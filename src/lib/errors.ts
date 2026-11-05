@@ -21,6 +21,8 @@ const CODE_MESSAGES: Record<string, string> = {
   '23P01': 'That time overlaps something already scheduled.',
 }
 
+const SCHEDULE_MANAGED_ERROR = 'Opening hours and rates are now managed in Weekly Hours & Rates (Schedule). Reload the page.'
+
 const NETWORK = /failed to fetch|networkerror|load failed|network request failed/i
 
 /**
@@ -32,6 +34,7 @@ export function errorMessage(error: unknown, fallback = GENERIC_ERROR): string {
   if (!(error instanceof Error)) return fallback
   if (NETWORK.test(error.message)) return NETWORK_ERROR
   if (error instanceof ApiError) {
+    if (error.hint === 'schedule_v2_managed') return SCHEDULE_MANAGED_ERROR
     // Ours: RPC business errors (P0001), and Edge Function errors (an HTTP status plus our code as hint).
     if (error.code === 'P0001' || (error.hint && /^\d{3}$/.test(error.code ?? ''))) return error.message
     // Raw PostgREST/Postgres errors, even ones with a hint ("Perhaps you meant…"), are translated or made generic.

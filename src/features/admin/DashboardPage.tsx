@@ -3,13 +3,13 @@ import { Link } from 'react-router-dom'
 import { ErrorMessage } from '../../components/ErrorMessage'
 import { PageLoader } from '../../components/PageLoader'
 import { formatHour } from '../../lib/format'
-import { addDays, formatDateLabel, hourInZone, zonedLocalToISO } from '../../lib/time'
+import { addDays, formatDateLabel, hourInZone, todayInZone, zonedLocalToISO } from '../../lib/time'
 import { useAvailability } from '../booking/hooks'
 import { useUpcomingOpenPlay } from '../openPlay/hooks'
 import { displayStatus, STATUS_LABELS } from '../booking/status'
 import { useNow } from '../booking/useNow'
 import type { Court, OperatingHours, VenueSettings } from '../catalog/api'
-import { useCourts, useOperatingHours, useVenueSettings } from '../catalog/hooks'
+import { useCourts, useOperatingHours, useStaffSchedule, useVenueSettings } from '../catalog/hooks'
 import { isAfterMidnight, operatingDayRange, operatingToday } from '../catalog/hours'
 import { operatingDayBookings } from './dashboard'
 import { useAdminBookings, useProofQueueCount } from './hooks'
@@ -58,10 +58,15 @@ function Dashboard({ settings, courts, hours }: { settings: VenueSettings; court
   const now = useNow(30_000)
   // "Today" is the operating day running now (T9.10): at 1 AM after a 6 AM–5 AM day, still yesterday's date.
   // Earnings count money on that calendar date (money is counted by day).
-  const today = operatingToday(hours, tz, now)
+  const localDate = todayInZone(tz, now)
+  const yesterday = useStaffSchedule(addDays(localDate, -1))
+  const current = useStaffSchedule(localDate)
+  const yesterdayRunning = yesterday.data?.some((p) => Date.parse(p.period_start) <= now.getTime() && now.getTime() < Date.parse(p.period_end))
+  const today = yesterday.isPending || current.isPending ? operatingToday(hours, tz, now) : yesterdayRunning ? addDays(localDate, -1) : localDate
   const dayEnd = zonedLocalToISO(`${addDays(today, 1)}T00:00`, tz)
   const open = operatingDayRange(hours, today, tz)
-  const pastMidnight = !!open && open.end > dayEnd
+  const staffHours = useStaffSchedule(today)
+  const pastMidnight = (staffHours.data ?? []).some((p) => Date.parse(p.period_end) > Date.parse(dayEnd)) || (!!open && open.end > dayEnd)
 
   const schedule = useAdminBookings({ status: 'all', source: 'all', date: today, q: '', sort: null }, tz)
   // An overnight day also has bookings on the next calendar date.
@@ -70,12 +75,14 @@ function Dashboard({ settings, courts, hours }: { settings: VenueSettings; court
   const openPlay = useUpcomingOpenPlay({ enabled: !!availability.data?.some((s) => s.status === 'open_play') })
   const queue = useProofQueueCount()
 
-  const schedulePending = schedule.isPending || (pastMidnight && scheduleNext.isPending)
-  const scheduleError = schedule.error ?? (pastMidnight ? scheduleNext.error : null)
-  const retrySchedule = () => { schedule.refetch(); if (pastMidnight) scheduleNext.refetch() }
+  const schedulePending = schedule.isPending || staffHours.isPending || yesterday.isPending || current.isPending || (pastMidnight && scheduleNext.isPending)
+  const scheduleError = schedule.error ?? staffHours.error ?? yesterday.error ?? current.error ?? (pastMidnight ? scheduleNext.error : null)
+  const retrySchedule = () => { schedule.refetch(); staffHours.refetch(); yesterday.refetch(); current.refetch(); if (pastMidnight) scheduleNext.refetch() }
   // The operating day's bookings, each once (one crossing midnight is in both lists), within its open hours.
+  const overnightEnd = Math.max(Date.parse(dayEnd), Date.parse(open?.end ?? dayEnd),
+    ...(staffHours.data ?? []).map((p) => Date.parse(p.period_end)))
   const todays = operatingDayBookings(
-    [schedule.data?.bookings ?? [], pastMidnight ? scheduleNext.data?.bookings ?? [] : []], open,
+    [schedule.data?.bookings ?? [], pastMidnight ? (scheduleNext.data?.bookings ?? []).filter((b) => Date.parse(b.slot_start) < overnightEnd) : []], null,
   ).filter((b) => ACTIVE.has(displayStatus(b, now)))
 
   return (
@@ -96,7 +103,7 @@ function Dashboard({ settings, courts, hours }: { settings: VenueSettings; court
 
       {WalkInSection && (
         <Suspense fallback={<PageLoader />}>
-          <WalkInSection today={today} courts={courts} now={now} timeZone={tz} currency={currency} />
+          <WalkInSection today={today} courts={courts} now={now} timeZone={tz} currency={currency} periods={staffHours.data ?? []} />
         </Suspense>
       )}
 

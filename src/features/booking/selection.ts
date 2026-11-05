@@ -15,6 +15,7 @@ export type Slot = {
   open_play_session_id: string | null
   /** The booking, open play session or blackout this slot belongs to; slots of one block share it (T10.4). */
   block_key: string | null
+  period_end?: string
 }
 
 /** `starts` are slot_start values, sorted and consecutive. */
@@ -23,7 +24,7 @@ export type Selection = { courtId: string; starts: string[] } | null
 const single = (slot: Slot): Selection => ({ courtId: slot.court_id, starts: [slot.slot_start] })
 
 function isRunOfFreeSlots(run: Slot[]) {
-  return run.every((s, i) => s.status === 'free' && (i === 0 || run[i - 1].slot_end === s.slot_start))
+  return run.every((s, i) => s.status === 'free' && (i === 0 || run[i - 1].slot_end === s.slot_start && (!run[i - 1].period_end || Date.parse(s.slot_start) < Date.parse(run[i - 1].period_end!))))
 }
 
 /**

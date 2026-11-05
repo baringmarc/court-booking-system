@@ -1,8 +1,8 @@
 import { supabase } from '../../lib/supabase'
 import { unwrap } from '../../lib/queryClient'
-import type { Tables, TablesInsert, TablesUpdate } from '../../lib/database.types'
+import type { Database, Tables, TablesInsert, TablesUpdate } from '../../lib/database.types'
 import { sortCourts } from './sportOrder'
-import { currentVenueId } from '../../lib/currentVenue'
+import { currentVenue, currentVenueId } from '../../lib/currentVenue'
 
 export type VenueSettings = Tables<'venue_settings'>
 export type Court = Tables<'courts'>
@@ -11,6 +11,7 @@ export type CourtPhotoRow = Pick<Tables<'court_photos'>, 'id' | 'path' | 'sort_o
 export type CourtWithPhotos = Court & { court_photos: CourtPhotoRow[] }
 export type CourtRate = Tables<'court_rates'>
 export type OperatingHours = Tables<'operating_hours'>
+export type PublicSchedulePeriod = Database['public']['Functions']['get_public_schedule']['Returns'][number]
 export type Blackout = Tables<'blackouts'>
 export { SPORTS, SPORT_LABELS, type Sport } from './sports'
 
@@ -63,6 +64,22 @@ export async function fetchCourtRates(courtId: string) {
 
 export async function fetchOperatingHours() {
   return unwrap(await supabase.from('operating_hours').select('*').eq('venue_id', currentVenueId()).order('day_of_week'))
+}
+
+export async function fetchPublicSchedule() {
+  const rows: PublicSchedulePeriod[] = []
+  const pageSize = 1000
+  for (let from = 0; ; from += pageSize) {
+    const page = unwrap(await supabase.rpc('get_public_schedule', { p_venue_slug: currentVenue().slug }).range(from, from + pageSize - 1))
+    rows.push(...page)
+    if (page.length < pageSize) return rows
+  }
+}
+
+export type StaffSchedulePeriod = Database['public']['Functions']['get_staff_schedule']['Returns'][number]
+
+export async function fetchStaffSchedule(date: string) {
+  return unwrap(await supabase.rpc('get_staff_schedule', { p_venue_id: currentVenueId(), p_date: date }))
 }
 
 /** Blackouts that haven't ended yet. */

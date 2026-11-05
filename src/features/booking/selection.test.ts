@@ -36,6 +36,12 @@ describe('toggleSlot', () => {
     expect(toggleSlot(sel('B', 10), at(B, 13), B)).toEqual(sel('B', 10, 11, 12, 13))
   })
 
+  it('starts a new selection at the boundary of touching periods', () => {
+    const slots = court('B', {}, 10, 12).map((slot, i) => ({ ...slot, period_end: H(i === 0 ? 11 : 12) }))
+    expect(toggleSlot(sel('B', 10), slots[1], slots)).toEqual(sel('B', 11))
+    expect(reconcileSelection(sel('B', 10, 11), slots)).toBeNull()
+  })
+
   it('starts over instead of jumping across a busy slot', () => {
     expect(toggleSlot(sel('A', 11, 12), at(A, 14), A)).toEqual(sel('A', 14))
   })

@@ -5,6 +5,7 @@
 //   node .claude/hooks/log-event.mjs reviewer '{"severity":"blocker","category":"rls","file":"supabase/migrations/x.sql","summary":"…"}'
 //   node .claude/hooks/log-event.mjs escalation '{"summary":"…"}'
 //   node .claude/hooks/log-event.mjs dispute '{"file":"…","summary":"…","outcome":"test fixed|code fixed"}'
+//   node .claude/hooks/log-event.mjs mistake '{"category":"side-effect","summary":"what went wrong","cause":"why","fix":"what fixed it","impact":"what it broke"}'
 //   node .claude/hooks/log-event.mjs retro '{"milestone":"M11","summary":"…"}'
 //
 // The gate and the guard log their own events; don't log those by hand.
@@ -30,7 +31,9 @@ export const CATEGORIES = [
   'other',
 ]
 
-const SOURCES = ['reviewer', 'escalation', 'dispute', 'retro']
+// 'mistake' = Claude's own error that no hook caught (a bug it introduced and fixed, a wrong assumption, a needless
+// action). Free-form category; summary is required so /retro can group and read them.
+const SOURCES = ['reviewer', 'escalation', 'dispute', 'mistake', 'retro']
 
 const [source, json = '{}'] = process.argv.slice(2)
 if (!SOURCES.includes(source)) {
@@ -48,6 +51,11 @@ try {
 
 if (source === 'reviewer' && !CATEGORIES.includes(data.category)) {
   console.error(`Unknown category "${data.category}". Use one of: ${CATEGORIES.join(', ')}`)
+  process.exit(1)
+}
+
+if (source === 'mistake' && !data.summary) {
+  console.error('A mistake needs a "summary" (and ideally category, cause, fix, impact).')
   process.exit(1)
 }
 

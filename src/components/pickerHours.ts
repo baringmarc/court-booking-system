@@ -46,7 +46,11 @@ export function findHour(options: HourOption[], start: string | null) {
 /** How many hours can follow `start` within these options: 1 up to the end of the day; none for an unknown start. */
 export function maxDuration(options: HourOption[], start: string | null) {
   const found = findHour(options, start)
-  return found ? options.length - options.indexOf(found) : 0
+  if (!found) return 0
+  const index = options.indexOf(found)
+  let count = 1
+  while (index + count < options.length && Date.parse(options[index + count].start) === Date.parse(options[index + count - 1].start) + 3_600_000) count++
+  return count
 }
 
 /** The end of a run of `hours` hours from `start` (elapsed time, so it's right across midnight). */

@@ -4,9 +4,8 @@ import { PageLoader } from '../../components/PageLoader'
 import { formatHour, formatMoney } from '../../lib/format'
 import { formatDateLabel, hourInZone, todayInZone } from '../../lib/time'
 import { useAuth } from '../auth/useAuth'
-import { SPORT_LABELS, type Court, type OperatingHours, type VenueSettings } from '../catalog/api'
-import { useCourts, useOperatingHours, useVenueSettings } from '../catalog/hooks'
-import { operatingDateOf } from '../catalog/hours'
+import { SPORT_LABELS, type Court, type PublicSchedulePeriod, type VenueSettings } from '../catalog/api'
+import { useCourts, usePublicSchedule, useVenueSettings } from '../catalog/hooks'
 import { CheckoutForm } from './CheckoutForm'
 import { guestBookingPath } from './guestLink'
 import { parseCheckoutSearch, type CheckoutParams } from './checkoutParams'
@@ -25,7 +24,7 @@ export function CheckoutPage() {
 function CheckoutLoader({ choice }: { choice: CheckoutParams }) {
   const settings = useVenueSettings()
   const courts = useCourts()
-  const hours = useOperatingHours()
+  const hours = usePublicSchedule()
   const { loading: authLoading } = useAuth()
 
   return (
@@ -46,7 +45,7 @@ function CheckoutLoader({ choice }: { choice: CheckoutParams }) {
   )
 }
 
-function Checkout({ choice, settings, court, hours }: { choice: CheckoutParams; settings: VenueSettings; court: Court | undefined; hours: OperatingHours[] }) {
+function Checkout({ choice, settings, court, hours }: { choice: CheckoutParams; settings: VenueSettings; court: Court | undefined; hours: PublicSchedulePeriod[] }) {
   const navigate = useNavigate()
   const location = useLocation()
   const { user, profile } = useAuth()
@@ -54,7 +53,8 @@ function Checkout({ choice, settings, court, hours }: { choice: CheckoutParams; 
 
   const tz = settings.timezone
   // The operating date the run belongs to: a 1 AM slot after a 6 AM–5 AM day is listed under the previous date.
-  const date = operatingDateOf(hours, tz, new Date(choice.start))
+  const period = hours.find((p) => p.court_id === choice.courtId && Date.parse(p.period_start) <= Date.parse(choice.start) && Date.parse(choice.start) < Date.parse(p.period_end))
+  const date = period?.operating_date ?? todayInZone(tz, new Date(choice.start))
   const availability = useAvailability(date)
   const platformFee = usePlatformFee()
   const gridLink = `/book?date=${date}${court ? `&sport=${court.sport}` : ''}`
@@ -68,7 +68,7 @@ function Checkout({ choice, settings, court, hours }: { choice: CheckoutParams; 
   const courtSlots = availability.data.filter((s) => s.court_id === choice.courtId)
   const first = courtSlots.findIndex((s) => Date.parse(s.slot_start) === Date.parse(choice.start))
   const run = first < 0 ? [] : courtSlots.slice(first, first + choice.slots)
-  const available = !!court && run.length === choice.slots && run.every((s) => s.status === 'free')
+  const available = !!court && !!period && run.length === choice.slots && run.every((s, i) => s.status === 'free' && Date.parse(s.slot_end) <= Date.parse(period.period_end) && (i === 0 ? Date.parse(s.slot_start) === Date.parse(choice.start) : run[i - 1].slot_end === s.slot_start))
 
   if (!available && !create.isPending) {
     return (

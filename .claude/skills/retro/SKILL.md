@@ -18,7 +18,7 @@ The goal is a harness that gets stronger from its own mistakes, without bloating
 
 ## 1. Gather
 
-- Read `.claude/retro/failures.jsonl`. Each line is one event: `ts`, `task`, `source` (`gate`, `guard`, `reviewer`, `escalation`, `dispute`, `retro`), `category`, and details (`summary`, `file`/`path`, `severity`, `tier`).
+- Read `.claude/retro/failures.jsonl`. Each line is one event: `ts`, `task`, `source` (`gate`, `guard`, `reviewer`, `escalation`, `dispute`, `mistake`, `retro`), `category`, and details (`summary`, `file`/`path`, `severity`, `tier`).
 - The window: events after the last `"source":"retro"` line, or what the argument says. If the file is missing or the window is empty, say "nothing logged since the last retro", log the retro marker (step 6) and stop.
 - Read the **Learned rules** section of CLAUDE.md. Each rule lists the categories it covers and the date it was added.
 - Skim the TASKS.md Handoff and the milestone's task notes for context (escalations, follow-ups). Don't go further than that.
@@ -33,6 +33,7 @@ Group the window's events by `source` + `category`, and count **distinct tasks**
   - `reviewer` blockers and majors are the best signal: a mistake that got past the builder and the gate.
   - `gate` failures (`typecheck`, `lint`, `test`, `test:db`, `build`, `check:drift`, `test:e2e`) are mistakes the builder made and then fixed. Repeats mean it keeps making them; look at the `summary` lines for the common cause (a recurring type error, the same lint rule, the same flaky test).
   - `guard` blocks mean the mistake was **prevented**, so no rule is needed for the mistake itself. A repeat means some instruction keeps leading the builder into it: propose clearer wording where that instruction lives (a skill, CLAUDE.md), not another rule.
+  - `mistake` events are errors the builder reported about itself that no hook caught (a bug it introduced and fixed, a wrong assumption, a needless action), with `cause`, `fix` and `impact`. Treat a repeated `cause` like a repeated gate failure; a single one with a large `impact` (stray data, a broken spec, a wrong commit) is worth a rule or a hard check on its own.
   - A flaky test (it fails then passes with no code change, or the Handoff calls it flaky) is a bug to fix, not a rule: propose a task.
 
 ## 3. Draft proposals

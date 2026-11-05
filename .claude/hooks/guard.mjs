@@ -37,7 +37,9 @@ import {
   existsSync,
   git,
   harnessUnlockedFor,
+  isCodePath,
   logEvent,
+  markSessionEdit,
   matchesAny,
   paths,
   readJson,
@@ -52,7 +54,12 @@ const tool = input.tool_name
 const args = input.tool_input ?? {}
 const agent = input.agent_type ?? 'main'
 
+// What this call changes, for per-session tracking (see lib/harness.mjs): a code path, or 'bash' for a command
+// that may change files. Recorded only when the call is allowed.
+let touched = null
+
 function allow() {
+  if (touched) markSessionEdit(input.session_id, touched)
   process.exit(0)
 }
 
@@ -208,6 +215,7 @@ function checkFileEdit() {
   }
 
   if (agent === 'test-writer') lockTest(p)
+  if (isCodePath(p)) touched = p
   allow()
 }
 
@@ -327,6 +335,13 @@ const REVIEWER_ALLOWED = [
   /^cd\s/,
 ]
 
+// Commands that can change tracked code even without a redirect (generators, installs, git operations that move files).
+const MUTATING_BASH = new RegExp(
+  WRITE_OPS.source +
+    '|\\bmigration\\s+new\\b|\\bdb:types\\b|\\bnpm\\s+(install|i|ci|uninstall|update)\\b|' +
+    '\\bgit\\b(\\s+-[cC]\\s+\\S+)*\\s+(checkout|restore|stash|apply|merge|pull|rebase|cherry-pick|revert|switch)\\b',
+)
+
 function checkBash() {
   const cmd = String(args.command ?? '')
 
@@ -390,6 +405,7 @@ function checkBash() {
 
   if (new RegExp(gitCmd.source + 'commit\\b').test(cmd)) checkCommit(cmd)
 
+  if (MUTATING_BASH.test(cmd) || writesFile(cmd)) touched = 'bash'
   allow()
 }
 

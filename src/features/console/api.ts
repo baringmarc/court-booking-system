@@ -1,5 +1,5 @@
 import { FunctionsHttpError } from '@supabase/supabase-js'
-import type { Tables } from '../../lib/database.types'
+import type { Database, Tables } from '../../lib/database.types'
 import { ApiError, unwrap } from '../../lib/queryClient'
 import { supabase } from '../../lib/supabase'
 
@@ -141,6 +141,90 @@ export async function markInvoiceSent(invoiceId: string): Promise<void> {
 
 export async function markInvoicePaid(input: { invoiceId: string; method: string; reference: string }): Promise<void> {
   unwrap(await supabase.rpc('mark_invoice_paid', { p_invoice_id: input.invoiceId, p_method: input.method, p_reference: input.reference }))
+}
+
+/** Console lists show 25 records per page (T17.18). Pages are 1-based. */
+export const CONSOLE_PAGE_SIZE = 25
+
+export type Page<T> = { rows: T[]; total: number }
+
+type Functions = Database['public']['Functions']
+
+function offsetOf(page: number): number {
+  return (Math.max(1, Math.floor(page)) - 1) * CONSOLE_PAGE_SIZE
+}
+
+/** Blank filters are sent as SQL null ("no filter"). The generated Args type omits null for defaulted arguments. */
+function blankToNull(value: string | null | undefined): string | null {
+  const trimmed = value?.trim() ?? ''
+  return trimmed === '' ? null : trimmed
+}
+
+function asPage<T>(data: unknown): Page<T> {
+  const body = (data ?? {}) as { rows?: unknown; total?: unknown }
+  return { rows: (Array.isArray(body.rows) ? body.rows : []) as T[], total: Number(body.total ?? 0) }
+}
+
+/**
+ * A PostgREST `or=(...)` filter matching `term` as a literal, case-insensitive substring of any column. LIKE wildcards
+ * and the backslash are escaped for LIKE, then the whole value is double-quoted (escaping `\` and `"` once more) so
+ * commas, dots and parentheses in the term cannot change the filter. Null for a blank term.
+ */
+function substringFilter(columns: string[], term: string): string | null {
+  const trimmed = term.trim()
+  if (trimmed === '') return null
+  const like = `%${trimmed.replace(/[\\%_]/g, (c) => `\\${c}`)}%`
+  const quoted = `"${like.replace(/[\\"]/g, (c) => `\\${c}`)}"`
+  return columns.map((column) => `${column}.ilike.${quoted}`).join(',')
+}
+
+export async function fetchVenuesPage(input: { search: string; status: string; page: number }): Promise<Page<VenueOverview>> {
+  const args = { p_search: blankToNull(input.search), p_status: blankToNull(input.status), p_limit: CONSOLE_PAGE_SIZE, p_offset: offsetOf(input.page) }
+  return asPage<VenueOverview>(unwrap(await supabase.rpc('venues_page', args as Functions['venues_page']['Args'])))
+}
+
+export async function fetchInvoicesPage(input: { search: string; status: string; month: string; page: number }): Promise<Page<InvoiceOverview>> {
+  const args = {
+    p_search: blankToNull(input.search),
+    p_status: blankToNull(input.status),
+    p_month: blankToNull(input.month),
+    p_limit: CONSOLE_PAGE_SIZE,
+    p_offset: offsetOf(input.page),
+  }
+  return asPage<InvoiceOverview>(unwrap(await supabase.rpc('invoices_page', args as Functions['invoices_page']['Args'])))
+}
+
+export type InvoiceDetailPageData = InvoiceDetailData & { line_total: number }
+
+/** One invoice with one page of its lines; `line_total` counts every line. */
+export async function fetchInvoiceDetailPage(input: { invoiceId: string; page: number }): Promise<InvoiceDetailPageData> {
+  return unwrap(
+    await supabase.rpc('invoice_detail_page', { p_invoice_id: input.invoiceId, p_limit: CONSOLE_PAGE_SIZE, p_offset: offsetOf(input.page) }),
+  ) as unknown as InvoiceDetailPageData
+}
+
+/** One bounded page of leads, newest first (id breaks ties), with the exact count of all matching leads. */
+export async function fetchLeadsPage(input: { status: LeadStatus | 'all'; search: string; page: number }): Promise<Page<Lead>> {
+  const from = offsetOf(input.page)
+  let query = supabase.from('leads').select('*', { count: 'exact' })
+  if (input.status !== 'all') query = query.eq('status', input.status)
+  const search = substringFilter(['first_name', 'last_name', 'email', 'venue_name'], input.search)
+  if (search) query = query.or(search)
+  const res = await query.order('created_at', { ascending: false }).order('id', { ascending: false }).range(from, from + CONSOLE_PAGE_SIZE - 1)
+  return { rows: unwrap(res), total: res.count ?? 0 }
+}
+
+export type ReviewFilter = 'all' | 'approved' | 'hidden'
+
+/** One bounded page of reviews, newest first (id breaks ties), with the exact count of all matching reviews. */
+export async function fetchReviewsPage(input: { approved: ReviewFilter; search: string; page: number }): Promise<Page<Review>> {
+  const from = offsetOf(input.page)
+  let query = supabase.from('reviews').select('*', { count: 'exact' })
+  if (input.approved !== 'all') query = query.eq('approved', input.approved === 'approved')
+  const search = substringFilter(['name', 'venue', 'quote'], input.search)
+  if (search) query = query.or(search)
+  const res = await query.order('created_at', { ascending: false }).order('id', { ascending: false }).range(from, from + CONSOLE_PAGE_SIZE - 1)
+  return { rows: unwrap(res), total: res.count ?? 0 }
 }
 
 export type Review = Tables<'reviews'>

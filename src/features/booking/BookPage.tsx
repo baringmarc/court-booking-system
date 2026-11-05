@@ -2,12 +2,10 @@ import { useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ErrorMessage } from '../../components/ErrorMessage'
 import { PageLoader } from '../../components/PageLoader'
-import { closedDaysOfWeek } from '../../components/pickerHours'
 import { addDays, formatDateLabel, todayInZone } from '../../lib/time'
-import { SPORT_LABELS, type CourtWithPhotos, type OperatingHours, type Sport, type VenueSettings } from '../catalog/api'
-import { operatingToday } from '../catalog/hours'
+import { SPORT_LABELS, type CourtWithPhotos, type PublicSchedulePeriod, type Sport, type VenueSettings } from '../catalog/api'
 import { sportsOf } from '../catalog/sportOrder'
-import { useCourts, useOperatingHours, useVenueSettings } from '../catalog/hooks'
+import { useCourts, usePublicSchedule, useVenueSettings } from '../catalog/hooks'
 import { useUpcomingOpenPlay } from '../openPlay/hooks'
 import { OpenPlayDialog } from '../openPlay/OpenPlayDialog'
 import { CourtTiles } from '../catalog/CourtTiles'
@@ -21,7 +19,7 @@ import { DateStrip } from './DateStrip'
 export function BookPage() {
   const settings = useVenueSettings()
   const courts = useCourts()
-  const hours = useOperatingHours()
+  const hours = usePublicSchedule()
 
   return (
     <section className="page">
@@ -48,7 +46,7 @@ function clampDate(value: string | null, min: string, max: string) {
   return value < min ? min : value > max ? max : value
 }
 
-function BookingBoard({ settings, courts, hours }: { settings: VenueSettings; courts: CourtWithPhotos[]; hours: OperatingHours[] }) {
+function BookingBoard({ settings, courts, hours }: { settings: VenueSettings; courts: CourtWithPhotos[]; hours: PublicSchedulePeriod[] }) {
   const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
   const [selection, setSelection] = useState<Selection>(null)
@@ -56,8 +54,8 @@ function BookingBoard({ settings, courts, hours }: { settings: VenueSettings; co
 
   const tz = settings.timezone
   // The operating day running now: at 1 AM after a 6 AM–5 AM day, that's still yesterday (T9.10).
-  const today = operatingToday(hours, tz)
-  const lastDay = addDays(today, settings.booking_window_days)
+  const today = hours.map((h) => h.booking_start).sort()[0] ?? todayInZone(tz)
+  const lastDay = hours.map((h) => h.booking_end).sort().at(-1) ?? addDays(today, settings.booking_window_days)
   const date = clampDate(params.get('date'), today, lastDay)
   const sports = sportsOf(courts) // in the venue's sport order (fetchCourts sorts by it)
   const sportParam = params.get('sport')
@@ -71,10 +69,11 @@ function BookingBoard({ settings, courts, hours }: { settings: VenueSettings; co
   const slotsByCourt = useMemo(() => {
     const map = new Map<string, Slot[]>()
     for (const slot of availability.data ?? []) {
-      map.set(slot.court_id, [...(map.get(slot.court_id) ?? []), slot])
+      const period = hours.find((p) => p.court_id === slot.court_id && p.operating_date === date && Date.parse(p.period_start) <= Date.parse(slot.slot_start) && Date.parse(slot.slot_end) <= Date.parse(p.period_end))
+      map.set(slot.court_id, [...(map.get(slot.court_id) ?? []), { ...slot, period_end: period?.period_end }])
     }
     return map
-  }, [availability.data])
+  }, [availability.data, hours, date])
 
   const times = useMemo(
     () => [...new Set(sportCourts.flatMap((c) => (slotsByCourt.get(c.id) ?? []).map((s) => s.slot_start)))].sort(),
@@ -102,7 +101,7 @@ function BookingBoard({ settings, courts, hours }: { settings: VenueSettings; co
 
   return (
     <div className="stack">
-      <DateStrip value={date} today={today} lastDay={lastDay} closedDays={closedDaysOfWeek(hours)}
+      <DateStrip value={date} today={today} lastDay={lastDay} closedDays={Array.from({ length: 7 }, (_, d) => d).filter((d) => !hours.some((h) => new Date(`${h.operating_date}T12:00:00Z`).getUTCDay() === d))}
         onChange={(d) => update({ date: clampDate(d, today, lastDay) })} />
       <div className="book-controls">
         {sports.length > 1 && (

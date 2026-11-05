@@ -4,7 +4,7 @@ import type { PostgrestSingleResponse } from '@supabase/supabase-js'
 import { supabase } from '../../lib/supabase'
 import { ApiError, unwrap } from '../../lib/queryClient'
 import { parseTstzRange } from '../../lib/time'
-import type { Enums } from '../../lib/database.types'
+import type { Enums, Json } from '../../lib/database.types'
 import { currentVenueId } from '../../lib/currentVenue'
 import { dayRangeLiteral, effectiveSort, parseSearch, type BookingFilters } from './bookingFilters'
 import { VENUE_MEDIA_BUCKET } from '../catalog/media'
@@ -79,6 +79,7 @@ export const adminKeys = {
   movedParts: (bookingId: string) => [currentVenueId(), 'admin-moved-parts', bookingId] as const,
   setup: setupStatusKey,
   statement: () => [currentVenueId(), 'admin-statement'] as const,
+  schedule: () => [currentVenueId(), 'admin-schedule'] as const,
 }
 
 // One literal: supabase-js infers the row type from this string.
@@ -643,4 +644,69 @@ export type VenueStatement = {
 
 export async function fetchStatement(): Promise<VenueStatement> {
   return unwrap(await supabase.rpc('venue_statement', { p_venue_id: currentVenueId() })) as unknown as VenueStatement
+}
+
+// --- weekly hours and rates (T17.15) -------------------------------------------
+
+export type SchedulePeriod = { day_of_week: number; start_minute: number; end_minute: number }
+export type ScheduleRate = { day_of_week: number; start_hour: number; price: number }
+export type ScheduleCourt = {
+  court_id: string
+  schedule_mode: 'inherit' | 'custom'
+  schedule_revision: number
+  periods: SchedulePeriod[]
+  rates: ScheduleRate[]
+}
+export type ScheduleData = {
+  venue_id: string
+  schedule_revision: number
+  venue_periods: SchedulePeriod[]
+  courts: ScheduleCourt[]
+}
+export type ScheduleChanges = {
+  venue_periods?: SchedulePeriod[]
+  courts?: { court_id: string; schedule_mode: 'inherit' | 'custom'; periods?: SchedulePeriod[] }[]
+  rate_changes?: { court_id: string; day_of_week: number; start_hour: number; price: number | null }[]
+}
+
+export async function fetchSchedule() {
+  return unwrap(await supabase.rpc('get_schedule', { p_venue_id: currentVenueId() })) as unknown as ScheduleData
+}
+
+/** One atomic, revision-checked save of every pending change (`schedule_conflict` when the revision is stale). */
+export async function saveSchedule(expectedRevision: number, changes: ScheduleChanges) {
+  return unwrap(
+    await supabase.rpc('save_schedule', {
+      p_venue_id: currentVenueId(),
+      p_expected_revision: expectedRevision,
+      p_changes: changes as unknown as Json,
+    }),
+  )
+}
+
+// --- schedule impact preview (T17.16) ------------------------------------------
+
+export type ScheduleDraft = {
+  venue_periods: SchedulePeriod[]
+  courts: { court_id: string; schedule_mode: 'inherit' | 'custom'; periods: SchedulePeriod[] }[]
+}
+export type ScheduleImpact = {
+  from: string
+  to: string
+  bookings: { total: number; items: { booking_id: string; court_id: string; starts_at: string; ends_at: string; status: string }[] }
+  open_play: { total: number; items: { session_id: string; court_id: string; title: string; starts_at: string; ends_at: string }[] }
+}
+
+/** Read-only: reservations that would sit outside the draft's hours. Informative only; the save RPC stays the authority. */
+export async function previewScheduleImpact(draft: ScheduleDraft, from: string, to: string, limit = 25, offset = 0) {
+  return unwrap(
+    await supabase.rpc('preview_schedule_impact', {
+      p_venue_id: currentVenueId(),
+      p_draft: draft as unknown as Json,
+      p_from: from,
+      p_to: to,
+      p_limit: limit,
+      p_offset: offset,
+    }),
+  ) as unknown as ScheduleImpact
 }

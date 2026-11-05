@@ -6,9 +6,11 @@ import { ApiError } from '../../lib/queryClient'
 import { zonedLocalToISO } from '../../lib/time'
 import { fetchAvailability } from '../booking/api'
 import type { Slot, SlotStatus } from '../booking/selection'
-import type { Court, OperatingHours } from '../catalog/api'
+import { fetchStaffSchedule, type Court, type OperatingHours } from '../catalog/api'
 import type { AdminBooking } from './api'
 import { RescheduleForm } from './RescheduleForm'
+
+vi.mock('../catalog/api', async (original) => ({ ...(await original<object>()), fetchStaffSchedule: vi.fn() }))
 
 vi.mock('../booking/api', async (importOriginal) => ({ ...(await importOriginal<object>()), fetchAvailability: vi.fn() }))
 
@@ -63,6 +65,7 @@ function renderForm(b: AdminBooking, props: Partial<React.ComponentProps<typeof 
 }
 
 beforeEach(() => {
+  vi.mocked(fetchStaffSchedule).mockImplementation(async (date) => ['A', 'B', 'T'].map((court_id) => ({ court_id, operating_date: date, period_start: manila(date, 6), period_end: manila(date, 22) })))
   vi.mocked(fetchAvailability).mockReset().mockImplementation(async (date) => daySlots(date))
 })
 

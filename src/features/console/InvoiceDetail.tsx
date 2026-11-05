@@ -1,9 +1,10 @@
 import { useState, type FormEvent } from 'react'
 import { formatMoneyExact } from '../../lib/format'
 import { venueAdminUrl } from '../../lib/venueUrl'
-import type { InvoiceDetailData } from './api'
-import { useInvoiceDetail, useMarkInvoicePaid, useMarkInvoiceSent } from './hooks'
+import { CONSOLE_PAGE_SIZE, type InvoiceDetailData } from './api'
+import { useInvoiceDetailPage, useMarkInvoicePaid, useMarkInvoiceSent } from './hooks'
 import { invoiceNumber } from './invoiceNumber'
+import { Pager } from './Pager'
 
 /** Where a venue's bookings list lives, from the console's host. */
 function bookingsUrl(slug: string): string {
@@ -52,9 +53,13 @@ function DraftActions({ invoice }: { invoice: InvoiceDetailData }) {
   )
 }
 
-/** One invoice's breakdown (T14.10): fees, venue-cancellation adjustments, total and every line; printable. */
-export function InvoiceDetail({ invoiceId, onClose }: { invoiceId: string; onClose: () => void }) {
-  const detail = useInvoiceDetail(invoiceId)
+/**
+ * One invoice's breakdown (T14.10): fees, venue-cancellation adjustments and total over every line, then one page of
+ * lines (T17.19, 25 at a time); printable. The panel around it (InvoicesPage) owns the heading and Close.
+ */
+export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
+  const [page, setPage] = useState(1)
+  const detail = useInvoiceDetailPage(invoiceId, page)
   if (detail.isPending) return <p className="muted">Loading invoice…</p>
   if (detail.error) {
     return (
@@ -67,7 +72,7 @@ export function InvoiceDetail({ invoiceId, onClose }: { invoiceId: string; onClo
   const invoice = detail.data
   const feeLabel = `${invoice.fee_count} booking ${invoice.fee_count === 1 ? 'fee' : 'fees'}`
   return (
-    <article className="card stack invoice-print" aria-label={`Invoice ${invoiceNumber(invoice)}`}>
+    <article className="stack invoice-print" aria-label={`Invoice ${invoiceNumber(invoice)}`}>
       <h3>Plotline · {invoiceNumber(invoice)}</h3>
       <p>{invoice.name}</p>
       <p className="muted">
@@ -81,7 +86,7 @@ export function InvoiceDetail({ invoiceId, onClose }: { invoiceId: string; onClo
         <div><dt>Venue cancellations</dt><dd>{formatMoneyExact(invoice.adjustment_total)}</dd></div>
         <div><dt><strong>Total</strong></dt><dd><strong>{formatMoneyExact(invoice.total)}</strong></dd></div>
       </dl>
-      <ul className="list">
+      <ul className="list invoice-lines">
         {invoice.lines.map((line) => (
           <li key={line.charge_id}>
             {formatDate(line.charged_at)} · <a href={bookingsUrl(invoice.slug)}>{line.reference_code}</a> ·{' '}
@@ -89,12 +94,12 @@ export function InvoiceDetail({ invoiceId, onClose }: { invoiceId: string; onClo
           </li>
         ))}
       </ul>
+      {invoice.line_total > CONSOLE_PAGE_SIZE && <div className="no-print"><Pager label="Invoice lines pages" page={page} total={invoice.line_total} onPage={setPage} /></div>}
       {invoice.status === 'draft' && <DraftActions invoice={invoice} />}
       {invoice.status === 'sent' && <PaidForm invoice={invoice} />}
       <p className="muted">Statement of amounts; not a tax invoice.</p>
       <div className="form-actions no-print">
         <button type="button" className="btn btn-ghost" onClick={() => window.print()}>Print</button>
-        <button type="button" className="btn btn-ghost" onClick={onClose}>Close</button>
       </div>
     </article>
   )

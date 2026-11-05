@@ -900,4 +900,29 @@ details[open]::details-content { block-size: auto; }
   .admin-workspace > .admin-topbar, .admin-workspace > main { grid-column: 2; min-width: 0; }
   .admin-menu-trigger { display: none; }
 }
+/* Platform console (T17.19): the admin shell's sidebar and drawer around a wide workspace of compact rows and a record panel. */
+.console-main { width: 100%; max-width: 1280px; margin: 0 auto; padding: 16px; min-width: 0; }
+.console-main:focus { outline: none; }
+.console-page h1 { margin: 0; }
+.console-account { gap: 8px; min-width: 0; align-items: center; }
+.console-account p { margin: 0; overflow-wrap: anywhere; min-width: 0; }
+.admin-drawer .console-account { align-items: stretch; }
+.console-filters { display: grid; gap: 12px; }
+.console-filters .field { margin: 0; min-width: 0; }
+.console-records { display: grid; gap: 16px; min-width: 0; }
+.console-rows { gap: 8px; }
+.console-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 12px 16px; }
+.console-row-main { display: flex; flex-direction: column; gap: 2px; flex: 1 1 12rem; min-width: 0; overflow-wrap: anywhere; }
+.console-row-badges { display: inline-flex; align-items: center; gap: 8px; }
+.console-pager { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.console-pager p { margin: 0; text-align: center; }
+.console-panel { min-width: 0; overflow-wrap: anywhere; }
+.console-panel h2:focus { outline: none; }
+.console-panel .page-head { margin-bottom: 0; }
+@media (min-width: 700px) { .console-filters { grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); } }
+@media (min-width: 1100px) {
+  .console-main { padding: 24px 32px; }
+  .console-records.has-panel { grid-template-columns: minmax(0, 1fr) minmax(0, 440px); align-items: start; }
+  .console-records.has-panel .console-panel { position: sticky; top: 16px; max-height: calc(100dvh - 32px); overflow-y: auto; }
+}
 @media (min-width: 1100px) { .settings-category-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }

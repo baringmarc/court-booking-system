@@ -26,7 +26,12 @@ type Props = {
  * have already ended stay with the rest.
  */
 export function DayView({ date, courts, slots, bookings, timeZone, sessionTitle }: Props) {
-  const times = [...new Set(slots.map((s) => s.slot_start))].sort()
+  const bookingTimes = bookings.flatMap((b) => {
+    const times: string[] = []
+    for (let t = Date.parse(b.slot_start); t < Date.parse(b.slot_end); t += 3_600_000) times.push(new Date(t).toISOString())
+    return times
+  })
+  const times = [...new Set([...slots.map((s) => new Date(s.slot_start).toISOString()), ...bookingTimes])].sort()
   if (times.length === 0) return <p className="muted">The venue is closed on this day.</p>
 
   // Each reference opens that booking: its own calendar date's list (an after-midnight booking is on the next
@@ -42,7 +47,7 @@ export function DayView({ date, courts, slots, bookings, timeZone, sessionTitle 
     const t = Date.parse(start)
     return bookings.find((b) => b.court_name === court && Date.parse(b.slot_start) <= t && t < Date.parse(b.slot_end))
   }
-  const slotAt = (row: number, col: number) => slots.find((s) => s.court_id === courts[col].id && s.slot_start === times[row])
+  const slotAt = (row: number, col: number) => slots.find((s) => s.court_id === courts[col].id && Date.parse(s.slot_start) === Date.parse(times[row]))
   const grid = groupBlocks(times.length, courts.length, (row, col) => {
     const booking = bookingAt(courts[col].name, times[row])
     return booking ? `booking:${booking.id}` : slotAt(row, col)?.block_key ?? null

@@ -18,6 +18,13 @@ Follow these steps in order for each task. Don't skip any of them.
 
 Before you start, read the **Learned rules** section of CLAUDE.md: they come from mistakes made in earlier milestones.
 
+## Parallel work (read before starting a second thing at the same time)
+
+- **Another session may be active in this working tree.** `git status --short` can show files you didn't touch. They belong to that session: don't edit, stage, revert or "fix" them, and don't treat their red tests as yours. The Stop hook only runs for a session that edited code itself, but a failure it reports can still come from the other session's half-finished work: check `git status` before changing anything.
+- **Pre-drafting the next task while this one is in review** is allowed only as read-only research: facts from docs or the code, and a list of open questions. Don't write signatures or a plan that rest on this task's unfinished design. When the review passes, re-check the draft against the final code (L3: grep the names) before the plan gate. If this task's review is likely to change names or behavior the next one depends on, don't pre-draft.
+- **Never** run the test-writer and the builder at the same time, and never run two `/implement` runs on tasks in one dependency chain.
+- Two sessions that must edit at once should use separate worktrees, since TASKS.md, SPEC.md and the local database are shared otherwise.
+
 ## 1. Orient
 
 - Read the TASKS.md Handoff section and the target task (its Do, Depends, Files and Acceptance).
@@ -110,6 +117,10 @@ For a task that isn't risky, state your plan in two or three lines, naming what 
   And log it: `node .claude/hooks/log-event.mjs escalation '{"summary":"<blocked on…>"}'`
 
 ## 8. Close
+
+- **Log your own mistakes.** For every error you made that no hook caught (a bug you introduced and then fixed, a wrong assumption in a brief, stray data you left behind, a needless action), log it, one call each:
+  `node .claude/hooks/log-event.mjs mistake '{"category":"side-effect","summary":"<what went wrong>","cause":"<why>","fix":"<what fixed it>","impact":"<what it broke or wasted>"}'`
+  Do this when you notice it, not only at the end. The gate, the guard and the reviewer log their own findings; this is for what only you know. Report them honestly in step 9 too.
 
 - Tick the task `[x]` and add a short `Notes:` line under it with the key evidence (test files) and any follow-ups.
 - Update the Handoff section:

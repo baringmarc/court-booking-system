@@ -1,10 +1,15 @@
 import { useState, type FormEvent } from 'react'
 import { DatePicker } from '../../components/DatePicker'
 import { DurationPicker, HourPicker } from '../../components/HourPicker'
-import { closedDaysOfWeek, endAfter, findHour, hoursBetween, maxDuration, operatingHourOptions } from '../../components/pickerHours'
+import { endAfter, findHour, hoursBetween, maxDuration } from '../../components/pickerHours'
+import { useStaffSchedule } from '../catalog/hooks'
+import { formatHour } from '../../lib/format'
+import { addDays, todayInZone } from '../../lib/time'
+import { useStaffOperatingDate } from './staffDate'
+import { PageLoader } from '../../components/PageLoader'
+import { ErrorMessage } from '../../components/ErrorMessage'
 import { errorMessage } from '../../lib/errors'
 import { SPORT_LABELS, type Court, type OperatingHours } from '../catalog/api'
-import { operatingDateOf, operatingToday } from '../catalog/hours'
 import type { OpenPlayInput, OpenPlaySession } from '../openPlay/api'
 import { DETAILS_MAX, LABEL_MAX, linksFromRows, MAX_LINKS, TITLE_MAX, type OpenPlayLink } from '../openPlay/session'
 
@@ -32,10 +37,14 @@ const emptyRows = (links: OpenPlayLink[]) =>
  * Create or edit one open play session (T9.11d). The time is a date, a start hour and a length within that operating
  * day (T10.3). The RPCs check every rule; this catches the obvious slips.
  */
-export function OpenPlayForm({ initial, courts, hours, timeZone, now, saving, error, onSave, onCancel }: Props) {
+export function OpenPlayForm({ initial, courts, timeZone, now, saving, error, onSave, onCancel }: Props) {
   const [courtIds, setCourtIds] = useState<string[]>(initial?.court_ids ?? [])
-  const [date, setDate] = useState(() =>
-    initial ? operatingDateOf(hours, timeZone, new Date(initial.starts_at)) : operatingToday(hours, timeZone, now))
+  const today = useStaffOperatingDate(timeZone, now, courtIds)
+  const initialDate = initial ? todayInZone(timeZone, new Date(initial.starts_at)) : today
+  const initialPrevious = useStaffSchedule(addDays(initialDate, -1))
+  const initialOperatingDate = initial && initialPrevious.data?.some((p) => initial.court_ids.includes(p.court_id) && Date.parse(p.period_start) <= Date.parse(initial.starts_at) && Date.parse(initial.starts_at) < Date.parse(p.period_end)) ? addDays(initialDate, -1) : initialDate
+  const [dateOverride, setDateOverride] = useState<string | null>(null)
+  const date = dateOverride ?? initialOperatingDate
   const [start, setStart] = useState<string | null>(initial?.starts_at ?? null)
   const [duration, setDuration] = useState<number | null>(initial ? hoursBetween(initial.starts_at, initial.ends_at) : null)
   const [title, setTitle] = useState(initial?.title ?? '')
@@ -44,10 +53,25 @@ export function OpenPlayForm({ initial, courts, hours, timeZone, now, saving, er
   const [problem, setProblem] = useState<string | null>(null)
 
   // Derived, not synced: a start that isn't on the chosen day (or has started) and a length that no longer fits drop out.
-  const options = operatingHourOptions(hours, date, timeZone).filter((o) => Date.parse(o.start) > now.getTime())
-  const chosenStart = findHour(options, start)?.start ?? null
-  const max = maxDuration(options, chosenStart)
-  const chosenHours = duration !== null && duration <= max ? duration : null
+  const schedule = useStaffSchedule(date)
+  const periods = schedule.data ?? []
+  const firstCourtPeriods = periods.filter((p) => p.court_id === courtIds[0])
+  const options = firstCourtPeriods.flatMap((period) => {
+    const result: { start: string; label: string; nextDay: boolean; periodEnd: string }[] = []
+    for (let t = Date.parse(period.period_start); t < Date.parse(period.period_end); t += 3_600_000) {
+      if (t <= now.getTime() || !courtIds.every((id) => periods.some((p) => p.court_id === id && Date.parse(p.period_start) <= t && t + 3_600_000 <= Date.parse(p.period_end)))) continue
+      const start = new Date(t).toISOString()
+      const end = Math.min(...courtIds.map((id) => Date.parse(periods.find((p) => p.court_id === id && Date.parse(p.period_start) <= t && t + 3_600_000 <= Date.parse(p.period_end))!.period_end)))
+      result.push({ start, label: formatHour(Number(new Intl.DateTimeFormat('en-GB', { timeZone, hour: '2-digit', hourCycle: 'h23' }).format(t))), nextDay: todayInZone(timeZone, new Date(t)) !== date, periodEnd: new Date(end).toISOString() })
+    }
+    return result
+  })
+  const unchangedCourts = !!initial && courtIds.length === initial.court_ids.length && courtIds.every((id) => initial.court_ids.includes(id))
+  const preserveExisting = !!initial && unchangedCourts && start === initial.starts_at && duration === hoursBetween(initial.starts_at, initial.ends_at)
+  const chosenStart = findHour(options, start)?.start ?? (preserveExisting ? start : null)
+  const selectedOption = options.find((o) => o.start === chosenStart)
+  const max = selectedOption ? Math.min(maxDuration(options, chosenStart), (Date.parse(selectedOption.periodEnd) - Date.parse(selectedOption.start)) / 3_600_000) : 0
+  const chosenHours = duration !== null && (duration <= max || preserveExisting) ? duration : null
 
   function toggleCourt(id: string, on: boolean) {
     setCourtIds((ids) => (on ? [...ids, id] : ids.filter((c) => c !== id)))
@@ -91,8 +115,11 @@ export function OpenPlayForm({ initial, courts, hours, timeZone, now, saving, er
           ))}
         </div>
       </fieldset>
-      <DatePicker label="Date" value={date} onChange={setDate} today={operatingToday(hours, timeZone, now)}
-        min={operatingToday(hours, timeZone, now)} closedDays={closedDaysOfWeek(hours)} timeZone={timeZone} />
+      <DatePicker label="Date" value={date} onChange={setDateOverride} today={today}
+        min={today} timeZone={timeZone} />
+      {schedule.isPending && <PageLoader />}
+      {schedule.isError && <ErrorMessage error={schedule.error} onRetry={() => schedule.refetch()} />}
+      {preserveExisting && !selectedOption && <p className="muted small">The existing session is outside current hours. You can keep its time while editing its details.</p>}
       <HourPicker label="Starts" options={options} value={chosenStart} onChange={setStart}
         empty="No start times left on this day." />
       <DurationPicker max={max} value={chosenHours} onChange={setDuration} />

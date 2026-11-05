@@ -1,9 +1,9 @@
 import { useRef } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  createVenue, fetchInvoiceDetail, fetchInvoicesOverview, fetchIsPlatformAdmin, fetchLeads, fetchReviews, fetchVenuesOverview, inviteVenueOwner, markInvoicePaid, markInvoiceSent,
-  resendOwnerInvite, fetchShowcaseApprovals, setVenueShowcaseApproval,
-  reactivateVenue, setReviewApproved, suspendVenue, updateLead, type Lead, type LeadStatus,
+  createVenue, fetchInvoiceDetailPage, fetchInvoicesPage, fetchIsPlatformAdmin, fetchLeadsPage, fetchReviewsPage, fetchVenuesPage,
+  inviteVenueOwner, markInvoicePaid, markInvoiceSent, resendOwnerInvite, fetchShowcaseApprovals, setVenueShowcaseApproval,
+  reactivateVenue, setReviewApproved, suspendVenue, updateLead, type Lead, type LeadStatus, type ReviewFilter,
 } from './api'
 
 export function useIsPlatformAdmin(userId: string | undefined) {
@@ -15,8 +15,30 @@ export function useIsPlatformAdmin(userId: string | undefined) {
   return { isPlatformAdmin: query.data === true, isPending: !!userId && query.isPending, error: query.error, refetch: query.refetch }
 }
 
-export function useLeads(status: LeadStatus | 'all') {
-  return useQuery({ queryKey: ['leads', status], queryFn: () => fetchLeads(status) })
+// Console list pages (T17.19). Each key starts with the prefix the existing mutations invalidate, so an action
+// reloads the visible page; the previous page stays on screen while the next one loads.
+export function useLeadsPage(filters: { status: LeadStatus | 'all'; search: string; page: number }) {
+  return useQuery({ queryKey: ['leads', 'page', filters], queryFn: () => fetchLeadsPage(filters), placeholderData: keepPreviousData })
+}
+
+export function useVenuesPage(filters: { search: string; status: string; page: number }) {
+  return useQuery({ queryKey: ['venues-overview', 'page', filters], queryFn: () => fetchVenuesPage(filters), placeholderData: keepPreviousData })
+}
+
+export function useInvoicesPage(filters: { search: string; status: string; month: string; page: number }) {
+  return useQuery({ queryKey: ['invoices', 'page', filters], queryFn: () => fetchInvoicesPage(filters), placeholderData: keepPreviousData })
+}
+
+export function useInvoiceDetailPage(invoiceId: string, page: number) {
+  return useQuery({
+    queryKey: ['invoices', 'detail', invoiceId, page],
+    queryFn: () => fetchInvoiceDetailPage({ invoiceId, page }),
+    placeholderData: keepPreviousData,
+  })
+}
+
+export function useReviewsPage(filters: { approved: ReviewFilter; search: string; page: number }) {
+  return useQuery({ queryKey: ['reviews', 'page', filters], queryFn: () => fetchReviewsPage(filters), placeholderData: keepPreviousData })
 }
 
 export function useUpdateLead() {
@@ -47,10 +69,6 @@ export function useCreateVenueFromLead() {
 /** Sends a venue's owner a fresh invite or sign-in link (T14.5d). */
 export function useResendOwnerInvite() {
   return useMutation({ mutationFn: (input: { venueId: string; email: string }) => resendOwnerInvite(input) })
-}
-
-export function useVenuesOverview() {
-  return useQuery({ queryKey: ['venues-overview'], queryFn: fetchVenuesOverview })
 }
 
 export function useShowcaseApprovals() {
@@ -86,14 +104,6 @@ export function useReactivateVenue() {
   })
 }
 
-export function useInvoices() {
-  return useQuery({ queryKey: ['invoices'], queryFn: fetchInvoicesOverview })
-}
-
-export function useInvoiceDetail(invoiceId: string) {
-  return useQuery({ queryKey: ['invoices', invoiceId], queryFn: () => fetchInvoiceDetail(invoiceId) })
-}
-
 function useInvoiceMutation<T>(mutationFn: (input: T) => Promise<void>) {
   const queryClient = useQueryClient()
   return useMutation({
@@ -113,10 +123,6 @@ export function useMarkInvoiceSent() {
 
 export function useMarkInvoicePaid() {
   return useInvoiceMutation((input: { invoiceId: string; method: string; reference: string }) => markInvoicePaid(input))
-}
-
-export function useReviews() {
-  return useQuery({ queryKey: ['reviews'], queryFn: fetchReviews })
 }
 
 export function useSetReviewApproved() {

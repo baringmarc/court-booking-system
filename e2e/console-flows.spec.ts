@@ -10,14 +10,15 @@ import { createClient } from '@supabase/supabase-js'
 
 const CONSOLE = 'http://app.localhost:5179/'
 
-async function signInConsole(page: Page) {
+/** Signs in on `path` (a deep link such as `venues?q=…&open=…`); the guard shows the form first. */
+async function signInConsole(page: Page, path = '') {
   const admin = await createPlatformAdmin()
-  await page.goto(CONSOLE)
+  await page.goto(CONSOLE + path)
   await expect(page.getByRole('heading', { name: 'Platform console' })).toBeVisible()
   await page.getByLabel('Email').fill(admin.email)
   await page.getByLabel('Password').fill(admin.password)
   await page.getByRole('button', { name: 'Sign in' }).click()
-  await expect(page.getByText(`Signed in as ${admin.email}`)).toBeVisible()
+  await expect(page.getByRole('main')).toBeVisible()
   return admin
 }
 
@@ -33,8 +34,9 @@ test('a lead becomes a published, showcased venue', async ({ page }) => {
   }).throwOnError()
 
   try {
-    await signInConsole(page)
-    const lead = page.getByRole('listitem').filter({ hasText: venueName })
+    await signInConsole(page, `leads?q=${encodeURIComponent(venueName)}`)
+    await page.getByRole('main').getByRole('listitem').filter({ hasText: venueName }).getByRole('button', { name: /details/i }).click()
+    const lead = page.getByRole('dialog', { name: new RegExp(venueName) }).or(page.getByRole('region', { name: new RegExp(venueName) }))
     await lead.getByRole('button', { name: 'Create venue' }).click()
     await lead.getByLabel('Subdomain').fill(slug)
     await lead.getByRole('button', { name: 'Create venue and invite owner' }).click()
@@ -109,9 +111,10 @@ test('a lead becomes a published, showcased venue', async ({ page }) => {
       await expect(ownerPage.getByRole('heading', { name: 'Platform admins only' })).toBeVisible()
       await expect(ownerPage.getByRole('button', { name: 'Approve showcase' })).toHaveCount(0)
 
-      // Platform staff approve in the console; the public read and reload reflect the saved decision.
-      await page.reload()
-      const venueCard = page.getByRole('region', { name: 'Venues', exact: true }).getByRole('listitem').filter({ hasText: slug })
+      // Platform staff approve in the console; the public read and reload reflect the saved decision. The venue's panel
+      // is reopened from the URL (?open=), so a reload shows the same view.
+      await page.goto(`${CONSOLE}venues?q=${slug}&open=${venue!.id}`)
+      const venueCard = page.getByRole('dialog', { name: new RegExp(venueName) }).or(page.getByRole('region', { name: new RegExp(venueName) }))
       await expect(venueCard.getByText('Showcase: Not approved', { exact: true })).toBeVisible()
       await venueCard.getByRole('button', { name: 'Approve showcase' }).click()
       await expect(venueCard.getByText('Showcase: Approved', { exact: true })).toBeVisible()
@@ -120,7 +123,7 @@ test('a lead becomes a published, showcased venue', async ({ page }) => {
       await page.reload()
       await expect(venueCard.getByText('Showcase: Approved', { exact: true })).toBeVisible()
       await expect(venueCard.getByRole('button', { name: 'Resend invite' })).toBeVisible()
-      expect(await axeBothSchemes(page, '[aria-labelledby="venues-heading"]')).toEqual([])
+      expect(await axeBothSchemes(page)).toEqual([])
 
       page.once('dialog', (dialog) => dialog.accept())
       await venueCard.getByRole('button', { name: 'Suspend', exact: true }).click()
@@ -141,8 +144,8 @@ test('a lead becomes a published, showcased venue', async ({ page }) => {
     }
 
     // The console lists the venue as active.
-    await page.reload()
-    await expect(page.getByRole('listitem').filter({ hasText: slug }).getByText(`${slug} · active`)).toBeVisible()
+    await page.goto(`${CONSOLE}venues?q=${slug}&status=active`)
+    await expect(page.getByRole('main').getByRole('listitem').filter({ hasText: slug })).toContainText('active')
   } finally {
     // Other specs read venue_settings with .single(), so this venue must not outlive the test.
     const { data: created } = await service.from('venues').select('id').eq('slug', slug).maybeSingle()
@@ -172,11 +175,12 @@ test('an invoice goes from draft to sent to paid, and the venue sees it on its s
       venue_id: venue.id, booking_id: booking!.id, invoice_id: invoice!.id, billing_month: month, kind: 'booking_fee', amount: 10,
     }).throwOnError()
 
-    await signInConsole(page)
-    const card = page.getByRole('region', { name: 'Invoices' }).getByRole('listitem').filter({ hasText: venue.name })
+    await signInConsole(page, `invoices?q=${encodeURIComponent(venue.slug)}`)
+    const card = page.getByRole('main').getByRole('listitem').filter({ hasText: venue.name })
     await expect(card).toContainText('draft')
-    await card.getByRole('button', { name: 'Review' }).click()
-    const detail = page.getByRole('article', { name: /^Invoice / })
+    await card.getByRole('button', { name: /details/i }).click()
+    const panelName = new RegExp(`${venue.name}|${venue.slug}`, 'i')
+    const detail = page.getByRole('dialog', { name: panelName }).or(page.getByRole('region', { name: panelName }))
     await expect(detail).toContainText('CB-BCD222')
     await expect(detail).toContainText('₱10.00')
     await detail.getByRole('button', { name: 'Mark as sent' }).click()
