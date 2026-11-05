@@ -58,8 +58,11 @@ export function themeChecks(t: Tokens): Check[] {
     ['Pending badge', contrast(t.text, over(t.pendingBg, t.surface)), 4.5],
     ['Warning text on page', contrast(t.highlight, t.bg), 4.5],
     ['Error alert text', contrast(t.danger, tint(t.danger, 0.1, t.bg)), 4.5],
-    ['Booked-slot text', contrast(t.text, mix(t.text, t.surface, 0.1)), 4.5],
-    ['Open-play slot text', contrast(t.text, mix(t.openPlay, t.surface, 0.12)), 4.5],
+    ['Booked-slot text', contrast(t.text, mix(t.text, t.surface, 0.16)), 4.5],
+    ['Open-play slot text', contrast(t.text, mix(t.openPlay, t.surface, 0.26)), 4.5],
+    ['Open-play slot hover text', contrast(t.text, mix(t.openPlay, t.surface, 0.32)), 4.5],
+    ['Free-slot text', contrast(t.text, mix(t.accent, t.surface, 0.08)), 4.5],
+    ['Free-slot outline on its fill', contrast(t.slotFreeBorder, mix(t.accent, t.surface, 0.08)), 3],
     ['Selected-slot border on card', contrast(t.accent, t.surface), 3],
     // Input edges, the slot grid on the page background (T8.5 measured it there) and cards on the surface.
     ['Input edge on field', contrast(t.borderStrong, t.field), 3],

@@ -33,6 +33,15 @@ describe('SlotGrid', () => {
     expect(screen.getByRole('button', { name: 'Badminton 1, 10 AM – 11 AM, ₱350' })).toBeEnabled()
   })
 
+  it('gives each legend swatch the same status class as its grid cells', () => {
+    renderGrid()
+    const key = screen.getByRole('list', { name: 'Slot key' })
+    for (const [label, cls] of [['Available', 'slot-free'], ['Booked', 'slot-booked'], ['Closed', 'slot-blackout'], ['Past', 'slot-past']] as const) {
+      expect(within(key).getByText(label).querySelector(`.${cls}`), label).not.toBeNull()
+    }
+    expect(screen.getByRole('button', { name: 'Badminton 1, 11 AM – 12 PM, Booked' })).toHaveClass('slot-booked')
+  })
+
   it('disables booked, blackout and past slots', () => {
     renderGrid()
     expect(screen.getByRole('button', { name: 'Badminton 1, 11 AM – 12 PM, Booked' })).toBeDisabled()

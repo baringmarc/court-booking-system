@@ -47,8 +47,9 @@ describe('shipped theme (src/index.css)', () => {
   it('still uses the color-mix formulas that themeChecks measures', () => {
     // themeChecks copies these weights; if one changes in index.css, update themeChecks to match.
     for (const formula of [
-      'color-mix(in srgb, var(--open-play) 12%, var(--surface))', // open-play slot
-      'color-mix(in srgb, var(--text) 10%, var(--surface))', // booked slot
+      'color-mix(in srgb, var(--open-play) 26%, var(--surface))', // open-play slot
+      'color-mix(in srgb, var(--text) 16%, var(--surface))', // booked slot
+      'color-mix(in srgb, var(--accent) 8%, var(--surface))', // free slot
       'color-mix(in srgb, var(--danger) 85%, black)', // danger button hover
       'color-mix(in srgb, var(--danger) 12%, transparent)', // cancelled badge
       'color-mix(in srgb, var(--danger) 10%, transparent)', // error alert
