@@ -859,8 +859,14 @@ isOneToOne: false
 "invoice_detail":
 { Args: { "p_invoice_id": string }; Returns: Json
                            },
+"invoice_detail_page":
+{ Args: { "p_invoice_id": string,"p_limit"?: number,"p_offset"?: number }; Returns: Json
+                           },
 "invoices_overview":
 { Args: Record<PropertyKey, never>; Returns: Json
+                           },
+"invoices_page":
+{ Args: { "p_limit"?: number,"p_month"?: string,"p_offset"?: number,"p_search"?: string,"p_status"?: string }; Returns: Json
                            },
 "issue_guest_link":
 { Args: { "p_booking_id": string }; Returns: string
@@ -953,6 +959,9 @@ isOneToOne: false
                            },
 "venues_overview":
 { Args: Record<PropertyKey, never>; Returns: Json
+                           },
+"venues_page":
+{ Args: { "p_limit"?: number,"p_offset"?: number,"p_search"?: string,"p_status"?: string }; Returns: Json
                            }
           }
           Enums: {

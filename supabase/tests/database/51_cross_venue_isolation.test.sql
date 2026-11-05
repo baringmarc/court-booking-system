@@ -507,9 +507,11 @@ select is_empty(
          'venue_statement',
          -- schedule RPCs: get_staff_schedule is probed above; others are cross-venue tested in 68_schedule_rpcs
          'get_schedule', 'preview_schedule_impact', 'save_schedule', 'get_staff_schedule',
-         -- platform admins only: refuse anyone who is not a platform admin (59_venues_overview, 61_invoice_review, 66_showcase_authority)
+         -- platform admins only: refuse anyone who is not a platform admin (59_venues_overview, 61_invoice_review, 66_showcase_authority,
+         -- 77_console_pagination)
          'venues_overview', 'suspend_venue', 'reactivate_venue',
-         'invoices_overview', 'invoice_detail', 'mark_invoice_sent', 'mark_invoice_paid', 'set_venue_showcase_approval'
+         'invoices_overview', 'invoice_detail', 'mark_invoice_sent', 'mark_invoice_paid', 'set_venue_showcase_approval',
+         'venues_page', 'invoices_page', 'invoice_detail_page'
        ]) $$,
   'every RPC a client can execute is probed above or exempt (a new venue-scoped RPC needs a cross-venue test here)');
 select is_empty(
