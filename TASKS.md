@@ -4,9 +4,9 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
 
 ## Handoff
 
-- **Active work (2026-11-05):** M17 Admin and scheduling improvements, approved by the user after the source audit. T17.1–T17.11 complete (reviewer PASS); migrations through T17.10 were pushed to linked staging with approval. **Next task:** T17.12 Scheduling dependants (plan gate pending). M16 T16.3–T16.6 remain queued, not completed or cancelled. This entry supersedes the historical Current milestone/Next task entries below.
-- **State:** T17.11 complete and verified locally; no linked push or deployment. T17.12 is next.
-- **Blockers / notes:** T17.11 migration `20261104235120_t17_11_effective_periods.sql` remains local pending separate approval for hosted migration push. Its activation switch remains false; local tests toggle it only within rollback transactions.
+- **Active work (2026-11-05):** M17 Admin and scheduling improvements, approved by the user after the source audit. T17.1–T17.11 complete (reviewer PASS); migrations through T17.10 were pushed to linked staging with approval. **Next task:** T17.13 Public scheduling consumers. M16 T16.3–T16.6 remain queued, not completed or cancelled. This entry supersedes the historical Current milestone/Next task entries below.
+- **State:** T17.12 complete locally; reviewer PASS round 2 and full gate passed. No linked push or deployment performed.
+- **Blockers / notes:** T17.12 migration `20261105015941_t17_12_schedule_dependants.sql` remains local pending separate hosted approval. T17.11 migration `20261104235120_t17_11_effective_periods.sql` remains local pending separate approval for hosted migration push. Its activation switch remains false; local tests toggle it only within rollback transactions.
 - **Release boundary:** M17 scope approval does not authorize hosted migrations, deployment or push. DB/security tasks retain detailed plan gates; local validation is allowed during implementation.
 - **Scope added (2026-11-05, /propose):** T17.18–T17.29 cover console navigation/pagination, stronger slot fills, clearer Reports, Booking Rules hints, complete owner PDF and invitation delivery, guarded deletion and separately reviewed production test-data cleanup. Close-out is now T17.30. T17.24–T17.25 are high-priority requirements before inviting real owners; the guide must match the released screens. Task numbering does not change the current next task T17.11. No production cleanup is authorized until its exact records and deletion plan are approved in T17.29.
 
@@ -2292,10 +2292,11 @@ Approved 2026-11-03. Source: `docs/PLOTLINE_ADMIN_SCHEDULING_IMPLEMENTATION_SPEC
 - **Acceptance:** pgTAP proves closed gaps, one-period containment, midnight pricing, blackouts, active holds and exclusion protection; multi-connection races have deterministic complete-version outcomes.
 - **Notes:** Migration `20261104235120_t17_11_effective_periods.sql` adds court-aware operating periods/day ownership and routes availability, booking-window checks, pricing, booking, walk-in and reschedule validation through them while activation remains false. Tests: `69_effective_periods.test.sql` (20), `70_court_operating_day.test.sql` (3), and `scripts/test-schedule-concurrency.mjs` (booking waits for schedule save, then sees the committed closed schedule). Round-1 test disputes were accepted by the reviewer and fixed by the test-writer. Full gate passed (3,086 pgTAP assertions, concurrency test, build, typecheck, lint, unit tests and drift check); reviewer PASS round 2. Local only; hosted push not authorized by the milestone handoff.
 
-### [ ] T17.12 Scheduling dependants
+### [x] T17.12 Scheduling dependants
 - **Depends:** T17.11
 - **Do:** Update open play, earnings, readiness and venue initialization; audit seed/demo/delete paths and payment preservation. Risky DB/RPC gate.
 - **Acceptance:** pgTAP covers every selected open-play court, preserved existing sessions/bookings, unchanged amounts and normal payment/rejection/expiry/revival; reporting semantics documented.
+- **Notes:** Local migration updates open play, earnings and readiness; schedule activation stays off. `71_schedule_dependants.test.sql` and `72_schedule_payment_preservation.test.sql` cover schedule and payment preservation (3,101 database assertions total). Full gate passed; reviewer PASS round 2 after correcting the session-preservation test. No hosted push.
 
 ### [ ] T17.13 Public scheduling consumers
 - **Depends:** T17.11, T17.12
