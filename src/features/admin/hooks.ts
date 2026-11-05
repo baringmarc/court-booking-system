@@ -9,6 +9,9 @@ import {
   fetchPaymentsForExport,
   fetchEarnings,
   fetchProofQueueCount,
+  fetchSchedule,
+  saveSchedule,
+  type ScheduleChanges,
   fetchSetupStatus,
   fetchStatement,
   publishVenue,
@@ -50,6 +53,7 @@ import { venueKeys, type Amenity, type InfoSection, type PaymentAccount } from '
 import type { AmenityKey } from '../venue/amenities'
 import type { SocialPlatform } from '../venue/social'
 import type { BookingFilters } from './bookingFilters'
+import { currentVenueId } from '../../lib/currentVenue'
 
 export function useAdminBookings(filters: BookingFilters, timeZone: string | undefined) {
   return useQuery({
@@ -503,4 +507,22 @@ export function usePublishVenue() {
 
 export function useStatement() {
   return useQuery({ queryKey: adminKeys.statement(), queryFn: fetchStatement, staleTime: 30_000 })
+}
+
+export function useSchedule() {
+  return useQuery({ queryKey: adminKeys.schedule(), queryFn: fetchSchedule })
+}
+
+/** One atomic save. A save refetches the schedule (and what reads it) before resolving; a stale revision refetches too. */
+export function useSaveSchedule() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ revision, changes }: { revision: number; changes: ScheduleChanges }) => saveSchedule(revision, changes),
+    onSuccess: () => Promise.all([
+      qc.invalidateQueries({ queryKey: adminKeys.schedule() }),
+      qc.invalidateQueries({ queryKey: catalogKeys.hours() }),
+      qc.invalidateQueries({ queryKey: [currentVenueId(), 'court-rates'] }),
+    ]),
+    onError: () => qc.invalidateQueries({ queryKey: adminKeys.schedule() }),
+  })
 }

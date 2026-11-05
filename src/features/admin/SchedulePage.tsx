@@ -1,131 +1,22 @@
-import { useState, type FormEvent, type ReactNode } from 'react'
+import { useState, type FormEvent } from 'react'
 import { DatePicker } from '../../components/DatePicker'
 import { HourPicker } from '../../components/HourPicker'
 import { calendarEndOptions, calendarHourOptions, findHour } from '../../components/pickerHours'
 import { PageLoader } from '../../components/PageLoader'
 import { ErrorMessage } from '../../components/ErrorMessage'
-import { SaveStatus } from '../../components/SaveStatus'
-import {
-  useCourts,
-  useCreateBlackout,
-  useDeleteBlackout,
-  useOperatingHours,
-  useSaveOperatingHours,
-  useUpcomingBlackouts,
-  useVenueSettings,
-} from '../catalog/hooks'
-import type { OperatingHours } from '../catalog/api'
-import { DAY_NAMES, DISPLAY_DAY_ORDER, formatHour, hourOf, hourToTime } from '../../lib/format'
-import { findOverlap, findSameTime, isAllDay, isOvernight, overlapMessage, sameTimeMessage } from '../catalog/hours'
+import { useCourts, useCreateBlackout, useDeleteBlackout, useUpcomingBlackouts, useVenueSettings } from '../catalog/hooks'
 import { formatDateTimeInZone, todayInZone } from '../../lib/time'
 import { useNow } from '../booking/useNow'
 import { errorMessage } from '../../lib/errors'
+import { WeeklyHoursEditor } from './WeeklyHoursEditor'
 
 export function SchedulePage() {
-  const hours = useOperatingHours()
-  const save = useSaveOperatingHours()
-
   return (
     <section className="page">
       <h1>Schedule</h1>
-
-      <section className="card stack">
-        <h2>Operating hours</h2>
-        {hours.isPending ? (
-          <PageLoader />
-        ) : hours.isError ? (
-          <ErrorMessage error={hours.error} onRetry={() => hours.refetch()} />
-        ) : (
-          <HoursForm
-            key={hours.dataUpdatedAt}
-            initial={hours.data}
-            saving={save.isPending}
-            status={<SaveStatus isSuccess={save.isSuccess} error={save.error} />}
-            onSave={(rows) => save.mutate(rows)}
-          />
-        )}
-      </section>
-
+      <WeeklyHoursEditor />
       <BlackoutsSection />
     </section>
-  )
-}
-
-const OPEN_HOURS = Array.from({ length: 24 }, (_, i) => i) // 0–23
-const CLOSE_HOURS = Array.from({ length: 24 }, (_, i) => i + 1) // 1–24
-
-function HoursForm({
-  initial,
-  saving,
-  status,
-  onSave,
-}: {
-  initial: OperatingHours[]
-  saving: boolean
-  status: ReactNode
-  onSave: (rows: OperatingHours[]) => void
-}) {
-  const [rows, setRows] = useState(initial)
-  const update = (day: number, patch: Partial<OperatingHours>) =>
-    setRows((rs) => rs.map((r) => (r.day_of_week === day ? { ...r, ...patch } : r)))
-
-  // A close before the open means the next day (T9.9). What can't happen: closing at the opening time (24 hours is
-  // 12 AM to midnight only) or running into the next day.
-  const sameTime = findSameTime(rows)
-  const overlap = findOverlap(rows)
-  const error = sameTime !== null ? sameTimeMessage(sameTime) : overlap ? overlapMessage(overlap) : null
-
-  function handleSubmit(e: FormEvent) {
-    e.preventDefault()
-    if (!error) onSave(rows)
-  }
-
-  return (
-    <form className="stack" onSubmit={handleSubmit}>
-      <div className="hours-rows">
-        {DISPLAY_DAY_ORDER.map((day) => {
-          const row = rows.find((r) => r.day_of_week === day)
-          if (!row) return null
-          return (
-            <div key={day} className="hours-row">
-              <span className="hours-day">{DAY_NAMES[day]}</span>
-              <label className="check">
-                <input type="checkbox" checked={row.is_closed} onChange={(e) => update(day, { is_closed: e.target.checked })} />
-                <span>Closed</span>
-              </label>
-              <select
-                aria-label={`${DAY_NAMES[day]} opens`}
-                disabled={row.is_closed}
-                value={hourOf(row.open_time)}
-                onChange={(e) => update(day, { open_time: hourToTime(Number(e.target.value)) })}
-              >
-                {OPEN_HOURS.map((h) => <option key={h} value={h}>{formatHour(h)}</option>)}
-              </select>
-              <span className="muted">to</span>
-              <select
-                aria-label={`${DAY_NAMES[day]} closes`}
-                disabled={row.is_closed}
-                value={hourOf(row.close_time)}
-                onChange={(e) => update(day, { close_time: hourToTime(Number(e.target.value)) })}
-              >
-                {CLOSE_HOURS.map((h) => <option key={h} value={h}>{h === 24 ? 'Midnight' : formatHour(h)}</option>)}
-              </select>
-              {!row.is_closed && isAllDay(row) && <span className="muted small">open 24 hours</span>}
-              {!row.is_closed && isOvernight(row) && <span className="muted small">closes next day</span>}
-            </div>
-          )
-        })}
-      </div>
-      <p className="muted small">
-        A closing time before the opening time means the venue closes the next morning. For 24 hours, open at 12 AM and
-        close at midnight.
-      </p>
-      {error && <p className="form-error" role="alert">{error}</p>}
-      <div className="form-actions">
-        <button type="submit" className="btn" disabled={saving || !!error}>{saving ? 'Saving…' : 'Save hours'}</button>
-        {status}
-      </div>
-    </form>
   )
 }
 
@@ -185,7 +76,7 @@ function BlackoutsSection() {
   return (
     <section className="card stack">
       <div>
-        <h2>Blackouts</h2>
+        <h2>Temporary Closures</h2>
         <p className="muted small">Block a court (or the whole venue) for maintenance, events or holidays. Times are in {timeZone}.</p>
       </div>
 
