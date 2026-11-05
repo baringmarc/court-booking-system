@@ -1,8 +1,9 @@
 # Schedule v2 cutover (T17.17)
 
 Release and rollback instructions for switching a venue from the legacy `operating_hours` / `court_rates` editors to
-Weekly Hours & Rates (schedule v2). Local rehearsal only so far: **no hosted migration, activation or deployment has been
-approved.** Each hosted step below needs its own approval.
+Weekly Hours & Rates (schedule v2). **Status (2026-11-06):** steps 2 and 3 are done on staging and production (the user's approval); preflight was
+partly checked there (no venue active; every venue has periods; the value comparison with `operating_hours` is still to
+do before step 4). **No venue is activated.** Each remaining hosted step needs its own approval.
 
 ## What activation does
 - `private.activate_schedule_v2(venue_id)` (postgres / service role only, no client RPC) takes the venue's court locks in
@@ -18,7 +19,9 @@ approved.** Each hosted step below needs its own approval.
 1. Preflight on the target project: migration history matches; per venue, `operating_hours` rows (7) equal
    `venue_open_periods` (counts and values); no venue has `schedule_v2_active` yet.
 2. `npm run db:push` the T17.11–T17.14 and T17.17 migrations (all backward compatible, activation still false everywhere).
+   Done 2026-11-06 on staging and production.
 3. Deploy the frontend that contains the T17.13–T17.17 consumers (Weekly Hours & Rates; court page links to it).
+   Done: production runs it on Cloudflare (`*.plotline.fit`).
 4. Activate one venue (the demo first): `select private.activate_schedule_v2('<venue uuid>');` (SQL editor or service role).
    Smoke: book, walk-in, reschedule, open play, the Schedule page save.
 5. Activate the remaining venues the same way.
