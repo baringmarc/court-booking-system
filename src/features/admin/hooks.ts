@@ -11,6 +11,8 @@ import {
   fetchProofQueueCount,
   fetchSchedule,
   saveSchedule,
+  previewScheduleImpact,
+  type ScheduleDraft,
   type ScheduleChanges,
   fetchSetupStatus,
   fetchStatement,
@@ -511,6 +513,17 @@ export function useStatement() {
 
 export function useSchedule() {
   return useQuery({ queryKey: adminKeys.schedule(), queryFn: fetchSchedule })
+}
+
+/** Impact of a draft. Keyed by the draft itself, with no placeholder data, so another draft's answer is never shown. */
+export function useScheduleImpact(draft: ScheduleDraft | null, from: string, to: string) {
+  return useQuery({
+    queryKey: [...adminKeys.schedule(), 'impact', from, to, draft] as const,
+    queryFn: () => previewScheduleImpact(draft as ScheduleDraft, from, to),
+    enabled: draft !== null,
+    retry: false,
+    staleTime: 60_000,
+  })
 }
 
 /** One atomic save. A save refetches the schedule (and what reads it) before resolving; a stale revision refetches too. */

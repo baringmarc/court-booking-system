@@ -683,3 +683,30 @@ export async function saveSchedule(expectedRevision: number, changes: ScheduleCh
     }),
   )
 }
+
+// --- schedule impact preview (T17.16) ------------------------------------------
+
+export type ScheduleDraft = {
+  venue_periods: SchedulePeriod[]
+  courts: { court_id: string; schedule_mode: 'inherit' | 'custom'; periods: SchedulePeriod[] }[]
+}
+export type ScheduleImpact = {
+  from: string
+  to: string
+  bookings: { total: number; items: { booking_id: string; court_id: string; starts_at: string; ends_at: string; status: string }[] }
+  open_play: { total: number; items: { session_id: string; court_id: string; title: string; starts_at: string; ends_at: string }[] }
+}
+
+/** Read-only: reservations that would sit outside the draft's hours. Informative only; the save RPC stays the authority. */
+export async function previewScheduleImpact(draft: ScheduleDraft, from: string, to: string, limit = 25, offset = 0) {
+  return unwrap(
+    await supabase.rpc('preview_schedule_impact', {
+      p_venue_id: currentVenueId(),
+      p_draft: draft as unknown as Json,
+      p_from: from,
+      p_to: to,
+      p_limit: limit,
+      p_offset: offset,
+    }),
+  ) as unknown as ScheduleImpact
+}
