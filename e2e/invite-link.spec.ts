@@ -47,11 +47,12 @@ test('a platform admin re-sends the invite and the owner signs in with the new l
     await service.from('venue_members').insert({ venue_id: venue.id, user_id: invited.data.user.id, role: 'owner' }).throwOnError()
 
     const admin = await createPlatformAdmin()
-    await page.goto('http://app.localhost:5179/')
+    await page.goto(`http://app.localhost:5179/venues?q=${venue.slug}&open=${venue.id}`)
     await page.getByLabel('Email').fill(admin.email)
     await page.getByLabel('Password').fill(admin.password)
     await page.getByRole('button', { name: 'Sign in' }).click()
-    const card = page.getByRole('listitem').filter({ hasText: venue.name })
+    // The venue's detail panel (T17.19) stays open from the URL after signing in.
+    const card = page.getByRole('dialog', { name: new RegExp(venue.name) }).or(page.getByRole('region', { name: new RegExp(venue.name) }))
     await card.getByRole('button', { name: 'Resend invite' }).click()
     await card.getByLabel('Owner email').fill(email)
     await card.getByRole('button', { name: 'Send invite' }).click()

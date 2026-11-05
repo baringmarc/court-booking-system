@@ -9,9 +9,9 @@ import { localSupabase } from './support/local.ts'
 
 const CONSOLE = 'http://app.localhost:5179/'
 
-async function signInConsole(page: Page) {
+async function signInConsole(page: Page, path = '') {
   const admin = await createPlatformAdmin()
-  await page.goto(CONSOLE)
+  await page.goto(CONSOLE + path)
   await expect(page.getByRole('heading', { name: 'Platform console' })).toBeVisible()
   await page.getByLabel('Email').fill(admin.email)
   await page.getByLabel('Password').fill(admin.password)
@@ -61,10 +61,13 @@ test('a contact-form lead reaches the console and alerts by email; bots and bad 
     expect(await count(badEmail)).toBe(0)
 
     // The platform console lists it.
-    await signInConsole(page)
-    const lead = page.getByRole('listitem').filter({ hasText: venueName })
+    await signInConsole(page, `leads?q=${encodeURIComponent(venueName)}`)
+    await expect(page).toHaveURL(/\/leads\?/)
+    const lead = page.getByRole('main').getByRole('listitem').filter({ hasText: venueName })
     await expect(lead).toBeVisible()
-    await expect(lead.getByRole('button', { name: 'Create venue' })).toBeVisible()
+    await lead.getByRole('button', { name: /details/i }).click()
+    const panel = page.getByRole('dialog', { name: new RegExp(venueName) }).or(page.getByRole('region', { name: new RegExp(venueName) }))
+    await expect(panel.getByRole('button', { name: 'Create venue' })).toBeVisible()
 
     // The alert goes to LEAD_ALERT_TO, not to the lead, so search by subject.
     const { mailpitUrl } = localSupabase()
@@ -99,10 +102,11 @@ test('a site review stays hidden until the console approves it, and hides again'
     expect(stored).toEqual({ approved: false, rating: 5 })
     expect(await visibleToAnon()).toBe(0)
 
-    await signInConsole(page)
-    const reviews = page.getByRole('region', { name: 'Reviews' })
-    const item = reviews.getByRole('listitem').filter({ hasText: name })
-    await expect(item).toContainText('Hidden')
+    await signInConsole(page, `reviews?q=${encodeURIComponent(name)}`)
+    const row = page.getByRole('main').getByRole('listitem').filter({ hasText: name })
+    await expect(row).toContainText('Hidden')
+    await row.getByRole('button', { name: /details/i }).click()
+    const item = page.getByRole('dialog', { name: new RegExp(name) }).or(page.getByRole('region', { name: new RegExp(name) }))
     await item.getByRole('button', { name: 'Approve' }).click()
     await expect(item).toContainText('Approved')
     await expect(item.getByRole('button', { name: 'Hide' })).toBeVisible()
