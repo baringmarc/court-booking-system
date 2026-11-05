@@ -76,6 +76,12 @@ export async function fetchPublicSchedule() {
   }
 }
 
+export type StaffSchedulePeriod = Database['public']['Functions']['get_staff_schedule']['Returns'][number]
+
+export async function fetchStaffSchedule(date: string) {
+  return unwrap(await supabase.rpc('get_staff_schedule', { p_venue_id: currentVenueId(), p_date: date }))
+}
+
 /** Blackouts that haven't ended yet. */
 export async function fetchUpcomingBlackouts() {
   return unwrap(

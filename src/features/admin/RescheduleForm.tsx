@@ -3,7 +3,7 @@ import { ChoiceGroup } from '../../components/ChoiceGroup'
 import { DatePicker } from '../../components/DatePicker'
 import { ErrorMessage } from '../../components/ErrorMessage'
 import { PageLoader } from '../../components/PageLoader'
-import { closedDaysOfWeek } from '../../components/pickerHours'
+import { useStaffSchedule } from '../catalog/hooks'
 import { formatHour } from '../../lib/format'
 import { addDays, hourInZone } from '../../lib/time'
 import { bookingErrorMessage } from '../booking/errors'
@@ -11,7 +11,8 @@ import { useAvailability } from '../booking/hooks'
 import { rangeLabel } from '../booking/moves'
 import type { Slot } from '../booking/selection'
 import type { Court, OperatingHours, VenueSettings } from '../catalog/api'
-import { isAfterMidnight, operatingToday } from '../catalog/hours'
+import { isAfterMidnight } from '../catalog/hours'
+import { useStaffOperatingDate } from './staffDate'
 import type { AdminBooking, Reschedule } from './api'
 import { endAfter, isSplit, moveFromOptions, movedHours, validStarts } from './reschedule'
 
@@ -35,31 +36,36 @@ const hoursText = (n: number) => `${n} ${n === 1 ? 'hour' : 'hours'}`
  * (the earlier hours stay; the rest becomes its own booking). Only same-sport courts, and only starts with the same
  * number of free hours. The server checks every rule again (reschedule_booking) and never changes the price.
  */
-export function RescheduleForm({ booking, courts, hours, settings, now, pending, error, onSubmit, onClose }: Props) {
+export function RescheduleForm({ booking, courts, settings, now, pending, error, onSubmit, onClose }: Props) {
   const tz = settings.timezone
   const sameSport = useMemo(
     () => courts.filter((c) => c.sport === booking.sport && c.is_active),
     [courts, booking.sport],
   )
   const fromOptions = moveFromOptions(booking, now)
-  const today = operatingToday(hours, tz, now)
+  const today = useStaffOperatingDate(tz, now, sameSport.map((c) => c.id))
   const lastDay = addDays(today, settings.booking_window_days)
 
   const [from, setFrom] = useState<string | null>(fromOptions[0] ?? null)
-  const [date, setDate] = useState(today)
+  const [dateOverride, setDateOverride] = useState<string | null>(null)
+  const date = dateOverride ?? today
   const [courtId, setCourtId] = useState(sameSport.some((c) => c.id === booking.court_id) ? booking.court_id : sameSport[0]?.id ?? '')
   const [startChoice, setStartChoice] = useState<string | null>(null)
   const [reason, setReason] = useState('')
   const [formError, setFormError] = useState<string | null>(null)
   const availability = useAvailability(date)
+  const schedule = useStaffSchedule(date)
 
   // Derived: a chosen hour that has ended while the form was open (`now` ticks) falls back to the first one on offer.
   const fromStart = fromOptions.length > 0 ? (from && fromOptions.includes(from) ? from : fromOptions[0]) : booking.slot_start
   const moved = movedHours(booking, fromStart)
   const splitting = isSplit(booking, fromStart)
   const courtSlots = useMemo<Slot[]>(
-    () => (availability.data ?? []).filter((s) => s.court_id === courtId).sort((a, b) => a.slot_start.localeCompare(b.slot_start)),
-    [availability.data, courtId],
+    () => (availability.data ?? []).filter((s) => s.court_id === courtId).flatMap((s) => {
+      const p = schedule.data?.find((period) => period.court_id === s.court_id && Date.parse(period.period_start) <= Date.parse(s.slot_start) && Date.parse(s.slot_end) <= Date.parse(period.period_end))
+      return p ? [{ ...s, period_end: p.period_end }] : []
+    }).sort((a, b) => a.slot_start.localeCompare(b.slot_start)),
+    [availability.data, schedule.data, courtId],
   )
   const starts = validStarts(courtSlots, moved, now)
   // Derived, not synced: a start that stops fitting (another date, court or length) is simply not chosen.
@@ -92,7 +98,7 @@ export function RescheduleForm({ booking, courts, hours, settings, now, pending,
       </p>
 
       <DatePicker label="New date" value={date} today={today} min={today} max={lastDay}
-        closedDays={closedDaysOfWeek(hours)} timeZone={tz} onChange={setDate} />
+        timeZone={tz} onChange={setDateOverride} />
       <div className="field">
         <label htmlFor="move-court">New court</label>
         <select id="move-court" value={courtId} onChange={(e) => setCourtId(e.target.value)}>
@@ -100,10 +106,12 @@ export function RescheduleForm({ booking, courts, hours, settings, now, pending,
         </select>
       </div>
 
-      {availability.isPending ? (
+      {availability.isPending || schedule.isPending ? (
         <PageLoader />
       ) : availability.isError ? (
         <ErrorMessage error={availability.error} onRetry={() => availability.refetch()} />
+      ) : schedule.isError ? (
+        <ErrorMessage error={schedule.error} onRetry={() => schedule.refetch()} />
       ) : availability.data.length === 0 ? (
         <p className="muted small">The venue is closed on this day, or it's past the booking window.</p>
       ) : (

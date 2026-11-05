@@ -2,8 +2,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { zonedLocalToISO } from '../../lib/time'
 import { ApiError } from '../../lib/queryClient'
-import { fetchCourts, fetchOperatingHours, fetchVenueSettings, type CourtWithPhotos, type OperatingHours, type VenueSettings } from '../catalog/api'
+import { fetchCourts, fetchOperatingHours, fetchVenueSettings, fetchStaffSchedule, type CourtWithPhotos, type OperatingHours, type VenueSettings } from '../catalog/api'
 import { fetchUpcomingOpenPlay, type OpenPlaySession } from '../openPlay/api'
 import { deleteOpenPlay, saveOpenPlay } from './api'
 import { OpenPlayPage } from './OpenPlayPage'
@@ -13,6 +14,7 @@ vi.mock('../catalog/api', async (importOriginal) => ({
   fetchCourts: vi.fn(),
   fetchOperatingHours: vi.fn(),
   fetchVenueSettings: vi.fn(),
+  fetchStaffSchedule: vi.fn(),
 }))
 vi.mock('../openPlay/api', async (importOriginal) => ({
   ...(await importOriginal<object>()),
@@ -51,7 +53,7 @@ async function fillNew() {
   const form = await screen.findByRole('form', { name: 'Open play session' })
   await userEvent.click(within(form).getByRole('checkbox', { name: /Pickleball 2/ }))
   await userEvent.click(within(form).getByRole('button', { name: 'Tomorrow' }))
-  await userEvent.click(within(form).getByRole('radio', { name: '1 PM' }))
+  await userEvent.click(await within(form).findByRole('radio', { name: '1 PM' }))
   await userEvent.click(within(form).getByRole('radio', { name: '2 hrs' }))
   await userEvent.type(within(form).getByLabelText('Title'), '  Saturday open play ')
   return form
@@ -61,6 +63,7 @@ describe('OpenPlayPage', () => {
   beforeEach(() => {
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(NOW)
+    vi.mocked(fetchStaffSchedule).mockReset().mockImplementation(async (date) => ['A', 'B'].map((court_id) => ({ court_id, operating_date: date, period_start: zonedLocalToISO(`${date}T06:00`, 'Asia/Manila'), period_end: zonedLocalToISO(`${date}T22:00`, 'Asia/Manila') })))
     vi.mocked(fetchOperatingHours).mockReset().mockResolvedValue(sixToTen)
     vi.mocked(fetchCourts).mockReset().mockResolvedValue([court('A', 'Pickleball 1'), court('B', 'Pickleball 2')])
     vi.mocked(fetchVenueSettings).mockReset().mockResolvedValue({ timezone: 'Asia/Manila' } as VenueSettings)

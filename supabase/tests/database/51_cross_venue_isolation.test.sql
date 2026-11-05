@@ -11,7 +11,7 @@
 -- Fixture: venue A and venue B (both active), each with staff, courts, bookings, payments, charges and an invoice.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(79);
+select plan(80);
 
 -- ---------------------------------------------------------------- helpers
 create function pg_temp.as_user(p_user uuid) returns void language sql as $$
@@ -476,6 +476,7 @@ select is(pg_temp.hint_of($$ select public.update_open_play('e0000000-0000-0000-
 select isnt(pg_temp.hint_of($$ select public.update_open_play('e0000000-0000-0000-0000-0000000000a1', array['c0000000-0000-0000-0000-0000000000b1']::uuid[],
     fx.t16, fx.t16 + interval '1 hour', 'E2E move') from fx $$), null,
   'update_open_play: staff A cannot move their own session onto a court of venue B');
+select is(pg_temp.hint_of($$ select * from public.get_staff_schedule('b0000000-0000-0000-0000-00000000000b', current_date) $$), 'forbidden', 'staff A cannot read venue B staff schedule');
 select is(pg_temp.hint_of($$ select public.delete_open_play('e0000000-0000-0000-0000-0000000000b1') $$), 'forbidden',
   'delete_open_play: staff A cannot delete a session of venue B');
 reset role;
@@ -504,8 +505,8 @@ select is_empty(
          'venue_setup_status', 'publish_venue',
          -- venue admins only: names a venue id and refuses anyone who doesn't run it (62_venue_statement)
          'venue_statement',
-         -- venue schedule RPCs are cross-venue tested in 68_schedule_rpcs
-         'get_schedule', 'preview_schedule_impact', 'save_schedule',
+         -- schedule RPCs: get_staff_schedule is probed above; others are cross-venue tested in 68_schedule_rpcs
+         'get_schedule', 'preview_schedule_impact', 'save_schedule', 'get_staff_schedule',
          -- platform admins only: refuse anyone who is not a platform admin (59_venues_overview, 61_invoice_review, 66_showcase_authority)
          'venues_overview', 'suspend_venue', 'reactivate_venue',
          'invoices_overview', 'invoice_detail', 'mark_invoice_sent', 'mark_invoice_paid', 'set_venue_showcase_approval'

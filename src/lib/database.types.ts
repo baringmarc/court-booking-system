@@ -851,6 +851,11 @@ isOneToOne: false
 "get_schedule":
 { Args: { "p_venue_id": string }; Returns: Json
                            },
+"get_staff_schedule":
+{ Args: { "p_date": string,"p_venue_id": string }; Returns: {
+              "court_id": string,"operating_date": string,"period_end": string,"period_start": string
+            }[]
+                           },
 "invoice_detail":
 { Args: { "p_invoice_id": string }; Returns: Json
                            },

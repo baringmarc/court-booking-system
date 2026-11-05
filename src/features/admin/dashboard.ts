@@ -27,7 +27,7 @@ export function maxWalkInSlots(courtSlots: Slot[], startIndex: number, now: Date
   let count = 0
   for (let i = startIndex; i < courtSlots.length; i++) {
     const slot = courtSlots[i]
-    const contiguous = i === startIndex || courtSlots[i - 1].slot_end === slot.slot_start
+    const contiguous = i === startIndex || Date.parse(courtSlots[i - 1].slot_end) === Date.parse(slot.slot_start) && (!courtSlots[i - 1].period_end || Date.parse(slot.slot_start) < Date.parse(courtSlots[i - 1].period_end!))
     if (!contiguous || !isWalkInStartable(slot, now)) break
     count++
   }
