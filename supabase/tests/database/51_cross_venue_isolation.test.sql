@@ -11,7 +11,7 @@
 -- Fixture: venue A and venue B (both active), each with staff, courts, bookings, payments, charges and an invoice.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(73);
+select plan(79);
 
 -- ---------------------------------------------------------------- helpers
 create function pg_temp.as_user(p_user uuid) returns void language sql as $$
@@ -391,6 +391,36 @@ select is(pg_temp.vstate('b0000000-0000-0000-0000-00000000000b'), (select v from
 select is(pg_temp.vstate('a0000000-0000-0000-0000-00000000000a'), (select v from snap where k = 'a'),
   'venue A''s rows in every table are byte for byte unchanged after staff B''s, the player''s and anon''s probes');
 
+-- Public schedule reads are scoped to the requested active venue, including for anon.
+set local role anon;
+select set_config('request.jwt.claims', '{"role":"anon"}', true);
+select isnt((select count(*)::int from public.get_public_schedule('e2e-iso-a')
+  where court_id = 'c0000000-0000-0000-0000-0000000000a1'), 0,
+  'public schedule for venue A includes its active court');
+select is((select count(*)::int from public.get_public_schedule('e2e-iso-a')
+  where court_id in ('c0000000-0000-0000-0000-0000000000b1', 'c0000000-0000-0000-0000-0000000000b2')), 0,
+  'public schedule for venue A contains no venue B court');
+select isnt((select count(*)::int from public.get_public_schedule('e2e-iso-b')
+  where court_id = 'c0000000-0000-0000-0000-0000000000b1'), 0,
+  'public schedule for venue B includes its active court');
+select is((select count(*)::int from public.get_public_schedule('e2e-iso-b')
+  where court_id in ('c0000000-0000-0000-0000-0000000000a1', 'c0000000-0000-0000-0000-0000000000a2')), 0,
+  'public schedule for venue B contains no venue A court');
+reset role;
+update public.courts set is_active = false where id = 'c0000000-0000-0000-0000-0000000000a1';
+set local role anon;
+select is((select count(*)::int from public.get_public_schedule('e2e-iso-a')
+  where court_id = 'c0000000-0000-0000-0000-0000000000a1'), 0,
+  'public schedule omits inactive courts');
+reset role;
+update public.courts set is_active = true where id = 'c0000000-0000-0000-0000-0000000000a1';
+update public.venues set status = 'suspended' where id = 'b0000000-0000-0000-0000-00000000000b';
+set local role anon;
+select is(pg_temp.hint_of($$select * from public.get_public_schedule('e2e-iso-b')$$), 'venue_unavailable',
+  'public schedule refuses a suspended venue');
+reset role;
+update public.venues set status = 'active' where id = 'b0000000-0000-0000-0000-00000000000b';
+
 -- ---------------------------------------------------------------- RPCs: staff A acting on venue B
 -- Every call below is refused (or does nothing) and venue B's state is unchanged afterwards.
 set local role authenticated;
@@ -465,7 +495,7 @@ select is_empty(
          'reorder_courts', 'reorder_info_sections', 'reorder_payment_accounts', 'set_operating_hours', 'get_earnings',
          'create_open_play', 'update_open_play', 'delete_open_play',
          -- public by design: they take a court or a slug and only ever act on that venue's own published data
-         'create_booking', 'get_availability',
+         'create_booking', 'get_availability', 'get_public_schedule',
          -- by secret token or by the caller's own account: no venue id to cross
          'get_guest_booking', 'claim_guest_bookings',
          -- platform admins only: it makes a new venue and takes no venue id to cross (56_create_venue)

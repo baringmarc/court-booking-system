@@ -1,19 +1,19 @@
 import { Link } from 'react-router-dom'
 import { PageLoader } from '../components/PageLoader'
 import { ErrorMessage } from '../components/ErrorMessage'
-import { useCourts, useOperatingHours, useVenueSettings } from '../features/catalog/hooks'
+import { useCourts, usePublicSchedule, useVenueSettings } from '../features/catalog/hooks'
 import { SPORT_LABELS, type CourtWithPhotos } from '../features/catalog/api'
 import { sportsOf } from '../features/catalog/sportOrder'
-import { summarizeHours } from '../features/catalog/hours'
 import { CourtTiles } from '../features/catalog/CourtTiles'
 import { HomeBanner } from '../features/catalog/HomeBanner'
-import { formatMoney } from '../lib/format'
+import { formatHour, formatMoney } from '../lib/format'
+import { addDays, formatDateLabel, hourInZone, todayInZone } from '../lib/time'
 import { AmenityChips, InfoSections, QuickFacts, VenueAddress } from '../features/venue/VenueInfo'
 
 export function HomePage() {
   const settings = useVenueSettings()
   const courts = useCourts()
-  const hours = useOperatingHours()
+  const hours = usePublicSchedule()
 
   const venueName = settings.data?.name ?? 'Claudex Courts'
   const currency = settings.data?.currency ?? 'PHP'
@@ -34,9 +34,15 @@ export function HomePage() {
             ? 'Pick a court and a time, then pay online with a card, GCash or Maya, or by bank transfer.'
             : 'Pick a court and a time, then pay with GCash, Maya or a bank transfer.'}
         </p>
-        {hours.data && (
-          <ul className="hours-summary">
-            {summarizeHours(hours.data).map((line) => <li key={line}>{line}</li>)}
+        {hours.isPending && <p className="muted">Loading court hours…</p>}
+        {hours.isError && <ErrorMessage error={hours.error} onRetry={() => hours.refetch()} />}
+        {hours.isSuccess && hours.data.length === 0 && <p className="muted">No upcoming court hours.</p>}
+        {hours.data && hours.data.length > 0 && (
+          <ul className="hours-summary" aria-label="Upcoming court hours">
+            {[...hours.data].sort((a, b) => a.period_start.localeCompare(b.period_start)).filter((period) => period.operating_date < addDays(hours.data.map((item) => item.operating_date).sort()[0], 7))
+              .map((period) => <li key={`${period.court_id}-${period.period_start}`}>
+                {courts.data?.find((court) => court.id === period.court_id)?.name}: {formatDateLabel(period.operating_date, settings.data?.timezone ?? 'Asia/Manila')} · {formatHour(hourInZone(period.period_start, settings.data?.timezone ?? 'Asia/Manila'))}–{formatHour(hourInZone(period.period_end, settings.data?.timezone ?? 'Asia/Manila'))}{todayInZone(settings.data?.timezone ?? 'Asia/Manila', new Date(period.period_end)) !== period.operating_date ? ' (next day)' : ''}
+              </li>)}
           </ul>
         )}
         <div className="hero-actions">

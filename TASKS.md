@@ -4,9 +4,9 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
 
 ## Handoff
 
-- **Active work (2026-11-05):** M17 Admin and scheduling improvements, approved by the user after the source audit. T17.1–T17.11 complete (reviewer PASS); migrations through T17.10 were pushed to linked staging with approval. **Next task:** T17.13 Public scheduling consumers. M16 T16.3–T16.6 remain queued, not completed or cancelled. This entry supersedes the historical Current milestone/Next task entries below.
-- **State:** T17.12 complete locally; reviewer PASS round 2 and full gate passed. No linked push or deployment performed.
-- **Blockers / notes:** T17.12 migration `20261105015941_t17_12_schedule_dependants.sql` remains local pending separate hosted approval. T17.11 migration `20261104235120_t17_11_effective_periods.sql` remains local pending separate approval for hosted migration push. Its activation switch remains false; local tests toggle it only within rollback transactions.
+- **Active work (2026-11-05):** M17 Admin and scheduling improvements, approved by the user after the source audit. T17.1–T17.11 complete (reviewer PASS); migrations through T17.10 were pushed to linked staging with approval. **Next task:** T17.14 Staff scheduling consumers. M16 T16.3–T16.6 remain queued, not completed or cancelled. This entry supersedes the historical Current milestone/Next task entries below.
+- **State:** T17.13 complete locally; full gate passed and reviewer PASS round 2. T17.11–T17.13 migrations remain local; no linked push or deployment performed.
+- **Blockers / notes:** T17.13 migration `20261105023258_t17_13_public_schedule.sql` remains local pending separate hosted approval. T17.12 migration `20261105015941_t17_12_schedule_dependants.sql` remains local pending separate hosted approval. T17.11 migration `20261104235120_t17_11_effective_periods.sql` remains local pending separate approval for hosted migration push. Its activation switch remains false; local tests toggle it only within rollback transactions.
 - **Release boundary:** M17 scope approval does not authorize hosted migrations, deployment or push. DB/security tasks retain detailed plan gates; local validation is allowed during implementation.
 - **Scope added (2026-11-05, /propose):** T17.18–T17.29 cover console navigation/pagination, stronger slot fills, clearer Reports, Booking Rules hints, complete owner PDF and invitation delivery, guarded deletion and separately reviewed production test-data cleanup. Close-out is now T17.30. T17.24–T17.25 are high-priority requirements before inviting real owners; the guide must match the released screens. Task numbering does not change the current next task T17.11. No production cleanup is authorized until its exact records and deletion plan are approved in T17.29.
 
@@ -2298,10 +2298,11 @@ Approved 2026-11-03. Source: `docs/PLOTLINE_ADMIN_SCHEDULING_IMPLEMENTATION_SPEC
 - **Acceptance:** pgTAP covers every selected open-play court, preserved existing sessions/bookings, unchanged amounts and normal payment/rejection/expiry/revival; reporting semantics documented.
 - **Notes:** Local migration updates open play, earnings and readiness; schedule activation stays off. `71_schedule_dependants.test.sql` and `72_schedule_payment_preservation.test.sql` cover schedule and payment preservation (3,101 database assertions total). Full gate passed; reviewer PASS round 2 after correcting the session-preservation test. No hosted push.
 
-### [ ] T17.13 Public scheduling consumers
+### [x] T17.13 Public scheduling consumers
 - **Depends:** T17.11, T17.12
 - **Do:** Update date navigation, checkout, hours summaries and slot boundaries for effective court periods.
 - **Acceptance:** Component/e2e tests cover custom-only open days, gaps, touching-period boundaries and overnight ownership; public privacy unchanged.
+- **Notes:** Local public schedule RPC and booking, checkout and home consumers use court-specific effective periods; activation remains off. `73_public_schedule.test.sql`, `51_cross_venue_isolation.test.sql`, `BookPage.schedule.test.tsx`, `selection.test.ts`, `api.publicSchedule.test.ts` and `e2e/public-schedule.spec.ts` cover privacy, periods, pagination and journeys. Full gate passed; reviewer PASS round 2 after adding pagination and home error states. No hosted push.
 
 ### [ ] T17.14 Staff scheduling consumers
 - **Depends:** T17.11, T17.12

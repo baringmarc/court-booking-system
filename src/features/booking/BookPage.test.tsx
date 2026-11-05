@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
-  fetchCourts, fetchOperatingHours, fetchVenueSettings, type CourtWithPhotos, type OperatingHours, type VenueSettings,
+  fetchCourts, fetchPublicSchedule, fetchVenueSettings, type CourtWithPhotos, type PublicSchedulePeriod, type VenueSettings,
 } from '../catalog/api'
 import { addDays, todayInZone } from '../../lib/time'
 import { dowOf } from '../catalog/hours'
@@ -14,12 +14,22 @@ import { BookPage } from './BookPage'
 vi.mock('../catalog/api', async (importOriginal) => ({
   ...(await importOriginal<object>()),
   fetchCourts: vi.fn(),
-  fetchOperatingHours: vi.fn(),
+  fetchPublicSchedule: vi.fn(),
   fetchVenueSettings: vi.fn(),
 }))
 vi.mock('./api', async (importOriginal) => ({ ...(await importOriginal<object>()), fetchAvailability: vi.fn() }))
 
 const court = { id: 'A', name: 'Badminton 1', sport: 'badminton', description: 'Wooden floor, good lights.', is_active: true, court_photos: [] }
+
+function schedule(closedDow = -1): PublicSchedulePeriod[] {
+  const today = todayInZone('Asia/Manila')
+  return Array.from({ length: 31 }, (_, index) => addDays(today, index))
+    .filter((date) => dowOf(date) !== closedDow)
+    .map((date) => ({ court_id: 'A', operating_date: date,
+      period_start: new Date(`${date}T00:00:00+08:00`).toISOString(),
+      period_end: new Date(`${addDays(date, 1)}T00:00:00+08:00`).toISOString(),
+      booking_start: today, booking_end: addDays(today, 30) }))
+}
 
 function renderPage() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -40,9 +50,7 @@ describe('BookPage date', () => {
   it("picks tomorrow from the date strip and greys out a closed tomorrow (T11.4a)", async () => {
     const today = todayInZone('Asia/Manila')
     const tomorrowDow = dowOf(addDays(today, 1))
-    vi.mocked(fetchOperatingHours).mockResolvedValue(
-      [0, 1, 2, 3, 4, 5, 6].map((d) => ({ day_of_week: d, open_time: '00:00:00', close_time: '24:00:00', is_closed: false })) as OperatingHours[],
-    )
+    vi.mocked(fetchPublicSchedule).mockResolvedValue(schedule())
     renderPage()
     const date = await screen.findByRole('group', { name: 'Date' })
     const tiles = () => within(date).getAllByRole('button').filter((b) => b.classList.contains('date-tile'))
@@ -61,9 +69,7 @@ describe('BookPage date', () => {
     expect(within(date).getByRole('button', { name: 'Next day' })).toBeEnabled()
     cleanup()
 
-    vi.mocked(fetchOperatingHours).mockResolvedValue(
-      [0, 1, 2, 3, 4, 5, 6].map((d) => ({ day_of_week: d, open_time: '00:00:00', close_time: '24:00:00', is_closed: d === tomorrowDow })) as OperatingHours[],
-    )
+    vi.mocked(fetchPublicSchedule).mockResolvedValue(schedule(tomorrowDow))
     renderPage()
     const again = await screen.findByRole('group', { name: 'Date' })
     const tomorrow = within(again).getAllByRole('button').filter((b) => b.classList.contains('date-tile'))[1]
@@ -76,9 +82,7 @@ describe('BookPage court details', () => {
   beforeEach(() => {
     vi.mocked(fetchVenueSettings).mockResolvedValue({ timezone: 'Asia/Manila', currency: 'PHP', booking_window_days: 30 } as VenueSettings)
     vi.mocked(fetchCourts).mockResolvedValue([court as unknown as CourtWithPhotos])
-    vi.mocked(fetchOperatingHours).mockResolvedValue(
-      [0, 1, 2, 3, 4, 5, 6].map((d) => ({ day_of_week: d, open_time: '06:00:00', close_time: '22:00:00', is_closed: false })) as OperatingHours[],
-    )
+    vi.mocked(fetchPublicSchedule).mockResolvedValue(schedule())
     vi.mocked(fetchAvailability).mockResolvedValue([])
   })
 
