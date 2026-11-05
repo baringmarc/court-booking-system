@@ -4,7 +4,9 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
 
 ## Handoff
 
-- **Active work (2026-11-05):** M17 Admin and scheduling improvements, approved by the user after the source audit. T17.1–T17.10 complete (reviewer PASS); all six pending migrations through T17.10 were pushed to linked staging with the user's approval. **Next task:** T17.11 Booking engine: effective periods (plan gate pending). M16 T16.3–T16.6 remain queued, not completed or cancelled. This entry supersedes the historical Current milestone/Next task entries below.
+- **Active work (2026-11-05):** M17 Admin and scheduling improvements, approved by the user after the source audit. T17.1–T17.11 complete (reviewer PASS); migrations through T17.10 were pushed to linked staging with approval. **Next task:** T17.12 Scheduling dependants (plan gate pending). M16 T16.3–T16.6 remain queued, not completed or cancelled. This entry supersedes the historical Current milestone/Next task entries below.
+- **State:** T17.11 complete and verified locally; no linked push or deployment. T17.12 is next.
+- **Blockers / notes:** T17.11 migration `20261104235120_t17_11_effective_periods.sql` remains local pending separate approval for hosted migration push. Its activation switch remains false; local tests toggle it only within rollback transactions.
 - **Release boundary:** M17 scope approval does not authorize hosted migrations, deployment or push. DB/security tasks retain detailed plan gates; local validation is allowed during implementation.
 - **Scope added (2026-11-05, /propose):** T17.18–T17.29 cover console navigation/pagination, stronger slot fills, clearer Reports, Booking Rules hints, complete owner PDF and invitation delivery, guarded deletion and separately reviewed production test-data cleanup. Close-out is now T17.30. T17.24–T17.25 are high-priority requirements before inviting real owners; the guide must match the released screens. Task numbering does not change the current next task T17.11. No production cleanup is authorized until its exact records and deletion plan are approved in T17.29.
 
@@ -2284,10 +2286,11 @@ Approved 2026-11-03. Source: `docs/PLOTLINE_ADMIN_SCHEDULING_IMPLEMENTATION_SPEC
 - **Acceptance:** pgTAP rejects unauthorized/cross-venue and overlapping writes including Sunday wrap; no partial saves; snapshots and stale revisions tested; preview pagination/horizon documented.
 - **Notes:** Migrations `20261104163426_t17_10_schedule_rpcs.sql` and `20261104163928_t17_10_schedule_rpc_fixups.sql` add the venue-admin-only read, impact preview and atomic save RPCs with explicit venue authorization, revision checks and court locks. Custom mode snapshots venue defaults; rate copying is explicit. Preview is paginated, capped at a 90-day horizon, ignores expired pending holds and reports conflicts without changing reservations or open play. Tests: `68_schedule_rpcs.test.sql` (48 assertions) and cross-venue RPC coverage in `51_cross_venue_isolation.test.sql`. Full gate passed, including 3,063 database assertions and desktop/phone e2e; reviewer PASS round 2, no findings. The reviewer accepted the resolved test dispute: the cross-venue revision assertion resets role before reading the other venue's state. `npm run db:push` applied all six pending migrations (T17.5, T17.7, T17.9 and T17.10) to linked staging with the user's explicit approval; generated database types from the linked schema. No production deployment.
 
-### [ ] T17.11 Booking engine: effective periods
+### [x] T17.11 Booking engine: effective periods
 - **Depends:** T17.10
 - **Do:** Court-aware day ownership, availability, pricing and booking/walk-in/reschedule validation; keep activation disabled. Risky RPC gate.
 - **Acceptance:** pgTAP proves closed gaps, one-period containment, midnight pricing, blackouts, active holds and exclusion protection; multi-connection races have deterministic complete-version outcomes.
+- **Notes:** Migration `20261104235120_t17_11_effective_periods.sql` adds court-aware operating periods/day ownership and routes availability, booking-window checks, pricing, booking, walk-in and reschedule validation through them while activation remains false. Tests: `69_effective_periods.test.sql` (20), `70_court_operating_day.test.sql` (3), and `scripts/test-schedule-concurrency.mjs` (booking waits for schedule save, then sees the committed closed schedule). Round-1 test disputes were accepted by the reviewer and fixed by the test-writer. Full gate passed (3,086 pgTAP assertions, concurrency test, build, typecheck, lint, unit tests and drift check); reviewer PASS round 2. Local only; hosted push not authorized by the milestone handoff.
 
 ### [ ] T17.12 Scheduling dependants
 - **Depends:** T17.11
