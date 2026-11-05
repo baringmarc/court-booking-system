@@ -505,6 +505,8 @@ select is_empty(
          'venue_setup_status', 'publish_venue',
          -- venue admins only: names a venue id and refuses anyone who doesn't run it (62_venue_statement)
          'venue_statement',
+         -- paged statement reads: name a venue id and refuse anyone who doesn't run it (78_statement_pages)
+         'statement_summary', 'statement_charges_page', 'statement_invoices_page',
          -- schedule RPCs: get_staff_schedule is probed above; others are cross-venue tested in 68_schedule_rpcs
          'get_schedule', 'preview_schedule_impact', 'save_schedule', 'get_staff_schedule',
          -- platform admins only: refuse anyone who is not a platform admin (59_venues_overview, 61_invoice_review, 66_showcase_authority,

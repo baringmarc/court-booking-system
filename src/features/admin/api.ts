@@ -4,7 +4,7 @@ import type { PostgrestSingleResponse } from '@supabase/supabase-js'
 import { supabase } from '../../lib/supabase'
 import { ApiError, unwrap } from '../../lib/queryClient'
 import { parseTstzRange } from '../../lib/time'
-import type { Enums, Json } from '../../lib/database.types'
+import type { Database, Enums, Json } from '../../lib/database.types'
 import { currentVenueId } from '../../lib/currentVenue'
 import { dayRangeLiteral, effectiveSort, parseSearch, type BookingFilters } from './bookingFilters'
 import { VENUE_MEDIA_BUCKET } from '../catalog/media'
@@ -644,6 +644,92 @@ export type VenueStatement = {
 
 export async function fetchStatement(): Promise<VenueStatement> {
   return unwrap(await supabase.rpc('venue_statement', { p_venue_id: currentVenueId() })) as unknown as VenueStatement
+}
+
+// --- paged statement (T17.21) ---------------------------------------------------
+
+export const STATEMENT_PAGE_SIZE = 25
+
+export type StatementTotals = { fee_count: number; fee_total: number; adjustment_total: number; total: number }
+export type DueInvoice = {
+  invoice_id: string
+  billing_month: string
+  total: number
+  sent_at: string
+  due_at: string
+  overdue: boolean
+}
+/** A month's full totals (never a page's), this month's accrual and the amount due: sent invoices only. */
+export type StatementSummary = StatementTotals & {
+  month: string
+  by_method: VenueStatement['by_method']
+  accrual: StatementTotals
+  amount_due: { total: number; count: number; invoices: DueInvoice[] }
+}
+export type StatementCharge = VenueStatement['lines'][number] & { invoice_id: string | null }
+export type StatementInvoice = {
+  invoice_id: string
+  billing_month: string
+  status: string
+  fee_total: number
+  adjustment_total: number
+  total: number
+  sent_at: string | null
+  due_at: string | null
+  overdue: boolean
+  paid_at: string | null
+  paid_method: string | null
+  paid_reference: string | null
+}
+export type StatementPage<T> = { total: number; rows: T[] }
+
+type Functions = Database['public']['Functions']
+
+function statementOffset(page: number): number {
+  return (Math.max(1, Math.floor(page)) - 1) * STATEMENT_PAGE_SIZE
+}
+
+/** Blank filters go out as SQL null ("no filter"); the generated Args type omits null for defaulted arguments. */
+function blankToNull(value: string | null | undefined): string | null {
+  const trimmed = value?.trim() ?? ''
+  return trimmed === '' ? null : trimmed
+}
+
+/** `month` is the first day of a month (YYYY-MM-DD); none means the venue's current month. */
+export async function fetchStatementSummary(month?: string | null): Promise<StatementSummary> {
+  const args = { p_venue_id: currentVenueId(), p_month: blankToNull(month) }
+  return unwrap(
+    await supabase.rpc('statement_summary', args as Functions['statement_summary']['Args']),
+  ) as unknown as StatementSummary
+}
+
+export async function fetchStatementCharges(input: {
+  month?: string | null
+  search?: string | null
+  page: number
+}): Promise<StatementPage<StatementCharge>> {
+  const args = {
+    p_venue_id: currentVenueId(),
+    p_month: blankToNull(input.month),
+    p_search: blankToNull(input.search),
+    p_limit: STATEMENT_PAGE_SIZE,
+    p_offset: statementOffset(input.page),
+  }
+  return unwrap(
+    await supabase.rpc('statement_charges_page', args as Functions['statement_charges_page']['Args']),
+  ) as unknown as StatementPage<StatementCharge>
+}
+
+export async function fetchStatementInvoices(input: { status?: string | null; page: number }): Promise<StatementPage<StatementInvoice>> {
+  const args = {
+    p_venue_id: currentVenueId(),
+    p_status: blankToNull(input.status),
+    p_limit: STATEMENT_PAGE_SIZE,
+    p_offset: statementOffset(input.page),
+  }
+  return unwrap(
+    await supabase.rpc('statement_invoices_page', args as Functions['statement_invoices_page']['Args']),
+  ) as unknown as StatementPage<StatementInvoice>
 }
 
 // --- weekly hours and rates (T17.15) -------------------------------------------

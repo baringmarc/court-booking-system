@@ -942,6 +942,15 @@ isOneToOne: false
 "set_venue_showcase_approval":
 { Args: { "p_approved": boolean,"p_venue_id": string }; Returns: undefined
                            },
+"statement_charges_page":
+{ Args: { "p_limit"?: number,"p_month"?: string,"p_offset"?: number,"p_search"?: string,"p_venue_id"?: string }; Returns: Json
+                           },
+"statement_invoices_page":
+{ Args: { "p_limit"?: number,"p_offset"?: number,"p_status"?: string,"p_venue_id"?: string }; Returns: Json
+                           },
+"statement_summary":
+{ Args: { "p_month"?: string,"p_venue_id"?: string }; Returns: Json
+                           },
 "suspend_venue":
 { Args: { "p_venue_id": string }; Returns: undefined
                            },
