@@ -6,8 +6,8 @@ import { SPORT_LABELS, type CourtWithPhotos } from '../features/catalog/api'
 import { sportsOf } from '../features/catalog/sportOrder'
 import { CourtTiles } from '../features/catalog/CourtTiles'
 import { HomeBanner } from '../features/catalog/HomeBanner'
-import { formatHour, formatMoney } from '../lib/format'
-import { addDays, formatDateLabel, hourInZone, todayInZone } from '../lib/time'
+import { summarizeSchedule } from '../features/catalog/hours'
+import { formatMoney } from '../lib/format'
 import { AmenityChips, InfoSections, QuickFacts, VenueAddress } from '../features/venue/VenueInfo'
 
 export function HomePage() {
@@ -34,15 +34,13 @@ export function HomePage() {
             ? 'Pick a court and a time, then pay online with a card, GCash or Maya, or by bank transfer.'
             : 'Pick a court and a time, then pay with GCash, Maya or a bank transfer.'}
         </p>
-        {hours.isPending && <p className="muted">Loading court hours…</p>}
+        {/* The summary needs the court names too; a courts error shows under "Our courts". */}
+        {(hours.isPending || (hours.isSuccess && hours.data.length > 0 && courts.isPending)) && <p className="muted">Loading court hours…</p>}
         {hours.isError && <ErrorMessage error={hours.error} onRetry={() => hours.refetch()} />}
         {hours.isSuccess && hours.data.length === 0 && <p className="muted">No upcoming court hours.</p>}
-        {hours.data && hours.data.length > 0 && (
+        {hours.isSuccess && hours.data.length > 0 && courts.isSuccess && (
           <ul className="hours-summary" aria-label="Upcoming court hours">
-            {[...hours.data].sort((a, b) => a.period_start.localeCompare(b.period_start)).filter((period) => period.operating_date < addDays(hours.data.map((item) => item.operating_date).sort()[0], 7))
-              .map((period) => <li key={`${period.court_id}-${period.period_start}`}>
-                {courts.data?.find((court) => court.id === period.court_id)?.name}: {formatDateLabel(period.operating_date, settings.data?.timezone ?? 'Asia/Manila')} · {formatHour(hourInZone(period.period_start, settings.data?.timezone ?? 'Asia/Manila'))}–{formatHour(hourInZone(period.period_end, settings.data?.timezone ?? 'Asia/Manila'))}{todayInZone(settings.data?.timezone ?? 'Asia/Manila', new Date(period.period_end)) !== period.operating_date ? ' (next day)' : ''}
-              </li>)}
+            {summarizeSchedule(hours.data, courts.data,settings.data?.timezone ?? 'Asia/Manila').map((line) => <li key={line}>{line}</li>)}
           </ul>
         )}
         <div className="hero-actions">

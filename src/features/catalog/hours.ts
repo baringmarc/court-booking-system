@@ -1,6 +1,6 @@
 import { DAY_NAMES, DAY_SHORT, DISPLAY_DAY_ORDER, formatHour, hourOf } from '../../lib/format'
 import { addDays, localHoursInZone, todayInZone, zonedLocalToISO } from '../../lib/time'
-import type { OperatingHours } from './api'
+import type { OperatingHours, PublicSchedulePeriod } from './api'
 
 // Operating days (SPEC §5.2, T9.9/T9.10). These mirror the SQL helpers in 20261021001821_overnight_hours.sql:
 // a close before the open means the next day, 24 hours is 12 AM to midnight (an open day can't close at its opening
@@ -98,27 +98,76 @@ export function isAfterMidnight(iso: string, operatingDate: string, timeZone: st
   return todayInZone(timeZone, new Date(iso)) !== operatingDate
 }
 
-function label(h: Hours | undefined) {
+/** A day's spans as text: "6 AM – 10 PM", "6 AM – 12 PM, 2 PM – 10 PM", "6 PM – 2 AM (next day)", "Open 24 hours" or "Closed". */
+function spansLabel(spans: { open: number; end: number }[]) {
+  if (spans.length === 0) return 'Closed'
+  if (spans.length === 1 && spans[0].end - spans[0].open === 24) return 'Open 24 hours'
+  return spans.map(({ open, end }) => `${formatHour(open)} – ${formatHour(end)}${end > 24 ? ' (next day)' : ''}`).join(', ')
+}
+
+const label = (h: Hours | undefined) => {
   const span = daySpan(h)
-  if (!span) return 'Closed'
-  if (span.end - span.open === 24) return 'Open 24 hours'
-  const close = formatHour(span.end)
-  return `${formatHour(span.open)} – ${close}${span.end > 24 ? ' (next day)' : ''}`
+  return spansLabel(span ? [span] : [])
 }
 
 /** "Open daily, 6 AM – 10 PM" or grouped lines like "Mon–Fri: 6 AM – 10 PM", "Sun: Closed". */
 export function summarizeHours(hours: OperatingHours[]): string[] {
   const byDay = new Map(hours.map((h) => [h.day_of_week, h]))
+  return summarizeDays(new Map(DISPLAY_DAY_ORDER.map((day) => [day, label(byDay.get(day))])))
+}
 
+/**
+ * The next week of the public schedule (`get_public_schedule`) in a few lines: the hours most courts share, unnamed,
+ * then one line per group of courts with other hours ("Tennis Court: Mon–Fri: 6 AM – 10 PM · Sat–Sun: 8 AM – 8 PM").
+ * The week is the 7 operating dates from the first bookable date, cut at the last one; a date without periods is Closed.
+ */
+export function summarizeSchedule(periods: PublicSchedulePeriod[], courts: { id: string; name: string }[], timeZone: string): string[] {
+  if (periods.length === 0) return []
+  const first = periods.map((p) => p.booking_start).sort()[0]
+  const lastBookable = periods.map((p) => p.booking_end).sort().at(-1)!
+  const dates = Array.from({ length: 7 }, (_, i) => addDays(first, i)).filter((date) => date <= lastBookable)
+
+  const hoursPast = (iso: string, midnight: string) => (new Date(iso).getTime() - new Date(midnight).getTime()) / 3_600_000
+  const summaries = courts.map((court) => {
+    const texts = new Map<number, string>()
+    for (const date of dates) {
+      const midnight = hourOnDate(date, 0, timeZone)
+      const spans = periods
+        .filter((p) => p.court_id === court.id && p.operating_date === date)
+        .map((p) => ({ open: hoursPast(p.period_start, midnight), end: hoursPast(p.period_end, midnight) }))
+        .sort((a, b) => a.open - b.open)
+      texts.set(dowOf(date), spansLabel(spans))
+    }
+    return summarizeDays(texts)
+  })
+
+  // Courts with the same lines share a group, in courts order; the largest (first on a tie) is the venue's hours.
+  const groups: { names: string[]; lines: string[] }[] = []
+  courts.forEach((court, i) => {
+    const key = summaries[i].join('\n')
+    const group = groups.find((g) => g.lines.join('\n') === key)
+    if (group) group.names.push(court.name)
+    else groups.push({ names: [court.name], lines: summaries[i] })
+  })
+  const main = groups.reduce((best, g) => (g.names.length > best.names.length ? g : best), groups[0])
+  if (!main) return []
+  return [...main.lines, ...groups.filter((g) => g !== main).map((g) => `${g.names.join(', ')}: ${g.lines.join(' · ')}`)]
+}
+
+/** Weekday texts (only the days present) in display order: consecutive equal days merge; a missing day breaks a run. */
+function summarizeDays(texts: Map<number, string>): string[] {
   const groups: { days: number[]; text: string }[] = []
+  let previous: number | null = null
   for (const day of DISPLAY_DAY_ORDER) {
-    const text = label(byDay.get(day))
+    const text = texts.get(day)
+    if (text === undefined) { previous = null; continue }
     const last = groups.at(-1)
-    if (last && last.text === text) last.days.push(day)
+    if (last && previous !== null && last.text === text) last.days.push(day)
     else groups.push({ days: [day], text })
+    previous = day
   }
 
-  if (groups.length === 1) {
+  if (groups.length === 1 && groups[0].days.length === 7) {
     const text = groups[0].text
     if (text === 'Closed') return ['Temporarily closed']
     return [text === 'Open 24 hours' ? 'Open 24 hours, every day' : `Open daily, ${text}`]
