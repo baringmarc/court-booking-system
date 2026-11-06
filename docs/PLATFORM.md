@@ -56,7 +56,7 @@ Anything here is a **public API**: changing it can break the live marketing site
 
 Both are `POST`, called with `supabase.functions.invoke(name, { body })` and the publishable key (`verify_jwt = false`). Both answer `{ ok: true, … }` on success, and `{ ok: false, error }` with a readable message on 4xx/5xx. Bots (the honeypot filled, or the form sent within 3 seconds of first touch) get a fake success.
 
-**`site-contact`**: a venue owner's contact form. Stores a lead and emails `LEAD_ALERT_TO` (best-effort: a failed alert never fails the save); no account is created. Only platform admins read leads (RLS); nothing in the marketing site reads them.
+**`site-contact`**: a venue owner's contact form. Stores a lead and emails `LEAD_ALERT_TO` (best-effort: a failed alert never fails the save); no account is created. Only platform admins read leads (RLS); nothing in the marketing site reads them. Platform admins may delete a lead (`delete_lead`, T17.26); that never affects a venue or account and the same person can submit again.
 
 | Field | Type | Rule |
 | --- | --- | --- |

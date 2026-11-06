@@ -13,3 +13,4 @@ supabase migration up --local >/dev/null
 supabase test db
 node scripts/test-schedule-concurrency.mjs
 node scripts/test-schedule-cutover-concurrency.mjs
+node scripts/test-venue-deletion-concurrency.mjs

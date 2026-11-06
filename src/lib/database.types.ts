@@ -763,14 +763,14 @@ isOneToOne: false
                   ]
                 },"venues": {
                   Row: {
-                    "created_at": string,"id": string,"showcase_approved": boolean,"slug": string,"status": string
+                    "created_at": string,"id": string,"protected": boolean,"showcase_approved": boolean,"slug": string,"status": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"id"?: string,"showcase_approved"?: boolean,"slug": string,"status"?: string
+                    "created_at"?: string,"id"?: string,"protected"?: boolean,"showcase_approved"?: boolean,"slug": string,"status"?: string
                   }
                   Update: {
-                    "created_at"?: string,"id"?: string,"showcase_approved"?: boolean,"slug"?: string,"status"?: string
+                    "created_at"?: string,"id"?: string,"protected"?: boolean,"showcase_approved"?: boolean,"slug"?: string,"status"?: string
                   }
                   Relationships: [
                     
@@ -805,6 +805,9 @@ isOneToOne: false
               "attempts": number,"booking_id": string,"data": Json,"id": string,"reference_code": string,"to_email": string
             }[]
                            },
+"claim_venue_file_cleanup":
+{ Args: { "p_limit": number }; Returns: Json
+                           },
 "create_booking":
 { Args: { "p_court_id": string,"p_guest_email"?: string,"p_guest_name"?: string,"p_guest_phone"?: string,"p_slots": number,"p_start": string,"p_waiver_accepted"?: boolean }; Returns: {
               "guest_token": string,"id": string,"reference_code": string
@@ -824,11 +827,20 @@ isOneToOne: false
 "delete_court":
 { Args: { "p_court_id": string }; Returns: undefined
                            },
+"delete_lead":
+{ Args: { "p_lead_id": string }; Returns: undefined
+                           },
 "delete_open_play":
 { Args: { "p_id": string }; Returns: undefined
                            },
+"delete_unused_venue":
+{ Args: { "p_confirm_slug": string,"p_venue_id": string }; Returns: Json
+                           },
 "finish_email":
 { Args: { "p_error"?: string,"p_id": string,"p_outcome": string }; Returns: Database["public"]['Enums']["email_status"]
+                           },
+"finish_venue_file_cleanup":
+{ Args: { "p_error": string,"p_id": string,"p_ok": boolean }; Returns: undefined
                            },
 "get_availability":
 { Args: { "p_court_id"?: string,"p_date": string,"p_venue_slug"?: string }; Returns: {
@@ -959,6 +971,9 @@ isOneToOne: false
                            },
 "user_id_by_email":
 { Args: { "p_email": string }; Returns: string
+                           },
+"venue_deletion_preview":
+{ Args: { "p_venue_id": string }; Returns: Json
                            },
 "venue_setup_status":
 { Args: { "p_venue_id": string }; Returns: Json
