@@ -11,13 +11,16 @@ export type ScheduleTab = (typeof SCHEDULE_TABS)[number]['id']
 export const tabId = (tab: ScheduleTab) => `schedule-tab-${tab}`
 export const panelId = (tab: ScheduleTab) => `schedule-panel-${tab}`
 
-/** The open tab from the URL (unknown or missing: Opening hours) and a setter that pushes a history entry. */
+/**
+ * The open tab from the URL (unknown or missing: Opening hours) and a setter that pushes a history entry. The setter
+ * doesn't skip "the open tab": the router commits in a transition, so `tab` can be stale between quick key presses
+ * (ArrowLeft then Home would be dropped). Callers skip a tab that is already open (ScheduleTabList).
+ */
 export function useScheduleTab(): [ScheduleTab, (tab: ScheduleTab) => void] {
   const [params, setParams] = useSearchParams()
   const value = params.get('tab')
   const tab = SCHEDULE_TABS.find((t) => t.id === value)?.id ?? 'hours'
   const setTab = (next: ScheduleTab) => {
-    if (next === tab) return
     const copy = new URLSearchParams(params)
     copy.set('tab', next)
     setParams(copy)

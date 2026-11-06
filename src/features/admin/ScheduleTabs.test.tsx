@@ -191,14 +191,14 @@ describe('tab keyboard behavior', () => {
 describe('the draft is kept across tabs', () => {
   it('keeps every panel mounted: an hours edit survives a visit to Prices', async () => {
     mount()
-    await pick('Monday period 1 closes', '12')
+    await pick('Monday closes', '12')
     await openTab(PRICES)
     expect(panel(HOURS)).toHaveAttribute('hidden')
     // still in the document, still holding the edit
-    expect(screen.getByLabelText('Monday period 1 closes')).toHaveValue('12')
+    expect(screen.getByLabelText('Monday closes')).toHaveValue('12')
     await openTab(HOURS)
     expect(screen.getByRole('tabpanel', { name: HOURS })).toBeVisible()
-    expect(screen.getByLabelText('Monday period 1 closes')).toHaveValue('12')
+    expect(screen.getByLabelText('Monday closes')).toHaveValue('12')
   })
 
   it('keeps a pending rate when switching to Opening hours and back', async () => {
@@ -217,19 +217,27 @@ describe('the draft is kept across tabs', () => {
 })
 
 describe('Opening hours tab', () => {
-  it('is today\'s editor: Schedule for, Court hours, period controls and copy controls, but no rate fields or default rate', async () => {
+  it('is the opening hours table: day switches and time lists, breaks, the copy row and Courts with different hours, but no rate fields or default rate', async () => {
     mount()
     const hours = within(await screen.findByRole('tabpanel', { name: HOURS }))
-    expect(await hours.findByRole('combobox', { name: 'Schedule for' })).toBeInTheDocument()
-    expect(hours.getByLabelText('Monday period 1 opens')).toHaveValue('6')
-    expect(hours.getByRole('button', { name: 'Add Monday period' })).toBeInTheDocument()
-    expect(hours.getByRole('button', { name: 'Copy Monday hours' })).toBeInTheDocument()
+    expect(await hours.findByRole('switch', { name: 'Monday open' })).toBeChecked()
+    expect(hours.getByLabelText('Monday opens')).toHaveValue('6')
+    expect(hours.getByLabelText('Monday closes')).toHaveValue('22')
+    expect(within(hours.getByRole('group', { name: 'Monday' })).getByRole('button', { name: /Add a break/ })).toBeInTheDocument()
+    expect(hours.getByRole('button', { name: 'Copy to Mon–Fri' })).toBeInTheDocument()
+    expect(hours.getByRole('region', { name: 'Courts with different hours' })).toBeInTheDocument()
+    expect(hours.getByRole('region', { name: 'Week at a glance' })).toBeInTheDocument()
+    expect(hours.queryByRole('combobox', { name: 'Schedule for' })).not.toBeInTheDocument()
+    expect(hours.queryByRole('combobox', { name: 'Court hours' })).not.toBeInTheDocument()
+    expect(hours.queryByRole('button', { name: /Add .*period/ })).not.toBeInTheDocument()
+    expect(hours.queryByRole('button', { name: 'Copy to another court' })).not.toBeInTheDocument()
     expect(hours.queryByRole('group', { name: 'Weekly override rates' })).not.toBeInTheDocument()
     expect(hours.queryByLabelText('Override price')).not.toBeInTheDocument()
     expect(hours.queryByText(/Default rate/)).not.toBeInTheDocument()
-    await userEvent.selectOptions(hours.getByRole('combobox', { name: 'Schedule for' }), 'Court Two')
-    expect(hours.getByRole('combobox', { name: 'Court hours' })).toHaveDisplayValue('Custom hours')
-    expect(hours.getByRole('button', { name: 'Copy to another court' })).toBeInTheDocument()
+    await userEvent.click(hours.getByRole('button', { name: /Edit hours for Court Two/ }))
+    expect(hours.getByText(/Editing Court Two only/)).toBeInTheDocument()
+    expect(hours.getByLabelText('Monday opens')).toHaveValue('8')
+    expect(hours.getByRole('button', { name: 'Copy hours from Court One' })).toBeInTheDocument()
   })
 })
 
@@ -286,7 +294,7 @@ describe('the unsaved-changes dot', () => {
 
   it('an hours edit marks Opening hours only, with visually hidden text for screen readers', async () => {
     mount()
-    await pick('Monday period 1 closes', '12')
+    await pick('Monday closes', '12')
     expect(tab(HOURS)).toHaveAccessibleName('Opening hours, unsaved changes')
     expect(tab(PRICES)).toHaveAccessibleName('Prices')
     expect(tab(CLOSURES)).toHaveAccessibleName('Closures')
@@ -294,8 +302,8 @@ describe('the unsaved-changes dot', () => {
 
   it('a court hours change (own hours) also marks Opening hours', async () => {
     mount()
-    await userEvent.selectOptions(await screen.findByRole('combobox', { name: 'Schedule for' }), 'Court One')
-    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Court hours' }), 'Custom hours')
+    await userEvent.selectOptions(await screen.findByLabelText('Choose a court'), 'Court One')
+    await userEvent.click(screen.getByRole('button', { name: 'Give this court different hours' }))
     expect(tab(HOURS)).toHaveAccessibleName('Opening hours, unsaved changes')
     expect(tab(PRICES)).toHaveAccessibleName('Prices')
   })
@@ -313,7 +321,7 @@ describe('the unsaved-changes dot', () => {
 
   it('clears when the edit is undone by Discard', async () => {
     mount()
-    await pick('Monday period 1 closes', '12')
+    await pick('Monday closes', '12')
     expect(tab(HOURS)).toHaveAccessibleName('Opening hours, unsaved changes')
     await userEvent.click(screen.getByRole('button', { name: 'Discard' }))
     await userEvent.click(within(await screen.findByRole('dialog', { name: 'Discard changes' })).getByRole('button', { name: 'Discard' }))
@@ -324,7 +332,7 @@ describe('the unsaved-changes dot', () => {
     mount('/admin/schedule?tab=closures')
     await screen.findByRole('tablist', { name: 'Schedule sections' })
     await openTab(HOURS)
-    await pick('Monday period 1 closes', '12')
+    await pick('Monday closes', '12')
     await openTab(CLOSURES)
     expect(tab(CLOSURES)).toHaveAccessibleName('Closures')
   })

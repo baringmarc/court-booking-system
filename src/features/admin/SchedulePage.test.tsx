@@ -45,7 +45,7 @@ describe('SchedulePage sections (T17.15)', () => {
 
   it('shows the hours editor in Opening hours and the blackout section in Closures, with no legacy operating hours form', async () => {
     renderPage('hours')
-    expect(await screen.findByRole('combobox', { name: 'Schedule for' })).toBeInTheDocument()
+    expect(await screen.findByRole('switch', { name: 'Monday open' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Weekly Hours & Rates' })).not.toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Operating hours' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Save hours' })).not.toBeInTheDocument()

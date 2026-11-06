@@ -21,6 +21,7 @@ export function ScheduleTabList({ tab, onTab, markRefs }: {
       : e.key === 'Home' ? 0 : e.key === 'End' ? n - 1 : null
     if (index === null) return
     e.preventDefault()
+    if (index === at) return
     const next = SCHEDULE_TABS[index].id
     onTab(next)
     refs.current[next]?.focus()
@@ -30,7 +31,7 @@ export function ScheduleTabList({ tab, onTab, markRefs }: {
       {SCHEDULE_TABS.map((t) => (
         <button key={t.id} ref={(el) => { refs.current[t.id] = el }} type="button" role="tab" id={tabId(t.id)}
           className="tab" aria-selected={t.id === tab} aria-controls={panelId(t.id)} tabIndex={t.id === tab ? 0 : -1}
-          onClick={() => onTab(t.id)}>
+          onClick={() => { if (t.id !== tab) onTab(t.id) }}>
           {/* One flex item: a separate one would put a space before the mark's words in the tab's name. */}
           <span>{t.label}{markRefs[t.id] && <span ref={markRefs[t.id]} />}</span>
         </button>

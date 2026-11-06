@@ -1,4 +1,4 @@
-import { Fragment, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 import { ErrorMessage } from '../../components/ErrorMessage'
@@ -17,23 +17,12 @@ import { UnsavedMark } from './ScheduleTabs'
 import { tabId, type ScheduleTab } from './scheduleTabState'
 import { useSaveSchedule, useSchedule, useScheduleImpact } from './hooks'
 import { ConfirmDialog } from './ConfirmDialog'
+import { CourtExceptions } from './CourtExceptions'
+import { HoursTable } from './HoursTable'
+import { WeekChart } from './WeekChart'
 import { useUnsavedGuard } from './UnsavedGuard'
-import {
-  changedDays,
-  closeHours,
-  dayText,
-  gaps,
-  hourLabel,
-  hourOfMinute,
-  maxEnd,
-  overlapDays,
-  periodsOfDay,
-  periodText,
-  samePeriods,
-  toSave,
-} from './weeklySchedule'
+import { changedDays, dayText, hourLabel, overlapDays, periodsOfDay, samePeriods, toSave } from './weeklySchedule'
 
-const VENUE = 'venue'
 const HOURS = Array.from({ length: 24 }, (_, i) => i)
 
 type CourtDraft = { mode: 'inherit' | 'custom'; periods: SchedulePeriod[] }
@@ -50,7 +39,6 @@ export function WeeklyHoursEditor({ tab, slots }: { tab: ScheduleTab; slots: Slo
   const courts = useCourts({ includeInactive: true })
   const save = useSaveSchedule()
   const [generation, setGeneration] = useState(0)
-  const [target, setTarget] = useState(VENUE)
   const [priceCourt, setPriceCourt] = useState('')
 
   if (schedule.isPending || courts.isPending || schedule.isError || courts.isError) {
@@ -68,8 +56,6 @@ export function WeeklyHoursEditor({ tab, slots }: { tab: ScheduleTab; slots: Slo
       schedule={schedule.data}
       courts={courts.data}
       slots={slots}
-      target={target}
-      onTarget={setTarget}
       priceCourt={priceCourt}
       onPriceCourt={setPriceCourt}
       save={save}
@@ -83,12 +69,10 @@ export function WeeklyHoursEditor({ tab, slots }: { tab: ScheduleTab; slots: Slo
 type Slots = Record<'hours' | 'prices' | 'bar' | 'hoursMark' | 'pricesMark', HTMLElement | null>
 const into = (slot: HTMLElement | null, node: ReactNode) => (slot ? createPortal(node, slot) : null)
 
-function Editor({ schedule, courts, slots, target, onTarget, priceCourt, onPriceCourt, save, onSaved, onDiscard, onReload }: {
+function Editor({ schedule, courts, slots, priceCourt, onPriceCourt, save, onSaved, onDiscard, onReload }: {
   schedule: ScheduleData
   courts: CourtWithPhotos[]
   slots: Slots
-  target: string
-  onTarget: (target: string) => void
   priceCourt: string
   onPriceCourt: (id: string) => void
   save: ReturnType<typeof useSaveSchedule>
@@ -108,21 +92,13 @@ function Editor({ schedule, courts, slots, target, onTarget, priceCourt, onPrice
   const [rateFrom, setRateFrom] = useState(6)
   const [rateTo, setRateTo] = useState(7)
   const [price, setPrice] = useState('')
-  const [confirmInherit, setConfirmInherit] = useState(false)
+  // The court whose own hours the table is editing ("Editing Court 3 only"), or null for the venue's opening hours.
+  const [editing, setEditing] = useState<string | null>(null)
   const [confirmDiscard, setConfirmDiscard] = useState(false)
   const [reviewing, setReviewing] = useState(false)
   const reviewButton = useRef<HTMLButtonElement>(null)
   const discardButton = useRef<HTMLButtonElement>(null)
   const bar = useRef<HTMLElement>(null)
-  const [copyFrom, setCopyFrom] = useState<number | null>(null)
-  const [copyDays, setCopyDays] = useState<number[]>([])
-  const [copyRates, setCopyRates] = useState(false)
-  const [courtCopyOpen, setCourtCopyOpen] = useState(false)
-  const [ccTarget, setCcTarget] = useState('')
-  const [ccFrom, setCcFrom] = useState(1)
-  const [ccTo, setCcTo] = useState(1)
-  const [ccRates, setCcRates] = useState(false)
-  const [pendingCourtCopy, setPendingCourtCopy] = useState<{ target: CourtWithPhotos; from: number; to: number; rates: boolean } | null>(null)
   // The impact horizon is fixed per draft session so the preview's key only changes with the draft.
   const [horizon] = useState(() => {
     const now = Date.now()
@@ -130,14 +106,18 @@ function Editor({ schedule, courts, slots, target, onTarget, priceCourt, onPrice
   })
   const timezone = useVenueSettings().data?.timezone ?? 'Asia/Manila'
 
-  const court = courts.find((c) => c.id === target)
   const courtName = (id: string) => courts.find((c) => c.id === id)?.name ?? 'A court'
-  const courtId = court?.id ?? null
   const draftOf = (id: string): CourtDraft => courtDrafts[id] ?? { mode: 'inherit', periods: [] }
-  const custom = courtId !== null && draftOf(courtId).mode === 'custom'
-  const editable = courtId === null || custom
-  const periods = courtId === null ? venue : custom ? draftOf(courtId).periods : venue
-  // The Prices tab picks its court separately from the hours tab's "Schedule for" (first court by default).
+  const court = courts.find((c) => c.id === editing && draftOf(c.id).mode === 'custom')
+  const courtId = court?.id ?? null
+  const periods = courtId === null ? venue : draftOf(courtId).periods
+  /** A court's week as it stands in the draft: its own hours, or the venue's when it follows them. */
+  const effectiveOf = (id: string) => (draftOf(id).mode === 'custom' ? draftOf(id).periods : venue)
+  const savedOf = (id: string | null) => {
+    const was = id === null ? undefined : baseCourt(id)
+    return was?.schedule_mode === 'custom' ? was.periods : base.venue_periods
+  }
+  // The Prices tab picks its court separately from the court being edited on Opening hours (first court by default).
   const priced = courts.find((c) => c.id === priceCourt) ?? courts[0]
   const pricedId = priced?.id ?? null
   const setPeriods = (next: SchedulePeriod[]) => {
@@ -224,91 +204,19 @@ function Editor({ schedule, courts, slots, target, onTarget, priceCourt, onPrice
       })),
   ]
 
-  // --- edits ----------------------------------------------------------------
-  const nth = (day: number, index: number) => {
-    let seen = -1
-    return periods.findIndex((p) => p.day_of_week === day && ++seen === index)
+  // --- courts with different hours -------------------------------------------
+  const setCourt = (id: string, draft: CourtDraft) => setCourtDrafts((d) => ({ ...d, [id]: draft }))
+  function giveOwnHours(id: string) {
+    setCourt(id, { mode: 'custom', periods: venue.map(clean) })
+    setEditing(id)
   }
-  const editPeriod = (day: number, index: number, patch: (p: SchedulePeriod) => SchedulePeriod) => {
-    const at = nth(day, index)
-    setPeriods(periods.map((p, i) => (i === at ? patch(p) : p)))
+  function followOpeningHours(id: string) {
+    setCourt(id, { mode: 'inherit', periods: [] })
+    if (editing === id) setEditing(null)
   }
-  const setOpens = (day: number, index: number, hour: number) =>
-    editPeriod(day, index, (p) => {
-      const end = hourOfMinute(p.end_minute)
-      const next = end <= hour ? hour + 1 : Math.min(end, maxEnd(hour))
-      return { ...p, start_minute: hour * 60, end_minute: next * 60 }
-    })
-  const setCloses = (day: number, index: number, hour: number) =>
-    editPeriod(day, index, (p) => ({ ...p, end_minute: hour * 60 }))
-  const removePeriod = (day: number, index: number) => setPeriods(periods.filter((_, i) => i !== nth(day, index)))
-  const addPeriod = (day: number) => {
-    const today = periodsOfDay(periods, day)
-    const start = today.length ? Math.min(Math.max(...today.map((p) => hourOfMinute(p.end_minute))), 23) : 6
-    const end = today.length ? start + 1 : 22
-    setPeriods([...periods, { day_of_week: day, start_minute: start * 60, end_minute: end * 60 }])
-  }
-
-  function chooseMode(mode: string) {
+  function copyFromCourt(source: string) {
     if (courtId === null) return
-    if (mode === 'inherit') {
-      if (custom) setConfirmInherit(true)
-      return
-    }
-    const was = baseCourt(courtId)
-    setCourtDrafts((d) => ({
-      ...d,
-      [courtId]: { mode: 'custom', periods: (was?.schedule_mode === 'custom' ? was.periods : venue).map(clean) },
-    }))
-  }
-
-  /** Replaces the target day's rate overrides with the source day's (a saved override the source lacks is cleared). */
-  const copyRatesDay = (all: Record<string, RateEdits>, from: string, fromDay: number, to: string, toDay: number) => {
-    const mine = { ...all[to] }
-    for (const h of HOURS) {
-      const key = `${toDay}:${h}`
-      const rate = effectiveRate(from, fromDay, h)
-      if (rate !== undefined) mine[key] = rate
-      else if (originalRate(to, toDay, h) !== undefined) mine[key] = null
-      else delete mine[key]
-    }
-    return { ...all, [to]: mine }
-  }
-  const dayPeriods = (list: SchedulePeriod[], fromDay: number, toDay: number) =>
-    periodsOfDay(list, fromDay).map((p) => ({ ...p, day_of_week: toDay }))
-
-  function openCopy(day: number) {
-    setCopyFrom(copyFrom === day ? null : day)
-    setCopyDays([])
-    setCopyRates(false)
-  }
-  function applyCopy() {
-    if (copyFrom === null || copyDays.length === 0) return
-    const source = dayPeriods(periods, copyFrom, copyFrom)
-    setPeriods([
-      ...periods.filter((p) => !copyDays.includes(p.day_of_week)),
-      ...copyDays.flatMap((d) => source.map((p) => ({ ...p, day_of_week: d }))),
-    ])
-    if (copyRates && courtId !== null) {
-      setRateEdits((all) => copyDays.reduce((next, d) => copyRatesDay(next, courtId, copyFrom, courtId, d), all))
-    }
-    setCopyFrom(null)
-  }
-
-  const otherCourts = courts.filter((c) => c.id !== courtId)
-  const ccTargetCourt = otherCourts.find((c) => c.id === ccTarget) ?? otherCourts[0]
-  function confirmCourtCopy() {
-    if (!pendingCourtCopy || courtId === null) return
-    const { target, from, to, rates } = pendingCourtCopy
-    const targetDraft = draftOf(target.id)
-    const seed = targetDraft.mode === 'custom' ? targetDraft.periods : venue
-    setCourtDrafts((d) => ({
-      ...d,
-      [target.id]: { mode: 'custom', periods: [...seed.filter((p) => p.day_of_week !== to), ...dayPeriods(periods, from, to)].map(clean) },
-    }))
-    if (rates) setRateEdits((all) => copyRatesDay(all, courtId, from, target.id, to))
-    setPendingCourtCopy(null)
-    setCourtCopyOpen(false)
+    setCourt(courtId, { mode: 'custom', periods: effectiveOf(source).map(clean) })
   }
 
   function applyRate(e: FormEvent) {
@@ -393,136 +301,29 @@ function Editor({ schedule, courts, slots, target, onTarget, priceCourt, onPrice
 
       {into(slots.hours, <>
         <p className="muted small">
-          Open hours are whole hours. A closed gap between two periods can't be booked, and nothing changes until you save.
+          Open hours are whole hours. A break closes the courts between two ranges, and nothing changes until you save.
         </p>
-        <div className="form-grid">
-          <label className="field">
-            <span>Schedule for</span>
-            <select value={courtId ?? VENUE} onChange={(e) => onTarget(e.target.value)}>
-              <option value={VENUE}>Venue defaults</option>
-              {courts.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-          </label>
-          {court && (
-            <label className="field">
-              <span>Court hours</span>
-              <select value={custom ? 'custom' : 'inherit'} onChange={(e) => chooseMode(e.target.value)}>
-                <option value="inherit">Use venue hours</option>
-                <option value="custom">Custom hours</option>
-              </select>
-            </label>
-          )}
-        </div>
-        {courts.length === 0 && <p className="muted small">No courts yet. Add a court to give it its own hours.</p>}
-        {court && !custom && <p className="muted small">This court follows the venue hours. Choose Custom hours to give it its own.</p>}
-
-        <div className="stack">
-          {DISPLAY_DAY_ORDER.map((day) => {
-            const mine = periodsOfDay(periods, day)
-            const overrides = courtId === null ? [] : overridesOf(courtId, day)
-            return (
-              <Fragment key={day}>
-              <fieldset className="weekly-day stack">
-                <legend>{DAY_NAMES[day]}</legend>
-                {mine.length === 0 && <p className="muted">Closed all day</p>}
-                {editable ? mine.map((p, i) => {
-                  const start = hourOfMinute(p.start_minute)
-                  const label = `${DAY_NAMES[day]} period ${i + 1}`
-                  return (
-                    <div key={i} className="hours-row">
-                      <select aria-label={`${label} opens`} value={start} onChange={(e) => setOpens(day, i, Number(e.target.value))}>
-                        {HOURS.map((h) => <option key={h} value={h}>{formatHour(h)}</option>)}
-                      </select>
-                      <span className="muted">to</span>
-                      <select aria-label={`${label} closes`} value={hourOfMinute(p.end_minute)} onChange={(e) => setCloses(day, i, Number(e.target.value))}>
-                        {closeHours(start).map((h) => <option key={h} value={h}>{hourLabel(h)}</option>)}
-                      </select>
-                      <button type="button" className="btn btn-small btn-ghost" aria-label={`Remove ${label}`} onClick={() => removePeriod(day, i)}>Remove</button>
-                    </div>
-                  )
-                }) : mine.length > 0 && <p>{[...mine].sort((a, b) => a.start_minute - b.start_minute).map(periodText).join(', ')}</p>}
-                {gaps(mine).map(([from, to]) => <p key={from} className="muted small">{`Closed ${hourLabel(from)} to ${hourLabel(to)}`}</p>)}
-                {editable && overlapDays(periods).has(day) && (
-                  <p className="form-error" role="alert">{DAY_NAMES[day]} has periods that overlap. Adjust the hours so they only touch.</p>
-                )}
-                {editable && (
-                  <button type="button" className="btn btn-small btn-outline" aria-label={`Add ${DAY_NAMES[day]} period`} onClick={() => addPeriod(day)}>
-                    Add period
-                  </button>
-                )}
-                {overrides.length > 0 && <p className="muted small">Override rates: {overrides.join(', ')}</p>}
-                {editable && mine.length > 0 && (
-                  <button type="button" className="btn btn-small btn-ghost" onClick={() => openCopy(day)}>{`Copy ${DAY_NAMES[day]} hours`}</button>
-                )}
-              </fieldset>
-              {editable && copyFrom === day && (
-                <div role="group" aria-label={`Copy ${DAY_NAMES[day]} hours to`} className="card stack">
-                  <p className="muted small">Choose the days that should get {DAY_NAMES[day]}'s hours. Their current hours are replaced.</p>
-                  {DISPLAY_DAY_ORDER.filter((d) => d !== day).map((d) => (
-                    <label key={d} className="checkbox">
-                      <input type="checkbox" checked={copyDays.includes(d)}
-                        onChange={(e) => setCopyDays(e.target.checked ? [...copyDays, d] : copyDays.filter((x) => x !== d))} />
-                      <span>{DAY_NAMES[d]}</span>
-                    </label>
-                  ))}
-                  {courtId !== null && (
-                    <label className="checkbox">
-                      <input type="checkbox" checked={copyRates} onChange={(e) => setCopyRates(e.target.checked)} />
-                      <span>Also copy hourly rates</span>
-                    </label>
-                  )}
-                  <div className="form-actions">
-                    <button type="button" className="btn btn-small" disabled={copyDays.length === 0} onClick={applyCopy}>Apply copy</button>
-                    <button type="button" className="btn btn-small btn-outline" onClick={() => setCopyFrom(null)}>Close</button>
-                  </div>
-                </div>
-              )}
-              </Fragment>
-            )
-          })}
-        </div>
-
         {court && (
-          <div className="stack">
-            <button type="button" className="btn btn-small btn-outline" onClick={() => setCourtCopyOpen(!courtCopyOpen)}>Copy to another court</button>
-            {courtCopyOpen && (
-              <div role="group" aria-label="Copy to another court" className="card stack">
-                {otherCourts.length === 0 ? <p className="muted small">There is no other court to copy to.</p> : (
-                  <>
-                    <div className="form-grid">
-                      <label className="field"><span>Target court</span>
-                        <select value={ccTargetCourt?.id} onChange={(e) => setCcTarget(e.target.value)}>
-                          {otherCourts.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                        </select>
-                      </label>
-                      <label className="field"><span>Source weekday</span>
-                        <select value={ccFrom} onChange={(e) => setCcFrom(Number(e.target.value))}>
-                          {DISPLAY_DAY_ORDER.map((d) => <option key={d} value={d}>{DAY_NAMES[d]}</option>)}
-                        </select>
-                      </label>
-                      <label className="field"><span>Target weekday</span>
-                        <select value={ccTo} onChange={(e) => setCcTo(Number(e.target.value))}>
-                          {DISPLAY_DAY_ORDER.map((d) => <option key={d} value={d}>{DAY_NAMES[d]}</option>)}
-                        </select>
-                      </label>
-                    </div>
-                    <label className="checkbox">
-                      <input type="checkbox" checked={ccRates} onChange={(e) => setCcRates(e.target.checked)} />
-                      <span>Also copy hourly rates</span>
-                    </label>
-                    <div className="form-actions">
-                      <button type="button" className="btn btn-small" disabled={!ccTargetCourt}
-                        onClick={() => ccTargetCourt && setPendingCourtCopy({ target: ccTargetCourt, from: ccFrom, to: ccTo, rates: ccRates })}>
-                        Review copy
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
+          <div className="alert alert-info court-editing" role="status">
+            <p><strong>{`Editing ${court.name} only`}</strong>. The other courts keep their hours.</p>
+            <div className="form-actions">
+              <button type="button" className="btn btn-small btn-outline" onClick={() => setEditing(null)}>Back to all courts</button>
+              {courts.filter((c) => c.id !== court.id).map((c) => (
+                <button key={c.id} type="button" className="btn btn-small btn-ghost" onClick={() => copyFromCourt(c.id)}>{`Copy hours from ${c.name}`}</button>
+              ))}
+            </div>
           </div>
         )}
-
+        <HoursTable
+          key={courtId ?? 'venue'}
+          periods={periods}
+          saved={savedOf(courtId)}
+          onChange={setPeriods}
+        />
+        <WeekChart periods={periods} />
+        {!court && (
+          <CourtExceptions courts={courts} venue={venue} draftOf={draftOf} onEdit={setEditing} onInherit={followOpeningHours} onGive={giveOwnHours} />
+        )}
       </>)}
 
       {into(slots.prices, <>
@@ -616,27 +417,6 @@ function Editor({ schedule, courts, slots, target, onTarget, priceCourt, onPrice
           )}
 
         </ReviewDialog>
-      )}
-      {confirmInherit && courtId && (
-        <ConfirmDialog
-          id="switch-venue-hours" title="Switch to venue hours"
-          body="This court will follow the venue's hours again. Its custom hours are dropped when you save. Its hourly rates stay."
-          stay="Keep custom hours" confirm="Switch to venue hours"
-          onStay={() => setConfirmInherit(false)}
-          onConfirm={() => {
-            setCourtDrafts((d) => ({ ...d, [courtId]: { mode: 'inherit', periods: [] } }))
-            setConfirmInherit(false)
-          }}
-        />
-      )}
-      {pendingCourtCopy && (
-        <ConfirmDialog
-          id="copy-to-court" title={`Copy to ${pendingCourtCopy.target.name}`}
-          body={`This will overwrite ${pendingCourtCopy.target.name}'s ${DAY_NAMES[pendingCourtCopy.to]} hours${pendingCourtCopy.rates ? ' and hourly rates' : ''} with ${court?.name}'s ${DAY_NAMES[pendingCourtCopy.from]}. ${pendingCourtCopy.target.name} will use custom hours${draftOf(pendingCourtCopy.target.id).mode === 'custom' ? '' : ' (a copy of the venue hours, with that day replaced)'}. Nothing is saved until you save.`}
-          stay="Cancel" confirm={`Copy to ${pendingCourtCopy.target.name}`}
-          onStay={() => setPendingCourtCopy(null)}
-          onConfirm={confirmCourtCopy}
-        />
       )}
       {confirmDiscard && (
         <ConfirmDialog

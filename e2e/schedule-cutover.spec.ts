@@ -97,15 +97,14 @@ test('old clients are refused on the active venue while the legacy venue keeps w
 test('the active venue copies, reverts and warns in Weekly Hours & Rates; the court page links there', async ({ page }) => {
   await page.goto(`${active!.url}/admin/schedule`)
   await submitAdminLogin(page, player.email, player.password)
-  await expect(page.getByRole('combobox', { name: 'Schedule for' })).toBeVisible()
+  await expect(page.getByRole('switch', { name: 'Monday open' })).toBeVisible()
   expect(await overflow(page)).toBeLessThanOrEqual(0)
 
   const monday = page.getByRole('group', { name: 'Monday' })
-  await monday.getByLabel('Monday period 1 closes').selectOption({ label: '12 PM' })
-  await page.getByRole('button', { name: 'Copy Monday hours' }).click()
-  await page.getByRole('checkbox', { name: 'Tuesday' }).check()
-  await page.getByRole('button', { name: 'Apply copy' }).click()
-  await expect(page.getByRole('group', { name: 'Tuesday' }).getByLabel('Tuesday period 1 closes')).toHaveValue('12')
+  await monday.getByLabel('Monday closes').selectOption({ label: '12 PM' })
+  await page.getByLabel('Copy hours from').selectOption({ label: 'Monday' })
+  await page.getByRole('button', { name: 'Copy to Mon–Fri' }).click()
+  await expect(page.getByRole('group', { name: 'Tuesday' }).getByLabel('Tuesday closes')).toHaveValue('12')
 
   // The Monday 6 PM booking falls outside the new hours.
   // The impact check lives in the Review changes dialog (T17.31).
@@ -119,8 +118,8 @@ test('the active venue copies, reverts and warns in Weekly Hours & Rates; the co
 
   await page.getByRole('region', { name: 'Unsaved changes' }).getByRole('button', { name: 'Discard' }).click()
   await page.getByRole('dialog', { name: 'Discard changes' }).getByRole('button', { name: 'Discard' }).click()
-  await expect(page.getByRole('group', { name: 'Monday' }).getByLabel('Monday period 1 closes')).toHaveValue('22')
-  await expect(page.getByRole('group', { name: 'Tuesday' }).getByLabel('Tuesday period 1 closes')).toHaveValue('22')
+  await expect(page.getByRole('group', { name: 'Monday' }).getByLabel('Monday closes')).toHaveValue('22')
+  await expect(page.getByRole('group', { name: 'Tuesday' }).getByLabel('Tuesday closes')).toHaveValue('22')
   await expect(page.getByRole('region', { name: 'Unsaved changes' })).toHaveCount(0)
 
   // Nothing was saved, and the booking is untouched.
@@ -141,5 +140,5 @@ test('the active venue copies, reverts and warns in Weekly Hours & Rates; the co
   expect(await axeBothSchemes(page)).toEqual([])
   await link.click()
   await expect(page).toHaveURL(/\/admin\/schedule$/)
-  await expect(page.getByRole('combobox', { name: 'Schedule for' })).toBeVisible()
+  await expect(page.getByRole('switch', { name: 'Monday open' })).toBeVisible()
 })

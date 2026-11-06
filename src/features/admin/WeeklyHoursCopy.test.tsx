@@ -1,4 +1,5 @@
-// T17.16 / T17.31: copying hours/rates, the impact warning (now in the Review changes dialog) and Discard in the schedule editor.
+// T17.16 / T17.31 / T17.32: the copy row (the days of the table being edited), the impact warning (in the Review changes dialog) and Discard.
+// Copying hours between courts is "Copy hours from [court]" (CourtExceptions.test.tsx); hourly rates are no longer copied with hours.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -63,7 +64,8 @@ function mount() {
 
 const day = (name: string) => within(screen.getByRole('group', { name }))
 const pick = async (label: string, value: string) => userEvent.selectOptions(await screen.findByLabelText(label), value)
-const choose = async (name: string) => userEvent.selectOptions(await screen.findByRole('combobox', { name: 'Schedule for' }), name)
+const ready = () => screen.findByRole('switch', { name: 'Monday open' })
+const editCourt = async (name: string) => userEvent.click(await within(await screen.findByRole('region', { name: 'Courts with different hours' })).findByRole('button', { name: `Edit hours for ${name}` }))
 const HOURS = /^Opening hours/
 const PRICES = /^Prices/
 const openTab = async (name: RegExp) => userEvent.click(await screen.findByRole('tab', { name }))
@@ -89,20 +91,10 @@ async function applyRate(courtName: string, dayValue: string, from: string, to: 
 }
 const lastChanges = () => vi.mocked(saveSchedule).mock.calls.at(-1)![1] as Record<string, unknown[] | undefined>
 
-async function copyDay(from: string, to: string[], withRates = false) {
-  await userEvent.click(await screen.findByRole('button', { name: `Copy ${from} hours` }))
-  for (const d of to) await userEvent.click(screen.getByRole('checkbox', { name: d }))
-  if (withRates) await userEvent.click(screen.getByRole('checkbox', { name: 'Also copy hourly rates' }))
-  await userEvent.click(screen.getByRole('button', { name: 'Apply copy' }))
-}
-
-async function openCourtCopy(target: string, source: string, targetDay: string, withRates = false) {
-  await userEvent.click(await screen.findByRole('button', { name: 'Copy to another court' }))
-  await userEvent.selectOptions(screen.getByLabelText('Target court'), target)
-  await userEvent.selectOptions(screen.getByLabelText('Source weekday'), source)
-  await userEvent.selectOptions(screen.getByLabelText('Target weekday'), targetDay)
-  if (withRates) await userEvent.click(screen.getByRole('checkbox', { name: 'Also copy hourly rates' }))
-  await userEvent.click(screen.getByRole('button', { name: 'Review copy' }))
+/** The copy row: choose the day to copy from, then the days to copy to (Mon–Fri, Sat & Sun or every day). */
+async function copyDay(from: string, to: 'Mon–Fri' | 'Sat & Sun' | 'every day') {
+  await userEvent.selectOptions(await screen.findByLabelText('Copy hours from'), from)
+  await userEvent.click(screen.getByRole('button', { name: `Copy to ${to}` }))
 }
 
 beforeEach(() => {
@@ -116,133 +108,78 @@ beforeEach(() => {
 })
 
 describe('copy hours within a schedule', () => {
-  it('copies a weekday to chosen days on venue defaults, with no rates option', async () => {
+  it('copies a weekday to Mon–Fri on the venue hours and leaves the weekend alone', async () => {
     mount()
-    await pick('Monday period 1 closes', '12')
-    await userEvent.click(screen.getByRole('button', { name: 'Copy Monday hours' }))
+    await pick('Monday closes', '12')
+    await copyDay('Monday', 'Mon–Fri')
     expect(screen.queryByRole('checkbox', { name: 'Also copy hourly rates' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('checkbox', { name: 'Monday' })).not.toBeInTheDocument()
-    await userEvent.click(screen.getByRole('checkbox', { name: 'Tuesday' }))
-    await userEvent.click(screen.getByRole('checkbox', { name: 'Wednesday' }))
-    await userEvent.click(screen.getByRole('button', { name: 'Apply copy' }))
-    expect(day('Tuesday').getByLabelText('Tuesday period 1 closes')).toHaveValue('12')
-    expect(day('Thursday').getByLabelText('Thursday period 1 closes')).toHaveValue('22')
+    expect(day('Tuesday').getByLabelText('Tuesday closes')).toHaveValue('12')
+    expect(day('Friday').getByLabelText('Friday closes')).toHaveValue('12')
+    expect(day('Saturday').getByLabelText('Saturday closes')).toHaveValue('22')
     await save()
     const periods = lastChanges().venue_periods as Period[]
-    expect(periods.filter((p) => p.day_of_week === 1 || p.day_of_week === 2 || p.day_of_week === 3))
-      .toEqual([1, 2, 3].map((d) => ({ day_of_week: d, start_minute: 360, end_minute: 720 })))
-    expect(periods.filter((p) => p.day_of_week === 4)).toEqual([{ day_of_week: 4, start_minute: 360, end_minute: 1320 }])
+    expect(periods.filter((p) => p.day_of_week >= 1 && p.day_of_week <= 5))
+      .toEqual([1, 2, 3, 4, 5].map((d) => ({ day_of_week: d, start_minute: 360, end_minute: 720 })))
+    expect(periods.filter((p) => p.day_of_week === 6)).toEqual([{ day_of_week: 6, start_minute: 360, end_minute: 1320 }])
   })
 
   it('a hours-only copy leaves the target days\' rate overrides untouched', async () => {
     mount()
-    await choose('Court Two')
     await applyRate('Court Two', '2', '9', '10', '500')
     await openTab(HOURS)
-    await pick('Monday period 1 closes', '12')
-    await copyDay('Monday', ['Tuesday'])
-    expect(day('Tuesday').getByLabelText('Tuesday period 1 closes')).toHaveValue('12')
+    await pick('Monday closes', '12')
+    await copyDay('Monday', 'Mon–Fri')
+    expect(day('Tuesday').getByLabelText('Tuesday closes')).toHaveValue('12')
     await save()
     expect(lastChanges().rate_changes).toEqual([{ court_id: 'c2', day_of_week: 2, start_hour: 9, price: 500 }])
   })
 
-  it('copying with rates replaces the target day\'s overrides with the source day\'s', async () => {
+  it('copying never changes any hourly rate, even a saved override on a day it replaces', async () => {
     mount()
-    await choose('Court Two')
-    await applyRate('Court Two', '2', '9', '10', '500')
-    await openTab(HOURS)
-    await copyDay('Monday', ['Tuesday'], true)
-    const dialog = await openReview()
-    expect(within(dialog).getAllByRole('listitem').map((li) => li.textContent)).toEqual(['Court Two, Tuesday 6 PM – 7 PM: ₱800 (was ₱700)'])
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Save changes' }))
-    // Tuesday's own 9 AM override had no saved value, so only the Monday 6 PM override arrives
-    expect(lastChanges().rate_changes).toEqual([{ court_id: 'c2', day_of_week: 2, start_hour: 18, price: 800 }])
-  })
-
-  it('copying with rates clears a saved target override the source does not have', async () => {
-    mount()
-    await choose('Court Two')
-    // Tuesday (source) has no overrides; Monday (target) has a saved 6 PM 800
-    await copyDay('Tuesday', ['Monday'], true)
+    await copyDay('Tuesday', 'Mon–Fri') // Monday has a saved 6 PM 800 override on Court Two
+    await pick('Wednesday closes', '20') // another edit so there is something to save besides the copy
     await save()
-    expect(lastChanges().rate_changes).toEqual([{ court_id: 'c2', day_of_week: 1, start_hour: 18, price: null }])
+    expect(lastChanges().rate_changes ?? []).toEqual([])
   })
 
-  it('a court on venue hours cannot copy until Custom hours is chosen', async () => {
+  it('in a court\'s own view the copy row changes only that court\'s days', async () => {
     mount()
-    await choose('Court One')
-    const before = screen.queryByRole('button', { name: 'Copy Monday hours' })
-    if (before) expect(before).toBeDisabled()
-    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Court hours' }), 'Custom hours')
-    expect(screen.getByRole('button', { name: 'Copy Monday hours' })).toBeEnabled()
-  })
-})
-
-describe('copy to another court', () => {
-  it('asks to confirm, warns about overwrite and custom hours, and changes nothing until confirmed', async () => {
-    mount()
-    await choose('Court Two')
-    await openCourtCopy('Court One', 'Monday', 'Tuesday')
-    const dialog = await screen.findByRole('dialog', { name: 'Copy to Court One' })
-    expect(dialog).toHaveTextContent(/overwrite/i)
-    expect(dialog).toHaveTextContent(/custom hours/i)
-    expect(bar()).not.toBeInTheDocument()
-  })
-
-  it('cancelling leaves the whole draft unchanged', async () => {
-    mount()
-    await choose('Court Two')
-    await openCourtCopy('Court One', 'Monday', 'Tuesday')
-    await userEvent.click(within(await screen.findByRole('dialog', { name: 'Copy to Court One' })).getByRole('button', { name: 'Cancel' }))
-    expect(screen.queryByRole('dialog', { name: 'Copy to Court One' })).not.toBeInTheDocument()
-    expect(bar()).not.toBeInTheDocument()
-    await choose('Court One')
-    expect(screen.getByRole('combobox', { name: 'Court hours' })).toHaveDisplayValue('Use venue hours')
-    expect(saveSchedule).not.toHaveBeenCalled()
-  })
-
-  it('confirming makes the target custom, seeded from venue hours, with only the chosen day replaced', async () => {
-    mount()
-    await choose('Court Two')
-    await openCourtCopy('Court One', 'Monday', 'Tuesday')
-    await userEvent.click(within(await screen.findByRole('dialog', { name: 'Copy to Court One' })).getByRole('button', { name: 'Copy to Court One' }))
+    await editCourt('Court Two')
+    await pick('Monday closes', '12')
+    await copyDay('Monday', 'Mon–Fri')
+    expect(day('Thursday').getByLabelText('Thursday closes')).toHaveValue('12')
     await save()
     expect(saveSchedule).toHaveBeenCalledWith(7, {
       courts: [{
-        court_id: 'c1', schedule_mode: 'custom',
-        periods: allDays().map((p) => (p.day_of_week === 2 ? { ...p, start_minute: 480, end_minute: 1200 } : p)),
+        court_id: 'c2', schedule_mode: 'custom',
+        periods: allDays(480, 1200).map((p) => (p.day_of_week >= 1 && p.day_of_week <= 5 ? { ...p, end_minute: 720 } : p)),
       }],
     })
   })
 
-  it('rates travel only when asked', async () => {
+  it('a court on the venue hours has no table of its own to copy in until it is given different hours', async () => {
     mount()
-    await choose('Court Two')
-    await openCourtCopy('Court One', 'Monday', 'Tuesday', true)
-    await userEvent.click(within(await screen.findByRole('dialog', { name: 'Copy to Court One' })).getByRole('button', { name: 'Copy to Court One' }))
-    await save()
-    expect(lastChanges().rate_changes).toEqual([{ court_id: 'c1', day_of_week: 2, start_hour: 18, price: 800 }])
-  })
-
-  it('is not offered while Venue defaults is selected', async () => {
-    mount()
-    await screen.findByRole('combobox', { name: 'Schedule for' })
-    expect(screen.queryByRole('button', { name: 'Copy to another court' })).not.toBeInTheDocument()
+    await ready()
+    expect(screen.queryByText(/Editing Court One only/)).not.toBeInTheDocument()
+    await userEvent.selectOptions(await screen.findByLabelText('Choose a court'), 'Court One')
+    await userEvent.click(screen.getByRole('button', { name: 'Give this court different hours' }))
+    expect(screen.getByText(/Editing Court One only/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Copy to Mon–Fri' })).toBeEnabled()
   })
 })
 
 describe('discard unsaved changes', () => {
   it('is hidden when clean; Keep editing keeps the draft; confirming restores the loaded schedule', async () => {
     mount()
-    await screen.findByRole('combobox', { name: 'Schedule for' })
+    await ready()
     expect(screen.queryByRole('button', { name: 'Discard' })).not.toBeInTheDocument()
-    await pick('Monday period 1 closes', '12')
+    await pick('Monday closes', '12')
     await userEvent.click(screen.getByRole('button', { name: 'Discard' }))
     await userEvent.click(within(await screen.findByRole('dialog', { name: 'Discard changes' })).getByRole('button', { name: 'Keep editing' }))
-    expect(screen.getByLabelText('Monday period 1 closes')).toHaveValue('12')
+    expect(screen.getByLabelText('Monday closes')).toHaveValue('12')
     await userEvent.click(screen.getByRole('button', { name: 'Discard' }))
     await userEvent.click(within(await screen.findByRole('dialog', { name: 'Discard changes' })).getByRole('button', { name: 'Discard' }))
-    expect(screen.getByLabelText('Monday period 1 closes')).toHaveValue('22')
+    expect(screen.getByLabelText('Monday closes')).toHaveValue('22')
     expect(bar()).not.toBeInTheDocument()
     expect(saveSchedule).not.toHaveBeenCalled()
   })
@@ -253,11 +190,11 @@ describe('impact warning (in the Review changes dialog)', () => {
 
   it('does not preview a clean draft or one with overlaps', async () => {
     mount()
-    await screen.findByRole('combobox', { name: 'Schedule for' })
+    await ready()
     expect(previewMock).not.toHaveBeenCalled()
     expect(screen.queryByRole('heading', heading)).not.toBeInTheDocument()
-    await userEvent.click(within(screen.getByRole('group', { name: 'Monday' })).getByRole('button', { name: 'Add Monday period' }))
-    await pick('Monday period 2 opens', '10')
+    await pick('Tuesday opens', '1')
+    await pick('Monday closes', '26')
     expect(day('Monday').getByRole('alert')).toHaveTextContent(/overlap/i)
     expect(screen.getByRole('button', { name: 'Review & save' })).toBeDisabled()
     expect(screen.queryByRole('heading', heading)).not.toBeInTheDocument()
@@ -270,7 +207,7 @@ describe('impact warning (in the Review changes dialog)', () => {
       open_play: { total: 2, items: [{ session_id: 's1', court_id: 'c1', title: 'Friday Rally', starts_at: '2026-11-11T10:00:00Z', ends_at: '2026-11-11T12:00:00Z' }] },
     })
     mount()
-    await pick('Monday period 1 closes', '12')
+    await pick('Monday closes', '12')
     const dialog = await openReview()
     expect(within(dialog).getByRole('heading', heading)).toBeInTheDocument()
     await waitFor(() => expect(within(dialog).getByText(/3 bookings/)).toBeInTheDocument())
@@ -290,14 +227,14 @@ describe('impact warning (in the Review changes dialog)', () => {
 
   it('says nothing is affected for a zero result', async () => {
     mount()
-    await pick('Monday period 1 closes', '12')
+    await pick('Monday closes', '12')
     expect(await within(await openReview()).findByText(/No existing reservations are affected/)).toBeInTheDocument()
   })
 
   it('a pending preview does not block saving', async () => {
     previewMock.mockReturnValue(new Promise(() => {}))
     mount()
-    await pick('Monday period 1 closes', '12')
+    await pick('Monday closes', '12')
     const dialog = await openReview()
     expect(dialog).toHaveTextContent(/checking/i)
     expect(within(dialog).getByRole('button', { name: 'Save changes' })).toBeEnabled()
@@ -309,7 +246,7 @@ describe('impact warning (in the Review changes dialog)', () => {
     previewMock.mockRejectedValueOnce(new Error('boom'))
     previewMock.mockResolvedValue(impact(4))
     mount()
-    await pick('Monday period 1 closes', '12')
+    await pick('Monday closes', '12')
     const dialog = await openReview()
     expect(await within(dialog).findByText(/Couldn't check existing reservations/)).toBeInTheDocument()
     expect(within(dialog).getByRole('button', { name: 'Save changes' })).toBeEnabled()
@@ -320,7 +257,7 @@ describe('impact warning (in the Review changes dialog)', () => {
   it('a result with affected reservations still lets the admin save', async () => {
     previewMock.mockResolvedValue(impact(5, 0, true))
     mount()
-    await pick('Monday period 1 closes', '12')
+    await pick('Monday closes', '12')
     const dialog = await openReview()
     await within(dialog).findByText(/5 bookings/)
     expect(within(dialog).getByRole('button', { name: 'Save changes' })).toBeEnabled()
@@ -336,10 +273,10 @@ describe('impact warning (in the Review changes dialog)', () => {
       return new Promise<Impact>((resolve) => { resolveSlow = resolve })
     })
     mount()
-    await pick('Monday period 1 closes', '12')
+    await pick('Monday closes', '12')
     expect(await within(await openReview()).findByText(/7 bookings/)).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Keep editing' }))
-    await pick('Monday period 1 closes', '14')
+    await pick('Monday closes', '14')
     const dialog = await openReview()
     // the new draft's preview is pending: the old 7 must be gone
     await waitFor(() => expect(within(dialog).queryByText(/7 bookings/)).not.toBeInTheDocument())
@@ -354,11 +291,11 @@ describe('impact warning (in the Review changes dialog)', () => {
     previewMock.mockImplementation((draft: { venue_periods: Period[] }) =>
       new Promise<Impact>((resolve) => { resolvers[draft.venue_periods.find((p) => p.day_of_week === 1)!.end_minute] = resolve }))
     mount()
-    await pick('Monday period 1 closes', '12')
+    await pick('Monday closes', '12')
     await openReview()
     await waitFor(() => expect(resolvers[720]).toBeDefined())
     await userEvent.click(screen.getByRole('button', { name: 'Keep editing' }))
-    await pick('Monday period 1 closes', '14')
+    await pick('Monday closes', '14')
     const dialog = await openReview()
     await waitFor(() => expect(resolvers[840]).toBeDefined())
     resolvers[840](impact(6))

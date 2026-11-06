@@ -26,11 +26,11 @@ async function openSchedule(page: Page) {
   await page.goto(`${venue!.url}/admin/schedule`)
   await submitAdminLogin(page, player.email, player.password)
   await expect(page.getByRole('tablist', { name: 'Schedule sections' })).toBeVisible()
-  await expect(page.getByRole('combobox', { name: 'Schedule for' })).toBeVisible()
+  await expect(page.getByRole('switch', { name: 'Monday open' })).toBeVisible()
 }
 
 const bar = (page: Page) => page.getByRole('region', { name: 'Unsaved changes' })
-const saturdayCloses = (page: Page) => page.getByRole('group', { name: 'Saturday' }).getByLabel('Saturday period 1 closes')
+const saturdayCloses = (page: Page) => page.getByRole('group', { name: 'Saturday' }).getByLabel('Saturday closes')
 
 /** No sideways page scroll (a string, because the e2e tsconfig has no DOM types). */
 async function overflow(page: Page) {
@@ -93,9 +93,9 @@ test('a price change is reviewed and saved from the Prices tab', async ({ page }
   await dialog.getByRole('button', { name: 'Save changes' }).click()
   await expect(bar(page)).toHaveCount(0)
   await page.reload()
-  // The saved override shows on the court's Monday in the Opening hours tab.
-  await page.getByRole('combobox', { name: 'Schedule for' }).selectOption({ label: venue!.court })
-  await expect(page.getByRole('group', { name: 'Monday' }).getByText(/Override rates:.*6 PM ₱950/)).toBeVisible()
+  // The saved override is listed on the Prices tab for the court.
+  await page.getByRole('tab', { name: PRICES_TAB }).click()
+  await expect(page.getByRole('tabpanel', { name: PRICES_TAB }).getByText(/6 PM ₱950/)).toBeVisible()
 })
 
 test('Discard asks first: Keep editing keeps the draft, Discard restores the saved hours', async ({ page }) => {
@@ -133,7 +133,7 @@ test('the sticky save bar never covers the last control, on either tab', async (
     expect(overlaps, `${where}: the bar covers the last control`).toBe(false)
   }
 
-  await expectClear(page.getByRole('button', { name: 'Copy Sunday hours' }), 'Opening hours')
+  await expectClear(page.getByRole('button', { name: 'Copy to every day' }), 'Opening hours')
   await page.getByRole('tab', { name: PRICES_TAB }).click()
   await expectClear(page.getByRole('button', { name: 'Apply rate' }), 'Prices')
   expect(await overflow(page)).toBeLessThanOrEqual(0)

@@ -44,7 +44,7 @@ const bar = () => within(screen.getByRole('region', { name: 'Unsaved changes' })
 
 it('returns focus to the open tab after a confirmed Discard', async () => {
   mount()
-  await userEvent.selectOptions(await screen.findByLabelText('Monday period 1 closes'), '12')
+  await userEvent.selectOptions(await screen.findByLabelText('Monday closes'), '12')
   await userEvent.click(bar().getByRole('button', { name: 'Discard' }))
   await userEvent.click(within(await screen.findByRole('dialog', { name: 'Discard changes' })).getByRole('button', { name: 'Discard' }))
   expect(screen.getByRole('tab', { name: 'Opening hours' })).toHaveFocus()
@@ -52,7 +52,7 @@ it('returns focus to the open tab after a confirmed Discard', async () => {
 
 it('returns focus to the open tab after a successful save', async () => {
   mount()
-  await userEvent.selectOptions(await screen.findByLabelText('Monday period 1 closes'), '12')
+  await userEvent.selectOptions(await screen.findByLabelText('Monday closes'), '12')
   await userEvent.click(bar().getByRole('button', { name: 'Review & save' }))
   await userEvent.click(within(await screen.findByRole('dialog', { name: 'Review changes' })).getByRole('button', { name: 'Save changes' }))
   await waitFor(() => expect(screen.queryByRole('region', { name: 'Unsaved changes' })).not.toBeInTheDocument())

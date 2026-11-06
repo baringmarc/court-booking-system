@@ -71,7 +71,15 @@ const PRICES = /^Prices/
 const CLOSURES = /^Closures/
 const openTab = async (name: RegExp) => userEvent.click(await screen.findByRole('tab', { name }))
 const pick = async (label: string, value: string) => userEvent.selectOptions(await screen.findByLabelText(label), value)
-const chooseSchedule = async (name: string) => userEvent.selectOptions(await screen.findByRole('combobox', { name: 'Schedule for' }), name)
+/** Opens a court's own-hours view ("Editing Court N only"); Back to all courts returns to the venue's table. */
+const editCourt = async (name: string) => userEvent.click(await within(await screen.findByRole('region', { name: 'Courts with different hours' })).findByRole('button', { name: new RegExp(`^Edit hours for ${name}`) }))
+const backToAll = async () => userEvent.click(await screen.findByRole('button', { name: 'Back to all courts' }))
+/** Gives a court on the opening hours its own hours (a copy of the venue's); this opens its edit view. */
+const giveHours = async (name: string) => {
+  await userEvent.selectOptions(await screen.findByLabelText('Choose a court'), name)
+  await userEvent.click(screen.getByRole('button', { name: 'Give this court different hours' }))
+}
+const addBreak = async (day: string) => userEvent.click(within(await screen.findByRole('group', { name: day })).getByRole('button', { name: /Add a break/ }))
 const bar = () => screen.queryByRole('region', { name: 'Unsaved changes' })
 const barButton = (name: string) => within(screen.getByRole('region', { name: 'Unsaved changes' })).getByRole('button', { name })
 const reviewDialog = () => screen.findByRole('dialog', { name: 'Review changes' })
@@ -86,7 +94,7 @@ const saveFromDialog = async () => {
 const lastChanges = () => vi.mocked(saveSchedule).mock.calls.at(-1)![1] as Record<string, unknown[] | undefined>
 
 /** Venue Monday 6 AM – 10 PM becomes 6 AM – 12 PM: one hours change. */
-const editMonday = async () => pick('Monday period 1 closes', '12')
+const editMonday = async () => pick('Monday closes', '12')
 /** A new override for Court Two on Monday 6 AM – 7 AM. */
 async function addRate(price: string, from = '6', to = '7') {
   await openTab(PRICES)
@@ -113,7 +121,7 @@ beforeEach(() => {
 describe('the save bar', () => {
   it('is not rendered when nothing changed, and the old controls are gone', async () => {
     mount()
-    await screen.findByRole('combobox', { name: 'Schedule for' })
+    await screen.findByRole('switch', { name: 'Monday open' })
     expect(bar()).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Save schedule' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Revert unsaved changes' })).not.toBeInTheDocument()
@@ -137,7 +145,7 @@ describe('the save bar', () => {
   it('counts one per line of the review list: two changed days make "2 unsaved changes"', async () => {
     mount()
     await editMonday()
-    await pick('Tuesday period 1 closes', '20')
+    await pick('Tuesday closes', '20')
     expect(screen.getByRole('region', { name: 'Unsaved changes' })).toHaveTextContent(/2 unsaved changes/)
   })
 
@@ -152,14 +160,13 @@ describe('the save bar', () => {
     expect(barButton('Review & save')).toBeEnabled()
   })
 
-  it('disables Review & save while a day overlaps, and enables it again once fixed', async () => {
+  it('disables Review & save while a day overlaps the next, and enables it again once fixed', async () => {
     mount()
-    await editMonday()
-    await userEvent.click(within(screen.getByRole('group', { name: 'Monday' })).getByRole('button', { name: 'Add Monday period' }))
-    await pick('Monday period 2 opens', '10')
+    await pick('Tuesday opens', '1')
+    await pick('Monday closes', '26')
     expect(within(screen.getByRole('group', { name: 'Monday' })).getByRole('alert')).toHaveTextContent(/overlap/i)
     expect(barButton('Review & save')).toBeDisabled()
-    await pick('Monday period 2 opens', '12')
+    await pick('Monday closes', '24')
     expect(barButton('Review & save')).toBeEnabled()
   })
 
@@ -189,7 +196,7 @@ describe('Discard', () => {
     await userEvent.click(barButton('Discard'))
     await userEvent.click(within(await screen.findByRole('dialog', { name: 'Discard changes' })).getByRole('button', { name: 'Keep editing' }))
     expect(screen.queryByRole('dialog', { name: 'Discard changes' })).not.toBeInTheDocument()
-    expect(screen.getByLabelText('Monday period 1 closes')).toHaveValue('12')
+    expect(screen.getByLabelText('Monday closes')).toHaveValue('12')
     expect(barButton('Discard')).toHaveFocus()
     expect(saveSchedule).not.toHaveBeenCalled()
   })
@@ -201,7 +208,7 @@ describe('Discard', () => {
     await screen.findByRole('dialog', { name: 'Discard changes' })
     await userEvent.keyboard('{Escape}')
     expect(screen.queryByRole('dialog', { name: 'Discard changes' })).not.toBeInTheDocument()
-    expect(screen.getByLabelText('Monday period 1 closes')).toHaveValue('12')
+    expect(screen.getByLabelText('Monday closes')).toHaveValue('12')
     expect(barButton('Discard')).toHaveFocus()
   })
 
@@ -213,7 +220,7 @@ describe('Discard', () => {
     await userEvent.click(barButton('Discard'))
     await userEvent.click(within(await screen.findByRole('dialog', { name: 'Discard changes' })).getByRole('button', { name: 'Discard' }))
     expect(screen.queryByRole('dialog', { name: 'Discard changes' })).not.toBeInTheDocument()
-    expect(screen.getByLabelText('Monday period 1 closes')).toHaveValue('22')
+    expect(screen.getByLabelText('Monday closes')).toHaveValue('22')
     expect(bar()).not.toBeInTheDocument()
     expect(saveSchedule).not.toHaveBeenCalled()
     expect(screen.getByRole('tab', { name: 'Opening hours' })).toBeInTheDocument()
@@ -233,15 +240,15 @@ describe('Review changes: the plain-word list', () => {
 
   it('a venue day reads "Saturday: 6 AM – 10 PM → 7 AM – 9 PM"', async () => {
     mount()
-    await pick('Saturday period 1 opens', '7')
-    await pick('Saturday period 1 closes', '21')
+    await pick('Saturday opens', '7')
+    await pick('Saturday closes', '21')
     expect(lines(await openReview())).toEqual(['Saturday: 6 AM – 10 PM → 7 AM – 9 PM'])
   })
 
   it('uses Midnight and (next day) for late closings', async () => {
     mount()
-    await pick('Monday period 1 closes', '24')
-    await pick('Friday period 1 closes', '26')
+    await pick('Monday closes', '24')
+    await pick('Friday closes', '26')
     expect(lines(await openReview())).toEqual([
       'Monday: 6 AM – 10 PM → 6 AM – Midnight',
       'Friday: 6 AM – 10 PM → 6 AM – 2 AM (next day)',
@@ -250,16 +257,15 @@ describe('Review changes: the plain-word list', () => {
 
   it('says Closed for a day with no periods', async () => {
     mount()
-    await userEvent.click(await within(await screen.findByRole('group', { name: 'Tuesday' })).findByRole('button', { name: 'Remove Tuesday period 1' }))
+    await userEvent.click(await screen.findByRole('switch', { name: 'Tuesday open' }))
     expect(lines(await openReview())).toEqual(['Tuesday: 6 AM – 10 PM → Closed'])
   })
 
   it('joins several periods with ", " in start order', async () => {
     mount()
-    await pick('Wednesday period 1 closes', '12')
-    await userEvent.click(within(screen.getByRole('group', { name: 'Wednesday' })).getByRole('button', { name: 'Add Wednesday period' }))
-    await pick('Wednesday period 2 opens', '14')
-    await pick('Wednesday period 2 closes', '22')
+    await addBreak('Wednesday')
+    await pick('Wednesday break 1 starts', '12')
+    await pick('Wednesday break 1 ends', '14')
     expect(lines(await openReview())).toEqual(['Wednesday: 6 AM – 10 PM → 6 AM – 12 PM, 2 PM – 10 PM'])
   })
 
@@ -269,31 +275,29 @@ describe('Review changes: the plain-word list', () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
     const router = createMemoryRouter([{ path: '/admin/schedule', element: <SchedulePage /> }], { initialEntries: ['/admin/schedule'] })
     render(<QueryClientProvider client={client}><RouterProvider router={router} /></QueryClientProvider>)
-    await userEvent.click(await within(await screen.findByRole('group', { name: 'Wednesday' })).findByRole('button', { name: 'Add Wednesday period' }))
-    await pick('Wednesday period 1 opens', '8')
-    await pick('Wednesday period 1 closes', '10')
+    await userEvent.click(await screen.findByRole('switch', { name: 'Wednesday open' }))
+    await pick('Wednesday opens', '8')
+    await pick('Wednesday closes', '10')
     expect(lines(await openReview())).toEqual(['Wednesday: Closed → 8 AM – 10 AM'])
   })
 
   it('a court going to its own hours reads "Court One: now has its own hours"', async () => {
     mount()
-    await chooseSchedule('Court One')
-    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Court hours' }), 'Custom hours')
+    await giveHours('Court One')
     expect(lines(await openReview())).toEqual(['Court One: now has its own hours'])
   })
 
   it('a court going back to the venue hours reads "Court Two: back to the venue\'s opening hours"', async () => {
     mount()
-    await chooseSchedule('Court Two')
-    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Court hours' }), 'Use venue hours')
-    await userEvent.click(within(await screen.findByRole('dialog', { name: 'Switch to venue hours' })).getByRole('button', { name: 'Switch to venue hours' }))
+    await userEvent.click(await within(await screen.findByRole('region', { name: 'Courts with different hours' })).findByRole('button', { name: /^Use opening hours for Court Two/ }))
+    await userEvent.click(within(await screen.findByRole('dialog', { name: 'Use opening hours for Court Two' })).getByRole('button', { name: 'Use opening hours' }))
     expect(lines(await openReview())).toEqual(["Court Two: back to the venue's opening hours"])
   })
 
   it('a custom court\'s day edit reads "Court Two, Monday: 8 AM – 8 PM → 8 AM – 12 PM"', async () => {
     mount()
-    await chooseSchedule('Court Two')
-    await pick('Monday period 1 closes', '12')
+    await editCourt('Court Two')
+    await pick('Monday closes', '12')
     expect(lines(await openReview())).toEqual(['Court Two, Monday: 8 AM – 8 PM → 8 AM – 12 PM'])
   })
 
@@ -326,13 +330,13 @@ describe('Review changes: the plain-word list', () => {
 
   it('orders venue days Monday to Sunday, then courts in court order, then prices; the bar count equals the lines', async () => {
     mount()
-    await pick('Sunday period 1 closes', '20')
-    await pick('Saturday period 1 opens', '7')
-    await pick('Monday period 1 closes', '12')
-    await chooseSchedule('Court One')
-    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Court hours' }), 'Custom hours')
-    await chooseSchedule('Court Two')
-    await pick('Monday period 1 closes', '12')
+    await pick('Sunday closes', '20')
+    await pick('Saturday opens', '7')
+    await pick('Monday closes', '12')
+    await giveHours('Court One')
+    await backToAll()
+    await editCourt('Court Two')
+    await pick('Monday closes', '12')
     await addRate('800')
     await openTab(HOURS)
     expect(screen.getByRole('region', { name: 'Unsaved changes' })).toHaveTextContent(/6 unsaved changes/)
@@ -354,7 +358,7 @@ describe('Review changes: the dialog', () => {
     const dialog = await openReview()
     await userEvent.click(within(dialog).getByRole('button', { name: 'Keep editing' }))
     expect(screen.queryByRole('dialog', { name: 'Review changes' })).not.toBeInTheDocument()
-    expect(screen.getByLabelText('Monday period 1 closes')).toHaveValue('12')
+    expect(screen.getByLabelText('Monday closes')).toHaveValue('12')
     expect(barButton('Review & save')).toHaveFocus()
     expect(saveSchedule).not.toHaveBeenCalled()
   })
@@ -366,7 +370,7 @@ describe('Review changes: the dialog', () => {
     await userEvent.keyboard('{Escape}')
     expect(screen.queryByRole('dialog', { name: 'Review changes' })).not.toBeInTheDocument()
     expect(barButton('Review & save')).toHaveFocus()
-    expect(screen.getByLabelText('Monday period 1 closes')).toHaveValue('12')
+    expect(screen.getByLabelText('Monday closes')).toHaveValue('12')
   })
 
   it('moves focus inside and keeps Tab and Shift+Tab inside', async () => {
@@ -402,8 +406,7 @@ describe('Review changes: the dialog', () => {
   it('sends hours, a custom court and rates together in one save', async () => {
     mount()
     await editMonday()
-    await chooseSchedule('Court One')
-    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Court hours' }), 'Custom hours')
+    await giveHours('Court One')
     await addRate('1000', '8', '9')
     await saveFromDialog()
     expect(saveSchedule).toHaveBeenCalledTimes(1)
@@ -424,10 +427,10 @@ describe('Review changes: the dialog', () => {
     await saveFromDialog()
     await waitFor(() => expect(bar()).not.toBeInTheDocument())
     expect(screen.queryByRole('dialog', { name: 'Review changes' })).not.toBeInTheDocument()
-    expect(screen.getByLabelText('Monday period 1 closes')).toHaveValue('12')
+    expect(screen.getByLabelText('Monday closes')).toHaveValue('12')
     expect(screen.getByRole('tab', { name: 'Opening hours' })).toBeInTheDocument()
     // the next save uses the new revision
-    await pick('Monday period 1 closes', '20')
+    await pick('Monday closes', '20')
     await saveFromDialog()
     expect(vi.mocked(saveSchedule).mock.calls[1][0]).toBe(8)
   })
@@ -555,7 +558,7 @@ describe('conflict and save errors', () => {
     expect(alert).toHaveTextContent(/reload/i)
     expect(screen.queryByRole('dialog', { name: 'Review changes' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Reload latest' })).toBeInTheDocument()
-    expect(screen.getByLabelText('Monday period 1 closes')).toHaveValue('12')
+    expect(screen.getByLabelText('Monday closes')).toHaveValue('12')
     expect(barButton('Review & save')).toBeDisabled()
     await waitFor(() => expect(vi.mocked(fetchSchedule).mock.calls.length).toBeGreaterThanOrEqual(2))
   })
@@ -582,7 +585,7 @@ describe('conflict and save errors', () => {
     vi.mocked(fetchSchedule).mockResolvedValue(
       scheduleData({ revision: 9, venue: allDays().map((p) => (p.day_of_week === 1 ? { ...p, end_minute: 1200 } : p)) }) as never)
     await userEvent.click(reload)
-    await waitFor(() => expect(screen.getByLabelText('Monday period 1 closes')).toHaveValue('20'))
+    await waitFor(() => expect(screen.getByLabelText('Monday closes')).toHaveValue('20'))
     expect(bar()).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Reload latest' })).not.toBeInTheDocument()
   })
@@ -593,7 +596,7 @@ describe('conflict and save errors', () => {
     await editMonday()
     await saveFromDialog()
     expect(await screen.findByText(/permission denied for table courts/)).toBeInTheDocument()
-    expect(screen.getByLabelText('Monday period 1 closes')).toHaveValue('12')
+    expect(screen.getByLabelText('Monday closes')).toHaveValue('12')
     await openTab(PRICES)
     expect(screen.getByRole('button', { name: 'Try again' })).toBeVisible()
     await userEvent.click(screen.getByRole('button', { name: 'Try again' }))
@@ -609,7 +612,7 @@ describe('the leave-page guard', () => {
     await editMonday()
     await userEvent.click(screen.getByRole('link', { name: 'Elsewhere' }))
     await userEvent.click(within(await screen.findByRole('dialog', { name: 'Unsaved changes' })).getByRole('button', { name: 'Stay' }))
-    expect(screen.getByLabelText('Monday period 1 closes')).toHaveValue('12')
+    expect(screen.getByLabelText('Monday closes')).toHaveValue('12')
     await userEvent.click(screen.getByRole('link', { name: 'Elsewhere' }))
     await userEvent.click(within(await screen.findByRole('dialog', { name: 'Unsaved changes' })).getByRole('button', { name: 'Leave' }))
     expect(await screen.findByText('Elsewhere page')).toBeInTheDocument()
@@ -618,7 +621,7 @@ describe('the leave-page guard', () => {
 
   it('does not block leaving when nothing is pending', async () => {
     mount()
-    await screen.findByRole('combobox', { name: 'Schedule for' })
+    await screen.findByRole('switch', { name: 'Monday open' })
     await userEvent.click(screen.getByRole('link', { name: 'Elsewhere' }))
     expect(await screen.findByText('Elsewhere page')).toBeInTheDocument()
   })
@@ -631,7 +634,7 @@ describe('the leave-page guard', () => {
     await openTab(HOURS)
     expect(screen.queryByRole('dialog', { name: 'Unsaved changes' })).not.toBeInTheDocument()
     expect(router.state.location.pathname).toBe('/admin/schedule')
-    expect(screen.getByLabelText('Monday period 1 closes')).toHaveValue('12')
+    expect(screen.getByLabelText('Monday closes')).toHaveValue('12')
   })
 
   it('still fires when dirty and another tab is open', async () => {
