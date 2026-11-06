@@ -31,6 +31,10 @@ You may only write test files: `*.test.ts(x)`, `e2e/*.ts`, `supabase/tests/**/*.
    - in an **expand** task, assert nothing that the later **contract** task removes (columns, functions, policies the deployed frontend still uses);
    - error paths assert what SPEC names: an exception with its hint where SPEC says it raises, empty rows only where SPEC says it returns none;
    - hooks never return a value (H10, from /retro M14): write `beforeEach(() => { mock.mockReset() })`, not `beforeEach(() => mock.mockReset())`. Vitest runs a returned value as a teardown, so the failure-path test fails whatever the code does. The same goes for `afterEach`, `beforeAll` and `afterAll`.
+   - anything that renders after a fetch is found with `await findBy*` (or inside `waitFor`), never a sync `getBy*` right after `render` (/retro 2026-11-06: T16.3, T17.15, T17.32);
+   - `getByLabel`/`getByRole` names pass `{ exact: true }` when the word can appear inside another label or region name (`Month`, `City`, `Court`): substring matches hit several elements (T16.3, T17.8, T17.22);
+   - pgTAP fixtures satisfy the table's check constraints (read them in the migration, e.g. `bookings_reference_code_check`), calls cast arguments to the exact overload and parameter types (`::date`, the court-aware overload), and an assertion about another venue's rows reads them as a role that can see them (`reset role` or `postgres`), not as the other venue's admin whom RLS blinds (T17.10, T17.11, T17.21);
+   - a hidden or shown state is asserted with `toBeVisible()` / `not.toBeVisible()`, not only the `hidden` attribute or ARIA state (T17.31 shipped closed tab panels that CSS still showed).
 
 ## Dispute mode
 The builder thinks one of your tests contradicts SPEC or the task. Re-read the criterion and the SPEC section. Then either:
