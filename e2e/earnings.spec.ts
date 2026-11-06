@@ -34,12 +34,12 @@ test.afterAll(async () => {
   await serviceClient().from('platform_pricing').update({ booking_fee: 0 }).eq('id', true).throwOnError()
 })
 
-const SPLIT_LABELS = ['Total revenue', 'Your earnings', 'Plotline fees'] as const
+const SPLIT_LABELS = ['Total revenue', 'Plotline fees', 'Your earnings'] as const
 
 /** The amount on a row of the revenue split (the element whose whole text is a peso amount, not the change line). */
 function splitAmount(page: Page, label: (typeof SPLIT_LABELS)[number]) {
   return page.getByRole('region', { name: 'Earnings' }).getByRole('list', { name: 'Revenue split' })
-    .getByRole('listitem').filter({ hasText: label }).getByText(/^₱[\d,.]+$/)
+    .getByRole('listitem').filter({ hasText: label }).getByText(/^-?₱[\d,.]+$/)
 }
 
 async function splitAmounts(page: Page) {
@@ -160,6 +160,10 @@ test('a confirmed online booking paid today raises total revenue, your earnings 
     await expect.poll(async () => pesos(await splitAmount(page, 'Total revenue').textContent())).toBe(before['Total revenue'] + price + FEE)
     expect(pesos(await splitAmount(page, 'Your earnings').textContent())).toBe(before['Your earnings'] + price)
     expect(pesos(await splitAmount(page, 'Plotline fees').textContent())).toBe(before['Plotline fees'] + FEE)
+    // T17.34: fees shown negative, rows in receipt order, Your earnings emphasized.
+    await expect(splitAmount(page, 'Plotline fees')).toHaveText(/^-₱/)
+    await expect(split.getByRole('listitem')).toHaveText([/Total revenue/, /Plotline fees/, /Your earnings/])
+    await expect(split.getByRole('listitem').last()).toHaveClass(/split-total/)
     // Each row says how it compares with yesterday.
     for (const label of SPLIT_LABELS) {
       await expect(split.getByRole('listitem').filter({ hasText: label })).toContainText(/(than|as) yesterday/)
