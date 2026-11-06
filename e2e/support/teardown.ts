@@ -1,7 +1,23 @@
 // Removes everything the E2E run created in the LOCAL database: tagged bookings (payments cascade),
 // their proof files, tagged courts with their photos, an E2E banner, tagged blackouts and open play sessions, tagged
 // payment accounts with their QR codes, and the e2e-* users.
+import { execFileSync } from 'node:child_process'
+import { readFileSync } from 'node:fs'
 import { E2E_PREFIX, serviceClient, venueId } from './helpers.ts'
+
+/**
+ * Finished file-cleanup rows of venues that no longer exist (T17.27: every console deletion leaves one per bucket).
+ * The queue is in the private schema, out of the API's reach, so this goes through psql in the LOCAL db container,
+ * like scripts/test-venue-deletion-concurrency.mjs. Pending and failed rows are real work and stay.
+ */
+function clearFinishedVenueCleanup() {
+  const projectId = readFileSync('supabase/config.toml', 'utf8').match(/^project_id\s*=\s*"([^"]+)"/m)?.[1]
+  if (!projectId) throw new Error('Could not determine the local Supabase project id')
+  execFileSync('sh', ['scripts/with-docker.sh', 'docker', 'exec', `supabase_db_${projectId}`, 'psql', '-X', '-U', 'postgres', '-d', 'postgres',
+    '-v', 'ON_ERROR_STOP=1', '-c',
+    "delete from private.venue_file_cleanup c where c.status = 'done' and not exists (select 1 from public.venues v where v.id = c.venue_id)"],
+  { stdio: 'pipe' })
+}
 
 export default async function teardown() {
   const service = serviceClient()
@@ -80,6 +96,8 @@ export default async function teardown() {
     const { error: deleteVenuesError } = await service.from('venues').delete().in('id', venueIds)
     if (deleteVenuesError) throw deleteVenuesError
   }
+
+  clearFinishedVenueCleanup()
 
   // Tagged leads (T14.14, through their venue name).
   const { error: leadsError } = await service.from('leads').delete().like('venue_name', `${E2E_PREFIX}%`)

@@ -42,6 +42,8 @@ export function useListParams(statuses: readonly string[]) {
     setFilter: (changes: Partial<Pick<ListState, 'q' | 'status' | 'month'>>) => write(resetPage({ ...state, ...changes })),
     setPage: (page: number) => write({ ...state, page }),
     setOpen: (open: string | null) => write({ ...state, open }),
+    /** Page and panel in one history entry (closing a deleted record's panel and stepping back a page). */
+    setView: (changes: Partial<Pick<ListState, 'page' | 'open'>>) => write({ ...state, ...changes }),
   }
 }
 
@@ -53,4 +55,9 @@ export function detailsButtonId(recordId: string): string {
 /** Returns focus to the row a panel came from (when that row is still on the page). */
 export function focusDetails(recordId: string) {
   document.getElementById(detailsButtonId(recordId))?.focus()
+}
+
+/** Focuses the element with `id` (the button that opened a dialog), when it is still on the page. */
+export function returnFocus(id: string) {
+  document.getElementById(id)?.focus()
 }
