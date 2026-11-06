@@ -26,10 +26,14 @@ export function SettingsPage() {
 }
 
 const NUMBER_FIELDS = [
-  { key: 'booking_window_days', label: 'Booking window (days ahead)', min: 1, max: 365 },
-  { key: 'payment_hold_minutes', label: 'Payment hold (minutes)', min: 5, max: 1440 },
-  { key: 'cancel_cutoff_hours', label: 'Cancellation cutoff (hours before start)', min: 0, max: 168 },
-  { key: 'max_rejections', label: 'Max proof rejections', min: 1, max: 10 },
+  { key: 'booking_window_days', label: 'Booking window', unit: 'days ahead', min: 1, max: 365,
+    hint: "Players can book from today up to this many days ahead. For example, 30 means today plus the next 30 days. Walk-ins you add yourself aren't limited." },
+  { key: 'payment_hold_minutes', label: 'Payment hold', unit: 'minutes', min: 5, max: 1440,
+    hint: "How long an online booking keeps its slot while the player pays. If they don't upload proof of payment in time, the booking expires and the slot opens up again." },
+  { key: 'cancel_cutoff_hours', label: 'Cancellation cutoff', unit: 'hours before start', min: 0, max: 168,
+    hint: 'Players can cancel online until this many hours before their start time; after that they have to contact you. 0 lets them cancel right up to the start. You can still cancel any booking yourself.' },
+  { key: 'max_rejections', label: 'Proof rejections allowed', unit: 'rejections', min: 1, max: 10,
+    hint: "How many times you can reject a player's proof of payment before the booking is rejected and its slot opens up. Until then, each rejection gives the player a new payment hold to send a better proof. With 1, the first rejection rejects the booking." },
 ] as const
 
 type NumberKey = (typeof NUMBER_FIELDS)[number]['key']
@@ -78,12 +82,22 @@ export function BookingRulesForm({ initial }: { initial: VenueSettings }) {
     save.mutate(Object.fromEntries(NUMBER_FIELDS.map((f) => [f.key, Number(numbers[f.key])])) as Pick<VenueSettings, NumberKey>, { onSuccess: () => setDirty(false) })
   }
   return <form className="stack" aria-label="Booking rules" onSubmit={handleSubmit}>
-    <section className="card stack"><h2>Booking rules</h2><div className="form-grid">
-      {NUMBER_FIELDS.map((field) => <label key={field.key} className="field"><span>{field.label}</span>
-        <input type="number" required min={field.min} max={field.max} step={1} value={numbers[field.key]}
-          onChange={(event) => { setNumbers((current) => ({ ...current, [field.key]: event.target.value })); setDirty(true) }} />
-      </label>)}
-    </div></section>
+    <section className="card stack"><h2>Booking rules</h2>
+      {/* One setting per row (T17.23); the hints restate the database's rules, so keep them in step. */}
+      {NUMBER_FIELDS.map((field) => {
+        const id = `booking-rule-${field.key}`
+        return <div key={field.key} className="rule-row">
+          <label htmlFor={id}>{field.label}</label>
+          <div className="rule-input">
+            <input id={id} type="number" required min={field.min} max={field.max} step={1} value={numbers[field.key]}
+              aria-describedby={`${id}-unit ${id}-hint`}
+              onChange={(event) => { setNumbers((current) => ({ ...current, [field.key]: event.target.value })); setDirty(true) }} />
+            <span id={`${id}-unit`} className="muted">{field.unit}</span>
+          </div>
+          <p id={`${id}-hint`} className="muted small">{field.hint}</p>
+        </div>
+      })}
+    </section>
     <div className="form-actions"><button type="submit" className="btn" disabled={save.isPending}>{save.isPending ? 'Saving…' : 'Save booking rules'}</button><SaveStatus isSuccess={save.isSuccess} error={save.error} /></div>
   </form>
 }

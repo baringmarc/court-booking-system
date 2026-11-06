@@ -237,7 +237,7 @@ img, svg { display: block; }
 
 /* Forms */
 .field { display: flex; flex-direction: column; gap: 6px; font-weight: 500; }
-.field input {
+.field input, .rule-input input {
   font: inherit; padding: 10px 12px; border-radius: 8px;
   border: 1px solid var(--border-strong); background: var(--field); color: var(--text);
 }
@@ -350,6 +350,13 @@ a.list-row:hover { background: var(--accent-soft); }
   border: 1px solid var(--border-strong); background: var(--field); color: var(--text);
 }
 .field textarea { resize: vertical; }
+/* Booking rules (T17.23): label, a narrow number input with its unit, then the hint. */
+.rule-row { display: grid; gap: 6px; padding-block: 12px; border-top: 1px solid var(--border); }
+.rule-row:first-of-type { border-top: 0; padding-top: 0; }
+.rule-row > label { font-weight: 500; }
+.rule-row > p { margin: 0; }
+.rule-input { display: flex; align-items: center; gap: 10px; }
+.rule-input input { width: 8rem; max-width: 100%; }
 /* Even rows (T11.5): a form's fields wrap into columns that divide them evenly, never leaving one field alone on a
    row. The column count follows the grid's own width (the 999 multiplier switches a term on below a width:
    4 × 200px + 3 gaps = 842px, 3 × 200px + 2 gaps = 628px, 2 × 200px + 1 gap = 414px):

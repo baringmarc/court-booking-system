@@ -1,7 +1,7 @@
 // An admin sets and removes the home page banner, which players see on / and nowhere else. Runs the real
 // browser downscale, the venue-media storage policies and the venue_settings banner CHECKs end to end.
-import { expect, test } from '@playwright/test'
-import { createAdmin, E2E_PREFIX, logInAdmin, serviceClient, venueId } from './support/helpers.ts'
+import { expect, test, type Page } from '@playwright/test'
+import { createAdmin, logInAdmin, serviceClient, venueId } from './support/helpers.ts'
 
 // A valid 1×1 PNG. The browser decodes it and re-encodes it before upload.
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64')
@@ -17,19 +17,39 @@ test('an admin sets the banner, players see it on / only, and removing it hides 
   // The banner is venue-wide; never overwrite one someone set on their local stack.
   test.skip(!!before?.banner_path, 'A banner is already set locally.')
 
+  const { data: settings } = await serviceClient().from('venue_settings').select('name').single()
+  const alt = `${settings!.name} banner`
+
+  // Whatever happens below, leave no banner (or stored file) behind: the run set it, since none existed before.
+  try {
+    await runFlow(page, alt)
+  } finally {
+    await clearBanner()
+  }
+})
+
+async function clearBanner() {
+  const service = serviceClient()
+  const { data } = await service.from('venue_settings').select('banner_path').single()
+  await service.from('venue_settings').update({ banner_path: null, banner_alt: null }).eq('venue_id', await venueId())
+  const folder = `${await venueId()}/banner`
+  const files = await storedBanners()
+  if (data?.banner_path || files.length) await service.storage.from('venue-media').remove(files.map((f) => `${folder}/${f}`))
+}
+
+async function runFlow(page: Page, alt: string) {
   const admin = await createAdmin()
   await logInAdmin(page, admin.email, admin.password, '/admin/settings/appearance')
   const form = page.getByRole('form', { name: 'Banner' })
 
-  // Alt text is required
-  await form.getByLabel('Banner image').setInputFiles({ name: 'banner.png', mimeType: 'image/png', buffer: PNG })
+  // There is no alt text field; an image is required
+  await expect(form.getByLabel('Alt text')).toHaveCount(0)
   await form.getByRole('button', { name: 'Save banner' }).click()
-  await expect(form.getByLabel('Alt text')).toHaveAccessibleDescription(/Describe the banner image/)
+  await expect(form.getByLabel('Banner image')).toHaveAccessibleDescription(/Choose an image for the banner/)
   expect(await storedBanners()).toEqual([])
 
-  // Set
-  const alt = `${E2E_PREFIX} Night games on court 1`
-  await form.getByLabel('Alt text').fill(alt)
+  // Set: the alt text is "<venue name> banner"
+  await form.getByLabel('Banner image').setInputFiles({ name: 'banner.png', mimeType: 'image/png', buffer: PNG })
   await form.getByRole('button', { name: 'Save banner' }).click()
   const preview = page.getByRole('img', { name: alt })
   await expect(preview).toBeVisible()
@@ -61,4 +81,4 @@ test('an admin sets the banner, players see it on / only, and removing it hides 
   await page.goto('/')
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
   await expect(page.locator('.home-banner')).toHaveCount(0)
-})
+}

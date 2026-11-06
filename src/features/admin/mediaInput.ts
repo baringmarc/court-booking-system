@@ -51,13 +51,3 @@ export function storageErrorMessage(error: { message: string; statusCode?: strin
   if (!code) return error.message
   return STORAGE_MESSAGES[code] ?? STORAGE_GENERIC_MESSAGE
 }
-
-export const BANNER_ALT_MAX = 200
-
-/** The banner's alt text is required while a banner is set (stored trimmed, 1–200 characters). */
-export function validateBannerAlt(alt: string): string | null {
-  const trimmed = alt.trim()
-  if (!trimmed) return "Describe the banner image for people who can't see it."
-  if (trimmed.length > BANNER_ALT_MAX) return `Use at most ${BANNER_ALT_MAX} characters.`
-  return null
-}

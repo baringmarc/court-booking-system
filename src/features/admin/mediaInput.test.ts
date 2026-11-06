@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { checkImageFile, fitWithin, MAX_SOURCE_BYTES, newMediaPath, storageErrorMessage, validateBannerAlt } from './mediaInput'
+import { checkImageFile, fitWithin, MAX_SOURCE_BYTES, newMediaPath, storageErrorMessage } from './mediaInput'
 
 const file = (type: string, size = 1000) => {
   const f = new File([new Uint8Array(1)], 'x', { type })
@@ -68,17 +68,5 @@ describe('storageErrorMessage', () => {
     expect(storageErrorMessage({ message: 'Failed to fetch' })).toBe('Failed to fetch')
     expect(storageErrorMessage({ message: 'Internal error', statusCode: '500' })).toBe("The image couldn't be saved. Please try again.")
     expect(storageErrorMessage({ message: 'invalid input syntax', status: 400 })).toBe("The image couldn't be saved. Please try again.")
-  })
-})
-
-describe('validateBannerAlt', () => {
-  it('requires text that is not only whitespace', () => {
-    expect(validateBannerAlt('')).toMatch(/Describe the banner image/)
-    expect(validateBannerAlt(' \t\n ')).toMatch(/Describe the banner image/)
-  })
-
-  it('allows up to 200 characters after trimming', () => {
-    expect(validateBannerAlt(`  ${'a'.repeat(200)}  `)).toBeNull()
-    expect(validateBannerAlt('a'.repeat(201))).toBe('Use at most 200 characters.')
   })
 })

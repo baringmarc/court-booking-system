@@ -34,7 +34,7 @@ test('T17.4 category pages preserve values, independent saves and dirty navigati
     await expect(profileForm.getByRole('status')).toHaveText('Saved')
     await page.getByRole('link', { name: /Back to Settings/ }).click()
     await page.getByRole('link', { name: /Booking Rules/ }).click()
-    const hold = page.getByLabel('Payment hold (minutes)')
+    const hold = page.getByLabel('Payment hold', { exact: true })
     await hold.fill('90')
     await page.getByRole('button', { name: /^Save / }).click()
     await expect(page.getByRole('status')).toHaveText('Saved')

@@ -33,9 +33,10 @@ export default async function teardown() {
     if (deleteError) throw deleteError
   }
 
-  // A banner left by a failed run (tagged through its alt text); a developer's own banner is kept.
-  const { data: settings } = await service.from('venue_settings').select('venue_id, banner_path, banner_alt').eq('venue_id', await venueId()).single()
-  if (settings?.banner_path && settings.banner_alt?.startsWith(E2E_PREFIX)) {
+  // A banner left by a killed run. The spec saves the generated alt "<venue name> banner" (it skips when a banner existed
+  // before, and its own finally clears it), so only a banner with exactly that alt is removed; any other banner is kept.
+  const { data: settings } = await service.from('venue_settings').select('venue_id, name, banner_path, banner_alt').eq('venue_id', await venueId()).single()
+  if (settings?.banner_path && settings.banner_alt === `${settings.name} banner`) {
     const { error: clearError } = await service.from('venue_settings')
       .update({ banner_path: null, banner_alt: null }).eq('venue_id', settings.venue_id)
     if (clearError) throw clearError

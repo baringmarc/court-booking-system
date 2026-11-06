@@ -432,19 +432,15 @@ export async function reorderCourtPhotos(courtId: string, ids: string[]) {
   unwrap(await supabase.rpc('reorder_court_photos', { p_court_id: courtId, p_ids: ids }))
 }
 
-async function updateBanner(values: Pick<VenueSettings, 'banner_path' | 'banner_alt'> | Pick<VenueSettings, 'banner_alt'>) {
+async function updateBanner(values: Pick<VenueSettings, 'banner_path' | 'banner_alt'>) {
   return unwrap(await supabase.from('venue_settings').update(values).eq('venue_id', currentVenueId()).select().single())
 }
 
 /** `alt` must already be trimmed (a CHECK enforces it). */
-export type BannerInput = { alt: string; image?: Blob }
+export type BannerInput = { alt: string; image: Blob }
 
-/**
- * Sets the site banner. With an image (already downscaled), uploads it and replaces any old banner;
- * without one, only updates the alt text of the current banner.
- */
+/** Sets the site banner: uploads the image (already downscaled) and replaces any old banner. */
 export async function saveBanner(settings: Pick<VenueSettings, 'banner_path'>, { alt, image }: BannerInput) {
-  if (!image) return updateBanner({ banner_alt: alt })
   return replaceStoredMedia({
     oldPath: settings.banner_path,
     upload: () => uploadVenueMedia('banner', image),
