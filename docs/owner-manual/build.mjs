@@ -14,9 +14,11 @@ try {
     await Promise.all([...document.images].map(img => img.decode()))
     await document.fonts.ready
     for (const article of document.querySelectorAll('article')) {
-      const last = article.querySelector('footer').previousElementSibling
-      if (last.getBoundingClientRect().bottom + 6 > article.querySelector('footer').getBoundingClientRect().top) {
-        throw new Error('Text overlaps the footer on ' + article.id)
+      const footer = article.querySelector('footer')
+      const limit = footer ? footer.getBoundingClientRect().top - 4 : article.getBoundingClientRect().bottom - 20
+      for (const el of article.children) {
+        if (el === footer || el.tagName === 'HEADER') continue
+        if (el.getBoundingClientRect().bottom > limit) throw new Error('Content overlaps footer on ' + article.id)
       }
     }
     for (const a of document.links) {
@@ -27,7 +29,7 @@ try {
   await mkdir(dir, { recursive: true })
   const versioned = dir + 'venue-owner-manual-v' + version + '.pdf'
   await page.pdf({ path: versioned, printBackground: true, preferCSSPageSize: true, tagged: true, outline: true })
-  if ((await stat(versioned)).size > 2 * 1024 * 1024) throw new Error('Compress screenshots before releasing this edition.')
+  if ((await stat(versioned)).size > 2_000_000) throw new Error('Compress screenshots before releasing this edition.')
   await copyFile(versioned, dir + 'venue-owner-manual.pdf')
   console.log('Built edition', version, 'with', await page.locator('article').count(), 'pages')
 } finally {

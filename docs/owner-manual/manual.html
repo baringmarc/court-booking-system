@@ -3,203 +3,393 @@
 <meta name="version" content="1.0"><meta name="author" content="Plotline">
 <title>Plotline venue owner manual</title><link rel="stylesheet" href="manual.css"></head><body>
 
-<article id="contents" class="cover" data-section="Venue operations">
-<h1>Venue owner<br>manual</h1>
-<p class="edition">Edition 1.0 &nbsp; / &nbsp; 6 November 2026</p>
-<p>Open your courts for bookings, review a player’s payment, or check what your venue owes. Choose a chapter below to jump to its instructions.</p>
-<nav aria-label="Contents">
-<a href="#access"><span>First access &amp; sign-in</span><small>2</small></a>
-<a href="#quick-start"><span>Quick start &amp; publication</span><small>3</small></a>
-<a href="#courts"><span>Courts &amp; base prices</span><small>4</small></a>
-<a href="#hours"><span>Opening hours, prices &amp; closures</span><small>5–7</small></a>
-<a href="#payments"><span>Payment setup</span><small>8</small></a>
-<a href="#settings"><span>Venue settings &amp; booking rules</span><small>9–10</small></a>
-<a href="#dashboard"><span>Dashboard &amp; daily checks</span><small>11</small></a>
-<a href="#proof"><span>Review payments &amp; manage bookings</span><small>12–13</small></a>
-<a href="#open-play"><span>Open Play</span><small>14</small></a>
-<a href="#reports"><span>Reports &amp; fee statements</span><small>15</small></a>
-<a href="#help"><span>Troubleshooting &amp; support</span><small>16</small></a>
-</nav></article>
-
-<article id="access" data-section="Getting started">
-<h2>Sign in to your venue</h2>
-<h3>First invitation or replacement link</h3>
-<ol><li>Open the latest Plotline access email sent to the address you gave Plotline. Check the venue name, then open its account-setup link.</li>
-<li>On <b>Set your password</b>, enter the same new password twice (at least eight characters). Select <b>Set password</b> to continue to the Dashboard.</li>
-<li>Bookmark your venue’s regular admin address, ending in <b>/admin/login</b>. Keep the invitation link private.</li></ol>
-<h3>If you already have a working account</h3>
-<p>Open the regular admin sign-in link for the venue. Use your existing email and password. A draft venue can show <b>Staff sign in</b> before it shows the Dashboard.</p>
-<figure style="--image-height:145px"><img src="screens/sign-in.png" alt="Empty email and password fields on the draft venue sign-in form"><figcaption>The draft-venue sign-in form. Use the email address that received access.</figcaption></figure>
-<p>On a phone, use the menu at the top to open navigation. If you manage several venues, check the venue selector before changing anything.</p>
+<article id="contents" class="cover" data-section="Owner manual">
+<h1>Running your venue on Plotline</h1>
+<p class="edition">Venue owner manual · Edition 1.0 · 6 November 2026</p>
+<p class="cover-intro">Your practical guide to getting set up, welcoming players and managing bookings.</p>
+<div class="start">
+<a href="#ready"><strong>New to Plotline?</strong>Set up your courts and publish.</a>
+<a href="#dashboard"><strong>Running the day?</strong>Check bookings, approve payments and see earnings.</a>
+<a href="#help"><strong>Something wrong?</strong>Quick fixes and how to reach Plotline.</a>
+</div>
+<nav class="toc" aria-label="Contents">
+<div class="part">Before you start</div>
+<a href="#ready"><span>What to have ready</span><small></small></a>
+<a href="#how"><span>Booking statuses</span><small></small></a>
+<a href="#money"><span>How money moves</span><small></small></a>
+<div class="part">Set up and publish</div>
+<a href="#access"><span>Your first sign-in</span><small></small></a>
+<a href="#tour"><span>Find your way around</span><small></small></a>
+<a href="#publish"><span>Publish in five steps</span><small></small></a>
+<a href="#courts"><span>Courts and base prices</span><small></small></a>
+<a href="#hours"><span>Opening hours, peak prices and closures</span><small></small></a>
+<a href="#payments"><span>How players pay you</span><small></small></a>
+<a href="#public"><span>Your public page and booking rules</span><small></small></a>
+<div class="part">Every day</div>
+<a href="#dashboard"><span>Your day on the Dashboard</span><small></small></a>
+<a href="#proof"><span>Approve or reject a payment</span><small></small></a>
+<a href="#bookings"><span>Find, move or cancel a booking</span><small></small></a>
+<a href="#open-play"><span>Open play sessions</span><small></small></a>
+<a href="#reports"><span>Your Plotline fees</span><small></small></a>
+<a href="#routine"><span>Daily, weekly and monthly checklist</span><small></small></a>
+<a href="#help"><span>Troubleshooting and support</span><small></small></a>
+</nav>
 </article>
 
-<article id="quick-start" data-section="Getting started">
-<h2>Quick start to publication</h2>
-<p>On the draft venue’s <b>Dashboard</b>, select <b>Fix</b> beside an unfinished item. Return here after each save.</p>
-<ol><li><b>Courts.</b> Create at least one active court. Set a default hourly rate above zero on every active court.</li>
-<li><b>Schedule → Opening hours.</b> Ensure an active court is open on at least one day.</li>
-<li><b>Settings → Payment Setup.</b> Add an account with a number and save written payment instructions. These count as two separate requirements.</li>
-<li>When the counter reaches <b>5 of 5 done</b>, select <b>Publish venue</b>. Open <b>View public site</b> and check the court, times and price on the player booking page.</li></ol>
-<figure style="--image-height:240px"><img src="screens/checklist.png" alt="Setup checklist with courts, rates and hours done and both payment items still to do"><figcaption>In this draft, the two payment items still block publication. Photos are optional and do not count toward the five.</figcaption></figure>
+<article id="ready" data-section="Before you start">
+<h2>What to have ready</h2>
+<p class="lede">Gather these details before you sign in.</p>
+<ul class="check">
+<li><b>The Plotline email</b> with your account-setup link, opened on the email address you gave Plotline.</li>
+<li><b>Your courts:</b> a name players will recognise for each (for example “Court 1” or “Garden Court 1”) and its sport.</li>
+<li><b>Your normal hourly price</b> for each court, plus any peak or off-peak prices and the hours they apply.</li>
+<li><b>Your weekly opening hours</b>, including regular breaks such as lunch or maintenance.</li>
+<li><b>Where players should pay:</b> the GCash, Maya or bank account name and number you check every day, and a QR code screenshot if you have one.</li>
+<li><b>Your rules:</b> how far ahead players may book, how long they have to pay, and how late they may cancel.</li>
+<li>Optional: <b>photos</b> of each court and a wide <b>banner</b> photo of the venue, your address and a Google Maps link, and your Facebook or Instagram page.</li>
+</ul>
+<div class="tip"><b>Use a computer for setup if you can</b>Everything works on a phone, but setting hours and prices is quicker on a larger screen. Daily tasks are easy on a phone.</div>
+<h3>Who does what</h3>
+<table>
+<tr><th>You (the venue)</th><th>Plotline</th></tr>
+<tr><td>Courts, prices, hours, payment details, approving payments, refunds to players</td><td>Your account, publishing support, online card payments (PayMongo), the monthly fee statement</td></tr>
+</table>
 </article>
 
-<article id="courts" data-section="Venue setup">
-<h2>Add a bookable court</h2>
-<ol><li>Open <b>Courts → Add court</b>. Enter the name players will recognize, choose the sport and set the <b>Default hourly rate</b>. Add a description if helpful.</li>
-<li>Leave <b>Active</b> checked and select <b>Create court</b>. The saved court opens so you can add photos. The first is its cover. Use <b>Make cover</b> to choose another.</li>
-<li>Open the court from <b>Courts</b> to change its details. Select <b>Save changes</b>. Set special hourly prices under <b>Schedule → Prices</b>.</li></ol>
-<figure style="--image-height:230px"><img src="screens/court.png" alt="Garden Court 1 with pickleball selected, a default rate of 400 and Active checked"><figcaption>Example setup for one pickleball court. Enter your own hourly price.</figcaption></figure>
-<aside>To retire a court with booking history, uncheck <b>Active</b> and save. Its bookings stay in your records. Deletion is available only for a court that has never been booked.</aside>
+<article id="how" data-section="Before you start">
+<h2>Understand booking statuses</h2>
+<p class="lede">Find a booking in <b>Bookings</b> to see where it stands and what to do next.</p>
+<div class="flow"><span>Waiting for payment</span><b>→</b><span>Under review</span><b>→</b><span>Confirmed</span><b>→</b><span>Completed</span></div>
+<table class="status-table">
+<tr><th>Status</th><th>What it means</th></tr>
+<tr><td><b>Waiting for payment</b></td><td>The player has a temporary hold and needs to pay and submit proof.</td></tr>
+<tr><td><b>Payment under review</b></td><td>Proof has arrived. Check the transfer and approve or reject it.</td></tr>
+<tr><td><b>Confirmed</b></td><td>Payment is accepted and the court time is reserved.</td></tr>
+<tr><td><b>Completed</b></td><td>The confirmed booking’s play time has ended.</td></tr>
+<tr><td><b>Expired</b></td><td>Payment proof did not arrive before the hold ended. The time opens again.</td></tr>
+<tr><td><b>Rejected</b></td><td>Proof was rejected too many times. The time opens again.</td></tr>
+<tr><td><b>Cancelled</b></td><td>The player or venue cancelled the booking. The time opens again.</td></tr>
+</table>
+<div class="tip"><b>When proof is rejected</b>If the player has attempts left, the booking returns to Waiting for payment with a fresh hold. A successful online payment can confirm automatically.</div>
+<p class="next">Next: <a href="#money">See how money moves →</a></p>
 </article>
 
-<article id="hours" data-section="Schedule">
-<h2>Set your weekly hours</h2>
-<ol><li>Open <b>Schedule → Opening hours</b>. Switch each day to <b>Open</b> or <b>Closed</b>. For an open day, select opening and closing times in whole hours.</li>
-<li>For a lunch or maintenance break, select <b>+ Add a break</b>. Choose both ends of the break. Add another if needed.</li>
-<li>Use <b>Copy hours from</b> to select your source day, then choose a <b>Copy to</b> group. Check <b>Week at a glance</b> before saving.</li></ol>
-<figure style="--image-height:155px"><img src="screens/hours.png" alt="An open day with opening and closing selectors and a separate break row"><figcaption>The gap between the two break times is closed to new bookings.</figcaption></figure>
-<h3>When one court keeps different hours</h3>
-<p>Under <b>Courts with different hours</b>, choose the court and select <b>Give this court different hours</b>. Check the “Editing … only” notice, then change its week. <b>Back to all courts</b> returns to the venue week.</p>
-<p>To restore the venue week, choose <b>Use opening hours</b> for that court and confirm. Finish with <b>Review &amp; save</b> as described on the next page.</p>
+<article id="money" data-section="Before you start">
+<h2>How money moves</h2>
+<p class="lede">For a manual payment, the player transfers the full booking total directly to your venue.</p>
+<h3>Who gets the money</h3>
+<p>Players pay <b>you</b>, straight into your own account. On top of your court price, each confirmed online booking carries a <b>₱10 booking fee</b>, so the player sends the total. After the month ends, Plotline sends the venue an invoice for the fees due.</p>
+<table>
+<tr><th>One 1-hour booking at ₱400</th><th class="num" style="text-align:right">Amount</th></tr>
+<tr><td>Court price (yours)</td><td class="num">₱400</td></tr>
+<tr><td>Booking fee (Plotline’s)</td><td class="num">₱10</td></tr>
+<tr class="total"><td>The player sends you</td><td class="num">₱410</td></tr>
+</table>
+<div class="tip"><b>What happens next</b>Check that ₱410 reached your account before approving the proof. The ₱10 fee appears in Reports and is included in the venue’s monthly statement.</div>
+<h3>If a confirmed booking is cancelled</h3>
+<table><tr><th>Who cancels</th><th>Booking fee</th><th>Refund</th></tr><tr><td>Venue</td><td>Credited on your statement</td><td>Arrange with the player outside the app</td></tr><tr><td>Player</td><td>Still owed to Plotline</td><td>Arrange with the player outside the app</td></tr></table>
+<p class="next">Next: <a href="#access">Sign in to your venue →</a></p>
 </article>
 
-<article id="prices" data-section="Schedule">
-<h2>Set an override &amp; save</h2>
-<p>In <b>Prices</b>, select the court, rate day, and start and end hours. Enter the hourly <b>Override price</b> and choose <b>Apply rate</b>. To restore the base price for a range, leave the price empty and apply it.</p>
-<figure style="--image-height:84px"><img src="screens/prices.png" alt="A single court’s weekly override rates grouped by day and hour"></figure>
-<p>Hours and prices share one draft. Switch between the tabs to check either. Choose <b>Review &amp; save</b> in the bottom bar to see the changes together.</p>
-<figure style="--image-height:190px"><img src="screens/review.png" alt="Review changes dialog showing a break, an override rate and the two final actions"><figcaption>Keep editing returns to the draft. Save changes commits both tabs.</figcaption></figure>
-<p>Check <b>Bookings outside the new hours</b>. The preview looks ahead 90 days. Follow up with affected players yourself. Existing reservations keep their time and price.</p>
-<p>Choose <b>Save changes</b>. To abandon the whole draft, choose <b>Discard</b> in the bar and confirm.</p>
+<article id="access" data-section="Set up and publish">
+<h2>Your first sign-in</h2>
+<p class="lede">Which steps you follow depends on whether you already have a Plotline password.</p>
+<h3>New to Plotline: set a password</h3>
+<ol>
+<li>Open the latest email from Plotline. Check it names your venue, then tap its account-setup button.</li>
+<li>On <b>Set your password</b>, type a new password (at least 8 characters) in both boxes and select <b>Set password</b>. The Dashboard opens.</li>
+<li>Bookmark the page. Next time, sign in at your venue’s address ending in <b>/admin/login</b> with your email and this password.</li>
+</ol>
+<figure style="--h:150px"><img src="screens/set-password.jpg" alt="Set your password form with New password, Confirm password, Set password and Skip for now"><figcaption>Avoid <b>Skip for now</b>: without a password you will need a new link from Plotline to get back in.</figcaption></figure>
+<h3>Already have a password</h3>
+<p>Go to your venue’s admin address and sign in with your usual email and password. Until the venue is published, the page is titled <b>Staff sign in</b>.</p>
+<div class="warn"><b>Keep links private</b>The setup link signs you in. Don’t forward it. If it has expired or opens the wrong venue, ask Plotline for a new one (page <span data-ref="help"></span>).</div>
 </article>
 
-<article id="closures" data-section="Schedule">
-<h2>Close courts for an event</h2>
-<p>Use <b>Schedule → Closures</b> for a one-off holiday, repair or private event. The weekly timetable is separate.</p>
-<ol><li>Select <b>Today</b>, <b>Tomorrow</b>, <b>This weekend</b> or <b>Pick dates</b>. For specific dates, set both ends.</li>
-<li>Select <b>All courts</b> or one court. Use <b>All day</b> to cover the operating day, including hours after midnight. For a shorter closure, set start and end times.</li>
-<li>Choose a reason or type your own. The reason is visible to staff. Check the summary and any bookings or open play already in that time.</li>
-<li>Select <b>Add closure</b>. Check <b>Upcoming closures</b> for the dates added. For a multi-day request, check this list before retrying after an error.</li></ol>
-<figure style="--image-height:96px"><img src="screens/closure.png" alt="Closure summary showing the hours and booking-conflict check"><figcaption>Read the interval and booking check before adding the closure.</figcaption></figure>
-<aside>Existing bookings and sessions stay booked. Arrange changes with players through Bookings or Open Play. To reopen a time, find its entry under <b>Upcoming closures</b>, choose <b>Remove</b> and confirm.</aside>
+<article id="tour" data-section="Set up and publish">
+<h2>Find your way around</h2>
+<p class="lede">Every page is in the menu on the left. On a phone, tap the ☰ button at the top to open it.</p>
+<figure style="--h:300px"><img src="screens/overview.jpg" alt="Admin Dashboard of a draft venue with the side menu and the Set up your venue checklist, marked 1 to 4"></figure>
+<ul class="keyed">
+<li><span class="n">1</span><b>Operations:</b> Dashboard, Bookings, Schedule and Open Play, the pages you use every day.</li>
+<li><span class="n">2</span><b>Set up your venue:</b> counts what is still needed before players can book. It disappears once you publish.</li>
+<li><span class="n">3</span><b>View public site</b> opens your venue’s booking page as players see it. The bell beside it counts new bookings.</li>
+<li><span class="n">4</span><b>Management:</b> Courts, Reports (your Plotline fees) and Settings (payment details, rules, appearance).</li>
+</ul>
+<div class="tip"><b>On a phone</b>The same menu slides in from the left. <b>Account</b> (top right) is where you sign out. If you manage more than one venue, check the venue name at the top before changing anything.</div>
 </article>
 
-<article id="payments" data-section="Venue setup">
-<h2>Tell players how to pay</h2>
-<p>Open <b>Settings → Payment Setup</b>. Complete both sections before returning to the Dashboard checklist.</p>
-<h3>1. Add the receiving account</h3>
-<p>Under <b>Add an account</b>, enter a label players know, the account name and the receiving number. Add a QR image if you use one. Select <b>Add account</b> and check the saved entry. Use <b>Edit</b> to correct it later.</p>
-<figure style="--image-height:145px"><img src="screens/payment.png" alt="Label, account name and account number fields with sample data"><figcaption>Demo fields only. Enter the account your venue actually checks.</figcaption></figure>
-<h3>2. Save written instructions</h3>
-<p>In <b>Payment instructions</b>, tell players where to pay, what reference to include and how to upload proof. <b>Use example</b> fills the box so you can edit it. Select <b>Save instructions</b> and wait for confirmation.</p>
-<aside>The account and instructions appear to players after they book. <b>Online payments</b> shows whether PayMongo is enabled for the venue. Contact Plotline about that setting.</aside>
+<article id="publish" data-section="Set up and publish">
+<h2>Publish in five steps</h2>
+<p class="lede">Players can’t see or book your venue until you publish it. The checklist on the Dashboard tracks the five required items.</p>
+<figure style="--h:230px"><img src="screens/checklist.jpg" alt="Set up your venue checklist at 3 of 5 done, with both payment items still open"><figcaption>Three of five done. Select <b>Fix</b> on any open item to jump straight to the right page.</figcaption></figure>
+<table>
+<tr><th>Required item</th><th>Where to do it</th><th>Page</th></tr>
+<tr><td>1. At least one active court</td><td>Courts → Add court</td><td><span data-ref="courts"></span></td></tr>
+<tr><td>2. A price above zero on every active court</td><td>Courts → the court</td><td><span data-ref="courts"></span></td></tr>
+<tr><td>3. Open on at least one day</td><td>Schedule → Opening hours</td><td><span data-ref="hours"></span></td></tr>
+<tr><td>4. A payment account with a number</td><td>Settings → Payment Setup</td><td><span data-ref="payments"></span></td></tr>
+<tr><td>5. Saved payment instructions</td><td>Settings → Payment Setup</td><td><span data-ref="payments"></span></td></tr>
+</table>
+<p>Court photos are optional and don’t count toward the five. At <b>5 of 5 done</b>, select <b>Publish venue</b>. Then check your page as a player would (page <span data-ref="public"></span>).</p>
 </article>
 
-<article id="settings" data-section="Venue setup">
-<h2>Set up your public page</h2>
-<h3>Venue Profile</h3>
-<p>Open <b>Settings → Venue Profile</b>. Set the venue name and select <b>Save venue profile</b>. Check the displayed timezone, currency and slot length. In the location section, enter the street address and paste your Google Maps link. Save the section and test the address link on the public page.</p>
-<p>Add the city and any public contact or social links in their own sections. Publishing your booking site and appearing in Plotline’s venue showcase are separate steps. Contact Plotline about a showcase listing.</p>
-<h3>Website Appearance</h3>
-<p>Choose a color preset and save it. Add your banner image, select the amenities you offer and add information players need before arrival. Set the sport order if you offer several sports. Save each section you change. Use <b>View public site</b> to inspect the result.</p>
-<h3>Policies &amp; Waivers</h3>
-<p>Enter the waiver players must accept during online booking, then select <b>Save waiver</b>. <b>Reset to default</b> fills the editor with the default wording. Review it before saving. A blank saved waiver turns the requirement off.</p>
-<aside>If you see an unsaved-changes prompt while leaving Settings, stay on the page and save the section you meant to change.</aside>
+<article id="courts" data-section="Set up and publish">
+<h2>Courts and base prices</h2>
+<p class="lede">Each court has a sport and a default hourly price. Peak prices come later, under Schedule.</p>
+<figure style="--h:190px"><img src="screens/court.jpg" alt="Add court form with name Garden Court 1, sport Pickleball and default hourly rate 400, marked 1 to 4"></figure>
+<p>Open <b>Courts</b> and select <b>Add court</b>.</p>
+<ul class="keyed">
+<li><span class="n">1</span><b>Name</b>: what players will see, such as “Court 1”.</li>
+<li><span class="n">2</span><b>Sport</b>: players filter by sport, and a booking can only move to a court of the same sport.</li>
+<li><span class="n">3</span><b>Default hourly rate</b>: your normal price per hour, in pesos.</li>
+<li><span class="n">4</span>Leave <b>Active</b> ticked and select <b>Create court</b>.</li>
+</ul>
+<p>The saved court opens so you can add photos. The first photo is the cover; use <b>Make cover</b> to choose another. To edit a court later, open it from <b>Courts</b> and select <b>Save changes</b>.</p>
+<div class="tip"><b>Closing a court for good</b>Untick <b>Active</b> and save. Players can no longer book it, and its past bookings stay in your records. You can delete only a court that has never been booked.</div>
 </article>
 
-<article id="rules" data-section="Venue setup">
-<h2>Choose your booking rules</h2>
-<p>Go to <b>Settings → Booking Rules</b>. Enter whole numbers in the units beside each field, then choose <b>Save booking rules</b>.</p>
-<h3>Booking window · 1 to 365 days</h3>
-<p>How far ahead an online player can reserve. A value of 30 allows bookings today and up to 30 days ahead.</p>
-<h3>Payment hold · 5 to 1,440 minutes</h3>
-<p>How long the player has to upload proof. If the hold expires first, the booking expires and the slot opens again.</p>
-<h3>Cancellation cutoff · 0 to 168 hours</h3>
-<p>How far before play a player must cancel online. With 24, the player needs to contact you inside the last 24 hours. With 0, they can cancel right up to the start.</p>
-<h3>Proof rejections allowed · 1 to 10</h3>
-<p>Below this limit, a rejected proof gives the player a fresh payment hold to try again. At the limit, the booking is rejected and the time becomes available. With 1, the first rejection releases the slot.</p>
-<aside>Choose a hold that gives players enough time to make a transfer and upload a receipt. Review the cutoff and rejection limit with the staff who answer booking questions.</aside>
+<article id="hours" data-section="Set up and publish">
+<h2>Opening hours</h2>
+<p class="lede">Open <b>Schedule</b>. Opening hours, Prices and Closures are tabs on the same page.</p>
+<figure style="--h:120px"><img src="screens/hours.jpg" alt="Monday open 6 AM to 10 PM with a break from 12 PM to 2 PM"></figure>
+<ol>
+<li>For each day, use the switch <span class="n">1</span> to set <b>Open</b> or <b>Closed</b>, then choose the opening and closing hour.</li>
+<li>For a regular break, select <b>+ Add a break</b> and choose its start and end. <b>Remove break</b> <span class="n">2</span> deletes it.</li>
+<li>To repeat a day, use <b>Copy hours from</b>, pick that day, then choose which days to copy it to.</li>
+<li>Check <b>Week at a glance</b>: green is bookable, striped is closed.</li>
+</ol>
+<figure style="--h:110px"><img src="screens/week.jpg" alt="Week at a glance chart showing every day open 6 AM to 10 PM with a striped Monday break"></figure>
+<p><b>One court keeps different hours?</b> Under <b>Courts with different hours</b>, pick it and select <b>Give this court different hours</b>. A notice confirms you are editing that court only. <b>Use opening hours</b> puts it back on the venue’s hours.</p>
+<div class="warn"><b>Nothing is saved yet</b>Your changes wait in a draft until you select <b>Review &amp; save</b> in the bar at the bottom of the page (next page).</div>
 </article>
 
-<article id="dashboard" data-section="Daily operations">
-<h2>Start the day on Dashboard</h2>
-<ol><li>Check <b>Proofs to review</b>. Select <b>Review proofs</b> to open the queue. Use <b>Today’s courts</b> and <b>Today’s schedule</b> to check court times and booking references for the operating day.</li>
-<li>Under <b>Earnings</b>, choose Today, This week, This month or a custom range. <b>Collected</b> shows money received. <b>Coming up</b> shows confirmed bookings still to be played.</li></ol>
-<figure style="--image-height:140px"><img src="screens/earnings.png" alt="Revenue split showing total revenue minus Plotline fees equals your earnings"><figcaption>This demo shows ₱400 collected and no fee recorded in the earnings split. Your figures depend on your bookings.</figcaption></figure>
-<p>Use <b>Booked hours</b> to compare booked and available time. For several days, check the collected-per-day chart. Under <b>Export</b>, choose the bookings or payments CSV for the selected range. Include contact details only when the file needs them.</p>
-<aside>For invoices and due dates, open <b>Reports</b>. For another copy of this guide, use <b>Download owner manual (PDF)</b> at the top of the Dashboard.</aside>
+<article id="prices" data-section="Set up and publish">
+<h2>Peak prices, then save</h2>
+<p class="lede">An override price replaces the default rate for chosen hours, for example weekday evenings.</p>
+<figure style="--h:125px"><img src="screens/prices-form.jpg" alt="Weekly override rates form: Monday, 5 PM to 10 PM, override price 500"></figure>
+<ol>
+<li>On the <b>Prices</b> tab, choose the court, the <b>Rate day</b> and the hours (<b>Rate from</b>, <b>Rate to</b>).</li>
+<li>Type the hourly <b>Override price</b> <span class="n">1</span> and select <b>Apply rate</b> <span class="n">2</span>. Repeat for other days.</li>
+<li>To go back to the default rate for some hours, apply them with the price left empty.</li>
+</ol>
+<div class="pair">
+<figure style="--h:170px;flex:0 0 52%"><img src="screens/review.jpg" alt="Review changes dialog listing the new Monday break and the 500 peso evening rates"></figure>
+<div><p>Select <b>Review &amp; save</b>. The summary lists every change on both tabs.</p>
+<p><b>Bookings outside the new hours</b> lists existing bookings in the next 90 days that fall outside your new hours. They are not moved or cancelled, so contact those players yourself.</p>
+<p>Select <b>Save changes</b>. <b>Discard</b> in the bottom bar throws the whole draft away.</p></div>
+</div>
+<p>New prices apply to new bookings only. Existing bookings keep the price they were made at.</p>
 </article>
 
-<article id="proof" data-section="Daily operations">
-<h2>Review a payment</h2>
-<p>Open <b>Bookings</b>. The default <b>Needs review</b> filter shows submitted proofs. Select a row to open the details. On a phone, these appear below the list.</p>
-<ol><li>Match the booking reference, court, time and total. Under <b>Proof waiting for review</b>, inspect the receipt, amount, method and transfer reference. Check the money actually reached your receiving account.</li>
-<li>If it matches, select <b>Approve and confirm</b>. The booking becomes confirmed and leaves the review queue.</li>
-<li>If it does not match, enter a specific <b>Reason for rejecting</b>, then choose <b>Reject proof</b>. Tell the player what to fix. The booking rules on page 10 determine whether they get another attempt.</li></ol>
-<figure style="--image-height:160px"><img src="screens/proof.png" alt="Proof waiting for review with a synthetic receipt, payment method, amount and transfer reference"><figcaption>Sample receipt and reference. Match both to your own payment record.</figcaption></figure>
-<p>An accepted online payment can confirm automatically. If you see <b>Refund due</b> or <b>Check duplicate</b>, reconcile the payment and arrange any refund outside the app.</p>
+<article id="closures" data-section="Set up and publish">
+<h2>Close for a day or an event</h2>
+<p class="lede">For a holiday, repair or private event, use the <b>Closures</b> tab. Your weekly hours stay as they are.</p>
+<figure style="--h:250px"><img src="screens/closure.jpg" alt="Closure form with Tomorrow and Maintenance selected and a summary saying no bookings or open play in this time, marked 1 to 4"></figure>
+<ul class="keyed">
+<li><span class="n">1</span>Choose <b>Today</b>, <b>Tomorrow</b>, <b>This weekend</b> or <b>Pick dates</b>. Then choose <b>All courts</b> or one court. <b>All day</b> covers the whole operating day; untick it to set hours.</li>
+<li><span class="n">2</span>Pick a reason or type your own. Only staff see it; players just see “Closed”.</li>
+<li><span class="n">3</span>Read the summary. It shows the exact time span and warns about any bookings or open play already in it.</li>
+<li><span class="n">4</span>Select <b>Add closure</b>. It appears under <b>Upcoming closures</b>, where <b>Remove</b> reopens the time.</li>
+</ul>
+<div class="warn"><b>Closures never cancel bookings</b>Players already booked in that time keep their booking. Move or cancel them yourself in Bookings (page <span data-ref="bookings"></span>).</div>
 </article>
 
-<article id="bookings" data-section="Daily operations">
-<h2>Find or change a booking</h2>
-<h3>Find a reservation</h3>
-<p>In <b>Bookings</b>, search by booking reference, customer name or email, then select <b>Search</b>. A full reference opens its booking. Search covers all bookings. Use <b>Clear search</b> to return to status, source and date filters.</p>
-<h3>Move a confirmed booking</h3>
-<ol><li>Open a confirmed booking that has time left and select <b>Reschedule</b>. Where offered, pick the hour to move from. Earlier hours stay in their original place.</li>
-<li>Choose the new date, a court of the same sport and a free start long enough for the move. Enter the reason the player should see.</li>
-<li>Check the <b>Moving</b> and <b>To</b> summary, then select <b>Move booking</b>. Price and payment carry over. Note the new reference when moving only part of the booking.</li></ol>
-<h3>Cancel a reservation</h3>
-<p>Open the active booking before it ends. Under <b>Cancel booking</b>, enter a reason, then select <b>Cancel booking</b>. The player sees the reason and the released time becomes bookable. Cancel any moved parts separately if needed.</p>
-<aside>For a paid cancellation, arrange the player’s refund outside the app. A fee credit in Reports concerns the venue’s Plotline statement.</aside>
+<article id="payments" data-section="Set up and publish">
+<h2>How players pay you</h2>
+<p class="lede">Open <b>Settings → Payment Setup</b>. Players see these details right after they book.</p>
+<figure style="--h:300px"><img src="screens/payment.jpg" alt="Payment Setup with a saved GCash account and the payment instructions box filled with the example text"></figure>
+<ol>
+<li>Under <b>Add an account</b>, enter a <b>Label</b> players know (GCash, Maya, BPI), the <b>Account name</b> and the <b>Account or mobile number</b>. Add a QR code screenshot if you have one. Select <b>Add account</b>.</li>
+<li>Under <b>Payment instructions</b>, select <b>Use example</b> and edit it: what to put in the payment note, and that players must upload a screenshot of their receipt. Select <b>Save instructions</b>.</li>
+</ol>
+<div class="tip"><b>Use an account you check every day</b>You approve each booking by matching its proof to money that really arrived (page <span data-ref="proof"></span>). <b>Online payments</b> on this page shows whether card payments are on. Ask Plotline to change it.</div>
 </article>
 
-<article id="open-play" data-section="Daily operations">
-<h2>Run an open play session</h2>
-<p>Use <b>Open Play</b> to reserve one or more courts for a shared activity. Players can see the session and its details on the booking page.</p>
-<ol><li>Under <b>New session</b>, select the courts and date. Pick a start and duration within the available hours of all selected courts.</li>
-<li>Add a title. Use <b>Details</b> for skill level, price or what to bring. For an external RSVP, enter a link label and its full HTTPS address.</li>
-<li>Select <b>Add session</b>. Find it under <b>Upcoming sessions</b> and check the courts and times. Players cannot make ordinary bookings in those slots.</li></ol>
-<figure style="--image-height:100px"><img src="screens/open-play.png" alt="The Garden Court 1 pickleball court checked in the Open Play court picker"><figcaption>Select every court the group will use.</figcaption></figure>
-<h3>Change or remove a session</h3>
-<p>For a future session, choose <b>Edit</b>, update the form and select <b>Save changes</b>. To remove a session, choose <b>Delete</b> and confirm. Check the booking grid afterward. Opening hours, closures and other reservations still apply.</p>
+<article id="public" data-section="Set up and publish">
+<h2>See what players see</h2>
+<p class="lede">After publishing, select <b>View public site</b>. Check each court, its hours and prices on a few different days.</p>
+<div class="pair">
+<figure style="--h:230px"><img src="screens/public-top.jpg" alt="The public Book a court page on a phone with today's date selected"><figcaption>Players choose a day…</figcaption></figure>
+<figure style="--h:230px"><img src="screens/public-grid.jpg" alt="Time slot grid on a phone showing past hours greyed out and 400 peso slots available"><figcaption>…then tap free hours. Monday shows the break and ₱500 peak.</figcaption></figure>
+</div>
+<h3>Make the page your own</h3>
+<p>Each section under <b>Settings</b> has its own Save button, so save before you leave a section.</p>
+<ul>
+<li><b>Venue Profile</b>: venue name, city, street address with a Google Maps link, contact and social links. Timezone, currency and slot length are shown here; ask Plotline to change them.</li>
+<li><b>Website Appearance</b>: colour preset, banner photo, amenities, arrival information and the order sports appear in.</li>
+<li><b>Policies &amp; Waivers</b>: the waiver players must accept when booking online. <b>Reset to default</b> loads standard wording to edit. Saving it blank turns the waiver off.</li>
+</ul>
+<p>A listing in Plotline’s venue showcase is separate from publishing; ask Plotline.</p>
 </article>
 
-<article id="reports" data-section="Daily operations">
-<h2>Read your fee statement</h2>
-<p>Open <b>Reports</b> to see the venue’s <b>Statement</b>. The player pays the booking fee on top of the court price for a confirmed online booking. Walk-ins carry no booking fee.</p>
-<h3>What to pay now</h3>
-<p><b>Amount due</b> totals issued, unpaid invoices. Check each due date and any <b>Overdue</b> label. Use the payment instructions from Plotline for that invoice. Contact support with the venue name and billing month if a payment is missing.</p>
-<h3>What is building up this month</h3>
-<figure style="--image-height:96px"><img src="screens/statement.png" alt="This month’s fees so far with booking fees and venue cancellation credits"></figure>
-<p><b>This month’s fees so far</b> is a running total for the current month. It becomes payable when invoiced. A venue cancellation of a fee-bearing confirmed booking generates a credit.</p>
-<h3>Trace an amount</h3>
-<p>Select the <b>Month</b> to see its full totals and payment-method breakdown. In <b>Charges</b>, search a booking reference and follow it to the booking. Use the page controls for more rows. Under <b>Invoice history</b>, choose <b>Details</b> for fees, credits and total. Paid entries show the recorded payment details.</p>
+<article id="rules" data-section="Set up and publish">
+<h2>Booking rules</h2>
+<p class="lede"><b>Settings → Booking Rules</b> decides how far ahead players book, how long they have to pay and when they can cancel.</p>
+<figure style="--h:250px"><img src="screens/rules.jpg" alt="Booking rules form showing the defaults: 30 days, 60 minutes, 1 hour and 2 rejections"></figure>
+<table>
+<tr><th>Rule</th><th>Allowed</th><th>What it means</th></tr>
+<tr><td><b>Booking window</b></td><td>1–365 days</td><td>30 = today plus the next 30 days.</td></tr>
+<tr><td><b>Payment hold</b></td><td>5–1,440 min</td><td>Time to upload proof before the booking expires and the slot reopens.</td></tr>
+<tr><td><b>Cancellation cutoff</b></td><td>0–168 h</td><td>After this, players must contact you to cancel. You can always cancel.</td></tr>
+<tr><td><b>Proof rejections allowed</b></td><td>1–10</td><td>Rejections before the booking is rejected for good. Until then, each rejection gives the player a fresh hold to try again.</td></tr>
+</table>
+<div class="tip"><b>Choosing a payment hold</b>Allow enough time for a transfer and a screenshot, but not so long that unpaid holds block your busiest hours. 30–60 minutes suits most venues.</div>
 </article>
 
-<article id="help" data-section="Owner support">
-<h2>When something gets stuck</h2>
-<h3>The access link expired or opens the wrong venue</h3>
-<p>Check the venue name and invited email. If you already set a password, try the regular admin sign-in. Otherwise ask Plotline for a fresh access link. Share the venue name and what you see. Keep passwords and private links to yourself.</p>
-<h3>Publish venue is unavailable</h3>
-<p>Return to the draft Dashboard and follow each <b>Fix</b>. Check every active court’s base rate, a bookable day, an account number and saved payment instructions. Photos are optional.</p>
-<h3>A time or price looks wrong</h3>
-<p>Check the court is active, its weekly hours, breaks, individual hours, override price, closures and open play. Review and save the draft, then check the same date on the public booking page. If the schedule is unavailable for your venue, ask Plotline to check it. For a conflicting staff edit, note your intended changes, choose <b>Reload latest</b>, then reapply them.</p>
-<h3>Ask Plotline for help or a call</h3>
-<p>Include your venue, the screen you were on, any booking reference and the exact message. To arrange a call, tell us when you are available and your timezone.</p>
-<p><a href="mailto:plotline.admin1@gmail.com">plotline.admin1@gmail.com</a><br>
-<a href="https://www.facebook.com/profile.php?id=61595759948011">Plotline on Facebook</a> &nbsp;·&nbsp; <a href="https://m.me/61595759948011">Message Plotline on Messenger</a></p>
+<article id="dashboard" data-section="Every day">
+<h2>Your day on the Dashboard</h2>
+<p class="lede">Open the Dashboard first each day. It answers three questions: what needs approving, who is playing and what you earned.</p>
+<ol>
+<li><b>Proofs to review</b> shows how many payments are waiting. Select <b>Review proofs</b> to work through them (next page).</li>
+<li><b>Today’s courts</b> lays out each court by hour. Tap a booking reference to open it. <b>Today’s schedule</b> lists the same bookings with their status.</li>
+<li><b>Earnings</b> covers Today, This week, This month or a custom range.</li>
+</ol>
+<div class="pair">
+<figure style="--h:190px"><img src="screens/day-view.jpg" alt="Today's courts grid with a booking for Ana Reyes, reference CB-GARDEN, at 4 PM"><figcaption>Today’s courts</figcaption></figure>
+<figure style="--h:190px"><img src="screens/earnings.jpg" alt="Revenue split: total revenue 410, minus Plotline fees 10, equals your earnings 400"><figcaption>₱410 received, less the ₱10 fee, leaves ₱400 for you.</figcaption></figure>
+</div>
+<p>Further down: <b>Collected</b> by payment method, <b>Coming up</b> (confirmed bookings still to be played), <b>Booked hours</b> per court, a collected-per-day chart and <b>Export</b> to download bookings or payments as a spreadsheet (CSV). Tick <b>Include contact details</b> only when you need them, and store the file safely.</p>
+</article>
+
+<article id="proof" data-section="Every day">
+<h2>Approve or reject a payment</h2>
+<p class="lede">Open <b>Bookings</b>. It starts on <b>Needs review</b>, the bookings with a proof waiting. Select one to see its details.</p>
+<div class="pair">
+<figure style="--h:310px;flex:0 0 53%"><img src="screens/proof.jpg" alt="Proof waiting for review: GCash, 410 pesos, reference GC-2468, with the receipt image and the Approve and confirm button, marked 1 to 3"></figure>
+<div>
+<ul class="keyed">
+<li><span class="n">1</span>The method, amount and reference the player entered.</li>
+<li><span class="n">2</span>Their receipt screenshot. Tap it to enlarge.</li>
+<li><span class="n">3</span><b>Approve and confirm</b> confirms the booking.</li>
+</ul>
+<p><b>Approve only when all three hold:</b></p>
+<ul class="check">
+<li>The money is in <b>your</b> account (check your GCash, Maya or bank app, not just the screenshot).</li>
+<li>The amount equals the booking’s total (₱410 for a ₱400 hour).</li>
+<li>The reference matches your account history.</li>
+</ul>
+</div>
+</div>
+<h3>If something doesn’t match</h3>
+<p>Write what is wrong in <b>Reason for rejecting</b>, for example “Amount received is ₱400; please send the remaining ₱10”, and select <b>Reject proof</b>. The player sees your reason. Whether they can try again depends on <b>Proof rejections allowed</b> (page <span data-ref="rules"></span>).</p>
+<div class="tip"><b>Card payments</b>A successful online card payment confirms by itself. If you see <b>Refund due</b> or <b>Check duplicate</b>, the money arrived but the booking couldn’t take it. Check it and refund the player outside the app.</div>
+</article>
+
+<article id="bookings" data-section="Every day">
+<h2>Find, move or cancel a booking</h2>
+<h3>Find a booking</h3>
+<p>In <b>Bookings</b>, type a reference (such as CB-GARDEN), a name or an email and select <b>Search</b>. Search covers every booking, whatever the filters say. <b>Clear search</b> returns to the Status, Source and Date filters.</p>
+<h3>Move a booking to another time</h3>
+<ol>
+<li>Open a confirmed booking that hasn’t finished and select <b>Reschedule</b>. For a booking already under way, choose the hour to move from; earlier hours stay where they are.</li>
+<li>Choose the new date, a court of the same sport and a free start time. Write a reason; the player sees it.</li>
+<li>Check the <b>Moving</b> and <b>To</b> summary, then select <b>Move booking</b>.</li>
+</ol>
+<p>The price and payment carry over, and no new fee is charged. Moving only part of a booking creates a second reference for the moved part; note it down.</p>
+<h3>Cancel a booking</h3>
+<p>Open the booking before it ends. Under <b>Cancel booking</b>, write a reason and select <b>Cancel booking</b>. The player sees the reason and the time becomes free. Cancel any moved part separately.</p>
+<table>
+<tr><th>Who cancels</th><th>Booking fee</th><th>Refund to player</th></tr>
+<tr><td>You (the venue)</td><td>Credited back to you on your statement</td><td rowspan="2">Arranged by you, outside the app</td></tr>
+<tr><td>The player</td><td>Still owed to Plotline</td></tr>
+</table>
+</article>
+
+<article id="open-play" data-section="Every day">
+<h2>Open play sessions</h2>
+<p class="lede">Open play reserves one or more courts for a group activity, such as a social night or a clinic. Players see it on the booking page but can’t book those hours.</p>
+<figure style="--h:210px"><img src="screens/open-play.jpg" alt="New open play session form with Garden Court 1 ticked, date, start times and the title Friday night social"></figure>
+<ol>
+<li>Under <b>New session</b>, tick every court the group will use and pick the date.</li>
+<li>Pick a start time and <b>How long</b>. Only times when all the ticked courts are open appear.</li>
+<li>Add a <b>Title</b>. Use <b>Details</b> for skill level, price and what to bring. To link an RSVP form or group chat, fill in a link label and an address starting with https://.</li>
+<li>Select <b>Add session</b> and check it under <b>Upcoming sessions</b>.</li>
+</ol>
+<p>To change a future session, select <b>Edit</b>, update it and select <b>Save changes</b>. <b>Delete</b> removes it and frees the courts. Plotline doesn’t take payment for open play; collect any fee your own way.</p>
+</article>
+
+<article id="reports" data-section="Every day">
+<h2>Your Plotline fees</h2>
+<p class="lede">Open <b>Reports</b>. Plotline charges nothing to set up or each month. You only pay the ₱10 booking fee that players already sent you with each confirmed online booking.</p>
+<figure style="--h:110px"><img src="screens/statement.jpg" alt="This month's fees so far: 10 pesos from 1 booking fee, nothing credited, not yet invoiced"></figure>
+<h3>This month’s fees so far</h3>
+<p>A running total for the current month: booking fees, less credits for bookings <b>you</b> cancelled. Nothing in it is due yet.</p>
+<h3>Amount due</h3>
+<p>After a month ends, Plotline sends an invoice for it. <b>Amount due</b> adds up the invoices you haven’t paid. Each shows its due date, and an <b>Overdue</b> label once that date has passed. Pay using the instructions Plotline sends with the invoice.</p>
+<h3>Check an amount</h3>
+<p>Choose a <b>Month</b> to see its totals and how players paid. In <b>Charges</b>, search a booking reference to find its fee and open the booking. Under <b>Invoice history</b>, <b>Details</b> lists each invoice’s fees, credits and total, and paid invoices show the payment recorded.</p>
+<div class="tip"><b>Paid, but still showing as due?</b>Email Plotline with your venue name, the invoice month and your payment reference.</div>
+</article>
+
+<article id="routine" data-section="Every day">
+<h2>Daily, weekly and monthly checklist</h2>
+<p class="lede">Print this page and keep it at the front desk.</p>
+<h3>Every day</h3>
+<ul class="check">
+<li>Dashboard: clear <b>Proofs to review</b>, checking each transfer in your own account before approving.</li>
+<li>Look at <b>Today’s courts</b> before opening, and again in the afternoon for late bookings.</li>
+<li>Bookings: check <b>Needs review</b> again before closing so no player waits overnight.</li>
+</ul>
+<h3>Every week</h3>
+<ul class="check">
+<li>Schedule → Closures: add holidays, repairs and private events for the next weeks.</li>
+<li>Open Play: post next week’s sessions.</li>
+<li>Earnings → This week: compare <b>Collected</b> with your GCash, Maya and bank history.</li>
+<li>View public site: check prices and hours for the coming days.</li>
+</ul>
+<h3>Every month</h3>
+<ul class="check">
+<li>Reports: check last month’s invoice and pay the <b>Amount due</b> before its due date.</li>
+<li>Earnings → This month, then <b>Export</b> the payments CSV for your own records.</li>
+<li>Review your prices and booking rules against how busy you were.</li>
+</ul>
+<h3>Whenever something changes</h3>
+<ul class="check">
+<li>New account number: add it in Payment Setup <b>before</b> deleting the old one, and update the instructions.</li>
+<li>New court or price: update Courts and the Prices tab, then <b>Review &amp; save</b>.</li>
+</ul>
+</article>
+
+<article id="help" data-section="Help">
+<h2>Troubleshooting and support</h2>
+<table>
+<tr><th style="width:38%">Problem</th><th>Try this</th></tr>
+<tr><td><b>Setup link expired</b> or opens the wrong venue</td><td>Already set a password? Sign in at your venue’s /admin/login. If not, ask Plotline for a new link.</td></tr>
+<tr><td><b>Publish venue</b> is greyed out</td><td>Open the Dashboard and select <b>Fix</b> on each open item. Every active court needs a price above zero.</td></tr>
+<tr><td>A <b>time is missing</b> on the public page</td><td>Check the court is Active, then its opening hours, breaks, court-specific hours, Closures and Open Play.</td></tr>
+<tr><td>A <b>price looks wrong</b></td><td>Check the Prices tab for that court and day. Did you select <b>Save changes</b> after Review &amp; save?</td></tr>
+<tr><td>Saving the schedule fails because someone else changed it</td><td>Note your edits, select <b>Reload latest</b>, then make them again.</td></tr>
+<tr><td>A player paid ₱400 instead of ₱410</td><td>Check the amount received against the booking total. Reject with a clear reason if the payment is incomplete.</td></tr>
+</table>
+<h3>Contact Plotline</h3>
+<p>Tell us your venue name, the page you were on, any booking reference and the exact message you saw. A screenshot helps. To arrange a call, include a few times that suit you.</p>
+<p><b>Email:</b> <a href="mailto:plotline.admin1@gmail.com">plotline.admin1@gmail.com</a><br>
+<b>Messenger:</b> <a href="https://m.me/61595759948011">m.me/61595759948011</a><br>
+<b>Facebook:</b> <a href="https://www.facebook.com/profile.php?id=61595759948011">Plotline on Facebook</a></p>
+<div class="warn"><b>Plotline will never ask for your password</b>Never share it, or your setup link, with anyone, including people who say they are from Plotline.</div>
 </article>
 
 <script>
 const pages = [...document.querySelectorAll('article')]
+const pageOf = (id) => pages.indexOf(document.getElementById(id)) + 1
 for (const [index, page] of pages.entries()) {
   const header = document.createElement('header')
   header.innerHTML = '<img src="../../public/favicon.svg" alt=""><strong>plotline</strong><span></span>'
   header.lastElementChild.textContent = page.dataset.section
   page.prepend(header)
+  if (index === 0) continue
   const footer = document.createElement('footer')
-  footer.innerHTML = '<a href="#contents">Owner manual · Contents</a><span></span>'
-  footer.lastElementChild.textContent = (index + 1) + ' / ' + pages.length
+  footer.innerHTML = '<a href="#contents">Venue owner manual · Contents</a><span></span>'
+  footer.lastElementChild.textContent = 'Page ' + (index + 1) + ' of ' + pages.length
   page.append(footer)
+}
+// Page numbers are computed, so moving a chapter can't leave a stale cross-reference.
+for (const a of document.querySelectorAll('nav.toc a')) a.querySelector('small').textContent = pageOf(a.hash.slice(1))
+for (const ref of document.querySelectorAll('[data-ref]')) {
+  const n = pageOf(ref.dataset.ref)
+  if (!n) throw new Error('Unknown page ' + ref.dataset.ref)
+  const link = document.createElement('a'); link.href = '#' + ref.dataset.ref; link.textContent = n
+  ref.replaceWith(link)
 }
 </script></body></html>
