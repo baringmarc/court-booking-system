@@ -21,8 +21,15 @@ test.afterEach(async () => {
 async function openEditor(page: Page) {
   await page.goto(`${venue!.url}/admin/schedule`)
   await submitAdminLogin(page, player.email, player.password)
-  await expect(page.getByRole('heading', { name: 'Weekly Hours & Rates' })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Temporary Closures' })).toBeVisible()
+  await expect(page.getByRole('combobox', { name: 'Schedule for' })).toBeVisible()
+  await expect(page.getByRole('tablist', { name: 'Schedule sections' })).toBeVisible()
+}
+
+/** Review & save, then Save changes in the dialog (T17.31). */
+async function reviewAndSave(page: Page) {
+  await page.getByRole('button', { name: 'Review & save' }).click()
+  await page.getByRole('dialog', { name: 'Review changes' }).getByRole('button', { name: 'Save changes' }).click()
+  await expect(page.getByRole('region', { name: 'Unsaved changes' })).toHaveCount(0)
 }
 
 /** No sideways page scroll (a string, because the e2e tsconfig has no DOM types). */
@@ -41,13 +48,12 @@ test('a custom court with split hours persists after reload while venue hours st
   await monday.getByLabel('Monday period 2 opens').selectOption({ label: '2 PM' })
   await monday.getByLabel('Monday period 2 closes').selectOption({ label: '10 PM' })
   await expect(monday.getByText('Closed 12 PM to 2 PM')).toBeVisible()
-  await expect(page.getByText('You have unsaved changes.')).toBeVisible()
-  await page.getByRole('button', { name: 'Save schedule' }).click()
-  await expect(page.getByText('Saved', { exact: true })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Unsaved changes' })).toBeVisible()
+  await reviewAndSave(page)
   expect(await overflow(page)).toBeLessThanOrEqual(0)
 
   await page.reload()
-  await expect(page.getByRole('heading', { name: 'Weekly Hours & Rates' })).toBeVisible()
+  await expect(page.getByRole('combobox', { name: 'Schedule for' })).toBeVisible()
   await page.getByRole('combobox', { name: 'Schedule for' }).selectOption({ label: venue!.court })
   await expect(page.getByRole('combobox', { name: 'Court hours' })).toHaveValue(/custom/)
   const again = page.getByRole('group', { name: 'Monday' })
@@ -70,8 +76,7 @@ test('a custom court with split hours persists after reload while venue hours st
 test('a court that inherits venue hours follows a venue change', async ({ page }) => {
   await openEditor(page)
   await page.getByRole('group', { name: 'Tuesday' }).getByLabel('Tuesday period 1 opens').selectOption({ label: '8 AM' })
-  await page.getByRole('button', { name: 'Save schedule' }).click()
-  await expect(page.getByText('Saved', { exact: true })).toBeVisible()
+  await reviewAndSave(page)
   await page.reload()
   await page.getByRole('combobox', { name: 'Schedule for' }).selectOption({ label: venue!.court })
   await expect(page.getByRole('combobox', { name: 'Court hours' })).toHaveValue(/inherit/)
@@ -87,9 +92,11 @@ test('a stale revision shows the reload message and keeps the draft', async ({ p
   if (error) throw error
   const { error: bumpError } = await service.from('venue_schedule_state').update({ schedule_revision: state.schedule_revision + 1 }).eq('venue_id', venue!.id)
   if (bumpError) throw bumpError
-  await page.getByRole('button', { name: 'Save schedule' }).click()
+  await page.getByRole('button', { name: 'Review & save' }).click()
+  await page.getByRole('dialog', { name: 'Review changes' }).getByRole('button', { name: 'Save changes' }).click()
   await expect(page.getByRole('alert').filter({ hasText: /reload/i })).toBeVisible()
   await expect(page.getByRole('group', { name: 'Monday' }).getByLabel('Monday period 1 closes')).toHaveValue('20')
-  await expect(page.getByText('You have unsaved changes.')).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Unsaved changes' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Review & save' })).toBeDisabled()
   await expect(page.getByRole('button', { name: 'Reload latest' })).toBeVisible()
 })

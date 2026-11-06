@@ -72,3 +72,9 @@ export function gaps(periods: SchedulePeriod[]) {
 }
 
 export const periodText = (p: SchedulePeriod) => `${hourLabel(hourOfMinute(p.start_minute))} to ${hourLabel(hourOfMinute(p.end_minute))}`
+
+/** A day's periods in start order for the Review changes list: "6 AM – 12 PM, 2 PM – 10 PM", or "Closed" (T17.31). */
+export const dayText = (periods: SchedulePeriod[]) => periods.length === 0 ? 'Closed' : [...periods]
+  .sort((a, b) => a.start_minute - b.start_minute)
+  .map((p) => `${hourLabel(hourOfMinute(p.start_minute))} – ${hourLabel(hourOfMinute(p.end_minute))}`)
+  .join(', ')

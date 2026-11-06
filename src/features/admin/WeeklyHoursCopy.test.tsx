@@ -1,18 +1,19 @@
-// T17.16: copying hours/rates, impact warnings and revert in the Weekly Hours & Rates editor.
+// T17.16 / T17.31: copying hours/rates, the impact warning (now in the Review changes dialog) and Discard in the schedule editor.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { createMemoryRouter, RouterProvider } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fetchCourts, fetchVenueSettings, type CourtWithPhotos, type VenueSettings } from '../catalog/api'
+import { fetchCourts, fetchUpcomingBlackouts, fetchVenueSettings, type CourtWithPhotos, type VenueSettings } from '../catalog/api'
 import { fetchSchedule, saveSchedule } from './api'
-import { WeeklyHoursEditor } from './WeeklyHoursEditor'
+import { SchedulePage } from './SchedulePage'
 
 const previewMock = vi.hoisted(() => vi.fn())
 
 vi.mock('../catalog/api', async (importOriginal) => ({
   ...(await importOriginal<object>()),
   fetchCourts: vi.fn(),
+  fetchUpcomingBlackouts: vi.fn(),
   fetchVenueSettings: vi.fn(),
 }))
 vi.mock('./api', async (importOriginal) => ({
@@ -56,16 +57,37 @@ function mount() {
   } as never)
   vi.mocked(fetchCourts).mockResolvedValue([court('c1', 'Court One'), court('c2', 'Court Two')])
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
-  const router = createMemoryRouter([{ path: '/', element: <WeeklyHoursEditor /> }])
+  const router = createMemoryRouter([{ path: '/admin/schedule', element: <SchedulePage /> }], { initialEntries: ['/admin/schedule'] })
   render(<QueryClientProvider client={client}><RouterProvider router={router} /></QueryClientProvider>)
 }
 
 const day = (name: string) => within(screen.getByRole('group', { name }))
 const pick = async (label: string, value: string) => userEvent.selectOptions(await screen.findByLabelText(label), value)
 const choose = async (name: string) => userEvent.selectOptions(await screen.findByRole('combobox', { name: 'Schedule for' }), name)
-const saveBtn = () => screen.getByRole('button', { name: 'Save schedule' })
+const HOURS = /^Opening hours/
+const PRICES = /^Prices/
+const openTab = async (name: RegExp) => userEvent.click(await screen.findByRole('tab', { name }))
+const bar = () => screen.queryByRole('region', { name: 'Unsaved changes' })
+const reviewDialog = () => screen.findByRole('dialog', { name: 'Review changes' })
+const openReview = async () => {
+  await userEvent.click(screen.getByRole('button', { name: 'Review & save' }))
+  return reviewDialog()
+}
+/** Review & save, then Save changes in the dialog. */
+const save = async () => {
+  await userEvent.click(within(await openReview()).getByRole('button', { name: 'Save changes' }))
+}
+/** Applies one override on the Prices tab for a court (by name). */
+async function applyRate(courtName: string, dayValue: string, from: string, to: string, price: string) {
+  await openTab(PRICES)
+  await userEvent.selectOptions(await screen.findByLabelText('Prices for'), courtName)
+  await pick('Rate day', dayValue)
+  await pick('Rate from', from)
+  await pick('Rate to', to)
+  if (price) await userEvent.type(screen.getByLabelText('Override price'), price)
+  await userEvent.click(screen.getByRole('button', { name: 'Apply rate' }))
+}
 const lastChanges = () => vi.mocked(saveSchedule).mock.calls.at(-1)![1] as Record<string, unknown[] | undefined>
-const impactRegion = () => screen.getByRole('region', { name: 'Reservations outside the new hours' })
 
 async function copyDay(from: string, to: string[], withRates = false) {
   await userEvent.click(await screen.findByRole('button', { name: `Copy ${from} hours` }))
@@ -84,6 +106,7 @@ async function openCourtCopy(target: string, source: string, targetDay: string, 
 }
 
 beforeEach(() => {
+  vi.mocked(fetchUpcomingBlackouts).mockReset().mockResolvedValue([])
   previewMock.mockReset()
   previewMock.mockResolvedValue(impact(0))
   vi.mocked(fetchSchedule).mockReset()
@@ -104,7 +127,7 @@ describe('copy hours within a schedule', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Apply copy' }))
     expect(day('Tuesday').getByLabelText('Tuesday period 1 closes')).toHaveValue('12')
     expect(day('Thursday').getByLabelText('Thursday period 1 closes')).toHaveValue('22')
-    await userEvent.click(saveBtn())
+    await save()
     const periods = lastChanges().venue_periods as Period[]
     expect(periods.filter((p) => p.day_of_week === 1 || p.day_of_week === 2 || p.day_of_week === 3))
       .toEqual([1, 2, 3].map((d) => ({ day_of_week: d, start_minute: 360, end_minute: 720 })))
@@ -114,29 +137,24 @@ describe('copy hours within a schedule', () => {
   it('a hours-only copy leaves the target days\' rate overrides untouched', async () => {
     mount()
     await choose('Court Two')
-    await pick('Rate day', '2')
-    await pick('Rate from', '9')
-    await pick('Rate to', '10')
-    await userEvent.type(screen.getByLabelText('Override price'), '500')
-    await userEvent.click(screen.getByRole('button', { name: 'Apply rate' }))
+    await applyRate('Court Two', '2', '9', '10', '500')
+    await openTab(HOURS)
     await pick('Monday period 1 closes', '12')
     await copyDay('Monday', ['Tuesday'])
     expect(day('Tuesday').getByLabelText('Tuesday period 1 closes')).toHaveValue('12')
-    await userEvent.click(saveBtn())
+    await save()
     expect(lastChanges().rate_changes).toEqual([{ court_id: 'c2', day_of_week: 2, start_hour: 9, price: 500 }])
   })
 
   it('copying with rates replaces the target day\'s overrides with the source day\'s', async () => {
     mount()
     await choose('Court Two')
-    await pick('Rate day', '2')
-    await pick('Rate from', '9')
-    await pick('Rate to', '10')
-    await userEvent.type(screen.getByLabelText('Override price'), '500')
-    await userEvent.click(screen.getByRole('button', { name: 'Apply rate' }))
+    await applyRate('Court Two', '2', '9', '10', '500')
+    await openTab(HOURS)
     await copyDay('Monday', ['Tuesday'], true)
-    expect(within(screen.getByRole('region', { name: 'Pending changes' })).getByText(/Court Two.*hourly rate/)).toBeInTheDocument()
-    await userEvent.click(saveBtn())
+    const dialog = await openReview()
+    expect(within(dialog).getAllByRole('listitem').map((li) => li.textContent)).toEqual(['Court Two, Tuesday 6 PM – 7 PM: ₱800 (was ₱700)'])
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Save changes' }))
     // Tuesday's own 9 AM override had no saved value, so only the Monday 6 PM override arrives
     expect(lastChanges().rate_changes).toEqual([{ court_id: 'c2', day_of_week: 2, start_hour: 18, price: 800 }])
   })
@@ -146,7 +164,7 @@ describe('copy hours within a schedule', () => {
     await choose('Court Two')
     // Tuesday (source) has no overrides; Monday (target) has a saved 6 PM 800
     await copyDay('Tuesday', ['Monday'], true)
-    await userEvent.click(saveBtn())
+    await save()
     expect(lastChanges().rate_changes).toEqual([{ court_id: 'c2', day_of_week: 1, start_hour: 18, price: null }])
   })
 
@@ -168,8 +186,7 @@ describe('copy to another court', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Copy to Court One' })
     expect(dialog).toHaveTextContent(/overwrite/i)
     expect(dialog).toHaveTextContent(/custom hours/i)
-    expect(saveBtn()).toBeDisabled()
-    expect(screen.queryByRole('region', { name: 'Pending changes' })).not.toBeInTheDocument()
+    expect(bar()).not.toBeInTheDocument()
   })
 
   it('cancelling leaves the whole draft unchanged', async () => {
@@ -178,9 +195,7 @@ describe('copy to another court', () => {
     await openCourtCopy('Court One', 'Monday', 'Tuesday')
     await userEvent.click(within(await screen.findByRole('dialog', { name: 'Copy to Court One' })).getByRole('button', { name: 'Cancel' }))
     expect(screen.queryByRole('dialog', { name: 'Copy to Court One' })).not.toBeInTheDocument()
-    expect(saveBtn()).toBeDisabled()
-    expect(screen.queryByRole('region', { name: 'Pending changes' })).not.toBeInTheDocument()
-    expect(screen.queryByText('You have unsaved changes.')).not.toBeInTheDocument()
+    expect(bar()).not.toBeInTheDocument()
     await choose('Court One')
     expect(screen.getByRole('combobox', { name: 'Court hours' })).toHaveDisplayValue('Use venue hours')
     expect(saveSchedule).not.toHaveBeenCalled()
@@ -191,7 +206,7 @@ describe('copy to another court', () => {
     await choose('Court Two')
     await openCourtCopy('Court One', 'Monday', 'Tuesday')
     await userEvent.click(within(await screen.findByRole('dialog', { name: 'Copy to Court One' })).getByRole('button', { name: 'Copy to Court One' }))
-    await userEvent.click(saveBtn())
+    await save()
     expect(saveSchedule).toHaveBeenCalledWith(7, {
       courts: [{
         court_id: 'c1', schedule_mode: 'custom',
@@ -205,7 +220,7 @@ describe('copy to another court', () => {
     await choose('Court Two')
     await openCourtCopy('Court One', 'Monday', 'Tuesday', true)
     await userEvent.click(within(await screen.findByRole('dialog', { name: 'Copy to Court One' })).getByRole('button', { name: 'Copy to Court One' }))
-    await userEvent.click(saveBtn())
+    await save()
     expect(lastChanges().rate_changes).toEqual([{ court_id: 'c1', day_of_week: 2, start_hour: 18, price: 800 }])
   })
 
@@ -216,34 +231,37 @@ describe('copy to another court', () => {
   })
 })
 
-describe('revert unsaved changes', () => {
+describe('discard unsaved changes', () => {
   it('is hidden when clean; Keep editing keeps the draft; confirming restores the loaded schedule', async () => {
     mount()
     await screen.findByRole('combobox', { name: 'Schedule for' })
-    expect(screen.queryByRole('button', { name: 'Revert unsaved changes' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Discard' })).not.toBeInTheDocument()
     await pick('Monday period 1 closes', '12')
-    await userEvent.click(screen.getByRole('button', { name: 'Revert unsaved changes' }))
-    await userEvent.click(within(await screen.findByRole('dialog', { name: 'Revert unsaved changes' })).getByRole('button', { name: 'Keep editing' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Discard' }))
+    await userEvent.click(within(await screen.findByRole('dialog', { name: 'Discard changes' })).getByRole('button', { name: 'Keep editing' }))
     expect(screen.getByLabelText('Monday period 1 closes')).toHaveValue('12')
-    await userEvent.click(screen.getByRole('button', { name: 'Revert unsaved changes' }))
-    await userEvent.click(within(await screen.findByRole('dialog', { name: 'Revert unsaved changes' })).getByRole('button', { name: 'Revert' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Discard' }))
+    await userEvent.click(within(await screen.findByRole('dialog', { name: 'Discard changes' })).getByRole('button', { name: 'Discard' }))
     expect(screen.getByLabelText('Monday period 1 closes')).toHaveValue('22')
-    expect(screen.queryByText('You have unsaved changes.')).not.toBeInTheDocument()
-    expect(saveBtn()).toBeDisabled()
+    expect(bar()).not.toBeInTheDocument()
     expect(saveSchedule).not.toHaveBeenCalled()
   })
 })
 
-describe('impact warning', () => {
+describe('impact warning (in the Review changes dialog)', () => {
+  const heading = { name: 'Bookings outside the new hours' }
+
   it('does not preview a clean draft or one with overlaps', async () => {
     mount()
     await screen.findByRole('combobox', { name: 'Schedule for' })
     expect(previewMock).not.toHaveBeenCalled()
-    expect(screen.queryByRole('region', { name: 'Reservations outside the new hours' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', heading)).not.toBeInTheDocument()
     await userEvent.click(within(screen.getByRole('group', { name: 'Monday' })).getByRole('button', { name: 'Add Monday period' }))
     await pick('Monday period 2 opens', '10')
     expect(day('Monday').getByRole('alert')).toHaveTextContent(/overlap/i)
-    expect(screen.queryByRole('region', { name: 'Reservations outside the new hours' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Review & save' })).toBeDisabled()
+    expect(screen.queryByRole('heading', heading)).not.toBeInTheDocument()
+    expect(previewMock).not.toHaveBeenCalled()
   })
 
   it('previews the whole draft over at most 90 days and lists totals and items', async () => {
@@ -253,12 +271,13 @@ describe('impact warning', () => {
     })
     mount()
     await pick('Monday period 1 closes', '12')
-    const region = await screen.findByRole('region', { name: 'Reservations outside the new hours' })
-    await waitFor(() => expect(within(region).getByText(/3 bookings/)).toBeInTheDocument())
-    expect(within(region).getByText(/2 open play/)).toBeInTheDocument()
-    expect(region).toHaveTextContent('Court Two')
-    expect(region).toHaveTextContent(/confirmed/i)
-    expect(region).toHaveTextContent('Friday Rally')
+    const dialog = await openReview()
+    expect(within(dialog).getByRole('heading', heading)).toBeInTheDocument()
+    await waitFor(() => expect(within(dialog).getByText(/3 bookings/)).toBeInTheDocument())
+    expect(within(dialog).getByText(/2 open play/)).toBeInTheDocument()
+    expect(dialog).toHaveTextContent('Court Two')
+    expect(dialog).toHaveTextContent(/confirmed/i)
+    expect(dialog).toHaveTextContent('Friday Rally')
     const [draft, from, to] = previewMock.mock.calls.at(-1)!
     expect(draft.venue_periods.filter((p: Period) => p.day_of_week === 1)).toEqual([{ day_of_week: 1, start_minute: 360, end_minute: 720 }])
     expect(draft.courts.map((c: { court_id: string }) => c.court_id)).toEqual(['c1', 'c2'])
@@ -272,37 +291,40 @@ describe('impact warning', () => {
   it('says nothing is affected for a zero result', async () => {
     mount()
     await pick('Monday period 1 closes', '12')
-    expect(await screen.findByText('No existing reservations are affected')).toBeInTheDocument()
+    expect(await within(await openReview()).findByText(/No existing reservations are affected/)).toBeInTheDocument()
   })
 
-  it('a pending preview does not block Save', async () => {
+  it('a pending preview does not block saving', async () => {
     previewMock.mockReturnValue(new Promise(() => {}))
     mount()
     await pick('Monday period 1 closes', '12')
-    expect(impactRegion()).toHaveTextContent(/checking/i)
-    expect(saveBtn()).toBeEnabled()
-    await userEvent.click(saveBtn())
+    const dialog = await openReview()
+    expect(dialog).toHaveTextContent(/checking/i)
+    expect(within(dialog).getByRole('button', { name: 'Save changes' })).toBeEnabled()
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Save changes' }))
     expect(saveSchedule).toHaveBeenCalledTimes(1)
   })
 
-  it('a failed preview is quiet, retryable, and does not block Save', async () => {
+  it('a failed preview is quiet, retryable, and does not block saving', async () => {
     previewMock.mockRejectedValueOnce(new Error('boom'))
     previewMock.mockResolvedValue(impact(4))
     mount()
     await pick('Monday period 1 closes', '12')
-    expect(await screen.findByText(/Couldn't check existing reservations/)).toBeInTheDocument()
-    expect(saveBtn()).toBeEnabled()
-    await userEvent.click(screen.getByRole('button', { name: 'Retry' }))
-    expect(await screen.findByText(/4 bookings/)).toBeInTheDocument()
+    const dialog = await openReview()
+    expect(await within(dialog).findByText(/Couldn't check existing reservations/)).toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: 'Save changes' })).toBeEnabled()
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Retry' }))
+    expect(await within(dialog).findByText(/4 bookings/)).toBeInTheDocument()
   })
 
   it('a result with affected reservations still lets the admin save', async () => {
     previewMock.mockResolvedValue(impact(5, 0, true))
     mount()
     await pick('Monday period 1 closes', '12')
-    await screen.findByText(/5 bookings/)
-    expect(saveBtn()).toBeEnabled()
-    await userEvent.click(saveBtn())
+    const dialog = await openReview()
+    await within(dialog).findByText(/5 bookings/)
+    expect(within(dialog).getByRole('button', { name: 'Save changes' })).toBeEnabled()
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Save changes' }))
     expect(saveSchedule).toHaveBeenCalledTimes(1)
   })
 
@@ -315,13 +337,16 @@ describe('impact warning', () => {
     })
     mount()
     await pick('Monday period 1 closes', '12')
-    expect(await screen.findByText(/7 bookings/)).toBeInTheDocument()
+    expect(await within(await openReview()).findByText(/7 bookings/)).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Keep editing' }))
     await pick('Monday period 1 closes', '14')
+    const dialog = await openReview()
     // the new draft's preview is pending: the old 7 must be gone
-    await waitFor(() => expect(screen.queryByText(/7 bookings/)).not.toBeInTheDocument())
-    expect(saveBtn()).toBeEnabled()
+    await waitFor(() => expect(within(dialog).queryByText(/7 bookings/)).not.toBeInTheDocument())
+    expect(within(dialog).getByRole('button', { name: 'Save changes' })).toBeEnabled()
+    await waitFor(() => expect(previewMock.mock.calls.length).toBeGreaterThanOrEqual(2))
     resolveSlow(impact(9))
-    expect(await screen.findByText(/9 bookings/)).toBeInTheDocument()
+    expect(await within(dialog).findByText(/9 bookings/)).toBeInTheDocument()
   })
 
   it('a late answer for an older draft is ignored', async () => {
@@ -330,14 +355,17 @@ describe('impact warning', () => {
       new Promise<Impact>((resolve) => { resolvers[draft.venue_periods.find((p) => p.day_of_week === 1)!.end_minute] = resolve }))
     mount()
     await pick('Monday period 1 closes', '12')
+    await openReview()
     await waitFor(() => expect(resolvers[720]).toBeDefined())
+    await userEvent.click(screen.getByRole('button', { name: 'Keep editing' }))
     await pick('Monday period 1 closes', '14')
+    const dialog = await openReview()
     await waitFor(() => expect(resolvers[840]).toBeDefined())
     resolvers[840](impact(6))
-    expect(await screen.findByText(/6 bookings/)).toBeInTheDocument()
+    expect(await within(dialog).findByText(/6 bookings/)).toBeInTheDocument()
     resolvers[720](impact(8))
     await new Promise((r) => setTimeout(r, 50))
-    expect(screen.queryByText(/8 bookings/)).not.toBeInTheDocument()
-    expect(screen.getByText(/6 bookings/)).toBeInTheDocument()
+    expect(within(dialog).queryByText(/8 bookings/)).not.toBeInTheDocument()
+    expect(within(dialog).getByText(/6 bookings/)).toBeInTheDocument()
   })
 })

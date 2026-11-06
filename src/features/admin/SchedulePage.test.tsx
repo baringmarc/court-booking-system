@@ -27,10 +27,11 @@ const emptySchedule = {
   courts: [],
 }
 
-function renderPage() {
+/** The Closures tab is the one that holds the blackout section (T17.31): `?tab=closures`. */
+function renderPage(tab = 'closures') {
   vi.mocked(fetchSchedule).mockResolvedValue(emptySchedule as never)
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
-  const router = createMemoryRouter([{ path: '/', element: <SchedulePage /> }])
+  const router = createMemoryRouter([{ path: '/admin/schedule', element: <SchedulePage /> }], { initialEntries: [`/admin/schedule?tab=${tab}`] })
   render(<QueryClientProvider client={client}><RouterProvider router={router} /></QueryClientProvider>)
 }
 
@@ -42,13 +43,15 @@ describe('SchedulePage sections (T17.15)', () => {
     vi.mocked(fetchSchedule).mockReset()
   })
 
-  it('shows Weekly Hours & Rates beside Temporary Closures, and no legacy operating hours form', async () => {
-    renderPage()
-    expect(await screen.findByRole('heading', { name: 'Weekly Hours & Rates' })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Temporary Closures' })).toBeInTheDocument()
+  it('shows the hours editor in Opening hours and the blackout section in Closures, with no legacy operating hours form', async () => {
+    renderPage('hours')
     expect(await screen.findByRole('combobox', { name: 'Schedule for' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Weekly Hours & Rates' })).not.toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Operating hours' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Save hours' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Add blackout' })).not.toBeInTheDocument() // the Closures panel is hidden
+    await userEvent.click(screen.getByRole('tab', { name: 'Closures' }))
+    expect(screen.getByRole('heading', { name: 'Temporary Closures' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Add blackout' })).toBeInTheDocument()
   })
 })

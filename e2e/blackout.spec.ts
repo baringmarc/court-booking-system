@@ -34,6 +34,9 @@ test.afterEach(async () => {
 test('an admin adds a blackout with the pickers, and a guest picking that date in the calendar sees it closed', async ({ page, browser }) => {
   const admin = await createAdmin()
   await logInAdmin(page, admin.email, admin.password, '/admin/schedule')
+  // Closures is its own tab (T17.31).
+  await page.getByRole('tab', { name: 'Closures' }).click()
+  await expect(page).toHaveURL(/tab=closures/)
   const reason = `${E2E_PREFIX} Floor repair ${Date.now()}`
 
   await page.getByRole('combobox', { name: 'Court', exact: true }).selectOption({ label: 'Badminton 2' })

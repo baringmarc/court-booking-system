@@ -1,4 +1,6 @@
-import { Fragment, useState, type FormEvent } from 'react'
+import { Fragment, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
+import { Link } from 'react-router-dom'
 import { ErrorMessage } from '../../components/ErrorMessage'
 import { PageLoader } from '../../components/PageLoader'
 import { SaveStatus } from '../../components/SaveStatus'
@@ -8,13 +10,18 @@ import { DAY_NAMES, DISPLAY_DAY_ORDER, formatHour, formatMoney } from '../../lib
 import { useCourts, useVenueSettings } from '../catalog/hooks'
 import type { CourtWithPhotos } from '../catalog/api'
 import type { ScheduleChanges, ScheduleData, SchedulePeriod } from './api'
-import { formatDateTimeInZone } from '../../lib/time'
+import { formatDateTimeInZone, todayInZone } from '../../lib/time'
+import { filtersToParams } from './bookingFilters'
+import { ReviewDialog } from './ReviewDialog'
+import { UnsavedMark } from './ScheduleTabs'
+import { tabId, type ScheduleTab } from './scheduleTabState'
 import { useSaveSchedule, useSchedule, useScheduleImpact } from './hooks'
 import { ConfirmDialog } from './ConfirmDialog'
 import { useUnsavedGuard } from './UnsavedGuard'
 import {
   changedDays,
   closeHours,
+  dayText,
   gaps,
   hourLabel,
   hourOfMinute,
@@ -33,48 +40,60 @@ type CourtDraft = { mode: 'inherit' | 'custom'; periods: SchedulePeriod[] }
 /** Pending override per "day:hour": a price, or null to go back to the court's default rate. */
 type RateEdits = Record<string, number | null>
 
-export function WeeklyHoursEditor() {
+/**
+ * Opening hours and Prices of /admin/schedule (T17.31): one draft and one `save_schedule` call, whichever tab is open.
+ * Renders into the page's fixed `slots` (the two panels, the save bar's place and the tabs' unsaved marks), so the
+ * page's elements stay put while this loads, saves or discards.
+ */
+export function WeeklyHoursEditor({ tab, slots }: { tab: ScheduleTab; slots: Slots }) {
   const schedule = useSchedule()
   const courts = useCourts({ includeInactive: true })
   const save = useSaveSchedule()
   const [generation, setGeneration] = useState(0)
   const [target, setTarget] = useState(VENUE)
+  const [priceCourt, setPriceCourt] = useState('')
 
-  let body
-  if (schedule.isPending || courts.isPending) {
-    body = <PageLoader />
-  } else if (schedule.isError || courts.isError) {
-    body = <ErrorMessage error={schedule.error ?? courts.error} onRetry={() => { void schedule.refetch(); void courts.refetch() }} />
-  } else {
-    const resetDraft = () => { save.reset(); setGeneration((g) => g + 1) }
-    body = (
-      <Editor
-        key={generation}
-        schedule={schedule.data}
-        courts={courts.data}
-        target={target}
-        onTarget={setTarget}
-        save={save}
-        onSaved={() => setGeneration((g) => g + 1)}
-        onReload={() => { void schedule.refetch().then(resetDraft) }}
-      />
-    )
+  if (schedule.isPending || courts.isPending || schedule.isError || courts.isError) {
+    const body = schedule.isPending || courts.isPending
+      ? <PageLoader />
+      : <ErrorMessage error={schedule.error ?? courts.error} onRetry={() => { void schedule.refetch(); void courts.refetch() }} />
+    return into(tab === 'hours' ? slots.hours : tab === 'prices' ? slots.prices : null, body)
   }
+  // The save bar leaves once the draft is clean, so focus goes back to the open tab after a save or Discard.
+  const focusTab = () => document.getElementById(tabId(tab))?.focus()
+  const resetDraft = () => { save.reset(); setGeneration((g) => g + 1) }
   return (
-    <section className="card stack">
-      <h2>Weekly Hours &amp; Rates</h2>
-      {body}
-    </section>
+    <Editor
+      key={generation}
+      schedule={schedule.data}
+      courts={courts.data}
+      slots={slots}
+      target={target}
+      onTarget={setTarget}
+      priceCourt={priceCourt}
+      onPriceCourt={setPriceCourt}
+      save={save}
+      onSaved={() => { setGeneration((g) => g + 1); focusTab() }}
+      onDiscard={() => { resetDraft(); focusTab() }}
+      onReload={() => { void schedule.refetch().then(resetDraft) }}
+    />
   )
 }
 
-function Editor({ schedule, courts, target, onTarget, save, onSaved, onReload }: {
+type Slots = Record<'hours' | 'prices' | 'bar' | 'hoursMark' | 'pricesMark', HTMLElement | null>
+const into = (slot: HTMLElement | null, node: ReactNode) => (slot ? createPortal(node, slot) : null)
+
+function Editor({ schedule, courts, slots, target, onTarget, priceCourt, onPriceCourt, save, onSaved, onDiscard, onReload }: {
   schedule: ScheduleData
   courts: CourtWithPhotos[]
+  slots: Slots
   target: string
   onTarget: (target: string) => void
+  priceCourt: string
+  onPriceCourt: (id: string) => void
   save: ReturnType<typeof useSaveSchedule>
   onSaved: () => void
+  onDiscard: () => void
   onReload: () => void
 }) {
   // The draft is seeded once; a save or "Reload latest" remounts this with fresh data (CLAUDE.md form rule).
@@ -90,7 +109,11 @@ function Editor({ schedule, courts, target, onTarget, save, onSaved, onReload }:
   const [rateTo, setRateTo] = useState(7)
   const [price, setPrice] = useState('')
   const [confirmInherit, setConfirmInherit] = useState(false)
-  const [confirmRevert, setConfirmRevert] = useState(false)
+  const [confirmDiscard, setConfirmDiscard] = useState(false)
+  const [reviewing, setReviewing] = useState(false)
+  const reviewButton = useRef<HTMLButtonElement>(null)
+  const discardButton = useRef<HTMLButtonElement>(null)
+  const bar = useRef<HTMLElement>(null)
   const [copyFrom, setCopyFrom] = useState<number | null>(null)
   const [copyDays, setCopyDays] = useState<number[]>([])
   const [copyRates, setCopyRates] = useState(false)
@@ -114,6 +137,9 @@ function Editor({ schedule, courts, target, onTarget, save, onSaved, onReload }:
   const custom = courtId !== null && draftOf(courtId).mode === 'custom'
   const editable = courtId === null || custom
   const periods = courtId === null ? venue : custom ? draftOf(courtId).periods : venue
+  // The Prices tab picks its court separately from the hours tab's "Schedule for" (first court by default).
+  const priced = courts.find((c) => c.id === priceCourt) ?? courts[0]
+  const pricedId = priced?.id ?? null
   const setPeriods = (next: SchedulePeriod[]) => {
     if (courtId === null) setVenue(next)
     else setCourtDrafts((d) => ({ ...d, [courtId]: { ...draftOf(courtId), periods: next } }))
@@ -157,15 +183,16 @@ function Editor({ schedule, courts, target, onTarget, save, onSaved, onReload }:
   }
   if (rateChanges.length) changes.rate_changes = rateChanges
 
-  const dirty = venueChanged || courtChanges.length > 0 || rateChanges.length > 0
+  const hoursChanged = venueChanged || courtChanges.length > 0
+  const dirty = hoursChanged || rateChanges.length > 0
   const venueOverlaps = overlapDays(venue)
   const invalid = venueOverlaps.size > 0 || courts.some((c) => draftOf(c.id).mode === 'custom' && overlapDays(draftOf(c.id).periods).size > 0)
   const conflict = save.error instanceof ApiError && save.error.hint === 'schedule_conflict'
   const guard = useUnsavedGuard(dirty)
 
-  // Informative only: the preview never gates Save, because the database decides what is protected.
-  const hoursChanged = venueChanged || courtChanges.length > 0
-  const impactDraft = hoursChanged && !invalid
+  // Informative only: the preview never gates Save, because the database decides what is protected. It is asked for
+  // only while the Review changes dialog is open.
+  const impactDraft = reviewing && hoursChanged && !invalid
     ? {
         venue_periods: toSave(venue),
         courts: courts.map((c) => {
@@ -176,18 +203,25 @@ function Editor({ schedule, courts, target, onTarget, save, onSaved, onReload }:
     : null
   const impact = useScheduleImpact(impactDraft, horizon.from, horizon.to)
 
-  const summary = [
-    ...(venueChanged ? [`Venue defaults: hours changed on ${dayList(changedDays(venue, base.venue_periods))}.`] : []),
-    ...courtChanges.map(({ court: c, draft, wasMode, was }) => {
-      if (draft.mode !== wasMode) {
-        return `${c.name}: ${draft.mode === 'custom' ? 'custom hours (a copy of the venue hours, edited below)' : 'back to venue hours'}.`
-      }
-      return `${c.name}: hours changed on ${dayList(changedDays(draft.periods, was?.periods ?? []))}.`
+  // Every pending change in plain words, in week order (Monday first): venue days, then courts in court order, then prices.
+  const dayLines = (prefix: string, draft: SchedulePeriod[], saved: SchedulePeriod[]) =>
+    DISPLAY_DAY_ORDER.filter((d) => changedDays(draft, saved).includes(d))
+      .map((d) => `${prefix}${DAY_NAMES[d]}: ${dayText(periodsOfDay(saved, d))} → ${dayText(periodsOfDay(draft, d))}`)
+  const money = (amount: number) => formatMoney(amount, currency)
+  const reviewLines = [
+    ...(venueChanged ? dayLines('', venue, base.venue_periods) : []),
+    ...courtChanges.flatMap(({ court: c, draft, wasMode, was }) => {
+      if (draft.mode !== wasMode) return [draft.mode === 'custom' ? `${c.name}: now has its own hours` : `${c.name}: back to the venue's opening hours`]
+      return dayLines(`${c.name}, `, draft.periods, was?.periods ?? [])
     }),
-    ...courts.flatMap((c) => {
-      const n = rateChanges.filter((r) => r.court_id === c.id).length
-      return n ? [`${c.name}: ${n} hourly ${n === 1 ? 'rate' : 'rates'} changed.`] : []
-    }),
+    ...courts.flatMap((c) => rateChanges
+      .filter((r) => r.court_id === c.id)
+      .sort((a, b) => DISPLAY_DAY_ORDER.indexOf(a.day_of_week) - DISPLAY_DAY_ORDER.indexOf(b.day_of_week) || a.start_hour - b.start_hour)
+      .map((r) => {
+        const when = `${c.name}, ${DAY_NAMES[r.day_of_week]} ${hourLabel(r.start_hour)} – ${hourLabel(r.start_hour + 1)}`
+        if (r.price === null) return `${when}: back to the court's default rate (${money(c.default_hourly_rate)})`
+        return `${when}: ${money(r.price)} (was ${money(originalRate(c.id, r.day_of_week, r.start_hour) ?? c.default_hourly_rate)})`
+      })),
   ]
 
   // --- edits ----------------------------------------------------------------
@@ -279,236 +313,70 @@ function Editor({ schedule, courts, target, onTarget, save, onSaved, onReload }:
 
   function applyRate(e: FormEvent) {
     e.preventDefault()
-    if (courtId === null) return
+    if (pricedId === null) return
     const value = price.trim() === '' ? null : Number(price)
     if (value !== null && (!Number.isFinite(value) || value < 0)) return
     const to = Math.max(rateTo, rateFrom + 1)
     setRateEdits((all) => {
-      const mine = { ...all[courtId] }
+      const mine = { ...all[pricedId] }
       for (let h = rateFrom; h < to; h++) {
         const key = `${rateDay}:${h}`
         if (value !== null) mine[key] = value
-        else if (originalRate(courtId, rateDay, h) !== undefined) mine[key] = null
+        else if (originalRate(pricedId, rateDay, h) !== undefined) mine[key] = null
         else delete mine[key]
       }
-      return { ...all, [courtId]: mine }
+      return { ...all, [pricedId]: mine }
     })
   }
 
   const submit = (variables: { revision: number; changes: ScheduleChanges }) => save.mutate(variables, { onSuccess: onSaved })
-  const handleSubmit = (e: FormEvent) => {
-    e.preventDefault()
-    if (dirty && !invalid && !conflict) submit({ revision: base.schedule_revision, changes })
+  const canReview = dirty && !invalid && !conflict && !save.isPending
+  function saveReviewed() {
+    setReviewing(false)
+    bar.current?.focus()
+    if (canReview) submit({ revision: base.schedule_revision, changes })
+  }
+  function keepEditing() {
+    setReviewing(false)
+    reviewButton.current?.focus()
   }
 
   const rateTop = Math.max(rateTo, rateFrom + 1)
-  return (
-    <form className="stack" onSubmit={handleSubmit} noValidate>
-      <p className="muted small">
-        Open hours are whole hours. A closed gap between two periods can't be booked, and nothing changes until you save.
-        Hours and rates are saved together.
-      </p>
-      <div className="form-grid">
-        <label className="field">
-          <span>Schedule for</span>
-          <select value={courtId ?? VENUE} onChange={(e) => onTarget(e.target.value)}>
-            <option value={VENUE}>Venue defaults</option>
-            {courts.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
-        </label>
-        {court && (
-          <label className="field">
-            <span>Court hours</span>
-            <select value={custom ? 'custom' : 'inherit'} onChange={(e) => chooseMode(e.target.value)}>
-              <option value="inherit">Use venue hours</option>
-              <option value="custom">Custom hours</option>
-            </select>
-          </label>
-        )}
-      </div>
-      {courts.length === 0 && <p className="muted small">No courts yet. Add a court to give it its own hours and rates.</p>}
-      {court && <p className="muted small">Default rate: {formatMoney(court.default_hourly_rate, currency)}/hr. Overrides below replace it for the hours you pick.</p>}
-      {court && !custom && <p className="muted small">This court follows the venue hours. Choose Custom hours to give it its own.</p>}
+  /** A court's effective override rates on a day, as "6 PM ₱800". */
+  const overridesOf = (id: string, day: number) => HOURS.flatMap((h) => {
+    const rate = effectiveRate(id, day, h)
+    return rate === undefined ? [] : [`${formatHour(h)} ${formatMoney(rate, currency)}`]
+  })
+  // Each affected booking opens on its own venue-local date in /admin/bookings, with the booking preselected (as DayView).
+  const bookingLink = (id: string, start: string) => {
+    const params = filtersToParams({ status: 'all', source: 'all', date: todayInZone(timezone, new Date(start)), q: '', sort: null })
+    params.set('booking', id)
+    return `/admin/bookings?${params}`
+  }
+  const count = reviewLines.length
 
-      <div className="stack">
-        {DISPLAY_DAY_ORDER.map((day) => {
-          const mine = periodsOfDay(periods, day)
-          const overrides = courtId === null ? [] : HOURS.flatMap((h) => {
-            const rate = effectiveRate(courtId, day, h)
-            return rate === undefined ? [] : [`${formatHour(h)} ${formatMoney(rate, currency)}`]
-          })
-          return (
-            <Fragment key={day}>
-            <fieldset className="weekly-day stack">
-              <legend>{DAY_NAMES[day]}</legend>
-              {mine.length === 0 && <p className="muted">Closed all day</p>}
-              {editable ? mine.map((p, i) => {
-                const start = hourOfMinute(p.start_minute)
-                const label = `${DAY_NAMES[day]} period ${i + 1}`
-                return (
-                  <div key={i} className="hours-row">
-                    <select aria-label={`${label} opens`} value={start} onChange={(e) => setOpens(day, i, Number(e.target.value))}>
-                      {HOURS.map((h) => <option key={h} value={h}>{formatHour(h)}</option>)}
-                    </select>
-                    <span className="muted">to</span>
-                    <select aria-label={`${label} closes`} value={hourOfMinute(p.end_minute)} onChange={(e) => setCloses(day, i, Number(e.target.value))}>
-                      {closeHours(start).map((h) => <option key={h} value={h}>{hourLabel(h)}</option>)}
-                    </select>
-                    <button type="button" className="btn btn-small btn-ghost" aria-label={`Remove ${label}`} onClick={() => removePeriod(day, i)}>Remove</button>
-                  </div>
-                )
-              }) : mine.length > 0 && <p>{[...mine].sort((a, b) => a.start_minute - b.start_minute).map(periodText).join(', ')}</p>}
-              {gaps(mine).map(([from, to]) => <p key={from} className="muted small">{`Closed ${hourLabel(from)} to ${hourLabel(to)}`}</p>)}
-              {editable && overlapDays(periods).has(day) && (
-                <p className="form-error" role="alert">{DAY_NAMES[day]} has periods that overlap. Adjust the hours so they only touch.</p>
-              )}
-              {editable && (
-                <button type="button" className="btn btn-small btn-outline" aria-label={`Add ${DAY_NAMES[day]} period`} onClick={() => addPeriod(day)}>
-                  Add period
-                </button>
-              )}
-              {overrides.length > 0 && <p className="muted small">Override rates: {overrides.join(', ')}</p>}
-              {editable && mine.length > 0 && (
-                <button type="button" className="btn btn-small btn-ghost" onClick={() => openCopy(day)}>{`Copy ${DAY_NAMES[day]} hours`}</button>
-              )}
-            </fieldset>
-            {editable && copyFrom === day && (
-              <div role="group" aria-label={`Copy ${DAY_NAMES[day]} hours to`} className="card stack">
-                <p className="muted small">Choose the days that should get {DAY_NAMES[day]}'s hours. Their current hours are replaced.</p>
-                {DISPLAY_DAY_ORDER.filter((d) => d !== day).map((d) => (
-                  <label key={d} className="checkbox">
-                    <input type="checkbox" checked={copyDays.includes(d)}
-                      onChange={(e) => setCopyDays(e.target.checked ? [...copyDays, d] : copyDays.filter((x) => x !== d))} />
-                    <span>{DAY_NAMES[d]}</span>
-                  </label>
-                ))}
-                {courtId !== null && (
-                  <label className="checkbox">
-                    <input type="checkbox" checked={copyRates} onChange={(e) => setCopyRates(e.target.checked)} />
-                    <span>Also copy hourly rates</span>
-                  </label>
-                )}
-                <div className="form-actions">
-                  <button type="button" className="btn btn-small" disabled={copyDays.length === 0} onClick={applyCopy}>Apply copy</button>
-                  <button type="button" className="btn btn-small btn-outline" onClick={() => setCopyFrom(null)}>Close</button>
-                </div>
-              </div>
-            )}
-            </Fragment>
-          )
-        })}
-      </div>
-
-      {court && (
-        <fieldset className="stack">
-          <legend>Weekly override rates</legend>
-          <p className="muted small">Fill a range of hours with one price. Leave the price empty to go back to the court's default rate. Moving hours never changes rates.</p>
-          <div className="form-grid">
-            <label className="field"><span>Rate day</span>
-              <select value={rateDay} onChange={(e) => setRateDay(Number(e.target.value))}>
-                {DISPLAY_DAY_ORDER.map((d) => <option key={d} value={d}>{DAY_NAMES[d]}</option>)}
-              </select>
-            </label>
-            <label className="field"><span>Rate from</span>
-              <select value={rateFrom} onChange={(e) => setRateFrom(Number(e.target.value))}>
-                {HOURS.map((h) => <option key={h} value={h}>{formatHour(h)}</option>)}
-              </select>
-            </label>
-            <label className="field"><span>Rate to</span>
-              <select value={rateTop} onChange={(e) => setRateTo(Number(e.target.value))}>
-                {Array.from({ length: 24 - rateFrom }, (_, i) => rateFrom + 1 + i).map((h) => <option key={h} value={h}>{h === 24 ? 'Midnight' : formatHour(h)}</option>)}
-              </select>
-            </label>
-            <label className="field"><span>Override price</span>
-              <input type="number" min={0} step="any" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} />
-            </label>
-          </div>
-          <div className="form-actions"><button type="button" className="btn btn-outline" onClick={applyRate}>Apply rate</button></div>
-        </fieldset>
-      )}
-
-      {court && (
-        <div className="stack">
-          <button type="button" className="btn btn-small btn-outline" onClick={() => setCourtCopyOpen(!courtCopyOpen)}>Copy to another court</button>
-          {courtCopyOpen && (
-            <div role="group" aria-label="Copy to another court" className="card stack">
-              {otherCourts.length === 0 ? <p className="muted small">There is no other court to copy to.</p> : (
-                <>
-                  <div className="form-grid">
-                    <label className="field"><span>Target court</span>
-                      <select value={ccTargetCourt?.id} onChange={(e) => setCcTarget(e.target.value)}>
-                        {otherCourts.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                      </select>
-                    </label>
-                    <label className="field"><span>Source weekday</span>
-                      <select value={ccFrom} onChange={(e) => setCcFrom(Number(e.target.value))}>
-                        {DISPLAY_DAY_ORDER.map((d) => <option key={d} value={d}>{DAY_NAMES[d]}</option>)}
-                      </select>
-                    </label>
-                    <label className="field"><span>Target weekday</span>
-                      <select value={ccTo} onChange={(e) => setCcTo(Number(e.target.value))}>
-                        {DISPLAY_DAY_ORDER.map((d) => <option key={d} value={d}>{DAY_NAMES[d]}</option>)}
-                      </select>
-                    </label>
-                  </div>
-                  <label className="checkbox">
-                    <input type="checkbox" checked={ccRates} onChange={(e) => setCcRates(e.target.checked)} />
-                    <span>Also copy hourly rates</span>
-                  </label>
-                  <div className="form-actions">
-                    <button type="button" className="btn btn-small" disabled={!ccTargetCourt}
-                      onClick={() => ccTargetCourt && setPendingCourtCopy({ target: ccTargetCourt, from: ccFrom, to: ccTo, rates: ccRates })}>
-                      Review copy
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          )}
+  let saveBar: ReactNode = null
+  if (dirty) {
+    saveBar = (
+      <section ref={bar} className="selection-bar save-bar" aria-label="Unsaved changes" tabIndex={-1}>
+        <p className="selection-text">
+          <strong>{count} unsaved {count === 1 ? 'change' : 'changes'}</strong>
+          {save.isPending && <span className="muted small" role="status">Saving…</span>}
+        </p>
+        <div className="selection-actions">
+          <button ref={discardButton} type="button" className="btn btn-outline" disabled={save.isPending} onClick={() => setConfirmDiscard(true)}>
+            Discard
+          </button>
+          <button ref={reviewButton} type="button" className="btn" disabled={!canReview} onClick={() => setReviewing(true)}>Review &amp; save</button>
         </div>
-      )}
+      </section>
+    )
+  }
 
-      {impactDraft && (
-        <section className="card stack" aria-label="Reservations outside the new hours">
-          <h3>Reservations outside the new hours</h3>
-          {impact.isPending && <p className="muted small">Checking existing reservations…</p>}
-          {impact.isError && (
-            <div className="stack">
-              <p className="muted small">Couldn't check existing reservations. You can still save; existing reservations are always kept.</p>
-              <button type="button" className="btn btn-small btn-outline" onClick={() => void impact.refetch()}>Retry</button>
-            </div>
-          )}
-          {impact.data && (impact.data.bookings.total === 0 && impact.data.open_play.total === 0
-            ? <p className="muted small">No existing reservations are affected</p>
-            : (
-              <>
-                <p className="muted small">These keep their place and their payment rules. Only new bookings follow the new hours.</p>
-                {impact.data.bookings.total > 0 && <p>{plural(impact.data.bookings.total, 'booking')} in the next 90 days</p>}
-                {impact.data.open_play.total > 0 && <p>{plural(impact.data.open_play.total, 'open play session')} in the next 90 days</p>}
-                <ul className="list">
-                  {impact.data.bookings.items.map((b) => (
-                    <li key={b.booking_id}>{courtName(b.court_id)} · {formatDateTimeInZone(b.starts_at, timezone)} · {b.status}</li>
-                  ))}
-                  {impact.data.open_play.items.map((o) => (
-                    <li key={`${o.session_id}:${o.court_id}`}>{o.title} · {courtName(o.court_id)} · {formatDateTimeInZone(o.starts_at, timezone)}</li>
-                  ))}
-                </ul>
-                {(impact.data.bookings.total > impact.data.bookings.items.length || impact.data.open_play.total > impact.data.open_play.items.length) && (
-                  <p className="muted small">Only the first of each are listed.</p>
-                )}
-              </>
-            ))}
-        </section>
-      )}
-
-      {dirty && <p className="muted" role="status">You have unsaved changes.</p>}
-      {summary.length > 0 && (
-        <section className="card stack" aria-label="Pending changes">
-          <h3>Pending changes</h3>
-          <ul className="list">{summary.map((line) => <li key={line}>{line}</li>)}</ul>
-        </section>
-      )}
-
+  return (
+    <>
+      {hoursChanged && into(slots.hoursMark, <UnsavedMark />)}
+      {rateChanges.length > 0 && into(slots.pricesMark, <UnsavedMark />)}
       {conflict && (
         <div className="alert alert-error" role="alert">
           <p>The schedule was changed somewhere else since you opened it. Reload the latest schedule to keep editing; your edits here stay until you do.</p>
@@ -521,14 +389,234 @@ function Editor({ schedule, courts, target, onTarget, save, onSaved, onReload }:
           {save.variables && <button type="button" className="btn btn-small btn-outline" onClick={() => submit(save.variables)}>Try again</button>}
         </div>
       )}
-      <div className="form-actions">
-        <button type="submit" className="btn" disabled={!dirty || invalid || conflict || save.isPending}>
-          {save.isPending ? 'Saving…' : 'Save schedule'}
-        </button>
-        {dirty && <button type="button" className="btn btn-outline" onClick={() => setConfirmRevert(true)}>Revert unsaved changes</button>}
-        {!dirty && <SaveStatus isSuccess={save.isSuccess} error={null} />}
-      </div>
+      {!dirty && <SaveStatus isSuccess={save.isSuccess} error={null} />}
 
+      {into(slots.hours, <>
+        <p className="muted small">
+          Open hours are whole hours. A closed gap between two periods can't be booked, and nothing changes until you save.
+        </p>
+        <div className="form-grid">
+          <label className="field">
+            <span>Schedule for</span>
+            <select value={courtId ?? VENUE} onChange={(e) => onTarget(e.target.value)}>
+              <option value={VENUE}>Venue defaults</option>
+              {courts.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </label>
+          {court && (
+            <label className="field">
+              <span>Court hours</span>
+              <select value={custom ? 'custom' : 'inherit'} onChange={(e) => chooseMode(e.target.value)}>
+                <option value="inherit">Use venue hours</option>
+                <option value="custom">Custom hours</option>
+              </select>
+            </label>
+          )}
+        </div>
+        {courts.length === 0 && <p className="muted small">No courts yet. Add a court to give it its own hours.</p>}
+        {court && !custom && <p className="muted small">This court follows the venue hours. Choose Custom hours to give it its own.</p>}
+
+        <div className="stack">
+          {DISPLAY_DAY_ORDER.map((day) => {
+            const mine = periodsOfDay(periods, day)
+            const overrides = courtId === null ? [] : overridesOf(courtId, day)
+            return (
+              <Fragment key={day}>
+              <fieldset className="weekly-day stack">
+                <legend>{DAY_NAMES[day]}</legend>
+                {mine.length === 0 && <p className="muted">Closed all day</p>}
+                {editable ? mine.map((p, i) => {
+                  const start = hourOfMinute(p.start_minute)
+                  const label = `${DAY_NAMES[day]} period ${i + 1}`
+                  return (
+                    <div key={i} className="hours-row">
+                      <select aria-label={`${label} opens`} value={start} onChange={(e) => setOpens(day, i, Number(e.target.value))}>
+                        {HOURS.map((h) => <option key={h} value={h}>{formatHour(h)}</option>)}
+                      </select>
+                      <span className="muted">to</span>
+                      <select aria-label={`${label} closes`} value={hourOfMinute(p.end_minute)} onChange={(e) => setCloses(day, i, Number(e.target.value))}>
+                        {closeHours(start).map((h) => <option key={h} value={h}>{hourLabel(h)}</option>)}
+                      </select>
+                      <button type="button" className="btn btn-small btn-ghost" aria-label={`Remove ${label}`} onClick={() => removePeriod(day, i)}>Remove</button>
+                    </div>
+                  )
+                }) : mine.length > 0 && <p>{[...mine].sort((a, b) => a.start_minute - b.start_minute).map(periodText).join(', ')}</p>}
+                {gaps(mine).map(([from, to]) => <p key={from} className="muted small">{`Closed ${hourLabel(from)} to ${hourLabel(to)}`}</p>)}
+                {editable && overlapDays(periods).has(day) && (
+                  <p className="form-error" role="alert">{DAY_NAMES[day]} has periods that overlap. Adjust the hours so they only touch.</p>
+                )}
+                {editable && (
+                  <button type="button" className="btn btn-small btn-outline" aria-label={`Add ${DAY_NAMES[day]} period`} onClick={() => addPeriod(day)}>
+                    Add period
+                  </button>
+                )}
+                {overrides.length > 0 && <p className="muted small">Override rates: {overrides.join(', ')}</p>}
+                {editable && mine.length > 0 && (
+                  <button type="button" className="btn btn-small btn-ghost" onClick={() => openCopy(day)}>{`Copy ${DAY_NAMES[day]} hours`}</button>
+                )}
+              </fieldset>
+              {editable && copyFrom === day && (
+                <div role="group" aria-label={`Copy ${DAY_NAMES[day]} hours to`} className="card stack">
+                  <p className="muted small">Choose the days that should get {DAY_NAMES[day]}'s hours. Their current hours are replaced.</p>
+                  {DISPLAY_DAY_ORDER.filter((d) => d !== day).map((d) => (
+                    <label key={d} className="checkbox">
+                      <input type="checkbox" checked={copyDays.includes(d)}
+                        onChange={(e) => setCopyDays(e.target.checked ? [...copyDays, d] : copyDays.filter((x) => x !== d))} />
+                      <span>{DAY_NAMES[d]}</span>
+                    </label>
+                  ))}
+                  {courtId !== null && (
+                    <label className="checkbox">
+                      <input type="checkbox" checked={copyRates} onChange={(e) => setCopyRates(e.target.checked)} />
+                      <span>Also copy hourly rates</span>
+                    </label>
+                  )}
+                  <div className="form-actions">
+                    <button type="button" className="btn btn-small" disabled={copyDays.length === 0} onClick={applyCopy}>Apply copy</button>
+                    <button type="button" className="btn btn-small btn-outline" onClick={() => setCopyFrom(null)}>Close</button>
+                  </div>
+                </div>
+              )}
+              </Fragment>
+            )
+          })}
+        </div>
+
+        {court && (
+          <div className="stack">
+            <button type="button" className="btn btn-small btn-outline" onClick={() => setCourtCopyOpen(!courtCopyOpen)}>Copy to another court</button>
+            {courtCopyOpen && (
+              <div role="group" aria-label="Copy to another court" className="card stack">
+                {otherCourts.length === 0 ? <p className="muted small">There is no other court to copy to.</p> : (
+                  <>
+                    <div className="form-grid">
+                      <label className="field"><span>Target court</span>
+                        <select value={ccTargetCourt?.id} onChange={(e) => setCcTarget(e.target.value)}>
+                          {otherCourts.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+                      </label>
+                      <label className="field"><span>Source weekday</span>
+                        <select value={ccFrom} onChange={(e) => setCcFrom(Number(e.target.value))}>
+                          {DISPLAY_DAY_ORDER.map((d) => <option key={d} value={d}>{DAY_NAMES[d]}</option>)}
+                        </select>
+                      </label>
+                      <label className="field"><span>Target weekday</span>
+                        <select value={ccTo} onChange={(e) => setCcTo(Number(e.target.value))}>
+                          {DISPLAY_DAY_ORDER.map((d) => <option key={d} value={d}>{DAY_NAMES[d]}</option>)}
+                        </select>
+                      </label>
+                    </div>
+                    <label className="checkbox">
+                      <input type="checkbox" checked={ccRates} onChange={(e) => setCcRates(e.target.checked)} />
+                      <span>Also copy hourly rates</span>
+                    </label>
+                    <div className="form-actions">
+                      <button type="button" className="btn btn-small" disabled={!ccTargetCourt}
+                        onClick={() => ccTargetCourt && setPendingCourtCopy({ target: ccTargetCourt, from: ccFrom, to: ccTo, rates: ccRates })}>
+                        Review copy
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+      </>)}
+
+      {into(slots.prices, <>
+        {!priced ? <p className="muted">No courts yet. Add a court to set prices.</p> : (
+          <>
+            <label className="field">
+              <span>Prices for</span>
+              <select value={priced.id} onChange={(e) => onPriceCourt(e.target.value)}>
+                {courts.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </label>
+            <p className="muted small">Default rate: {formatMoney(priced.default_hourly_rate, currency)}/hr. Overrides below replace it for the hours you pick.</p>
+            <fieldset className="stack">
+              <legend>Weekly override rates</legend>
+              <p className="muted small">Fill a range of hours with one price. Leave the price empty to go back to the court's default rate. Moving hours never changes rates.</p>
+              <div className="form-grid">
+                <label className="field"><span>Rate day</span>
+                  <select value={rateDay} onChange={(e) => setRateDay(Number(e.target.value))}>
+                    {DISPLAY_DAY_ORDER.map((d) => <option key={d} value={d}>{DAY_NAMES[d]}</option>)}
+                  </select>
+                </label>
+                <label className="field"><span>Rate from</span>
+                  <select value={rateFrom} onChange={(e) => setRateFrom(Number(e.target.value))}>
+                    {HOURS.map((h) => <option key={h} value={h}>{formatHour(h)}</option>)}
+                  </select>
+                </label>
+                <label className="field"><span>Rate to</span>
+                  <select value={rateTop} onChange={(e) => setRateTo(Number(e.target.value))}>
+                    {Array.from({ length: 24 - rateFrom }, (_, i) => rateFrom + 1 + i).map((h) => <option key={h} value={h}>{h === 24 ? 'Midnight' : formatHour(h)}</option>)}
+                  </select>
+                </label>
+                <label className="field"><span>Override price</span>
+                  <input type="number" min={0} step="any" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} />
+                </label>
+              </div>
+              <div className="form-actions"><button type="button" className="btn btn-outline" onClick={applyRate}>Apply rate</button></div>
+            </fieldset>
+            <section className="stack" aria-labelledby="price-overrides-title">
+              <h3 id="price-overrides-title">{priced.name}'s override rates</h3>
+              {DISPLAY_DAY_ORDER.every((d) => overridesOf(priced.id, d).length === 0)
+                ? <p className="muted small">None yet. Every hour uses the default rate.</p>
+                : (
+                  <ul className="list">
+                    {DISPLAY_DAY_ORDER.filter((d) => overridesOf(priced.id, d).length > 0).map((d) => (
+                      <li key={d}><strong>{DAY_NAMES[d]}</strong>: {overridesOf(priced.id, d).join(', ')}</li>
+                    ))}
+                  </ul>
+                )}
+            </section>
+          </>
+        )}
+      </>)}
+
+      {into(slots.bar, saveBar)}
+
+      {reviewing && (
+        <ReviewDialog lines={reviewLines} onKeep={keepEditing} onSave={saveReviewed}>
+          {impactDraft && (
+            <section className="stack" aria-labelledby="review-impact-title">
+              <h3 id="review-impact-title">Bookings outside the new hours</h3>
+              {impact.isPending && <p className="muted small">Checking existing reservations…</p>}
+              {impact.isError && (
+                <div className="stack">
+                  <p className="muted small">Couldn't check existing reservations. You can still save; existing reservations are always kept.</p>
+                  <button type="button" className="btn btn-small btn-outline" onClick={() => void impact.refetch()}>Retry</button>
+                </div>
+              )}
+              {impact.data && (impact.data.bookings.total === 0 && impact.data.open_play.total === 0
+                ? <p className="muted small">No existing reservations are affected</p>
+                : (
+                  <>
+                    <p className="muted small">These stay booked. Only new bookings follow the new hours.</p>
+                    {impact.data.bookings.total > 0 && <p>{plural(impact.data.bookings.total, 'booking')} in the next 90 days</p>}
+                    {impact.data.open_play.total > 0 && <p>{plural(impact.data.open_play.total, 'open play session')} in the next 90 days</p>}
+                    <ul className="list">
+                      {impact.data.bookings.items.map((b) => (
+                        <li key={b.booking_id}>
+                          <Link to={bookingLink(b.booking_id, b.starts_at)}>{courtName(b.court_id)} · {formatDateTimeInZone(b.starts_at, timezone)} · {b.status}</Link>
+                        </li>
+                      ))}
+                      {impact.data.open_play.items.map((o) => (
+                        <li key={`${o.session_id}:${o.court_id}`}>{o.title} · {courtName(o.court_id)} · {formatDateTimeInZone(o.starts_at, timezone)}</li>
+                      ))}
+                    </ul>
+                    {(impact.data.bookings.total > impact.data.bookings.items.length || impact.data.open_play.total > impact.data.open_play.items.length) && (
+                      <p className="muted small">Only the first of each are listed.</p>
+                    )}
+                  </>
+                ))}
+            </section>
+          )}
+
+        </ReviewDialog>
+      )}
       {confirmInherit && courtId && (
         <ConfirmDialog
           id="switch-venue-hours" title="Switch to venue hours"
@@ -550,20 +638,19 @@ function Editor({ schedule, courts, target, onTarget, save, onSaved, onReload }:
           onConfirm={confirmCourtCopy}
         />
       )}
-      {confirmRevert && (
+      {confirmDiscard && (
         <ConfirmDialog
-          id="revert-changes" title="Revert unsaved changes"
-          body="Every unsaved edit to hours and rates is discarded and the saved schedule comes back."
-          stay="Keep editing" confirm="Revert"
-          onStay={() => setConfirmRevert(false)}
-          onConfirm={() => { setConfirmRevert(false); save.reset(); onSaved() }}
+          id="discard-changes" title="Discard changes"
+          body="Every unsaved edit to opening hours and prices is thrown away and the saved schedule comes back."
+          stay="Keep editing" confirm="Discard"
+          onStay={() => { setConfirmDiscard(false); discardButton.current?.focus() }}
+          onConfirm={() => { setConfirmDiscard(false); onDiscard() }}
         />
       )}
       {guard}
-    </form>
+    </>
   )
 }
 
 const clean = ({ day_of_week, start_minute, end_minute }: SchedulePeriod): SchedulePeriod => ({ day_of_week, start_minute, end_minute })
-const dayList = (days: number[]) => days.map((d) => DAY_NAMES[d]).join(', ')
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`

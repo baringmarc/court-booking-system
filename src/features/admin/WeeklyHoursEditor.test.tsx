@@ -1,4 +1,4 @@
-// T17.15: the Weekly Hours & Rates editor. Hours are whole-hour periods per weekday; a closed gap is never bookable
+// T17.15 / T17.31: the schedule editor (now the Opening hours and Prices tabs of the Schedule page). Hours are whole-hour periods per weekday; a closed gap is never bookable
 // and touching periods are never merged. One save_schedule call carries every pending change with the expected revision.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor, within } from '@testing-library/react'
@@ -6,19 +6,23 @@ import userEvent from '@testing-library/user-event'
 import { createMemoryRouter, Link, RouterProvider } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../../lib/queryClient'
-import { fetchCourts, fetchVenueSettings, type CourtWithPhotos, type VenueSettings } from '../catalog/api'
+import { fetchCourts, fetchUpcomingBlackouts, fetchVenueSettings, type CourtWithPhotos, type VenueSettings } from '../catalog/api'
 import { fetchSchedule, saveSchedule } from './api'
-import { WeeklyHoursEditor } from './WeeklyHoursEditor'
+import { SchedulePage } from './SchedulePage'
+
+const previewMock = vi.hoisted(() => vi.fn())
 
 vi.mock('../catalog/api', async (importOriginal) => ({
   ...(await importOriginal<object>()),
   fetchCourts: vi.fn(),
+  fetchUpcomingBlackouts: vi.fn(),
   fetchVenueSettings: vi.fn(),
 }))
 vi.mock('./api', async (importOriginal) => ({
   ...(await importOriginal<object>()),
   fetchSchedule: vi.fn(),
   saveSchedule: vi.fn(),
+  previewScheduleImpact: previewMock,
 }))
 
 type Period = { id?: string; day_of_week: number; start_minute: number; end_minute: number }
@@ -47,19 +51,39 @@ function mount(data: unknown = schedule(), courts: CourtWithPhotos[] = [court('c
   vi.mocked(fetchCourts).mockResolvedValue(courts)
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
   const router = createMemoryRouter([
-    { path: '/', element: <><Link to="/elsewhere">Elsewhere</Link><WeeklyHoursEditor /></> },
+    { path: '/admin/schedule', element: <><Link to="/elsewhere">Elsewhere</Link><SchedulePage /></> },
     { path: '/elsewhere', element: <p>Elsewhere page</p> },
-  ])
+  ], { initialEntries: ['/admin/schedule'] })
   render(<QueryClientProvider client={client}><RouterProvider router={router} /></QueryClientProvider>)
 }
 
 const day = (name: string) => within(screen.getByRole('group', { name }))
 const pick = async (label: string, value: string) => userEvent.selectOptions(await screen.findByLabelText(label), value)
 const choose = async (name: string) => userEvent.selectOptions(await screen.findByRole('combobox', { name: 'Schedule for' }), name)
-const save = () => userEvent.click(screen.getByRole('button', { name: 'Save schedule' }))
+const openTab = async (name: RegExp) => userEvent.click(await screen.findByRole('tab', { name }))
+const HOURS = /^Opening hours/
+const PRICES = /^Prices/
+/** Review & save, then Save changes in the dialog. */
+const save = async () => {
+  await userEvent.click(screen.getByRole('button', { name: 'Review & save' }))
+  await userEvent.click(within(await screen.findByRole('dialog', { name: 'Review changes' })).getByRole('button', { name: 'Save changes' }))
+}
+const bar = () => screen.queryByRole('region', { name: 'Unsaved changes' })
+/** Applies one override on the Prices tab for a court (by name). */
+async function applyRate(courtName: string, dayValue: string, from: string, to: string, price: string) {
+  await openTab(PRICES)
+  await userEvent.selectOptions(await screen.findByLabelText('Prices for'), courtName)
+  await pick('Rate day', dayValue)
+  await pick('Rate from', from)
+  await pick('Rate to', to)
+  if (price) await userEvent.type(screen.getByLabelText('Override price'), price)
+  await userEvent.click(screen.getByRole('button', { name: 'Apply rate' }))
+}
 const lastChanges = () => vi.mocked(saveSchedule).mock.calls.at(-1)![1] as Record<string, unknown[] | undefined>
 
 beforeEach(() => {
+  previewMock.mockReset().mockResolvedValue({ from: '2026-11-05', to: '2027-02-03', bookings: { total: 0, items: [] }, open_play: { total: 0, items: [] } })
+  vi.mocked(fetchUpcomingBlackouts).mockReset().mockResolvedValue([])
   vi.mocked(fetchSchedule).mockReset()
   vi.mocked(saveSchedule).mockReset().mockResolvedValue({ venue_id: 'v1', schedule_revision: 8 } as never)
   vi.mocked(fetchCourts).mockReset()
@@ -74,18 +98,22 @@ describe('selector and snapshot', () => {
     expect(selector).toHaveDisplayValue('Venue defaults')
     expect(day('Monday').getByLabelText('Monday period 1 opens')).toHaveValue('6')
     expect(day('Monday').getByLabelText('Monday period 1 closes')).toHaveValue('22')
-    expect(screen.queryByLabelText('Override price')).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Apply rate' })).not.toBeInTheDocument()
-    expect(screen.queryByText(/Default rate/)).not.toBeInTheDocument()
+    // rates are priced per court on the Prices tab, never in the hours tab
+    const hours = within(screen.getByRole('tabpanel', { name: HOURS }))
+    expect(hours.queryByLabelText('Override price')).not.toBeInTheDocument()
+    expect(hours.queryByRole('button', { name: 'Apply rate' })).not.toBeInTheDocument()
+    expect(hours.queryByText(/Default rate/)).not.toBeInTheDocument()
   })
 
-  it('a court shows its mode, a read-only default rate and the bulk override form', async () => {
+  it('a court shows its mode and own hours; the Prices tab has a read-only default rate and the bulk override form', async () => {
     mount()
     await choose('Court Two')
     expect(screen.getByRole('combobox', { name: 'Court hours' })).toHaveDisplayValue('Custom hours')
+    await openTab(PRICES)
     expect(screen.getByText(/Default rate.*700/)).toBeInTheDocument()
     expect(screen.queryByRole('spinbutton', { name: /Default rate/ })).not.toBeInTheDocument()
     expect(screen.getByLabelText('Override price')).toBeInTheDocument()
+    await openTab(HOURS)
     expect(day('Monday').getByLabelText('Monday period 1 opens')).toHaveValue('8')
     await choose('Court One')
     expect(screen.getByRole('combobox', { name: 'Court hours' })).toHaveDisplayValue('Use venue hours')
@@ -96,7 +124,7 @@ describe('selector and snapshot', () => {
 })
 
 describe('inherit and custom drafts', () => {
-  it('switching to custom copies all seven venue days into the draft only; nothing saves until Save', async () => {
+  it('switching to custom copies all seven venue days into the draft only; nothing saves until Save changes', async () => {
     mount()
     await choose('Court One')
     await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Court hours' }), 'Custom hours')
@@ -178,10 +206,10 @@ describe('weekday periods', () => {
     await pick('Monday period 2 opens', '10')
     await pick('Monday period 2 closes', '14')
     expect(day('Monday').getByRole('alert')).toHaveTextContent(/overlap/i)
-    expect(screen.getByRole('button', { name: 'Save schedule' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Review & save' })).toBeDisabled()
     await pick('Monday period 2 opens', '12')
     expect(day('Monday').queryByRole('alert')).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Save schedule' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Review & save' })).toBeEnabled()
     await save()
     const monday = (lastChanges().venue_periods as Period[]).filter((p) => p.day_of_week === 1)
     expect(monday).toEqual([
@@ -195,7 +223,7 @@ describe('weekday periods', () => {
     await pick('Tuesday period 1 opens', '1')
     await pick('Monday period 1 closes', '26')
     expect(screen.getAllByRole('alert').some((a) => /overlap/i.test(a.textContent ?? ''))).toBe(true)
-    expect(screen.getByRole('button', { name: 'Save schedule' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Review & save' })).toBeDisabled()
   })
 })
 
@@ -203,13 +231,9 @@ describe('weekly override rates', () => {
   it('bulk fill sets an override for each hour; moving or removing hours does not touch rate_changes', async () => {
     mount()
     await choose('Court Two')
-    await pick('Rate day', '2')
-    await pick('Rate from', '9')
-    await pick('Rate to', '11')
-    await userEvent.type(screen.getByLabelText('Override price'), '950')
-    await userEvent.click(screen.getByRole('button', { name: 'Apply rate' }))
     await pick('Monday period 1 closes', '12')
     await userEvent.click(day('Wednesday').getByRole('button', { name: 'Remove Wednesday period 1' }))
+    await applyRate('Court Two', '2', '9', '11', '950')
     await save()
     const changes = lastChanges()
     expect(changes.rate_changes).toEqual([
@@ -225,10 +249,7 @@ describe('weekly override rates', () => {
     await pick('Monday period 1 closes', '12')
     await save()
     expect(lastChanges().rate_changes ?? []).toEqual([])
-    await pick('Rate day', '1')
-    await pick('Rate from', '18')
-    await pick('Rate to', '20')
-    await userEvent.click(screen.getByRole('button', { name: 'Apply rate' }))
+    await applyRate('Court Two', '1', '18', '20', '')
     await save()
     // only hour 18 had an override; hour 19 has none, so there is nothing to clear
     expect(lastChanges().rate_changes).toEqual([{ court_id: 'c2', day_of_week: 1, start_hour: 18, price: null }])
@@ -238,11 +259,13 @@ describe('weekly override rates', () => {
 describe('dirty state and saving', () => {
   it('summarises pending edits before Save and warns when leaving; Stay keeps the draft, Leave goes', async () => {
     mount()
-    expect(await screen.findByRole('button', { name: 'Save schedule' })).toBeDisabled()
-    expect(screen.queryByText('You have unsaved changes.')).not.toBeInTheDocument()
+    await screen.findByRole('combobox', { name: 'Schedule for' })
+    expect(bar()).not.toBeInTheDocument()
     await pick('Monday period 1 closes', '12')
-    expect(screen.getByText('You have unsaved changes.')).toBeInTheDocument()
-    expect(within(screen.getByRole('region', { name: 'Pending changes' })).getByText(/Venue defaults.*Monday/)).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Unsaved changes' })).toHaveTextContent('1 unsaved change')
+    await userEvent.click(screen.getByRole('button', { name: 'Review & save' }))
+    expect(within(await screen.findByRole('dialog', { name: 'Review changes' })).getByText(/Monday/)).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Keep editing' }))
     await userEvent.click(screen.getByRole('link', { name: 'Elsewhere' }))
     await userEvent.click(within(await screen.findByRole('dialog', { name: 'Unsaved changes' })).getByRole('button', { name: 'Stay' }))
     expect(screen.getByLabelText('Monday period 1 closes')).toHaveValue('12')
@@ -264,12 +287,7 @@ describe('dirty state and saving', () => {
     await pick('Monday period 1 closes', '12')
     await choose('Court One')
     await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Court hours' }), 'Custom hours')
-    await choose('Court Two')
-    await pick('Rate day', '3')
-    await pick('Rate from', '8')
-    await pick('Rate to', '9')
-    await userEvent.type(screen.getByLabelText('Override price'), '1000')
-    await userEvent.click(screen.getByRole('button', { name: 'Apply rate' }))
+    await applyRate('Court Two', '3', '8', '9', '1000')
     vi.mocked(fetchSchedule).mockResolvedValue(schedule({ revision: 8 }) as never)
     await save()
     expect(saveSchedule).toHaveBeenCalledTimes(1)
@@ -280,11 +298,10 @@ describe('dirty state and saving', () => {
       rate_changes: [{ court_id: 'c2', day_of_week: 3, start_hour: 8, price: 1000 }],
     })
     expect((changes as { venue_periods: Period[] }).venue_periods).toContainEqual({ day_of_week: 1, start_minute: 360, end_minute: 720 })
-    expect(await screen.findByText('Saved')).toBeInTheDocument()
     await waitFor(() => expect(vi.mocked(fetchSchedule).mock.calls.length).toBeGreaterThanOrEqual(2))
-    await waitFor(() => expect(screen.queryByText('You have unsaved changes.')).not.toBeInTheDocument())
-    expect(screen.getByRole('button', { name: 'Save schedule' })).toBeDisabled()
+    await waitFor(() => expect(bar()).not.toBeInTheDocument())
     // the next save uses the new revision
+    await openTab(HOURS)
     await choose('Venue defaults')
     await pick('Monday period 1 closes', '20')
     await save()
@@ -300,7 +317,7 @@ describe('dirty state and saving', () => {
     expect(alert).toHaveTextContent(/reload/i)
     expect(screen.getByRole('button', { name: 'Reload latest' })).toBeInTheDocument()
     expect(screen.getByLabelText('Monday period 1 closes')).toHaveValue('12')
-    expect(screen.getByText('You have unsaved changes.')).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Unsaved changes' })).toHaveTextContent('1 unsaved change')
     await waitFor(() => expect(vi.mocked(fetchSchedule).mock.calls.length).toBeGreaterThanOrEqual(2))
   })
 
@@ -313,7 +330,7 @@ describe('dirty state and saving', () => {
     expect(screen.getByLabelText('Monday period 1 closes')).toHaveValue('12')
     await userEvent.click(screen.getByRole('button', { name: 'Try again' }))
     await waitFor(() => expect(saveSchedule).toHaveBeenCalledTimes(2))
-    expect(await screen.findByText('Saved')).toBeInTheDocument()
+    await waitFor(() => expect(bar()).not.toBeInTheDocument())
   })
 })
 
@@ -322,14 +339,14 @@ describe('loading, empty and error states', () => {
     vi.mocked(fetchSchedule).mockReturnValue(new Promise(() => {}))
     vi.mocked(fetchCourts).mockResolvedValue([])
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-    const router = createMemoryRouter([{ path: '/', element: <WeeklyHoursEditor /> }])
+    const router = createMemoryRouter([{ path: '/admin/schedule', element: <SchedulePage /> }], { initialEntries: ['/admin/schedule'] })
     render(<QueryClientProvider client={client}><RouterProvider router={router} /></QueryClientProvider>)
-    expect(screen.getByRole('status')).toHaveTextContent('Loading')
+    expect(screen.getAllByRole('status').some((el) => /Loading/.test(el.textContent ?? ''))).toBe(true)
   })
 
   it('a venue with no courts says so and still edits venue defaults', async () => {
     mount(schedule({ courts: [] }), [])
-    expect(await screen.findByText(/No courts yet/)).toBeInTheDocument()
+    expect(await within(await screen.findByRole('tabpanel', { name: HOURS })).findByText(/No courts yet/)).toBeInTheDocument()
     expect(within(screen.getByRole('combobox', { name: 'Schedule for' })).getAllByRole('option').map((o) => o.textContent)).toEqual(['Venue defaults'])
     expect(day('Monday').getByLabelText('Monday period 1 opens')).toBeInTheDocument()
   })
@@ -338,7 +355,7 @@ describe('loading, empty and error states', () => {
     vi.mocked(fetchSchedule).mockRejectedValueOnce(new ApiError('boom load', 'P0001'))
     vi.mocked(fetchCourts).mockResolvedValue([])
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-    const router = createMemoryRouter([{ path: '/', element: <WeeklyHoursEditor /> }])
+    const router = createMemoryRouter([{ path: '/admin/schedule', element: <SchedulePage /> }], { initialEntries: ['/admin/schedule'] })
     vi.mocked(fetchSchedule).mockResolvedValueOnce(schedule() as never)
     render(<QueryClientProvider client={client}><RouterProvider router={router} /></QueryClientProvider>)
     // first call (mockRejectedValueOnce was queued before the Once-resolve) fails
