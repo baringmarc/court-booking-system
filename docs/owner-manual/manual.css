@@ -1,0 +1,28 @@
+@font-face { font-family: 'DM Sans'; src: url('../../node_modules/@fontsource/dm-sans/files/dm-sans-latin-400-normal.woff2'); font-weight: 400; }
+@font-face { font-family: 'DM Sans'; src: url('../../node_modules/@fontsource/dm-sans/files/dm-sans-latin-700-normal.woff2'); font-weight: 700; }
+@font-face { font-family: Fraunces; src: url('../../node_modules/@fontsource/fraunces/files/fraunces-latin-700-normal.woff2'); font-weight: 700; }
+@page { size: 500px 858px; margin: 0; }
+* { box-sizing: border-box; }
+body { margin: 0; color: #3b2f2a; font: 17px/1.32 'DM Sans', sans-serif; background: #e6d9c6; }
+article { position: relative; margin: 0 auto; width: 500px; height: 858px; padding: 26px 28px 48px; background: #fffcf7; break-after: page; }
+article:last-child { break-after: auto; }
+header { display: flex; align-items: center; gap: 8px; padding-bottom: 12px; margin-bottom: 16px; border-bottom: 1px solid #d8c8b6; color: #5a4a42; font-size: 13px; }
+header img { width: 28px; height: 28px; } header strong { color: #3b2f2a; font: 700 21px/1 Fraunces, serif; }
+header span { margin-left: auto; }
+h1, h2 { font-family: Fraunces, serif; line-height: 1.06; margin: 0 0 14px; letter-spacing: -.035em; }
+h1 { font-size: 49px; } h2 { font-size: 32px; }
+h3 { font-size: 18px; margin: 12px 0 4px; } p, figure, ol, ul { margin: 0 0 12px; }
+ol, ul { padding-left: 22px; } li { padding-left: 3px; margin-bottom: 5px; } li::marker { font-weight: bold; color: #7a3f2c; }
+figure { background: #f5efe6; border-radius: 10px; padding: 9px; text-align: center; }
+figure img { display: block; width: 100%; max-height: var(--image-height, 200px); object-fit: contain; }
+figcaption { text-align: left; font-size: 13px; line-height: 1.35; color: #5a4a42; padding: 7px 3px 0; }
+aside { background: #e5ebdd; border-left: 3px solid #758766; padding: 11px 13px; margin: 14px 0 0; font-size: 16px; }
+footer { position: absolute; left: 32px; right: 32px; bottom: 16px; padding-top: 8px; border-top: 1px solid #d8c8b6; display: flex; justify-content: space-between; font-size: 12px; color: #5a4a42; }
+a { color: #753c2b; text-decoration-thickness: 1px; text-underline-offset: 2px; }
+.cover { background: #f5efe6; }
+.cover header { margin-bottom: 26px; }
+.cover .edition { margin-bottom: 22px; color: #7a3f2c; font-weight: 700; font-size: 14px; }
+.cover nav { margin-top: 20px; }
+.cover nav a { display: flex; justify-content: space-between; text-decoration: none; padding: 5px 0; border-bottom: 1px solid #decebd; }
+.cover nav a span { font-weight: 700; }
+.cover nav a small { color: #5a4a42; }
