@@ -21,9 +21,22 @@ import { CourtExceptions } from './CourtExceptions'
 import { HoursTable } from './HoursTable'
 import { WeekChart } from './WeekChart'
 import { useUnsavedGuard } from './UnsavedGuard'
-import { changedDays, dayText, hourLabel, overlapDays, periodsOfDay, samePeriods, toSave } from './weeklySchedule'
+import {
+  changedDays, dayGroupLabel, dayText, hourLabel, overlapDays, periodsOfDay, rateRunText, rateRuns, samePeriods, toSave, type RateRun,
+} from './weeklySchedule'
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i)
+
+/** `rateRuns` entries of one day group, gathered for one row each. */
+function runGroups(runs: RateRun[]) {
+  const groups: { days: number[]; runs: RateRun[] }[] = []
+  for (const run of runs) {
+    const last = groups.at(-1)
+    if (last?.days === run.days) last.runs.push(run)
+    else groups.push({ days: run.days, runs: [run] })
+  }
+  return groups
+}
 
 type CourtDraft = { mode: 'inherit' | 'custom'; periods: SchedulePeriod[] }
 /** Pending override per "day:hour": a price, or null to go back to the court's default rate. */
@@ -250,11 +263,11 @@ function Editor({ schedule, courts, slots, priceCourt, onPriceCourt, save, onSav
   }
 
   const rateTop = Math.max(rateTo, rateFrom + 1)
-  /** A court's effective override rates on a day, as "6 PM ₱800". */
-  const overridesOf = (id: string, day: number) => HOURS.flatMap((h) => {
-    const rate = effectiveRate(id, day, h)
-    return rate === undefined ? [] : [`${formatHour(h)} ${formatMoney(rate, currency)}`]
-  })
+  // The priced court's effective override rates, summarised as runs of hours (T17.33).
+  const pricedRuns = priced ? rateRuns(DISPLAY_DAY_ORDER.flatMap((day) => HOURS.flatMap((h) => {
+    const price = effectiveRate(priced.id, day, h)
+    return price === undefined ? [] : [{ day_of_week: day, start_hour: h, price }]
+  }))) : []
   // Each affected booking opens on its own venue-local date in /admin/bookings, with the booking preselected (as DayView).
   const bookingLink = (id: string, start: string) => {
     const params = filtersToParams({ status: 'all', source: 'all', date: todayInZone(timezone, new Date(start)), q: '', sort: null })
@@ -363,12 +376,22 @@ function Editor({ schedule, courts, slots, priceCourt, onPriceCourt, save, onSav
             </fieldset>
             <section className="stack" aria-labelledby="price-overrides-title">
               <h3 id="price-overrides-title">{priced.name}'s override rates</h3>
-              {DISPLAY_DAY_ORDER.every((d) => overridesOf(priced.id, d).length === 0)
+              {pricedRuns.length === 0
                 ? <p className="muted small">None yet. Every hour uses the default rate.</p>
                 : (
-                  <ul className="list">
-                    {DISPLAY_DAY_ORDER.filter((d) => overridesOf(priced.id, d).length > 0).map((d) => (
-                      <li key={d}><strong>{DAY_NAMES[d]}</strong>: {overridesOf(priced.id, d).join(', ')}</li>
+                  <ul className="rate-groups">
+                    {runGroups(pricedRuns).map(({ days, runs }) => (
+                      <li key={days.join()} className="rate-group">
+                        <span className="rate-days">{dayGroupLabel(days)}</span>
+                        <span className="rate-runs">
+                          {runs.map((run) => (
+                            <span key={run.start_hour} className="rate-run">
+                              <span>{rateRunText(run)}</span>
+                              <strong className="rate-price">{formatMoney(run.price, currency)}</strong>
+                            </span>
+                          ))}
+                        </span>
+                      </li>
                     ))}
                   </ul>
                 )}

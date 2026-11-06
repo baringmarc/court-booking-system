@@ -6,7 +6,10 @@ import {
   addBreak,
   chartAxis,
   chartDayText,
+  dayGroupLabel,
   overlapMessage,
+  rateRunText,
+  rateRuns,
   removeBreak,
   setDayOpen,
   toSave,
@@ -207,5 +210,94 @@ describe('chartDayText', () => {
 
   it('ends at Midnight when a day closes at 24', () => {
     expect(chartDayText([p(6, 10, 24)], 6)).toBe('Saturday: open 10 AM to Midnight')
+  })
+})
+
+
+// T17.33: the Prices tab summarises override rates as runs ("Mon–Fri, 5 PM – 10 PM, ₱500") instead of one entry per hour.
+describe('rateRuns (T17.33)', () => {
+  const hours = (day: number, from: number, to: number, price: number) =>
+    Array.from({ length: to - from }, (_, i) => ({ day_of_week: day, start_hour: from + i, price }))
+
+  it('merges consecutive hours of one price into a run whose end hour is exclusive', () => {
+    expect(rateRuns(hours(1, 17, 22, 500))).toEqual([{ days: [1], start_hour: 17, end_hour: 22, price: 500 }])
+  })
+
+  it('splits a run at a gap hour and at a price change, and never merges hours of different prices', () => {
+    const rates = [...hours(1, 9, 11, 400), ...hours(1, 12, 13, 400), ...hours(1, 13, 15, 600)]
+    expect(rateRuns(rates)).toEqual([
+      { days: [1], start_hour: 9, end_hour: 11, price: 400 },
+      { days: [1], start_hour: 12, end_hour: 13, price: 400 },
+      { days: [1], start_hour: 13, end_hour: 15, price: 600 },
+    ])
+  })
+
+  it('merges days with identical runs, in display order (Monday first, Sunday last)', () => {
+    const rates = [...hours(5, 17, 22, 500), ...hours(1, 17, 22, 500), ...hours(3, 17, 22, 500), ...hours(2, 17, 22, 500), ...hours(4, 17, 22, 500),
+      ...hours(0, 6, 22, 500), ...hours(6, 6, 22, 500)]
+    expect(rateRuns(rates)).toEqual([
+      { days: [1, 2, 3, 4, 5], start_hour: 17, end_hour: 22, price: 500 },
+      { days: [6, 0], start_hour: 6, end_hour: 22, price: 500 },
+    ])
+  })
+
+  it('keeps days apart when their run sequences differ in start, end, price or number of runs', () => {
+    const rates = [...hours(1, 17, 19, 500), ...hours(2, 17, 19, 500), ...hours(2, 20, 22, 600), ...hours(3, 17, 20, 500), ...hours(4, 17, 19, 550)]
+    expect(rateRuns(rates)).toEqual([
+      { days: [1], start_hour: 17, end_hour: 19, price: 500 },
+      { days: [2], start_hour: 17, end_hour: 19, price: 500 },
+      { days: [2], start_hour: 20, end_hour: 22, price: 600 },
+      { days: [3], start_hour: 17, end_hour: 20, price: 500 },
+      { days: [4], start_hour: 17, end_hour: 19, price: 550 },
+    ])
+  })
+
+  it('orders groups by their first day, then start hour, whatever order the rates arrive in', () => {
+    const rates = [...hours(0, 8, 10, 300), ...hours(2, 18, 20, 700), ...hours(2, 8, 10, 300)]
+    expect(rateRuns(rates).map((r) => [r.days, r.start_hour])).toEqual([[[2], 8], [[2], 18], [[0], 8]])
+  })
+
+  it('runs to midnight (hour 23 ends at 24) and returns nothing for no rates', () => {
+    expect(rateRuns(hours(6, 20, 24, 800))).toEqual([{ days: [6], start_hour: 20, end_hour: 24, price: 800 }])
+    expect(rateRuns([])).toEqual([])
+  })
+})
+
+describe('dayGroupLabel (T17.33)', () => {
+  it('says "Every day" for all seven days', () => {
+    expect(dayGroupLabel([1, 2, 3, 4, 5, 6, 0])).toBe('Every day')
+  })
+
+  it('writes a block of three or more consecutive display-order days as a short range', () => {
+    expect(dayGroupLabel([1, 2, 3, 4, 5])).toBe('Mon–Fri')
+    expect(dayGroupLabel([1, 2, 3])).toBe('Mon–Wed')
+    expect(dayGroupLabel([1, 2, 3, 4, 5, 6])).toBe('Mon–Sat')
+    expect(dayGroupLabel([5, 6, 0])).toBe('Fri–Sun')
+  })
+
+  it('joins exactly two days with " & " in short names', () => {
+    expect(dayGroupLabel([6, 0])).toBe('Sat & Sun')
+    expect(dayGroupLabel([1, 3])).toBe('Mon & Wed')
+    expect(dayGroupLabel([1, 2])).toBe('Mon & Tue')
+  })
+
+  it('uses the full name for one day', () => {
+    expect(dayGroupLabel([1])).toBe('Monday')
+    expect(dayGroupLabel([0])).toBe('Sunday')
+  })
+
+  it('otherwise lists short names with commas', () => {
+    expect(dayGroupLabel([1, 3, 5])).toBe('Mon, Wed, Fri')
+  })
+})
+
+describe('rateRunText (T17.33)', () => {
+  it('writes the hour range with an en dash', () => {
+    expect(rateRunText({ start_hour: 17, end_hour: 22 })).toBe('5 PM – 10 PM')
+    expect(rateRunText({ start_hour: 0, end_hour: 3 })).toBe('12 AM – 3 AM')
+  })
+
+  it('says Midnight for 24', () => {
+    expect(rateRunText({ start_hour: 6, end_hour: 24 })).toBe('6 AM – Midnight')
   })
 })

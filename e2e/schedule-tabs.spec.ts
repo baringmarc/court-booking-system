@@ -93,9 +93,11 @@ test('a price change is reviewed and saved from the Prices tab', async ({ page }
   await dialog.getByRole('button', { name: 'Save changes' }).click()
   await expect(bar(page)).toHaveCount(0)
   await page.reload()
-  // The saved override is listed on the Prices tab for the court.
+  // The saved override is listed on the Prices tab for the court, as a run of hours (T17.33).
   await page.getByRole('tab', { name: PRICES_TAB }).click()
-  await expect(page.getByRole('tabpanel', { name: PRICES_TAB }).getByText(/6 PM ₱950/)).toBeVisible()
+  const monday = page.getByRole('tabpanel', { name: PRICES_TAB }).getByRole('listitem').filter({ hasText: 'Monday' })
+  await expect(monday).toContainText('6 PM – 7 PM')
+  await expect(monday).toContainText('₱950')
 })
 
 test('Discard asks first: Keep editing keeps the draft, Discard restores the saved hours', async ({ page }) => {

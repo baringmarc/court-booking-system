@@ -1,4 +1,4 @@
-import { DAY_NAMES, formatHour } from '../../lib/format'
+import { DAY_NAMES, DAY_SHORT, DISPLAY_DAY_ORDER, formatHour } from '../../lib/format'
 import type { SchedulePeriod } from './api'
 
 // Whole-hour periods per weekday (T17.15). Minutes run from the operating day's midnight; an end past 24 h belongs to
@@ -169,3 +169,46 @@ export const dayText = (periods: SchedulePeriod[]) => periods.length === 0 ? 'Cl
   .sort((a, b) => a.start_minute - b.start_minute)
   .map((p) => `${hourLabel(hourOfMinute(p.start_minute))} – ${hourLabel(hourOfMinute(p.end_minute))}`)
   .join(', ')
+
+// --- override rate summary (T17.33) ------------------------------------------
+
+export type RateRun = { days: number[]; start_hour: number; end_hour: number; price: number }
+
+/**
+ * Override rates as runs: per day, consecutive hours of one price join into one run (`end_hour` exclusive); days whose
+ * runs are all the same join into one group. Flat, one entry per run of each group, ordered by the group's first day
+ * (Monday first) and then start hour.
+ */
+export function rateRuns(rates: { day_of_week: number; start_hour: number; price: number }[]): RateRun[] {
+  const groups: { days: number[]; runs: Omit<RateRun, 'days'>[]; key: string }[] = []
+  for (const day of DISPLAY_DAY_ORDER) {
+    const hours = rates.filter((r) => r.day_of_week === day).sort((a, b) => a.start_hour - b.start_hour)
+    const runs: Omit<RateRun, 'days'>[] = []
+    for (const { start_hour, price } of hours) {
+      const last = runs.at(-1)
+      if (last && last.end_hour === start_hour && last.price === price) last.end_hour = start_hour + 1
+      else runs.push({ start_hour, end_hour: start_hour + 1, price })
+    }
+    if (runs.length === 0) continue
+    const key = JSON.stringify(runs)
+    const same = groups.find((g) => g.key === key)
+    if (same) same.days.push(day)
+    else groups.push({ days: [day], runs, key })
+  }
+  return groups.flatMap(({ days, runs }) => runs.map((run) => ({ days, ...run })))
+}
+
+/** "Every day", "Mon–Fri" (3+ days in a row), "Sat & Sun" (two days), "Monday" (one), else "Mon, Wed, Fri". */
+export function dayGroupLabel(days: number[]) {
+  if (days.length === 7) return 'Every day'
+  if (days.length === 1) return DAY_NAMES[days[0]]
+  const short = days.map((d) => DAY_SHORT[d])
+  if (days.length === 2) return short.join(' & ')
+  const at = days.map((d) => DISPLAY_DAY_ORDER.indexOf(d))
+  const inARow = at.every((pos, i) => i === 0 || pos === at[i - 1] + 1)
+  return inARow ? `${short[0]}–${short.at(-1)}` : short.join(', ')
+}
+
+/** "5 PM – 10 PM", "6 AM – Midnight". */
+export const rateRunText = ({ start_hour, end_hour }: { start_hour: number; end_hour: number }) =>
+  `${hourLabel(start_hour)} – ${hourLabel(end_hour)}`

@@ -10,6 +10,7 @@ import {
   fetchEarnings,
   fetchProofQueueCount,
   fetchSchedule,
+  fetchClosureConflicts,
   saveSchedule,
   previewScheduleImpact,
   type ScheduleDraft,
@@ -560,5 +561,14 @@ export function useSaveSchedule() {
       qc.invalidateQueries({ queryKey: [currentVenueId(), 'court-rates'] }),
     ]),
     onError: () => qc.invalidateQueries({ queryKey: adminKeys.schedule() }),
+  })
+}
+
+/** Bookings and open play already in a closure's time (T17.33); off until there is a range. */
+export function useClosureConflicts(range: { start: string; end: string; courtId: string | null } | null) {
+  return useQuery({
+    queryKey: adminKeys.closureConflicts(range?.start ?? '', range?.end ?? '', range?.courtId ?? null),
+    queryFn: () => fetchClosureConflicts(range!.start, range!.end, range!.courtId),
+    enabled: range !== null,
   })
 }

@@ -373,3 +373,45 @@ describe('loading, empty and error states', () => {
     expect(await ready()).toBeInTheDocument()
   })
 })
+
+describe('override rates summary (T17.33)', () => {
+  const hoursAt = (days: number[], from: number, to: number, price: number): Rate[] =>
+    days.flatMap((d) => Array.from({ length: to - from }, (_, i) => ({ day_of_week: d, start_hour: from + i, price })))
+
+  it('groups days with the same hours and price into one item each instead of listing every hour', async () => {
+    const rates = [...hoursAt([1, 2, 3, 4, 5], 17, 22, 500), ...hoursAt([6, 0], 6, 22, 500)]
+    mount(schedule({ courts: [{ court_id: 'c1', schedule_mode: 'inherit', schedule_revision: 0, periods: [], rates }] }), [court('c1', 'Pickleball 1')])
+    await openTab(PRICES)
+    const overrides = within(await screen.findByRole('region', { name: "Pickleball 1's override rates" }))
+    const items = overrides.getAllByRole('listitem')
+    expect(items).toHaveLength(2)
+    expect(items[0]).toHaveTextContent('Mon–Fri')
+    expect(items[0]).toHaveTextContent('5 PM – 10 PM')
+    expect(items[0]).toHaveTextContent('₱500')
+    expect(items[1]).toHaveTextContent('Sat & Sun')
+    expect(items[1]).toHaveTextContent('6 AM – 10 PM')
+    expect(items[1]).toHaveTextContent('₱500')
+    expect(overrides.queryByText(/6 PM ₱500/)).not.toBeInTheDocument()
+    expect(overrides.queryByText(/Monday/)).not.toBeInTheDocument()
+  })
+
+  it('shows two runs of one day group as two time-and-price lines inside its item', async () => {
+    const rates = [...hoursAt([1], 9, 11, 400), ...hoursAt([1], 18, 21, 700)]
+    mount(schedule({ courts: [{ court_id: 'c1', schedule_mode: 'inherit', schedule_revision: 0, periods: [], rates }] }), [court('c1', 'Pickleball 1')])
+    await openTab(PRICES)
+    const items = within(await screen.findByRole('region', { name: "Pickleball 1's override rates" })).getAllByRole('listitem')
+    expect(items).toHaveLength(1)
+    expect(items[0]).toHaveTextContent('Monday')
+    expect(items[0]).toHaveTextContent('9 AM – 11 AM')
+    expect(items[0]).toHaveTextContent('₱400')
+    expect(items[0]).toHaveTextContent('6 PM – 9 PM')
+    expect(items[0]).toHaveTextContent('₱700')
+  })
+
+  it('keeps the empty text when the court has no overrides', async () => {
+    mount()
+    await openTab(PRICES)
+    await userEvent.selectOptions(await screen.findByLabelText('Prices for'), 'Court One')
+    expect(screen.getByText('None yet. Every hour uses the default rate.')).toBeInTheDocument()
+  })
+})

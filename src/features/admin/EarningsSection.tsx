@@ -214,7 +214,7 @@ function HoursTable({ earnings }: { earnings: Earnings }) {
         <span className="hours-figures">{figures(total)}</span>
       </p>
       <p className="muted small">
-        Each bar is a court's open hours, minus blackouts. Occupancy is the booked share of those hours. Open play is shown apart and isn't counted as booked. Only courts open for booking now are counted.
+        Each bar is a court's open hours, minus closures. Occupancy is the booked share of those hours. Open play is shown apart and isn't counted as booked. Only courts open for booking now are counted.
       </p>
     </section>
   )

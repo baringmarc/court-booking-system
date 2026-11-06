@@ -6,7 +6,7 @@ import userEvent from '@testing-library/user-event'
 import { createMemoryRouter, RouterProvider } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fetchCourts, fetchUpcomingBlackouts, fetchVenueSettings, type CourtWithPhotos, type VenueSettings } from '../catalog/api'
-import { fetchSchedule, saveSchedule } from './api'
+import { fetchClosureConflicts, fetchSchedule, saveSchedule } from './api'
 import { SchedulePage } from './SchedulePage'
 
 const previewMock = vi.hoisted(() => vi.fn())
@@ -21,6 +21,7 @@ vi.mock('./api', async (importOriginal) => ({
   ...(await importOriginal<object>()),
   fetchSchedule: vi.fn(),
   saveSchedule: vi.fn(),
+  fetchClosureConflicts: vi.fn(),
   previewScheduleImpact: previewMock,
 }))
 
@@ -70,6 +71,7 @@ beforeEach(() => {
   previewMock.mockReset()
   previewMock.mockResolvedValue({ from: '2026-11-05', to: '2027-02-03', bookings: { total: 0, items: [] }, open_play: { total: 0, items: [] } })
   vi.mocked(fetchSchedule).mockReset()
+  vi.mocked(fetchClosureConflicts).mockReset().mockResolvedValue({ bookings: [], sessions: [] })
   vi.mocked(saveSchedule).mockReset().mockResolvedValue({ venue_id: 'v1', schedule_revision: 8 } as never)
   vi.mocked(fetchCourts).mockReset()
   vi.mocked(fetchUpcomingBlackouts).mockReset().mockResolvedValue([])
@@ -106,7 +108,7 @@ describe('tabs and the URL', () => {
     mount('/admin/schedule?tab=closures')
     await screen.findByRole('tablist', { name: 'Schedule sections' })
     expect(tab(CLOSURES)).toHaveAttribute('aria-selected', 'true')
-    expect(within(screen.getByRole('tabpanel', { name: CLOSURES })).getByRole('button', { name: 'Add blackout' })).toBeInTheDocument()
+    expect(within(screen.getByRole('tabpanel', { name: CLOSURES })).getByRole('button', { name: 'Add closure' })).toBeInTheDocument()
   })
 
   it('clicking a tab pushes the URL, and Back returns to the previous tab', async () => {
