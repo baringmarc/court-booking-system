@@ -49,13 +49,17 @@ export async function inviteVenueOwner(input: { venueId: string; email: string }
   return { invited: (await callInviteVenueOwner(input))?.invited === true }
 }
 
-/** What a resend did: a new invite, a fresh sign-in link for an invited owner, or nothing (the owner has a password). */
-export type OwnerInviteSent = 'invite' | 'link' | 'none'
+/**
+ * What the function emailed (T17.25): an account-setup invitation (no account), a fresh access link (invited, no
+ * password yet) or a welcome email with the venue's sign-in link (the account already signs in).
+ */
+export type OwnerInviteSent = 'invite' | 'link' | 'welcome'
 
 /** Re-sends a venue's owner a way in (T14.5d): the first invite can be used up, expired or never delivered. */
 export async function resendOwnerInvite(input: { venueId: string; email: string }): Promise<{ sent: OwnerInviteSent }> {
-  const body = await callInviteVenueOwner(input)
-  return { sent: body?.sent === 'invite' || body?.sent === 'link' ? body.sent : 'none' }
+  const sent = (await callInviteVenueOwner(input))?.sent
+  if (sent === 'invite' || sent === 'link' || sent === 'welcome') return { sent }
+  throw new ApiError("We couldn't send the invite.")
 }
 
 export type VenueOverview = {

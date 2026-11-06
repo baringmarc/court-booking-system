@@ -36,7 +36,8 @@ test('an invite link signs the owner in and asks for a password', async ({ page 
 })
 
 // T14.5d: the first invite was used up (the owner is invited but has no password), so the console re-sends a sign-in
-// link; it signs the owner in and asks for a password, like the first invite would have.
+// link; it signs the owner in and asks for a password, like the first invite would have. T17.25 renamed it a fresh
+// access link.
 test('a platform admin re-sends the invite and the owner signs in with the new link', async ({ page }) => {
   const venue = await createVenue('resend')
   const service = serviceClient()
@@ -56,9 +57,9 @@ test('a platform admin re-sends the invite and the owner signs in with the new l
     await card.getByRole('button', { name: 'Resend invite' }).click()
     await card.getByLabel('Owner email').fill(email)
     await card.getByRole('button', { name: 'Send invite' }).click()
-    await expect(card.getByRole('status')).toContainText('sign-in link is on its way')
+    await expect(card.getByRole('status')).toContainText('fresh access link is on its way')
 
-    const text = await emailText(email, /sign-in link/i)
+    const text = await emailText(email, /fresh Plotline access link/i)
     const link = text.match(/https?:\/\/\S+\/auth\/v1\/verify\?\S+/)?.[0]
     expect(link, 'a verify link in the resent email').toBeTruthy()
     const owner = await page.context().browser()!.newContext()

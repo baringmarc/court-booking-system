@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { formatMoney } from '../../lib/format'
-import type { VenueOverview } from './api'
+import type { OwnerInviteSent, VenueOverview } from './api'
 import { useReactivateVenue, useResendOwnerInvite, useSuspendVenue, useVenuesPage } from './hooks'
 import { DetailsButton, ListStatus, RecordPanel, SearchField, StatusFilter } from './ListControls'
 import { focusDetails, useListParams } from './listParams'
@@ -32,13 +32,16 @@ function ResendInvite({ venue }: { venue: VenueOverview }) {
         <input type="email" autoComplete="off" required value={email} onChange={(e) => { setEmail(e.target.value); resend.reset() }} />
       </label>
       <button type="submit" className="btn" disabled={resend.isPending}>Send invite</button>
-      {sent === 'none' && (
-        <p role="status">{email} already has a password. They can sign in at {venue.slug}.plotline.fit/admin/login.</p>
-      )}
-      {(sent === 'invite' || sent === 'link') && <p role="status">A {sent === 'invite' ? 'new invite' : 'sign-in link'} is on its way to {email}.</p>}
+      {sent && <p role="status">{SENT_MESSAGE[sent]} is on its way to {email}.</p>}
       {resend.error && <p className="form-error" role="alert">{resend.error.message}</p>}
     </form>
   )
+}
+
+const SENT_MESSAGE: Record<OwnerInviteSent, string> = {
+  invite: 'An account setup invitation',
+  link: 'A fresh access link',
+  welcome: 'A welcome email with the sign-in link',
 }
 
 function VenuePanel({ venue, onClose }: { venue: VenueOverview; onClose: () => void }) {

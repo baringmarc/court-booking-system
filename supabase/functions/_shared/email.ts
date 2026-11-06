@@ -71,7 +71,9 @@ export function fromFor(venueName: string | null | undefined, address: string | 
   return name ? `${name} <${email}>` : email
 }
 
-export type OutgoingEmail = { to: string; subject: string; html: string; text: string }
+export type EmailAttachment = { filename: string; contentBase64: string; contentType: string }
+/** `replyTo` and `attachments` are optional (owner emails, T17.25); without them the request bodies are unchanged. */
+export type OutgoingEmail = { to: string; subject: string; html: string; text: string; replyTo?: string; attachments?: EmailAttachment[] }
 export type SendResult = { ok: true; note?: string } | { ok: false; error: string }
 type FetchLike = (url: string, init: { method: string; headers: Record<string, string>; body: string }) => Promise<{ ok: boolean; status: number; text(): Promise<string> }>
 
@@ -102,6 +104,10 @@ export async function sendEmail(
           subject: email.subject,
           html: email.html,
           text: email.text,
+          ...(email.replyTo ? { reply_to: email.replyTo } : {}),
+          ...(email.attachments?.length
+            ? { attachments: email.attachments.map((f) => ({ filename: f.filename, content: f.contentBase64, content_type: f.contentType })) }
+            : {}),
         }),
       })
       if (res.ok) return { ok: true }
@@ -120,6 +126,10 @@ export async function sendEmail(
         HTML: email.html,
         Text: email.text,
         Headers: { 'X-Outbox-Id': idempotencyKey },
+        ...(email.replyTo ? { ReplyTo: [{ Email: email.replyTo }] } : {}),
+        ...(email.attachments?.length
+          ? { Attachments: email.attachments.map((f) => ({ Filename: f.filename, Content: f.contentBase64, ContentType: f.contentType })) }
+          : {}),
       }),
     })
     if (res.ok) return { ok: true }
