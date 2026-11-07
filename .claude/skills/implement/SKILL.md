@@ -69,7 +69,7 @@ For a task that isn't risky, state your plan in two or three lines, naming what 
 - Launch the `test-writer` agent in the foreground. Give it **only**:
   - the task ID
   - the approved plan's names and signatures: tables and columns, RPCs with their arguments and error messages, components, routes, file paths
-- Before sending, check the brief (L3, promoted in /retro 2026-11-06): grep every name, and for each **behavior** it promises (what a URL parameter opens, what a query or test library can find, what a component shows by default) cite the file:line or library doc that shows it. Drop or correct any claim you can't cite.
+- Before sending, check the brief (L3, promoted in /retro 2026-11-06): grep every name, and for each **behavior** it promises (what a URL parameter opens, what a query or test library can find, what a component shows by default) cite the file:line or library doc that shows it. Drop or correct any claim you can't cite. Also cite the markup and labels the tests will select on when another component, an RPC or the other repository owns them, and say how each spec cleans up the tagged data it creates (/retro M17: T17.30, T17.34).
 - Don't send it code or describe how you'll implement anything beyond those names. It works from the task and SPEC, which is the point.
 - Read its report. Use the names it lists. Its tests are now **locked for this task**: the guard won't let you edit them.
 - Skip this step only when the task has no behavior to test (pure copy, styling or docs). Say so in the plan.
@@ -90,6 +90,7 @@ For a task that isn't risky, state your plan in two or three lines, naming what 
 ## 6. Verify
 
 - Run `node .claude/hooks/verify-gate.mjs --full` and fix failures until it passes. It runs the full checks (`npm run verify`, including the drift check) and then `npm run test:e2e` if UI-facing files changed. The full local stack must be up for e2e (`npx supabase start`).
+- The full gate with e2e takes longer than the 600 s Bash limit, so it is moved to the background; until H13 makes the Stop hook skip while it runs, don't end the turn before it finishes (wait with a Monitor until-loop on the gate process) and don't run anything else meanwhile (/retro M17: 5 tasks).
 - Run it in the **foreground only**: `node .claude/hooks/verify-gate.mjs --full 2>&1 | tail -n 60` with the Bash timeout at 600000, and don't end the turn or edit files while it runs. Never background it (the Stop hook's Vitest then runs alongside it and gives false failures, and stopping it skips e2e teardown) and never redirect it with `>` (the guard reads that as writing a harness file).
 - It records which changes passed. **The guard refuses `git commit` until a full run passed on exactly the current changes**, so re-run it after any later code edit.
 - If the task changes a user journey (pages, forms, flows), the test-writer's e2e spec covers it; extend `e2e/` if you changed more.
