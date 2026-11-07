@@ -99,7 +99,7 @@ export function isAfterMidnight(iso: string, operatingDate: string, timeZone: st
 }
 
 /** A day's spans as text: "6 AM – 10 PM", "6 AM – 12 PM, 2 PM – 10 PM", "6 PM – 2 AM (next day)", "Open 24 hours" or "Closed". */
-function spansLabel(spans: { open: number; end: number }[]) {
+export function spansLabel(spans: { open: number; end: number }[]) {
   if (spans.length === 0) return 'Closed'
   if (spans.length === 1 && spans[0].end - spans[0].open === 24) return 'Open 24 hours'
   return spans.map(({ open, end }) => `${formatHour(open)} – ${formatHour(end)}${end > 24 ? ' (next day)' : ''}`).join(', ')

@@ -11,7 +11,7 @@ import { useNow } from '../booking/useNow'
 import type { Court, OperatingHours, VenueSettings } from '../catalog/api'
 import { useCourts, useOperatingHours, useStaffSchedule, useVenueSettings } from '../catalog/hooks'
 import { isAfterMidnight, operatingDayRange, operatingToday } from '../catalog/hours'
-import { operatingDayBookings } from './dashboard'
+import { nextBooking, operatingDayBookings, todayHoursLabel } from './dashboard'
 import { useAdminBookings, useProofQueueCount } from './hooks'
 import { DayView } from './DayView'
 import { EarningsSection } from './EarningsSection'
@@ -87,6 +87,7 @@ function Dashboard({ settings, courts, hours }: { settings: VenueSettings; court
   const todays = operatingDayBookings(
     [schedule.data?.bookings ?? [], pastMidnight ? (scheduleNext.data?.bookings ?? []).filter((b) => Date.parse(b.slot_start) < overnightEnd) : []], null,
   ).filter((b) => ACTIVE.has(displayStatus(b, now)))
+  const next = nextBooking(todays, now)
 
   return (
     <div className="stack">
@@ -102,6 +103,36 @@ function Dashboard({ settings, courts, hours }: { settings: VenueSettings; court
             </>
           )}
         </section>
+        <section className="card">
+          <h2>Today's bookings</h2>
+          {schedulePending ? <PageLoader /> : scheduleError ? (
+            <ErrorMessage error={scheduleError} onRetry={retrySchedule} />
+          ) : (
+            <>
+              <p className="big-number">{todays.length}</p>
+              <Link to="/admin/bookings">Open bookings</Link>
+            </>
+          )}
+        </section>
+        <section className="card">
+          <h2>Next booking</h2>
+          {schedulePending ? <PageLoader /> : scheduleError ? (
+            <ErrorMessage error={scheduleError} onRetry={retrySchedule} />
+          ) : next ? (
+            <>
+              <p>
+                <strong>{formatHour(hourInZone(next.slot_start, tz))}–{formatHour(hourInZone(next.slot_end, tz))}</strong> · {next.court_name}
+                <span className="muted small block">{next.guest_name}</span>
+              </p>
+              <Link to="/admin/bookings">Open bookings</Link>
+            </>
+          ) : (
+            <>
+              <p className="muted">No more bookings today</p>
+              <Link to="/admin/bookings">Open bookings</Link>
+            </>
+          )}
+        </section>
       </div>
 
       {WalkInSection && (
@@ -114,7 +145,12 @@ function Dashboard({ settings, courts, hours }: { settings: VenueSettings; court
 
       <section className="card stack" aria-labelledby="day-view-heading">
         <h2 id="day-view-heading">Today's courts</h2>
-        {availability.isPending || schedulePending ? <PageLoader /> : availability.isError ? (
+        {courts.length === 0 ? (
+          <div>
+            <p className="muted">No courts yet.</p>
+            <Link to="/admin/courts/new" className="btn btn-small">Add court</Link>
+          </div>
+        ) : availability.isPending || schedulePending ? <PageLoader /> : availability.isError ? (
           <ErrorMessage error={availability.error} onRetry={() => availability.refetch()} />
         ) : scheduleError ? (
           <ErrorMessage error={scheduleError} onRetry={retrySchedule} />
@@ -129,7 +165,7 @@ function Dashboard({ settings, courts, hours }: { settings: VenueSettings; court
         {schedulePending ? <PageLoader /> : scheduleError ? (
           <ErrorMessage error={scheduleError} onRetry={retrySchedule} />
         ) : todays.length === 0 ? (
-          <p className="muted">No bookings today.</p>
+          <p className="muted">No bookings today. {todayHoursLabel(staffHours.data ?? [], tz, today)}</p>
         ) : (
           <ul className="list">
             {todays.map((b) => {

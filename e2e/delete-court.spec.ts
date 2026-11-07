@@ -19,7 +19,7 @@ test('an admin deletes an unbooked court, and a booked court is refused', async 
   await page.getByRole('button', { name: `Yes, delete ${name}` }).click()
 
   await expect(page).toHaveURL(/\/admin\/courts$/)
-  await expect(page.getByRole('heading', { name: 'Courts & rates' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Courts', exact: true })).toBeVisible()
   await expect(page.getByText(name)).toHaveCount(0)
   const { count } = await serviceClient().from('courts').select('id', { count: 'exact', head: true }).eq('id', court.id)
   expect(count).toBe(0)
