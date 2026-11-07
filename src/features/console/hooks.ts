@@ -112,10 +112,13 @@ export function useReactivateVenue() {
   })
 }
 
-/** Loaded only while the delete dialog is open; always fresh, since a booking can arrive at any time. */
+/**
+ * Loaded only while the delete dialog is open; always fresh, since a booking can arrive at any time. Kept outside
+ * the 'venues-overview' key so the delete's own invalidation doesn't refetch it for a venue that no longer exists.
+ */
 export function useVenueDeletionPreview(venueId: string, enabled: boolean) {
   return useQuery({
-    queryKey: ['venues-overview', 'deletion-preview', venueId],
+    queryKey: ['venue-deletion-preview', venueId],
     queryFn: () => fetchVenueDeletionPreview(venueId),
     enabled,
     staleTime: 0,

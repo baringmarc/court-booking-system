@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { startTransition, useState, type FormEvent } from 'react'
 import { formatMoney } from '../../lib/format'
 import type { OwnerInviteSent, VenueOverview } from './api'
 import { DeleteVenueDialog } from './DeleteVenueDialog'
@@ -96,12 +96,15 @@ export function VenuesPage() {
   }
 
   function deleted(target: { venue: VenueOverview; lastOnPage: boolean }, cleanupPending = false) {
-    setDeleting(null)
-    setDeletedMessage(cleanupPending
-      ? `${target.venue.name} was deleted. Its file cleanup is still pending and is retried with the next venue deletion.`
-      : `${target.venue.name} was deleted.`)
-    // Measured when the dialog opened: the row is already gone from the list once cleanup has been retried.
-    setView({ open: null, page: target.lastOnPage && state.page > 1 ? state.page - 1 : state.page })
+    // One transition, since the router applies URL changes in one: the dialog and the deleted venue's panel close together.
+    startTransition(() => {
+      setDeleting(null)
+      setDeletedMessage(cleanupPending
+        ? `${target.venue.name} was deleted. Its file cleanup is still pending and is retried with the next venue deletion.`
+        : `${target.venue.name} was deleted.`)
+      // Measured when the dialog opened: the row is already gone from the list once cleanup has been retried.
+      setView({ open: null, page: target.lastOnPage && state.page > 1 ? state.page - 1 : state.page })
+    })
   }
 
   return (
