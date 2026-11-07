@@ -94,6 +94,19 @@ test('admin pages have no serious accessibility violations', async ({ page }) =>
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
   await expect(page.getByRole('status').filter({ hasText: /Loading/ })).toHaveCount(0)
   await checkPage(page, 'admin bookings')
+
+  // T17.30: the polished Courts page (with archived courts) and the dashboard's new cards.
+  await page.goto('/admin/courts')
+  await expect(page.getByRole('heading', { level: 1, name: 'Courts', exact: true })).toBeVisible()
+  await expect(page.getByText(/\d+ active/)).toBeVisible()
+  await checkPage(page, 'admin courts')
+
+  await page.goto('/admin')
+  await expect(page.getByRole('heading', { level: 1, name: 'Dashboard' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: "Today's bookings" })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Next booking' })).toBeVisible()
+  await expect(page.getByRole('status').filter({ hasText: /Loading/ })).toHaveCount(0)
+  await checkPage(page, 'admin dashboard with cards')
 })
 
 test('pages reflow at 200% zoom', async ({ page }, testInfo) => {

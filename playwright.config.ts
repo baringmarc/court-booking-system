@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs'
 import { defineConfig, devices } from '@playwright/test'
 import { localSupabase } from './e2e/support/local.ts'
 
@@ -8,9 +9,14 @@ const PORT = 5179
 // Every flow runs under the demo venue's subdomain (T13.9): Chromium resolves *.localhost to loopback, and the app
 // reads the venue from the host. `app.localhost` (console) and other venues' hosts use full URLs in their specs.
 export const VENUE_HOST = `http://claudex-courts.localhost:${PORT}`
+// The marketing site (T17.30's showcase journey) runs from the sibling checkout when there is one, like check:drift.
+const SITE_DIR = '../plotline-site'
+const hasSite = existsSync(`${SITE_DIR}/package.json`)
+const SITE_PORT = 5180
 
 export default defineConfig({
   testDir: 'e2e',
+  testIgnore: hasSite ? [] : ['showcase-feed.spec.ts'],
   // One worker: the flows book real slots, so desktop and phone must not race for the same one.
   workers: 1,
   fullyParallel: false,
@@ -32,16 +38,26 @@ export default defineConfig({
     // Mobile-first is a requirement: run every flow at 360px too.
     { name: 'phone', use: { ...devices['Pixel 5'], viewport: { width: 360, height: 780 } } },
   ],
-  webServer: {
-    command: `npx vite --port ${PORT} --strictPort --host 127.0.0.1`,
-    url: `http://127.0.0.1:${PORT}`,
-    reuseExistingServer: false,
-    timeout: 60_000,
-    env: {
-      VITE_SUPABASE_URL: supabase.url,
-      VITE_SUPABASE_PUBLISHABLE_KEY: supabase.publishableKey,
-      // Walk-ins are hidden in production builds (T11.2); the walk-in specs need them.
-      VITE_FEATURE_WALK_INS: 'true',
+  webServer: [
+    {
+      command: `npx vite --port ${PORT} --strictPort --host 127.0.0.1`,
+      url: `http://127.0.0.1:${PORT}`,
+      reuseExistingServer: false,
+      timeout: 60_000,
+      env: {
+        VITE_SUPABASE_URL: supabase.url,
+        VITE_SUPABASE_PUBLISHABLE_KEY: supabase.publishableKey,
+        // Walk-ins are hidden in production builds (T11.2); the walk-in specs need them.
+        VITE_FEATURE_WALK_INS: 'true',
+      },
     },
-  },
+    ...(hasSite ? [{
+      command: `npx vite --port ${SITE_PORT} --strictPort --host 127.0.0.1`,
+      cwd: SITE_DIR,
+      url: `http://127.0.0.1:${SITE_PORT}`,
+      reuseExistingServer: false,
+      timeout: 60_000,
+      env: { VITE_SUPABASE_URL: supabase.url, VITE_SUPABASE_PUBLISHABLE_KEY: supabase.publishableKey },
+    }] : []),
+  ],
 })

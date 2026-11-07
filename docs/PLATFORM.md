@@ -154,4 +154,6 @@ The user approved platform-admin-only Showcase control and a live marketing feed
 
 Both projects now run the T17.7 implementation (the T14.13 opt-in no longer publishes a venue). Platform implementation precedes the marketing consumer. Marketing uses its existing public client/query cache, bounded refetch and loading/empty/error states. The separate demo CTA remains; the featured feed must not fall back to unapproved or unpublished venues. No siteForms or Edge Function contract change is planned.
 
+plotline-site T3.1 (2026-11-07, commit `9f7f2cc` there, not deployed): the Venues section reads `public_venues` live (5-minute stale time, refetch on focus, at most 24 by name), filters out `claudex-courts` (the demo keeps its own link) and shows the demo card when the feed is empty or fails. No contract change. T17.30's `e2e/showcase-feed.spec.ts` runs that site against the local stack and proves the console approval → marketing page journey.
+
 T17.17 (schedule cutover; migration released 2026-11-06, no venue activated): no contract change for plotline-site. `public_venues`, `site-contact` and `site-review` are untouched. Release and rollback: `docs/SCHEDULE-CUTOVER.md`.

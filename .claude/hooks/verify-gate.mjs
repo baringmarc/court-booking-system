@@ -17,16 +17,23 @@
 // Database and e2e runs share the local stack, so those npm scripts go through scripts/with-lock.mjs:
 // a second run waits for the first instead of colliding with it.
 //
+// A full run takes longer than a Bash call may (over 10 minutes with e2e), so it often finishes in the background
+// after the turn ends. While it runs it holds .claude/state/full-gate.lock, and the Stop hook skips (without
+// touching the state file) while that lock or the local-stack lock belongs to a live process (H13): its Vitest
+// would otherwise run alongside the full run's and give false timeouts. Commits still need a passing full run.
+//
 // Every failure is logged to .claude/retro/failures.jsonl (once per check and set of changes) for /retro.
 // State lives in .claude/.verify-state.json (gitignored).
 
 import { spawnSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { closeSync, mkdirSync, openSync, readFileSync, rmSync, writeSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 import { clearSessionEdit, codeFingerprint, config, existsSync, logEvent, paths, readJson, root, sessionEdited, uiFingerprint, writeJson } from './lib/harness.mjs'
 
 const MAX_ATTEMPTS = 3
 const FULL = process.argv.includes('--full')
+const fullLockPath = join(root, '.claude', 'state', 'full-gate.lock')
+const stackLockPath = join(root, '.claude', 'state', 'local-stack.lock')
 
 if (!existsSync(join(root, '.git')) || !existsSync(join(root, 'node_modules'))) process.exit(0)
 
@@ -72,6 +79,25 @@ function runChecks(tier, list) {
   return { ok: true }
 }
 
+function alive(pid) {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch (e) {
+    return e.code === 'EPERM'
+  }
+}
+
+/** The lock's holder ({ pid, cmd, since }) when a live process holds it; null when free or stale. */
+function liveHolder(lockPath) {
+  try {
+    const holder = JSON.parse(readFileSync(lockPath, 'utf8'))
+    return Number.isInteger(holder.pid) && alive(holder.pid) ? holder : null
+  } catch {
+    return null
+  }
+}
+
 function localStackRunning() {
   const [cmd, ...args] = config.e2e.stackCheck
   const result = spawnSync(cmd, args, { cwd: root, encoding: 'utf8', timeout: 30_000 })
@@ -81,6 +107,21 @@ function localStackRunning() {
 // ---------- FULL (CLI) ----------
 
 if (FULL) {
+  const other = liveHolder(fullLockPath)
+  if (other && other.pid !== process.pid) {
+    console.log(`Another full run is in progress (pid ${other.pid}, since ${other.since}). Wait for it instead of starting a second one.`)
+    process.exit(1)
+  }
+  mkdirSync(dirname(fullLockPath), { recursive: true }) // .claude/state/ is gitignored, so a fresh clone lacks it
+  const fd = openSync(fullLockPath, 'w')
+  writeSync(fd, JSON.stringify({ pid: process.pid, cmd: 'verify-gate --full', since: new Date().toISOString() }))
+  closeSync(fd)
+  const releaseLock = () => {
+    if (liveHolder(fullLockPath)?.pid === process.pid) rmSync(fullLockPath, { force: true })
+  }
+  // A killed run leaves the file behind; its pid is then dead, so liveHolder treats it as free.
+  process.on('exit', releaseLock)
+
   const finish = (exit, msg) => {
     writeJson(paths.verifyState, state)
     console.log(msg)
@@ -120,6 +161,16 @@ if (FULL) {
 // ---------- FAST (Stop hook) ----------
 
 const input = JSON.parse(readFileSync(0, 'utf8') || '{}')
+
+// A full run, or a test:db/test:e2e run, is using the machine: skip without writing state, so the full run's
+// result isn't overwritten and its tests don't time out under a second Vitest (H13).
+const busy = liveHolder(fullLockPath) ?? liveHolder(stackLockPath)
+if (busy) {
+  process.stdout.write(JSON.stringify({
+    systemMessage: `verify-gate: fast checks skipped while \`${busy.cmd}\` runs (pid ${busy.pid}, since ${busy.since}). Wait for its result; commits still need a passing full run.`,
+  }))
+  process.exit(0)
+}
 
 function respond(obj) {
   writeJson(paths.verifyState, state)

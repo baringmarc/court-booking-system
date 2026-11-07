@@ -1,5 +1,6 @@
 // Pure logic for the admin dashboard and walk-in form.
 import type { Slot } from '../booking/selection'
+import { hourOnDate, spansLabel } from '../catalog/hours'
 
 /**
  * One operating day's bookings from the calendar-date lists fetched for it (T9.10): each booking once (one that
@@ -32,4 +33,31 @@ export function maxWalkInSlots(courtSlots: Slot[], startIndex: number, now: Date
     count++
   }
   return count
+}
+
+/**
+ * Today's open hours across every court ("Open 6 AM – 10 PM", "Open 6 AM – 12 PM, 2 PM – 10 PM", "Closed today"),
+ * from `get_staff_schedule`'s periods: one per court and period, so overlapping or touching ones are merged.
+ */
+export function todayHoursLabel(periods: { period_start: string; period_end: string }[], timeZone: string, operatingDate: string): string {
+  if (periods.length === 0) return 'Closed today'
+  const midnight = Date.parse(hourOnDate(operatingDate, 0, timeZone))
+  const spans = periods
+    .map((p) => ({ open: (Date.parse(p.period_start) - midnight) / 3_600_000, end: (Date.parse(p.period_end) - midnight) / 3_600_000 }))
+    .sort((a, b) => a.open - b.open)
+  const merged: { open: number; end: number }[] = []
+  for (const span of spans) {
+    const last = merged.at(-1)
+    if (last && span.open <= last.end) last.end = Math.max(last.end, span.end)
+    else merged.push({ ...span })
+  }
+  const text = spansLabel(merged)
+  return text === 'Open 24 hours' ? text : `Open ${text}`
+}
+
+/** The booking on now or the next one to start (bookings sorted or not); null when every one has ended. */
+export function nextBooking<T extends { slot_start: string; slot_end: string }>(bookings: T[], now: Date): T | null {
+  return [...bookings]
+    .sort((a, b) => Date.parse(a.slot_start) - Date.parse(b.slot_start))
+    .find((b) => Date.parse(b.slot_end) > now.getTime()) ?? null
 }

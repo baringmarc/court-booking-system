@@ -50,7 +50,7 @@ export function storageAdapter(client: StorageClient): CleanupStorage {
 }
 
 /** Every file path under `folder`, walking subfolders (Storage lists one level, folders have a null id). */
-async function filesUnder(storage: CleanupStorage, bucket: string, folder: string): Promise<string[]> {
+export async function filesUnder(storage: CleanupStorage, bucket: string, folder: string): Promise<string[]> {
   const files: string[] = []
   const folders = [folder]
   while (folders.length > 0) {
