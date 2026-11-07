@@ -70,15 +70,15 @@ type OwnerEmailInput = { kind: OwnerEmailKind; venueName: string; venueUrl: stri
 const COPY: Record<OwnerEmailKind, { subject: (venue: string) => string; intro: (venue: string) => string; button: string; does: string }> = {
   invite: {
     subject: (venue) => `Set up your Plotline account for ${venue}`,
-    intro: (venue) => `You've been added as the owner of ${venue} on Plotline, where you'll manage its courts, schedule, bookings and payments.`,
+    intro: (venue) => `Welcome to Plotline! You've been added as the owner of ${venue}, where you'll manage your venue’s courts, schedule, bookings and payments.`,
     button: 'Set up your account',
-    does: 'The button signs you in to your new account and asks you to choose a password. It works once and expires after a while; if it stops working, ask Plotline for a new one.',
+    does: 'Click the button to sign in and choose your password. This link can only be used once and will expire. If it no longer works, reply to this email and we’ll send you a new one.',
   },
   link: {
     subject: (venue) => `Your fresh Plotline access link for ${venue}`,
     intro: (venue) => `Here is a fresh access link to ${venue} on Plotline, where you manage its courts, schedule, bookings and payments.`,
     button: 'Sign in and set your password',
-    does: 'The button signs you in and asks you to choose a password. It works once and expires after a while; if it stops working, ask Plotline for a new one.',
+    does: 'Click the button to sign in and choose your password. This link can only be used once and will expire. If it no longer works, reply to this email and we’ll send you a new one.',
   },
   welcome: {
     subject: (venue) => `Welcome to ${venue} on Plotline`,
@@ -93,20 +93,22 @@ export function ownerEmail(input: OwnerEmailInput): { subject: string; html: str
   const venue = input.venueName.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim() || 'your venue'
   const copy = COPY[input.kind]
   const target = input.kind === 'welcome' ? input.venueUrl : (input.link ?? '')
-  const guide = `The venue owner guide (PDF) walks you through setup and daily operations. It's attached, and you can also download it here: ${input.guideUrl}`
-  const help = `Need help? Reply to this email or write to ${OWNER_SUPPORT_EMAIL}. You can also reach us on Facebook (${OWNER_FACEBOOK_URL}) or Messenger (${OWNER_MESSENGER_URL}). If you'd like a call to walk through setup, contact support and we'll arrange one.`
+  const guide = `Your venue owner guide is attached to help you get started, from setting up your venue to managing day-to-day operations. You can also download the guide here: ${input.guideUrl}`
+  const help = `Need a hand? Reply to this email or contact us at ${OWNER_SUPPORT_EMAIL}. We’re also available on Facebook (${OWNER_FACEBOOK_URL}) and Messenger (${OWNER_MESSENGER_URL}).`
+  const walkthrough = 'If you’d prefer a guided walkthrough, let us know and we’ll arrange a call.'
   const address = input.venueAddress?.replace(/\s+/g, '').trim()
-  const where = address ? `Your venue's Plotline address is ${address}.` : ''
-  const text = [copy.intro(venue), where, `${copy.button}: ${target}`, copy.does, guide, help, 'Plotline'].filter(Boolean).join('\n\n')
+  const where = address ? `Your venue’s address is ${address}.` : ''
+  const text = [copy.intro(venue), where, `${copy.button}: ${target}`, copy.does, guide, help, walkthrough, 'See you on court,\nThe Plotline team'].filter(Boolean).join('\n\n')
   const a = (href: string, label: string) => `<a href="${escapeHtml(href)}">${escapeHtml(label)}</a>`
   const html = [
-    `<p>${escapeHtml(copy.intro(venue))}</p>`,
-    where ? `<p>${escapeHtml(where)}</p>` : '',
+    `<p>${copy.intro(`<strong>${escapeHtml(venue)}</strong>`)}</p>`,
+    address ? `<p>Your venue’s address is ${a(new URL('/', input.venueUrl).href, address)}.</p>` : '',
     `<p>${a(target, copy.button)}</p>`,
     `<p>${escapeHtml(copy.does)}</p>`,
-    `<p>The venue owner guide (PDF) walks you through setup and daily operations. It's attached, and you can also ${a(input.guideUrl, 'download it here')} (${escapeHtml(input.guideUrl)}).</p>`,
-    `<p>Need help? Reply to this email or write to ${a(`mailto:${OWNER_SUPPORT_EMAIL}`, OWNER_SUPPORT_EMAIL)}. You can also reach us on ${a(OWNER_FACEBOOK_URL, 'Facebook')} (${escapeHtml(OWNER_FACEBOOK_URL)}) or ${a(OWNER_MESSENGER_URL, 'Messenger')} (${escapeHtml(OWNER_MESSENGER_URL)}). If you'd like a call to walk through setup, contact support and we'll arrange one.</p>`,
-    '<p>Plotline</p>',
+    `<p>Your <strong>venue owner guide</strong> is attached to help you get started, from setting up your venue to managing day-to-day operations. You can also ${a(input.guideUrl, 'download the guide here')}.</p>`,
+    `<p>Need a hand? Reply to this email or contact us at ${a(`mailto:${OWNER_SUPPORT_EMAIL}`, OWNER_SUPPORT_EMAIL)}. We’re also available on ${a(OWNER_FACEBOOK_URL, 'Facebook')} and ${a(OWNER_MESSENGER_URL, 'Messenger')}.</p>`,
+    `<p>${escapeHtml(walkthrough)}</p>`,
+    '<p>See you on court,<br><strong>The Plotline team</strong></p>',
   ].join('')
   return { subject: copy.subject(venue), html, text }
 }
