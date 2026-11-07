@@ -60,7 +60,7 @@ export default {
     const parsed = parseInviteBody(await req.json().catch(() => null))
     if (!parsed.ok) return json({ code: 'invalid_input', message: 'Send a venue and a valid email.' }, 400)
 
-    const { data: venue } = await admin.from('venues').select('id, slug').eq('id', parsed.venueId).maybeSingle()
+    const { data: venue } = await admin.from('venues').select('id, slug, status').eq('id', parsed.venueId).maybeSingle()
     if (!venue) return json({ code: 'not_found', message: 'Venue not found.' }, 404)
 
     const rootDomain = Deno.env.get('PUBLIC_ROOT_DOMAIN')
@@ -128,6 +128,7 @@ export default {
       link,
       guideUrl,
       venueAddress: rootDomain ? `${venue.slug}.${rootDomain}` : venue.slug,
+      venueStatus: venue.status,
     })
     const sent = await sendEmail(
       fetch,

@@ -243,3 +243,66 @@ test('a platform admin resends from the console: the message names what was sent
     await deleteVenue(venue.id)
   }
 })
+
+// T16.6: the owner email lists the next steps, puts the button before the address, and links the address only once the venue is live.
+function addressAround(html: string, slug: string) {
+  const at = html.indexOf(slug)
+  expect(at, 'venue address in html').toBeGreaterThan(-1)
+  return at
+}
+
+test('a draft venue: the invite email shows the button before the address, which is plain text and goes live on publishing', async () => {
+  const venue = await createVenue('owner-mail')
+  const admin = await createPlatformAdmin()
+  const email = uniqueEmail('owner-draft')
+  try {
+    const { error } = await serviceClient().from('venues').update({ status: 'draft' }).eq('id', venue.id)
+    if (error) throw error
+    const res = await callAs(await sessionToken(admin.email, admin.password), { venue_id: venue.id, email })
+    expect(res.status).toBe(200)
+    const mail = await mailAbout(email, venue.name)
+    expectCommonContent(mail, venue.name)
+    const link = mail.Text.match(/https?:\/\/\S+\/auth\/v1\/verify\?\S+/)?.[0]
+    expect(link, 'verify link in the invite email').toBeTruthy()
+    expect(mail.Text).toContain('What happens next')
+    expect(mail.HTML).toContain('What happens next')
+    expect(mail.Text.indexOf(link!)).toBeLessThan(mail.Text.indexOf(venue.slug, mail.Text.indexOf('What happens next')))
+    expect(mail.Text).toMatch(/publish/i)
+    expect(mail.HTML).toMatch(/publish/i)
+    // The button comes first in the html too; the address is not wrapped in a link.
+    expect(mail.HTML.indexOf('/auth/v1/verify')).toBeLessThan(addressAround(mail.HTML.slice(mail.HTML.indexOf('What happens next')), venue.slug) + mail.HTML.indexOf('What happens next'))
+    expect(mail.HTML).not.toMatch(new RegExp(`<a [^>]*>\\s*${venue.slug}[^<]*</a>`))
+    expect(mail.HTML).not.toMatch(new RegExp(`<a [^>]*href="[^"]*${venue.slug}[^"]*"`))
+  } finally {
+    await cleanupUser(email)
+    await deleteVenue(venue.id)
+  }
+})
+
+test('an active venue: the invite email links the venue address', async () => {
+  const venue = await createVenue('owner-mail')
+  const admin = await createPlatformAdmin()
+  const email = uniqueEmail('owner-active')
+  try {
+    const res = await callAs(await sessionToken(admin.email, admin.password), { venue_id: venue.id, email })
+    expect(res.status).toBe(200)
+    const mail = await mailAbout(email, venue.name)
+    // The address host depends on PUBLIC_ROOT_DOMAIN (unset locally: bare slug, link to the site origin), so only the link text is checked.
+    const next = mail.HTML.indexOf('What happens next')
+    expect(next).toBeGreaterThan(-1)
+    expect(mail.HTML.slice(next)).toMatch(new RegExp(`<a [^>]*href="https?://[^"]+"[^>]*>[^<]*${venue.slug}[^<]*</a>`))
+    expect(mail.Text.indexOf('What happens next')).toBeGreaterThan(-1)
+  } finally {
+    await cleanupUser(email)
+    await deleteVenue(venue.id)
+  }
+})
+
+test('an unknown venue address shows "Venue not found" with a sign-in hint for owners, axe clean', async ({ page }) => {
+  await page.goto(`http://e2e-nope-${Date.now()}.localhost:5179/`)
+  await expect(page.getByRole('heading', { name: 'Venue not found' })).toBeVisible()
+  const hint = page.getByRole('link', { name: /sign in to set it up/i })
+  await expect(hint).toBeVisible()
+  await expect(hint).toHaveAttribute('href', '/admin')
+  expect(await axeBothSchemes(page)).toEqual([])
+})

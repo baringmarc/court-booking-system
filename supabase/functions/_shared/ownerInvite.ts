@@ -1,5 +1,5 @@
 // Pure helpers for `invite-venue-owner` (T14.5), kept free of Deno imports so Vitest can test them.
-import { escapeHtml } from './emailTemplates.ts'
+import { BUTTON_STYLE, escapeHtml } from './emailTemplates.ts'
 import { venueSiteBase, type VenueSiteInput } from './venueSite.ts'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -64,8 +64,20 @@ export function ownerGuideSource(siteBase: string, override?: string | null): st
   return configured && /^https?:\/\/\S+$/.test(configured) ? configured : ownerGuideUrl(siteBase)
 }
 
-/** `venueAddress` is the venue's Plotline address (e.g. `forty.plotline.fit`), named so the owner knows which venue it is. */
-type OwnerEmailInput = { kind: OwnerEmailKind; venueName: string; venueUrl: string; link?: string; guideUrl: string; venueAddress?: string }
+/**
+ * `venueAddress` is the venue's Plotline address (e.g. `forty.plotline.fit`), named so the owner knows which venue it is.
+ * `venueStatus` is `venues.status`: only an `active` venue's address is a link, because anon sees "Venue not found" for
+ * any other (T16.6).
+ */
+type OwnerEmailInput = {
+  kind: OwnerEmailKind
+  venueName: string
+  venueUrl: string
+  link?: string
+  guideUrl: string
+  venueAddress?: string
+  venueStatus?: string
+}
 
 const COPY: Record<OwnerEmailKind, { subject: (venue: string) => string; intro: (venue: string) => string; button: string; does: string }> = {
   invite: {
@@ -88,23 +100,45 @@ const COPY: Record<OwnerEmailKind, { subject: (venue: string) => string; intro: 
   },
 }
 
-/** The branded email an owner gets for each account state (T17.25), with the guide and Plotline's support channels. */
+/** The branded email an owner gets for each account state (T17.25): the button first, then what happens next (T16.6). */
 export function ownerEmail(input: OwnerEmailInput): { subject: string; html: string; text: string } {
   const venue = input.venueName.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim() || 'your venue'
   const copy = COPY[input.kind]
   const target = input.kind === 'welcome' ? input.venueUrl : (input.link ?? '')
+  const live = input.venueStatus === 'active'
+  const address = input.venueAddress?.replace(/\s+/g, '').trim()
+  const a = (href: string, label: string, style?: string) =>
+    `<a href="${escapeHtml(href)}"${style ? ` style="${style}"` : ''}>${escapeHtml(label)}</a>`
+
+  // The address goes last: a draft venue shows "Venue not found" until it is published, so it's plain text then.
+  const steps = (where: (address: string) => string) => [
+    input.kind === 'welcome' ? 'Sign in with the button above.' : 'Set up your account with the button above.',
+    live ? 'Check your setup checklist on the dashboard.' : 'Complete the setup checklist in your venue admin.',
+    live
+      ? address ? `Your booking page is live at ${where(address)}.` : 'Your booking page is live.'
+      : address ? `Publish your venue, and your booking page goes live at ${where(address)}.` : 'Publish your venue, and your booking page goes live.',
+  ]
+  const siteLink = (label: string) => (live ? a(new URL('/', input.venueUrl).href, label) : escapeHtml(label))
+
   const guide = `Your venue owner guide is attached to help you get started, from setting up your venue to managing day-to-day operations. You can also download the guide here: ${input.guideUrl}`
   const help = `Need a hand? Reply to this email or contact us at ${OWNER_SUPPORT_EMAIL}. We’re also available on Facebook (${OWNER_FACEBOOK_URL}) and Messenger (${OWNER_MESSENGER_URL}).`
   const walkthrough = 'If you’d prefer a guided walkthrough, let us know and we’ll arrange a call.'
-  const address = input.venueAddress?.replace(/\s+/g, '').trim()
-  const where = address ? `Your venue’s address is ${address}.` : ''
-  const text = [copy.intro(venue), where, `${copy.button}: ${target}`, copy.does, guide, help, walkthrough, 'See you on court,\nThe Plotline team'].filter(Boolean).join('\n\n')
-  const a = (href: string, label: string) => `<a href="${escapeHtml(href)}">${escapeHtml(label)}</a>`
+  const text = [
+    copy.intro(venue),
+    `${copy.button}: ${target}`,
+    copy.does,
+    ['What happens next:', ...steps((x) => x).map((step, i) => `${i + 1}. ${step}`)].join('\n'),
+    guide,
+    help,
+    walkthrough,
+    'See you on court,\nThe Plotline team',
+  ].join('\n\n')
   const html = [
     `<p>${copy.intro(`<strong>${escapeHtml(venue)}</strong>`)}</p>`,
-    address ? `<p>Your venue’s address is ${a(new URL('/', input.venueUrl).href, address)}.</p>` : '',
-    `<p>${a(target, copy.button)}</p>`,
+    `<p>${a(target, copy.button, BUTTON_STYLE)}</p>`,
     `<p>${escapeHtml(copy.does)}</p>`,
+    '<p><strong>What happens next</strong></p>',
+    `<ol>${steps(siteLink).map((step) => `<li>${step}</li>`).join('')}</ol>`,
     `<p>Your <strong>venue owner guide</strong> is attached to help you get started, from setting up your venue to managing day-to-day operations. You can also ${a(input.guideUrl, 'download the guide here')}.</p>`,
     `<p>Need a hand? Reply to this email or contact us at ${a(`mailto:${OWNER_SUPPORT_EMAIL}`, OWNER_SUPPORT_EMAIL)}. We’re also available on ${a(OWNER_FACEBOOK_URL, 'Facebook')} and ${a(OWNER_MESSENGER_URL, 'Messenger')}.</p>`,
     `<p>${escapeHtml(walkthrough)}</p>`,

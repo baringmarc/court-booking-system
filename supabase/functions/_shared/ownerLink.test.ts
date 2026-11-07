@@ -75,3 +75,90 @@ describe('ownerEmail (T17.25)', () => {
     expect(ownerEmail({ ...base, venueName: '  ', kind: 'welcome' }).subject).toContain('your venue')
   })
 })
+
+describe('ownerEmail next steps and venue address (T16.6)', () => {
+  const ADDRESS = 'forty.plotline.fit'
+  const full = (kind: 'invite' | 'link' | 'welcome', venueStatus?: string) => ({
+    ...base,
+    kind,
+    ...(kind === 'welcome' ? {} : { link: LINK }),
+    venueAddress: ADDRESS,
+    ...(venueStatus === undefined ? {} : { venueStatus }),
+  })
+  const button = (kind: 'invite' | 'link' | 'welcome') => (kind === 'welcome' ? SIGN_IN : LINK)
+  const kinds3 = ['invite', 'link', 'welcome'] as const
+
+  describe.each(kinds3)('%s', (kind) => {
+    const mail = ownerEmail(full(kind, 'draft'))
+
+    it('lists three steps under "What happens next", after the button and before the address', () => {
+      for (const body of [mail.text, mail.html]) {
+        const heading = body.indexOf('What happens next')
+        expect(heading, 'heading').toBeGreaterThan(-1)
+        expect(body.indexOf(ADDRESS, heading), 'address after steps').toBeGreaterThan(heading)
+        expect(body).toMatch(/checklist/i)
+        expect(body).toMatch(/publish/i)
+      }
+      expect(mail.text.indexOf(button(kind))).toBeLessThan(mail.text.indexOf('What happens next'))
+      const buttonAt = mail.html.indexOf(kind === 'welcome' ? `href="${SIGN_IN}"` : 'href="https://x.test/auth')
+      expect(buttonAt).toBeGreaterThan(-1)
+      expect(buttonAt).toBeLessThan(mail.html.indexOf('What happens next'))
+    })
+
+    it('puts the button before any venue-address mention, and the intro first', () => {
+      const buttonAt = mail.text.indexOf(button(kind))
+      expect(buttonAt).toBeGreaterThan(-1)
+      expect(mail.text.indexOf(ADDRESS)).toBeGreaterThan(buttonAt)
+      expect(mail.text.indexOf('Forty <Degrees> Courts')).toBeLessThan(buttonAt)
+    })
+
+    it('keeps the address after the steps and before the guide, support and sign-off', () => {
+      const t = mail.text
+      expect(t.indexOf('What happens next')).toBeGreaterThan(-1)
+      expect(t.indexOf(ADDRESS, t.indexOf('What happens next'))).toBeLessThan(t.indexOf(GUIDE))
+      expect(t.indexOf(GUIDE)).toBeLessThan(t.indexOf('plotline.admin1@gmail.com'))
+      expect(t.indexOf('plotline.admin1@gmail.com')).toBeLessThan(t.indexOf('See you on court'))
+    })
+
+    it('styles the button as a pill', () => {
+      const anchor = mail.html.match(/<a [^>]*style="[^"]*"[^>]*>[^<]*<\/a>/g)?.find((a) => a.includes(kind === 'welcome' ? SIGN_IN : 'x.test'))
+      expect(anchor, 'button anchor with a style').toBeTruthy()
+      expect(anchor).toContain('border-radius:999px')
+      expect(anchor).toContain('display:inline-block')
+      expect(anchor).toContain('background:#b7c4a8')
+    })
+
+    it('has no digits followed by hours, minutes or days anywhere', () => {
+      expect(mail.text).not.toMatch(/a day|24 hours|\d+\s*(hours?|minutes?|days?)/i)
+      expect(mail.html).not.toMatch(/a day|24 hours|\d+\s*(hours?|minutes?|days?)/i)
+    })
+
+    it('draft: the address is plain text, not a link, and goes live on publishing', () => {
+      expect(mail.html).toContain(ADDRESS)
+      expect(mail.html).not.toMatch(new RegExp(`<a [^>]*>[^<]*${ADDRESS.replace(/\./g, '\\.')}`))
+      expect(mail.html).not.toContain('href="https://forty.plotline.fit/"')
+      expect(mail.text).toMatch(/publish/i)
+      expect(mail.html).toMatch(/goes live|go live|live/i)
+    })
+
+    it.each(['suspended', 'closed', 'weird'])('status %s: the address is plain text', (status) => {
+      const m = ownerEmail(full(kind, status))
+      expect(m.html).not.toContain('href="https://forty.plotline.fit/"')
+      expect(m.html).toContain(ADDRESS)
+    })
+
+    it('omitted status: the address is plain text', () => {
+      const m = ownerEmail(full(kind))
+      expect(m.html).not.toContain('href="https://forty.plotline.fit/"')
+      expect(m.html).toContain(ADDRESS)
+    })
+
+    it('active: the address is a link to the venue origin', () => {
+      const m = ownerEmail(full(kind, 'active'))
+      expect(m.html).toContain('<a href="https://forty.plotline.fit/">forty.plotline.fit</a>')
+      expect(m.text).toContain(ADDRESS)
+      expect(m.html.indexOf('What happens next')).toBeGreaterThan(-1)
+      expect(m.html.indexOf('What happens next')).toBeLessThan(m.html.indexOf('<a href="https://forty.plotline.fit/">'))
+    })
+  })
+})
