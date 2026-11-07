@@ -1,0 +1,25 @@
+{
+  "project_ref": "sfssolhsthteonzgzfos",
+  "venues": [
+    {
+      "venue_id": "e1c4c48c-dd98-4fca-aebf-9b0f37f9bbad",
+      "slug": "forty-degrees-courts",
+      "bookings": ["80e619c6-9a26-4e1f-a938-80b9a8a1e0f0"],
+      "payments": ["327e12a5-a6ac-4d0e-b143-f814d2fc7b7a"],
+      "charges": ["c0185031-037c-48aa-b70e-6044a3e870a4"],
+      "open_play_sessions": [],
+      "counts": { "booking_changes": 0, "email_outbox": 2, "guest_link_tokens": 0, "paymongo_checkouts": 0, "open_play_courts": 0 },
+      "proof_files": ["80e619c6-9a26-4e1f-a938-80b9a8a1e0f0/0140567f-46ae-43c8-b987-01ab5ae13a9e.jpg"]
+    },
+    {
+      "venue_id": "ab10db7b-0d02-461b-9d9b-bb52c8646e20",
+      "slug": "testes",
+      "bookings": ["30aa9622-6e6d-4631-a900-e2d9652962f8"],
+      "payments": ["614b3f08-76e0-4c36-8cac-904dc2bfffe0"],
+      "charges": [],
+      "open_play_sessions": ["27143179-3ca8-443b-80ea-72297e6d9732"],
+      "counts": { "booking_changes": 0, "email_outbox": 1, "guest_link_tokens": 0, "paymongo_checkouts": 0, "open_play_courts": 2 },
+      "proof_files": ["30aa9622-6e6d-4631-a900-e2d9652962f8/ac580ad2-aa7f-4ad3-b767-c3dfaa0d64f7.png"]
+    }
+  ]
+}
