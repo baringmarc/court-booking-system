@@ -25,7 +25,7 @@
   - A venue can leave any time by email, with no notice period. We close its booking page; bookings already made stay the venue's to honor or cancel with its players.
   - Fees for bookings confirmed before it leaves go on a final invoice, due within 7 days.
   - Its admin pages and CSV export stay open for 30 days, then its data is deleted, except what the law requires us to keep (such as invoices).
-  - Contact-form leads are kept 1 year after our last contact.
+  - Contact-form leads are kept 1 year after our last contact. A platform admin may delete a lead earlier (for example a test or a request to be forgotten; SPEC §10 2026-11-05 and 2026-11-07). That never deletes a venue made from it and never blocks a new submission.
 
 ## 2. Architecture
 

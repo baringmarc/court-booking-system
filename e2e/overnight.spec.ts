@@ -30,11 +30,12 @@ test('an admin opens a day until 2 AM and a guest books an after-midnight slot',
   await addVenueStaff(venue!.id, staff.id)
   await page.goto(`${venue!.url}/admin/schedule`)
   await submitAdminLogin(page, staff.email, staff.password)
-  await expect(page.getByRole('heading', { name: 'Weekly Hours & Rates' })).toBeVisible()
+  await expect(page.getByRole('switch', { name: 'Monday open' })).toBeVisible()
   const dayGroup = page.getByRole('group', { name: DAY_NAMES[dow] })
-  await dayGroup.getByLabel(`${DAY_NAMES[dow]} period 1 closes`).selectOption({ label: '2 AM (next day)' })
-  await page.getByRole('button', { name: 'Save schedule' }).click()
-  await expect(page.getByText('Saved', { exact: true })).toBeVisible()
+  await dayGroup.getByLabel(`${DAY_NAMES[dow]} closes`).selectOption({ label: '2 AM (next day)' })
+  await page.getByRole('button', { name: 'Review & save' }).click()
+  await page.getByRole('dialog', { name: 'Review changes' }).getByRole('button', { name: 'Save changes' }).click()
+  await expect(page.getByRole('region', { name: 'Unsaved changes' })).toHaveCount(0)
 
   // Bookings read the legacy hours until scheduling is activated: activate it for this venue only.
   const { error: activateError } = await serviceClient().from('venue_schedule_state').update({ schedule_v2_active: true }).eq('venue_id', venue!.id)

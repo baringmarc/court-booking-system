@@ -112,11 +112,11 @@ describe('T17.4 settings category pages', () => {
 
   it('saves only booking rules, shows pending/success and preserves saved values across category navigation', async () => {
     mount('/admin/settings/booking')
-    const window = await screen.findByLabelText('Booking window (days ahead)')
+    const window = await screen.findByLabelText('Booking window', { exact: true })
     expect(window).toHaveValue(30)
-    expect(screen.getByLabelText('Payment hold (minutes)')).toHaveValue(60)
-    expect(screen.getByLabelText('Cancellation cutoff (hours before start)')).toHaveValue(1)
-    expect(screen.getByLabelText('Max proof rejections')).toHaveValue(2)
+    expect(screen.getByLabelText('Payment hold', { exact: true })).toHaveValue(60)
+    expect(screen.getByLabelText('Cancellation cutoff', { exact: true })).toHaveValue(1)
+    expect(screen.getByLabelText('Proof rejections allowed', { exact: true })).toHaveValue(2)
     await userEvent.clear(window)
     await userEvent.type(window, '45')
     expect(screen.getByText(/unsaved/i)).toBeInTheDocument()
@@ -131,7 +131,36 @@ describe('T17.4 settings category pages', () => {
     expect(updateVenueSettings).toHaveBeenCalledWith({ booking_window_days: 45, payment_hold_minutes: 60, cancel_cutoff_hours: 1, max_rejections: 2 })
     await userEvent.click(screen.getByRole('link', { name: /Back to Settings/ }))
     await userEvent.click(await screen.findByRole('link', { name: /Booking Rules/ }))
-    expect(await screen.findByLabelText('Booking window (days ahead)')).toHaveValue(45)
+    expect(await screen.findByLabelText('Booking window', { exact: true })).toHaveValue(45)
+  })
+
+  const RULES = [
+    ['Booking window', 'booking_window_days', '1', '365', 'days ahead', "Players can book from today up to this many days ahead. For example, 30 means today plus the next 30 days. Walk-ins you add yourself aren't limited."],
+    ['Payment hold', 'payment_hold_minutes', '5', '1440', 'minutes', "How long an online booking keeps its slot while the player pays. If they don't upload proof of payment in time, the booking expires and the slot opens up again."],
+    ['Cancellation cutoff', 'cancel_cutoff_hours', '0', '168', 'hours before start', 'Players can cancel online until this many hours before their start time; after that they have to contact you. 0 lets them cancel right up to the start. You can still cancel any booking yourself.'],
+    ['Proof rejections allowed', 'max_rejections', '1', '10', 'rejections', "How many times you can reject a player's proof of payment before the booking is rejected and its slot opens up. Until then, each rejection gives the player a new payment hold to send a better proof. With 1, the first rejection rejects the booking."],
+  ] as const
+
+  it.each(RULES)('booking rules: %s is a required whole number with min/max and a visible unit-then-hint description', async (label, _key, min, max, unit, hint) => {
+    mount('/admin/settings/booking')
+    const input = await screen.findByLabelText(label, { exact: true })
+    expect(input).toHaveAttribute('type', 'number')
+    expect(input).toBeRequired()
+    expect(input).toHaveAttribute('step', '1')
+    expect(input).toHaveAttribute('min', min)
+    expect(input).toHaveAttribute('max', max)
+    expect(input).toHaveAccessibleDescription(`${unit} ${hint}`)
+    expect(screen.getByText(hint)).toBeVisible()
+    expect(screen.getByText(hint).tagName).toBe('P')
+    expect(screen.getByText(unit, { exact: true })).toBeVisible()
+  })
+
+  it('booking rules: fields appear in order and old parenthesised labels are gone', async () => {
+    mount('/admin/settings/booking')
+    await screen.findByLabelText('Booking window', { exact: true })
+    const inputs = within(screen.getByRole('form', { name: 'Booking rules' })).getAllByRole('spinbutton')
+    expect(inputs.map((i) => i.getAttribute('max'))).toEqual(['365', '1440', '168', '10'])
+    expect(screen.queryByLabelText('Payment hold (minutes)')).not.toBeInTheDocument()
   })
 
   it('retains dirty name after another group saves and settings refetches', async () => {
@@ -150,13 +179,13 @@ describe('T17.4 settings category pages', () => {
 
   it('blocks dirty internal navigation, Stay keeps values, Leave permits navigation', async () => {
     mount('/admin/settings/booking')
-    const input = await screen.findByLabelText('Payment hold (minutes)')
+    const input = await screen.findByLabelText('Payment hold', { exact: true })
     await userEvent.clear(input)
     await userEvent.type(input, '90')
     await userEvent.click(screen.getByRole('link', { name: /Back to Settings/ }))
     const dialog = await screen.findByRole('dialog', { name: 'Unsaved changes' })
     await userEvent.click(within(dialog).getByRole('button', { name: 'Stay' }))
-    expect(screen.getByLabelText('Payment hold (minutes)')).toHaveValue(90)
+    expect(screen.getByLabelText('Payment hold', { exact: true })).toHaveValue(90)
     await userEvent.click(screen.getByRole('link', { name: /Back to Settings/ }))
     await userEvent.click(within(await screen.findByRole('dialog', { name: 'Unsaved changes' })).getByRole('button', { name: 'Leave' }))
     expect(await screen.findByRole('link', { name: /Booking Rules/ })).toBeInTheDocument()
@@ -165,7 +194,7 @@ describe('T17.4 settings category pages', () => {
 
   it('keeps failed drafts, reports save errors, and permits retry', async () => {
     mount('/admin/settings/booking')
-    const input = await screen.findByLabelText('Payment hold (minutes)')
+    const input = await screen.findByLabelText('Payment hold', { exact: true })
     await userEvent.clear(input)
     await userEvent.type(input, '90')
     vi.mocked(updateVenueSettings).mockRejectedValueOnce(new ApiError('permission denied for table venue_settings', '42501'))

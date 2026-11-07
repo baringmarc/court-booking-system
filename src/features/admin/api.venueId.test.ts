@@ -90,7 +90,7 @@ describe('admin writes pass venue_id (T12.10)', () => {
   })
 
   it('banner updates filter on venue_id, not on the constant id', async () => {
-    await saveBanner({ banner_path: null }, { alt: 'Courts at dusk' })
+    await saveBanner({ banner_path: null }, { alt: 'Courts at dusk', image: png })
     const update = find('venue_settings', 'update')!
     expect(update.eqs).toContainEqual(['venue_id', VENUE])
     expect(update.eqs.map(([c]) => c)).not.toContain('id')

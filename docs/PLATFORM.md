@@ -56,7 +56,7 @@ Anything here is a **public API**: changing it can break the live marketing site
 
 Both are `POST`, called with `supabase.functions.invoke(name, { body })` and the publishable key (`verify_jwt = false`). Both answer `{ ok: true, … }` on success, and `{ ok: false, error }` with a readable message on 4xx/5xx. Bots (the honeypot filled, or the form sent within 3 seconds of first touch) get a fake success.
 
-**`site-contact`**: a venue owner's contact form. Stores a lead and emails `LEAD_ALERT_TO` (best-effort: a failed alert never fails the save); no account is created. Only platform admins read leads (RLS); nothing in the marketing site reads them.
+**`site-contact`**: a venue owner's contact form. Stores a lead and emails `LEAD_ALERT_TO` (best-effort: a failed alert never fails the save); no account is created. Only platform admins read leads (RLS); nothing in the marketing site reads them. Platform admins may delete a lead (`delete_lead`, T17.26); that never affects a venue or account and the same person can submit again.
 
 | Field | Type | Rule |
 | --- | --- | --- |
@@ -148,10 +148,10 @@ The backend side is done and live on the linked project (`leads` T14.2, `reviews
 
 For Claude Code: start in one repo and add the other with `claude --add-dir ../plotline-site` (or `../court-booking-system`), or `/add-dir` during a session.
 
-## Approved M17 transition (2026-11-03; not deployed)
+## Approved M17 transition (2026-11-03; released 2026-11-06)
 
-The user approved platform-admin-only Showcase control and a live marketing feed, superseding venue-editable opt-in and plotline-site’s demo-only list decision. T17.7 introduces `venues.showcase_approved` (default false) and the authorized `set_venue_showcase_approval` RPC; the previous `venue_settings.showcase_opt_in` selections remain unchanged for review before activation, and direct writes to that legacy column are blocked. The public view keeps exactly `slug, name, city, logo_url` and their existing types; `logo_url` remains a path in `venue-media`. Only active approved venues appear. City stays venue-editable, and ordinary settings updates continue to work. This local migration is not deployed; staging and production releases each require separate approval.
+The user approved platform-admin-only Showcase control and a live marketing feed, superseding venue-editable opt-in and plotline-site’s demo-only list decision. T17.7 introduces `venues.showcase_approved` (default false) and the authorized `set_venue_showcase_approval` RPC; the previous `venue_settings.showcase_opt_in` selections remain unchanged for review before activation, and direct writes to that legacy column are blocked. The public view keeps exactly `slug, name, city, logo_url` and their existing types; `logo_url` remains a path in `venue-media`. Only active approved venues appear. City stays venue-editable, and ordinary settings updates continue to work. Released to staging and production on 2026-11-06 with the user's approval; until a platform admin approves venues, production `public_venues` returns no rows.
 
-Until the T17.7 migration is released, deployed projects still use the T14.13 implementation described in the previous Showcase contract. Platform implementation precedes the marketing consumer; staging and production release each require separate approval. Marketing uses its existing public client/query cache, bounded refetch and loading/empty/error states. The separate demo CTA remains; the featured feed must not fall back to unapproved or unpublished venues. No siteForms or Edge Function contract change is planned.
+Both projects now run the T17.7 implementation (the T14.13 opt-in no longer publishes a venue). Platform implementation precedes the marketing consumer. Marketing uses its existing public client/query cache, bounded refetch and loading/empty/error states. The separate demo CTA remains; the featured feed must not fall back to unapproved or unpublished venues. No siteForms or Edge Function contract change is planned.
 
-T17.17 (schedule cutover, local only): no contract change for plotline-site. `public_venues`, `site-contact` and `site-review` are untouched. Release and rollback: `docs/SCHEDULE-CUTOVER.md`.
+T17.17 (schedule cutover; migration released 2026-11-06, no venue activated): no contract change for plotline-site. `public_venues`, `site-contact` and `site-review` are untouched. Release and rollback: `docs/SCHEDULE-CUTOVER.md`.

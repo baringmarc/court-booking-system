@@ -10,14 +10,17 @@ beforeEach(() => {
 })
 
 describe('resendOwnerInvite (T14.5d)', () => {
-  it.each(['invite', 'link', 'none'] as const)('returns what the function sent: %s', async (sent) => {
+  it.each(['invite', 'link', 'welcome'] as const)('returns what the function sent: %s', async (sent) => {
     vi.mocked(supabase.functions.invoke).mockResolvedValue({ data: { ok: true, sent }, error: null } as never)
     expect(await resendOwnerInvite({ venueId: 'v1', email: 'a@b.co' })).toEqual({ sent })
     expect(supabase.functions.invoke).toHaveBeenCalledWith('invite-venue-owner', { body: { venue_id: 'v1', email: 'a@b.co' } })
   })
 
-  it('treats a response without a known outcome as nothing sent', async () => {
-    vi.mocked(supabase.functions.invoke).mockResolvedValue({ data: { ok: true, invited: false }, error: null } as never)
-    expect(await resendOwnerInvite({ venueId: 'v1', email: 'a@b.co' })).toEqual({ sent: 'none' })
+  it.each([{ ok: true, invited: false }, { ok: true, sent: 'none' }, { ok: true, sent: 'bogus' }])('throws ApiError for an unknown outcome %j', async (data) => {
+    vi.mocked(supabase.functions.invoke).mockResolvedValue({ data, error: null } as never)
+    await expect(resendOwnerInvite({ venueId: 'v1', email: 'a@b.co' })).rejects.toMatchObject({
+      name: 'ApiError',
+      message: "We couldn't send the invite.",
+    })
   })
 })

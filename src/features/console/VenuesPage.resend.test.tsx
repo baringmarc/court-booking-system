@@ -51,27 +51,28 @@ describe('Venue detail resend invite (T14.5d)', () => {
     expect(screen.getByRole('button', { name: 'Send invite' })).toBeInTheDocument()
   })
 
-  it('sends the venue and the typed email, and says a sign-in link is on its way', async () => {
+  it('sends the venue and the typed email, and says a fresh access link is on its way', async () => {
     mocks.resend.mockResolvedValue({ sent: 'link' })
     const panel = await openForm()
     await userEvent.click(within(panel).getByRole('button', { name: 'Send invite' }))
     expect(mocks.resend).toHaveBeenCalledWith({ venueId: 'v1', email: 'owner@example.com' })
-    expect(await within(panel).findByRole('status')).toHaveTextContent('sign-in link is on its way to owner@example.com')
+    expect(await within(panel).findByRole('status')).toHaveTextContent('A fresh access link is on its way to owner@example.com.')
   })
 
-  it('says a new invite is on its way for an email with no account', async () => {
+  it('says an account setup invitation is on its way for an email with no account', async () => {
     mocks.resend.mockResolvedValue({ sent: 'invite' })
     const panel = await openForm()
     await userEvent.click(within(panel).getByRole('button', { name: 'Send invite' }))
-    expect(await within(panel).findByRole('status')).toHaveTextContent('new invite is on its way')
+    expect(await within(panel).findByRole('status')).toHaveTextContent('An account setup invitation is on its way to owner@example.com.')
   })
 
-  it('tells the admin when the owner already has a password and where they sign in', async () => {
-    mocks.resend.mockResolvedValue({ sent: 'none' })
+  it('says a welcome email with the sign-in link is on its way, and no longer mentions a password', async () => {
+    mocks.resend.mockResolvedValue({ sent: 'welcome' })
     const panel = await openForm()
     await userEvent.click(within(panel).getByRole('button', { name: 'Send invite' }))
-    expect(await within(panel).findByRole('status')).toHaveTextContent('already has a password')
-    expect(within(panel).getByRole('status')).toHaveTextContent('e2e-alpha.plotline.fit/admin/login')
+    const status = await within(panel).findByRole('status')
+    expect(status).toHaveTextContent('A welcome email with the sign-in link is on its way to owner@example.com.')
+    expect(status).not.toHaveTextContent('already has a password')
   })
 
   it('clears the status when the email is edited, so it never names an address that was not sent', async () => {

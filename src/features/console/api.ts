@@ -29,19 +29,23 @@ export async function createVenue(input: { slug: string; name: string; timezone:
   return unwrap(await supabase.rpc('create_venue', { p_slug: input.slug, p_name: input.name, p_timezone: input.timezone }))
 }
 
-async function callInviteVenueOwner(input: { venueId: string; email: string }): Promise<{ invited?: unknown; sent?: unknown } | null> {
-  const { data, error } = await supabase.functions.invoke('invite-venue-owner', {
-    body: { venue_id: input.venueId, email: input.email },
-  })
+/** Invokes a platform Edge Function; a refusal becomes ApiError(message, status, code) from its JSON body. */
+async function invokeConsoleFunction<T>(name: string, body: Record<string, unknown>, fallback: string): Promise<T | null> {
+  const { data, error } = await supabase.functions.invoke(name, { body })
   if (error) {
     if (error instanceof FunctionsHttpError) {
       const response = error.context as Response
-      const body = (await response.json().catch(() => null)) as { code?: string; message?: string } | null
-      throw new ApiError(body?.message ?? "We couldn't send the invite.", String(response.status), body?.code)
+      const parsed = (await response.json().catch(() => null)) as { code?: string; message?: string } | null
+      throw new ApiError(parsed?.message ?? fallback, String(response.status), parsed?.code)
     }
     throw new ApiError('Could not reach the server. Please check your connection and try again.')
   }
-  return data as { invited?: unknown; sent?: unknown } | null
+  return data as T | null
+}
+
+function callInviteVenueOwner(input: { venueId: string; email: string }) {
+  return invokeConsoleFunction<{ invited?: unknown; sent?: unknown }>(
+    'invite-venue-owner', { venue_id: input.venueId, email: input.email }, "We couldn't send the invite.")
 }
 
 /** Invites the venue's first owner through the `invite-venue-owner` function (platform admins only). */
@@ -49,13 +53,56 @@ export async function inviteVenueOwner(input: { venueId: string; email: string }
   return { invited: (await callInviteVenueOwner(input))?.invited === true }
 }
 
-/** What a resend did: a new invite, a fresh sign-in link for an invited owner, or nothing (the owner has a password). */
-export type OwnerInviteSent = 'invite' | 'link' | 'none'
+/**
+ * What the function emailed (T17.25): an account-setup invitation (no account), a fresh access link (invited, no
+ * password yet) or a welcome email with the venue's sign-in link (the account already signs in).
+ */
+export type OwnerInviteSent = 'invite' | 'link' | 'welcome'
 
 /** Re-sends a venue's owner a way in (T14.5d): the first invite can be used up, expired or never delivered. */
 export async function resendOwnerInvite(input: { venueId: string; email: string }): Promise<{ sent: OwnerInviteSent }> {
-  const body = await callInviteVenueOwner(input)
-  return { sent: body?.sent === 'invite' || body?.sent === 'link' ? body.sent : 'none' }
+  const sent = (await callInviteVenueOwner(input))?.sent
+  if (sent === 'invite' || sent === 'link' || sent === 'welcome') return { sent }
+  throw new ApiError("We couldn't send the invite.")
+}
+
+/** Deletes one lead and its notes (T17.26; platform admins only). A venue created from it is kept. */
+export async function deleteLead(leadId: string): Promise<void> {
+  unwrap(await supabase.rpc('delete_lead', { p_lead_id: leadId }))
+}
+
+/** Why a venue cannot be deleted, in the database's order (T17.26). */
+export type VenueDeletionBlocker = 'protected' | 'bookings' | 'payments' | 'checkouts' | 'charges' | 'invoices' | 'open_play'
+
+export type VenueDeletionPreview = {
+  slug: string
+  deletable: boolean
+  blockers: VenueDeletionBlocker[]
+  counts: { bookings: number; payments: number; checkouts: number; charges: number; invoices: number; open_play_sessions: number; courts: number; members: number }
+}
+
+/** What deleting a venue would remove, or why it can't be deleted (platform admins only). */
+export async function fetchVenueDeletionPreview(venueId: string): Promise<VenueDeletionPreview> {
+  return unwrap(await supabase.rpc('venue_deletion_preview', { p_venue_id: venueId })) as unknown as VenueDeletionPreview
+}
+
+/** `pending`: the venue is deleted but some of its files are not confirmed removed yet (retry with retryVenueFileCleanup). */
+export type VenueCleanup = 'done' | 'pending'
+
+function cleanupOf(data: { cleanup?: unknown } | null): { cleanup: VenueCleanup } {
+  return { cleanup: data?.cleanup === 'done' ? 'done' : 'pending' }
+}
+
+/** Deletes an unused venue and its files through the `delete-unused-venue` function (T17.27). */
+export async function deleteUnusedVenue(input: { venueId: string; confirmSlug: string }): Promise<{ cleanup: VenueCleanup }> {
+  return cleanupOf(await invokeConsoleFunction<{ cleanup?: unknown }>(
+    'delete-unused-venue', { action: 'delete', venue_id: input.venueId, confirm_slug: input.confirmSlug }, "We couldn't delete the venue."))
+}
+
+/** Retries the file cleanup of a deleted venue. */
+export async function retryVenueFileCleanup(venueId: string): Promise<{ cleanup: VenueCleanup }> {
+  return cleanupOf(await invokeConsoleFunction<{ cleanup?: unknown }>(
+    'delete-unused-venue', { action: 'retry', venue_id: venueId }, "We couldn't finish the file cleanup."))
 }
 
 export type VenueOverview = {

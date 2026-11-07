@@ -8,14 +8,21 @@ import { downscaleImage } from './imageResize'
 import { useSettingsDirty } from './settingsDraft'
 import {
   ACCEPTED_IMAGE_TYPES,
-  BANNER_ALT_MAX,
   BANNER_MAX_WIDTH,
   checkImageFile,
   MAX_UPLOAD_BYTES,
-  validateBannerAlt,
 } from './mediaInput'
 
-/** The optional home page banner: an image with required alt text (SPEC §7). */
+const ALT_MAX = 200 // the venue_settings CHECK
+
+/** The alt text the banner gets without asking the owner: the stored one, else "<venue name> banner". */
+function bannerAlt(settings: VenueSettings) {
+  if (settings.banner_path && settings.banner_alt) return settings.banner_alt
+  const suffix = ' banner'
+  return `${settings.name.trim().slice(0, ALT_MAX - suffix.length).trim()}${suffix}`.trim()
+}
+
+/** The optional home page banner: just an image; its alt text is set automatically (SPEC §7). */
 export function BannerSection({ settings }: { settings: VenueSettings }) {
   const setDirty = useSettingsDirty('banner')
   const save = useSaveBanner(settings)
@@ -71,12 +78,11 @@ export function BannerSection({ settings }: { settings: VenueSettings }) {
 }
 
 type FormProps = { settings: VenueSettings; busy: boolean; saving: boolean; onSave: (input: BannerInput) => void }
-type Errors = { alt?: string; file?: string }
+type Errors = { file?: string }
 
 function BannerForm({ settings, busy, saving, onSave }: FormProps) {
   const setDirty = useSettingsDirty('banner')
   const hasBanner = !!settings.banner_path
-  const [alt, setAlt] = useState(settings.banner_alt ?? '')
   const [file, setFile] = useState<File | null>(null)
   const [errors, setErrors] = useState<Errors>({})
   const [processing, setProcessing] = useState(false)
@@ -91,17 +97,9 @@ function BannerForm({ settings, busy, saving, onSave }: FormProps) {
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
-    const next: Errors = {
-      alt: validateBannerAlt(alt) ?? undefined,
-      file: file ? checkImageFile(file) ?? undefined : hasBanner ? undefined : 'Choose an image for the banner.',
-    }
-    setErrors(next)
-    if (next.alt || next.file) return
-    const bannerAlt = alt.trim() // the database stores it trimmed
-    if (!file) {
-      onSave({ alt: bannerAlt })
-      return
-    }
+    const fileError = file ? checkImageFile(file) : 'Choose an image for the banner.'
+    setErrors({ file: fileError ?? undefined })
+    if (fileError || !file) return
 
     setProcessing(true)
     let image: Blob
@@ -117,7 +115,7 @@ function BannerForm({ settings, busy, saving, onSave }: FormProps) {
       setErrors({ file: 'Even after resizing, the image is larger than 2 MB. Try a smaller image.' })
       return
     }
-    onSave({ alt: bannerAlt, image })
+    onSave({ alt: bannerAlt(settings), image })
   }
 
   const describedBy = (key: keyof Errors, hint: string) => (errors[key] ? `${hint} banner-${key}-error` : hint)
@@ -125,7 +123,7 @@ function BannerForm({ settings, busy, saving, onSave }: FormProps) {
   return (
     <form className="stack" onSubmit={handleSubmit} noValidate aria-label="Banner">
       <div className="field">
-        <label htmlFor="banner-file">{hasBanner ? 'Replace image (optional)' : 'Banner image'}</label>
+        <label htmlFor="banner-file">{hasBanner ? 'Replace image' : 'Banner image'}</label>
         <input id="banner-file" type="file" accept={ACCEPTED_IMAGE_TYPES.join(',')} disabled={disabled}
           aria-invalid={errors.file ? true : undefined} aria-describedby={describedBy('file', 'banner-file-hint')}
           onChange={handleFile} />
@@ -134,16 +132,6 @@ function BannerForm({ settings, busy, saving, onSave }: FormProps) {
           cropped to 3:1 on desktop and 2:1 on phones.
         </p>
         {errors.file && <p id="banner-file-error" className="form-error" role="alert">{errors.file}</p>}
-      </div>
-      <div className="field">
-        <label htmlFor="banner-alt">Alt text</label>
-        <input id="banner-alt" value={alt} maxLength={BANNER_ALT_MAX + 50} disabled={disabled}
-          aria-invalid={errors.alt ? true : undefined} aria-describedby={describedBy('alt', 'banner-alt-hint')}
-          onChange={(e) => { setAlt(e.target.value); setDirty(true) }} />
-        <p id="banner-alt-hint" className="muted small">
-          Describe what the picture shows, for people who can't see it. Required, up to {BANNER_ALT_MAX} characters.
-        </p>
-        {errors.alt && <p id="banner-alt-error" className="form-error" role="alert">{errors.alt}</p>}
       </div>
       <div className="form-actions">
         <button type="submit" className="btn" disabled={disabled}>

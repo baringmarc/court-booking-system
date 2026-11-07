@@ -98,6 +98,38 @@ describe('sendEmail', () => {
   })
 })
 
+describe('sendEmail replyTo and attachments (T17.25)', () => {
+  const attachment = { filename: 'm.pdf', contentBase64: 'JVBERi0=', contentType: 'application/pdf' }
+  const withExtras = { ...email, replyTo: 'plotline.admin1@gmail.com', attachments: [attachment] }
+
+  it('sends reply_to and attachments through Resend', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(response(200))
+    await sendEmail(fetchFn, 'resend', { resendKey: 're_1' }, withExtras, 'k')
+    expect(JSON.parse(fetchFn.mock.calls[0][1].body)).toMatchObject({
+      reply_to: 'plotline.admin1@gmail.com',
+      attachments: [{ filename: 'm.pdf', content: 'JVBERi0=', content_type: 'application/pdf' }],
+    })
+  })
+  it('sends ReplyTo and Attachments through Mailpit', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(response(200))
+    await sendEmail(fetchFn, 'mailpit', { mailpitUrl: 'http://mailpit:8025' }, withExtras, 'k')
+    expect(JSON.parse(fetchFn.mock.calls[0][1].body)).toMatchObject({
+      ReplyTo: [{ Email: 'plotline.admin1@gmail.com' }],
+      Attachments: [{ Filename: 'm.pdf', Content: 'JVBERi0=', ContentType: 'application/pdf' }],
+    })
+  })
+  it('leaves the request bodies without those keys when neither is given', async () => {
+    const r = vi.fn().mockResolvedValue(response(200))
+    await sendEmail(r, 'resend', { resendKey: 're_1' }, email, 'k')
+    expect(Object.keys(JSON.parse(r.mock.calls[0][1].body)).sort()).toEqual(['from', 'html', 'subject', 'text', 'to'])
+    const m = vi.fn().mockResolvedValue(response(200))
+    await sendEmail(m, 'mailpit', { mailpitUrl: 'http://mailpit:8025' }, email, 'k')
+    const body = JSON.parse(m.mock.calls[0][1].body)
+    expect(body).not.toHaveProperty('ReplyTo')
+    expect(body).not.toHaveProperty('Attachments')
+  })
+})
+
 describe('fromFor', () => {
   const addr = 'bookings@mail.plotline.fit'
   it('puts the venue name on the bare sender address and round-trips through parseFrom', () => {

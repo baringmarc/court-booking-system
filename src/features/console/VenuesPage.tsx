@@ -1,9 +1,10 @@
 import { useState, type FormEvent } from 'react'
 import { formatMoney } from '../../lib/format'
-import type { VenueOverview } from './api'
+import type { OwnerInviteSent, VenueOverview } from './api'
+import { DeleteVenueDialog } from './DeleteVenueDialog'
 import { useReactivateVenue, useResendOwnerInvite, useSuspendVenue, useVenuesPage } from './hooks'
 import { DetailsButton, ListStatus, RecordPanel, SearchField, StatusFilter } from './ListControls'
-import { focusDetails, useListParams } from './listParams'
+import { focusDetails, returnFocus, useListParams } from './listParams'
 import { Pager } from './Pager'
 import { ShowcaseControl } from './ShowcaseControl'
 
@@ -32,16 +33,21 @@ function ResendInvite({ venue }: { venue: VenueOverview }) {
         <input type="email" autoComplete="off" required value={email} onChange={(e) => { setEmail(e.target.value); resend.reset() }} />
       </label>
       <button type="submit" className="btn" disabled={resend.isPending}>Send invite</button>
-      {sent === 'none' && (
-        <p role="status">{email} already has a password. They can sign in at {venue.slug}.plotline.fit/admin/login.</p>
-      )}
-      {(sent === 'invite' || sent === 'link') && <p role="status">A {sent === 'invite' ? 'new invite' : 'sign-in link'} is on its way to {email}.</p>}
+      {sent && <p role="status">{SENT_MESSAGE[sent]} is on its way to {email}.</p>}
       {resend.error && <p className="form-error" role="alert">{resend.error.message}</p>}
     </form>
   )
 }
 
-function VenuePanel({ venue, onClose }: { venue: VenueOverview; onClose: () => void }) {
+const SENT_MESSAGE: Record<OwnerInviteSent, string> = {
+  invite: 'An account setup invitation',
+  link: 'A fresh access link',
+  welcome: 'A welcome email with the sign-in link',
+}
+
+const DELETE_VENUE_BUTTON = 'delete-venue-open'
+
+function VenuePanel({ venue, onClose, onDelete }: { venue: VenueOverview; onClose: () => void; onDelete: () => void }) {
   const suspend = useSuspendVenue()
   const reactivate = useReactivateVenue()
   const error = suspend.error ?? reactivate.error
@@ -66,6 +72,9 @@ function VenuePanel({ venue, onClose }: { venue: VenueOverview; onClose: () => v
           <button type="button" className="btn" disabled={reactivate.isPending} onClick={() => reactivate.mutate(venue.venue_id)}>Reactivate</button>
         </div>
       )}
+      <div className="form-actions">
+        <button type="button" id={DELETE_VENUE_BUTTON} className="btn btn-ghost" onClick={onDelete}>Delete venue</button>
+      </div>
       {error && <p className="form-error" role="alert">{error.message}</p>}
     </RecordPanel>
   )
@@ -73,15 +82,32 @@ function VenuePanel({ venue, onClose }: { venue: VenueOverview; onClose: () => v
 
 /** The console's Venues page (T14.8, routed and paged in T17.19): status, month totals and actions in each venue's panel. */
 export function VenuesPage() {
-  const { state, setFilter, setPage, setOpen } = useListParams(VENUE_STATUSES)
+  const { state, setFilter, setPage, setOpen, setView } = useListParams(VENUE_STATUSES)
+  const [deleting, setDeleting] = useState<{ venue: VenueOverview; lastOnPage: boolean } | null>(null)
+  const [deletedMessage, setDeletedMessage] = useState<string | null>(null)
   const venues = useVenuesPage({ search: state.q, status: state.status, page: state.page })
   const rows = venues.data?.rows ?? []
   const open = rows.find((venue) => venue.venue_id === state.open)
   const filtered = state.status !== '' || state.q !== ''
 
+  function cancelDelete() {
+    setDeleting(null)
+    returnFocus(DELETE_VENUE_BUTTON)
+  }
+
+  function deleted(target: { venue: VenueOverview; lastOnPage: boolean }, cleanupPending = false) {
+    setDeleting(null)
+    setDeletedMessage(cleanupPending
+      ? `${target.venue.name} was deleted. Its file cleanup is still pending and is retried with the next venue deletion.`
+      : `${target.venue.name} was deleted.`)
+    // Measured when the dialog opened: the row is already gone from the list once cleanup has been retried.
+    setView({ open: null, page: target.lastOnPage && state.page > 1 ? state.page - 1 : state.page })
+  }
+
   return (
     <div className="stack console-page">
       <h1>Venues</h1>
+      {deletedMessage && <p role="status">{deletedMessage}</p>}
       <div className="console-filters">
         <SearchField id="venue-search" label="Search venues" value={state.q} onSearch={(q) => setFilter({ q })} />
         <StatusFilter id="venue-filter" value={state.status} options={FILTER_OPTIONS} onChange={(status) => setFilter({ status })} />
@@ -105,9 +131,12 @@ export function VenuesPage() {
             </ul>
             <Pager label="Venues pages" page={state.page} total={venues.data.total} onPage={setPage} />
           </div>
-          {open && <VenuePanel key={open.venue_id} venue={open} onClose={() => { setOpen(null); focusDetails(open.venue_id) }} />}
+          {open && <VenuePanel key={open.venue_id} venue={open} onClose={() => { setOpen(null); focusDetails(open.venue_id) }}
+            onDelete={() => { setDeletedMessage(null); setDeleting({ venue: open, lastOnPage: rows.length === 1 }) }} />}
         </div>
       )}
+      {deleting && <DeleteVenueDialog key={deleting.venue.venue_id} venue={deleting.venue} onCancel={cancelDelete}
+        onDeleted={() => deleted(deleting)} onClosePending={() => deleted(deleting, true)} />}
     </div>
   )
 }

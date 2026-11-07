@@ -43,54 +43,54 @@ describe('BannerSection', () => {
     vi.mocked(downscaleImage).mockReset().mockResolvedValue(resized())
   })
 
-  it('shows an empty form when no banner is set', () => {
+  it('shows an empty form without any alt text field when no banner is set', () => {
     renderSection(settings())
     expect(screen.queryByRole('img')).not.toBeInTheDocument()
     expect(screen.getByLabelText('Banner image')).toBeInTheDocument()
-    expect(screen.getByLabelText('Alt text')).toHaveValue('')
+    expect(screen.queryByLabelText(/alt text/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/alt text/i)).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Remove banner' })).not.toBeInTheDocument()
   })
 
-  it('sets a banner: downscales to 2200 px and saves the image with trimmed alt text', async () => {
+  it('sets a banner: downscales to 2200 px and saves the image with alt "<venue name> banner"', async () => {
     const result = resized()
     vi.mocked(downscaleImage).mockResolvedValue(result)
-    vi.mocked(saveBanner).mockResolvedValue(settings(NEW, 'Night games'))
+    vi.mocked(saveBanner).mockResolvedValue(settings(NEW, 'Claudex Courts banner'))
     renderSection(settings())
     const file = image()
     await userEvent.upload(screen.getByLabelText('Banner image'), file)
-    await userEvent.type(screen.getByLabelText('Alt text'), '  Night games  ')
     await save()
     expect(downscaleImage).toHaveBeenCalledWith(file, 2200)
-    expect(saveBanner).toHaveBeenCalledWith(expect.objectContaining({ banner_path: null }), { alt: 'Night games', image: result })
+    expect(saveBanner).toHaveBeenCalledWith(expect.objectContaining({ banner_path: null }), { alt: 'Claudex Courts banner', image: result })
     expect(await screen.findByRole('status')).toHaveTextContent('Saved')
   })
 
-  it('requires alt text before sending anything', async () => {
-    renderSection(settings())
+  it('truncates a long venue name so the generated alt is at most 200 characters', async () => {
+    vi.mocked(saveBanner).mockResolvedValue(settings(NEW, 'x'))
+    const s = { ...settings(), name: ` ${'N'.repeat(300)} ` } as VenueSettings
+    renderSection(s)
     await userEvent.upload(screen.getByLabelText('Banner image'), image())
-    await userEvent.type(screen.getByLabelText('Alt text'), '   ')
     await save()
-    expect(screen.getByLabelText('Alt text')).toHaveAccessibleDescription(/Describe the banner image for people who can't see it/)
-    expect(screen.getByLabelText('Alt text')).toHaveAttribute('aria-invalid', 'true')
+    const alt = vi.mocked(saveBanner).mock.calls[0][1].alt
+    expect(alt.length).toBeLessThanOrEqual(200)
+    expect(alt).toBe(alt.trim())
+    expect(alt.endsWith(' banner')).toBe(true)
+    expect(alt.startsWith('NNNN')).toBe(true)
+  })
+
+  it('requires an image when no banner is set, and sends nothing', async () => {
+    renderSection(settings())
+    await save()
+    expect(screen.getByLabelText('Banner image')).toHaveAccessibleDescription(/Choose an image for the banner/)
     expect(downscaleImage).not.toHaveBeenCalled()
     expect(saveBanner).not.toHaveBeenCalled()
   })
 
-  it('refuses alt text over 200 characters', async () => {
-    renderSection(settings())
-    await userEvent.upload(screen.getByLabelText('Banner image'), image())
-    await userEvent.click(screen.getByLabelText('Alt text'))
-    await userEvent.paste('a'.repeat(201))
+  it('requires an image when a banner exists too (no alt-only update any more)', async () => {
+    renderSection(settings(OLD, 'Courts at dusk'))
     await save()
-    expect(screen.getByLabelText('Alt text')).toHaveAccessibleDescription(/Use at most 200 characters/)
-    expect(saveBanner).not.toHaveBeenCalled()
-  })
-
-  it('requires an image when no banner is set', async () => {
-    renderSection(settings())
-    await userEvent.type(screen.getByLabelText('Alt text'), 'Night games')
-    await save()
-    expect(screen.getByLabelText('Banner image')).toHaveAccessibleDescription(/Choose an image for the banner/)
+    expect(screen.getByLabelText('Replace image')).toHaveAccessibleDescription(/Choose an image for the banner/)
+    expect(downscaleImage).not.toHaveBeenCalled()
     expect(saveBanner).not.toHaveBeenCalled()
   })
 
@@ -98,7 +98,6 @@ describe('BannerSection', () => {
     renderSection(settings())
     await userEvent.upload(screen.getByLabelText('Banner image'), image('image/svg+xml'), { applyAccept: false })
     expect(screen.getByRole('alert')).toHaveTextContent('Choose a JPG, PNG or WEBP image.')
-    await userEvent.type(screen.getByLabelText('Alt text'), 'Night games')
     await save()
     expect(downscaleImage).not.toHaveBeenCalled()
     expect(saveBanner).not.toHaveBeenCalled()
@@ -108,33 +107,23 @@ describe('BannerSection', () => {
     vi.mocked(downscaleImage).mockResolvedValue(resized(MAX_UPLOAD_BYTES + 1))
     renderSection(settings())
     await userEvent.upload(screen.getByLabelText('Banner image'), image())
-    await userEvent.type(screen.getByLabelText('Alt text'), 'Night games')
     await save()
     expect(screen.getByRole('alert')).toHaveTextContent('larger than 2 MB')
     expect(saveBanner).not.toHaveBeenCalled()
   })
 
-  it('shows the current banner in both crops and replaces the image', async () => {
+  it('shows the current banner in both crops and replaces the image, keeping the stored alt', async () => {
     vi.mocked(saveBanner).mockResolvedValue(settings(NEW, 'Courts at dusk'))
     renderSection(settings(OLD, 'Courts at dusk'))
     // The phone crop repeats the image with empty alt, so only one image is announced.
     expect(screen.getByRole('img', { name: 'Courts at dusk' })).toHaveAttribute('src', `https://cdn.test/${OLD}`)
     expect(screen.getAllByRole('presentation')).toHaveLength(1)
-    expect(screen.getByLabelText('Alt text')).toHaveValue('Courts at dusk')
-    await userEvent.upload(screen.getByLabelText('Replace image (optional)'), image('image/png'))
+    expect(screen.queryByLabelText(/alt text/i)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Replace image (optional)')).not.toBeInTheDocument()
+    await userEvent.upload(screen.getByLabelText('Replace image'), image('image/png'))
     await save()
-    expect(saveBanner).toHaveBeenCalledWith(expect.objectContaining({ banner_path: OLD }), expect.objectContaining({ alt: 'Courts at dusk', image: expect.any(Blob) }))
+    expect(saveBanner).toHaveBeenCalledWith(expect.objectContaining({ banner_path: OLD }), { alt: 'Courts at dusk', image: expect.any(Blob) })
     expect(await screen.findByRole('status')).toHaveTextContent('Saved')
-  })
-
-  it('updates only the alt text when no new image is chosen', async () => {
-    vi.mocked(saveBanner).mockResolvedValue(settings(OLD, 'Evening games'))
-    renderSection(settings(OLD, 'Courts at dusk'))
-    await userEvent.clear(screen.getByLabelText('Alt text'))
-    await userEvent.type(screen.getByLabelText('Alt text'), 'Evening games')
-    await save()
-    expect(downscaleImage).not.toHaveBeenCalled()
-    expect(saveBanner).toHaveBeenCalledWith(expect.objectContaining({ banner_path: OLD }), { alt: 'Evening games' })
   })
 
   it('removes the banner', async () => {
@@ -149,7 +138,6 @@ describe('BannerSection', () => {
     vi.mocked(downscaleImage).mockRejectedValue(new Error("That file isn't a readable image."))
     renderSection(settings())
     await userEvent.upload(screen.getByLabelText('Banner image'), image())
-    await userEvent.type(screen.getByLabelText('Alt text'), 'Night games')
     await save()
     expect(screen.getByRole('alert')).toHaveTextContent("That file isn't a readable image.")
     expect(saveBanner).not.toHaveBeenCalled()
@@ -160,6 +148,7 @@ describe('BannerSection', () => {
     // As unwrap() throws it: the raw PostgREST text plus its SQLSTATE, which the UI translates.
     vi.mocked(removeBanner).mockRejectedValue(new ApiError('permission denied for table venue_settings', '42501'))
     renderSection(settings(OLD, 'Courts at dusk'))
+    await userEvent.upload(screen.getByLabelText('Replace image'), image())
     await save()
     expect(await screen.findByRole('alert')).toHaveTextContent("You don't have permission")
     await userEvent.click(screen.getByRole('button', { name: 'Remove banner' }))
@@ -171,9 +160,10 @@ describe('BannerSection', () => {
   it('disables the form while saving', async () => {
     vi.mocked(saveBanner).mockReturnValue(new Promise(() => {}))
     renderSection(settings(OLD, 'Courts at dusk'))
+    await userEvent.upload(screen.getByLabelText('Replace image'), image())
     await save()
     expect(await screen.findByRole('button', { name: 'Saving…' })).toBeDisabled()
-    expect(screen.getByLabelText('Alt text')).toBeDisabled()
+    expect(screen.getByLabelText('Replace image')).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Remove banner' })).toBeDisabled()
   })
 })

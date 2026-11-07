@@ -56,7 +56,7 @@ function outsideSplit(text: string) {
 }
 
 /** A split row: its label, its amount for the period (its own text) and, when given, its change line. */
-function expectRow(row: HTMLElement, label: string, amount: string, sentence?: string) {
+function expectRow(row: HTMLElement, label: string, amount: string | RegExp, sentence?: string) {
   expect(within(row).getByText(label)).toBeInTheDocument()
   expect(within(row).getByText(amount)).toBeInTheDocument()
   if (sentence) expect(within(row).getByText(sentence)).toBeInTheDocument()
@@ -172,8 +172,8 @@ describe('EarningsSection', () => {
     expect(outsideSplit('The same as yesterday.')).toHaveLength(1)
     const rows = await splitRows()
     expectRow(rows[0], 'Total revenue', '₱0', 'The same as yesterday.')
-    expectRow(rows[1], 'Your earnings', '₱0', 'The same as yesterday.')
-    expectRow(rows[2], 'Plotline fees', '₱0', 'The same as yesterday.')
+    expectRow(rows[1], 'Plotline fees', /^-?₱0$/, 'The same as yesterday.')
+    expectRow(rows[2], 'Your earnings', '₱0', 'The same as yesterday.')
     expect(screen.getByRole('status')).toHaveTextContent('Also received online but not accepted: ₱300 (1 payment)')
     expect(screen.getByText('confirmed booking not played yet, worth ₱300.')).toBeInTheDocument()
   })
@@ -184,11 +184,22 @@ describe('EarningsSection', () => {
       const rows = await splitRows()
       expect(rows).toHaveLength(3)
       expectRow(rows[0], 'Total revenue', '₱1,500', '₱500 more than yesterday (+50%).')
-      expectRow(rows[1], 'Your earnings', '₱1,480', '₱490 more than yesterday (+49%).')
-      expectRow(rows[2], 'Plotline fees', '₱20', '₱10 more than yesterday (+100%).')
+      expectRow(rows[1], 'Plotline fees', '-₱20', '₱10 more than yesterday (+100%).')
+      expectRow(rows[2], 'Your earnings', '₱1,480', '₱490 more than yesterday (+49%).')
       // In the Collected card, under the collected total.
       const card = screen.getByRole('heading', { name: 'Collected' }).closest('section')!
       expect(card).toContainElement(screen.getByRole('list', { name: 'Revenue split' }))
+    })
+
+    it('emphasizes Your earnings as the last row and shows the fees as a negative amount (T17.34)', async () => {
+      renderSection()
+      const rows = await splitRows()
+      expect(rows[2]).toHaveClass('split-total')
+      expect(rows[0]).not.toHaveClass('split-total')
+      expect(rows[1]).not.toHaveClass('split-total')
+      expect(within(rows[1]).getByText('Plotline fees')).toBeInTheDocument()
+      expect(within(rows[1]).getByText('-₱20')).toBeInTheDocument()
+      expect(within(rows[1]).queryByText('₱20')).not.toBeInTheDocument()
     })
 
     it('explains the fee with the current fee in the venue currency', async () => {
@@ -212,8 +223,8 @@ describe('EarningsSection', () => {
       renderSection()
       const rows = await splitRows()
       expectRow(rows[0], 'Total revenue', '₱800', '₱200 less than yesterday (-20%).')
-      expectRow(rows[1], 'Your earnings', '₱800', '₱190 less than yesterday (-19%).')
-      expectRow(rows[2], 'Plotline fees', '₱0', '₱10 less than yesterday (-100%).')
+      expectRow(rows[1], 'Plotline fees', /^-?₱0$/, '₱10 less than yesterday (-100%).')
+      expectRow(rows[2], 'Your earnings', '₱800', '₱190 less than yesterday (-19%).')
     })
 
     it('leaves out the percentage when there was nothing before', async () => {
@@ -225,8 +236,8 @@ describe('EarningsSection', () => {
       renderSection()
       const rows = await splitRows()
       expect(rows[0]).toHaveTextContent('₱360 more than yesterday.')
-      expectRow(rows[1], 'Your earnings', '₱350', '₱350 more than yesterday.')
-      expect(rows[2]).toHaveTextContent('₱10 more than yesterday.')
+      expect(rows[1]).toHaveTextContent('₱10 more than yesterday.')
+      expectRow(rows[2], 'Your earnings', '₱350', '₱350 more than yesterday.')
       // The Collected line words it the same way (it uses changeText too).
       expect(outsideSplit('₱360 more than yesterday.')).toHaveLength(1)
     })
@@ -243,8 +254,8 @@ describe('EarningsSection', () => {
       await user.click(screen.getByRole('button', { name: 'This week' }))
       await screen.findAllByText(/last week/)
       const rows = await splitRows()
-      expect(rows[1]).toHaveTextContent('₱500 more than last week (+52%).')
-      expect(rows[2]).toHaveTextContent('The same as last week.')
+      expect(rows[1]).toHaveTextContent('The same as last week.')
+      expect(rows[2]).toHaveTextContent('₱500 more than last week (+52%).')
     })
 
     it('reads a missing split as zero', async () => {
@@ -252,8 +263,8 @@ describe('EarningsSection', () => {
       renderSection()
       const rows = await splitRows()
       expectRow(rows[0], 'Total revenue', '₱0', 'The same as yesterday.')
-      expectRow(rows[1], 'Your earnings', '₱0', 'The same as yesterday.')
-      expectRow(rows[2], 'Plotline fees', '₱0', 'The same as yesterday.')
+      expectRow(rows[1], 'Plotline fees', /^-?₱0$/, 'The same as yesterday.')
+      expectRow(rows[2], 'Your earnings', '₱0', 'The same as yesterday.')
     })
 
     it('leaves out the fee note while the fee loads, and still shows the split', async () => {

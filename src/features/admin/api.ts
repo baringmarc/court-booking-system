@@ -80,6 +80,7 @@ export const adminKeys = {
   setup: setupStatusKey,
   statement: () => [currentVenueId(), 'admin-statement'] as const,
   schedule: () => [currentVenueId(), 'admin-schedule'] as const,
+  closureConflicts: (start: string, end: string, courtId: string | null) => [currentVenueId(), 'admin-closure-conflicts', start, end, courtId] as const,
 }
 
 // One literal: supabase-js infers the row type from this string.
@@ -431,19 +432,15 @@ export async function reorderCourtPhotos(courtId: string, ids: string[]) {
   unwrap(await supabase.rpc('reorder_court_photos', { p_court_id: courtId, p_ids: ids }))
 }
 
-async function updateBanner(values: Pick<VenueSettings, 'banner_path' | 'banner_alt'> | Pick<VenueSettings, 'banner_alt'>) {
+async function updateBanner(values: Pick<VenueSettings, 'banner_path' | 'banner_alt'>) {
   return unwrap(await supabase.from('venue_settings').update(values).eq('venue_id', currentVenueId()).select().single())
 }
 
 /** `alt` must already be trimmed (a CHECK enforces it). */
-export type BannerInput = { alt: string; image?: Blob }
+export type BannerInput = { alt: string; image: Blob }
 
-/**
- * Sets the site banner. With an image (already downscaled), uploads it and replaces any old banner;
- * without one, only updates the alt text of the current banner.
- */
+/** Sets the site banner: uploads the image (already downscaled) and replaces any old banner. */
 export async function saveBanner(settings: Pick<VenueSettings, 'banner_path'>, { alt, image }: BannerInput) {
-  if (!image) return updateBanner({ banner_alt: alt })
   return replaceStoredMedia({
     oldPath: settings.banner_path,
     upload: () => uploadVenueMedia('banner', image),
@@ -795,4 +792,46 @@ export async function previewScheduleImpact(draft: ScheduleDraft, from: string, 
       p_offset: offset,
     }),
   ) as unknown as ScheduleImpact
+}
+
+// --- closures (T17.33) ----------------------------------------------------------
+
+export type ClosureBooking = { id: string; reference_code: string; court_name: string; slot_start: string; slot_end: string; guest_name: string | null }
+export type ClosureSession = { id: string; title: string; starts_at: string; ends_at: string }
+
+/**
+ * Live bookings and open play sessions inside a closure's time, for one court or all (null). A closure only warns about
+ * them: they stay booked.
+ */
+export async function fetchClosureConflicts(startIso: string, endIso: string, courtId: string | null): Promise<{ bookings: ClosureBooking[]; sessions: ClosureSession[] }> {
+  const range = `[${startIso},${endIso})`
+  let bookings = supabase
+    .from('bookings')
+    .select('id, reference_code, during, guest_name, courts(name)')
+    .eq('venue_id', currentVenueId())
+    .in('status', ['pending_payment', 'payment_submitted', 'confirmed'])
+    .overlaps('during', range)
+    .order('during')
+    .limit(ADMIN_LIST_LIMIT)
+  if (courtId) bookings = bookings.eq('court_id', courtId)
+  let sessions = supabase
+    .from('open_play_courts')
+    .select('session_id, open_play_sessions(id, title, starts_at, ends_at)')
+    .eq('venue_id', currentVenueId())
+    .overlaps('during', range)
+    .limit(ADMIN_LIST_LIMIT)
+  if (courtId) sessions = sessions.eq('court_id', courtId)
+  const [bookingRows, sessionRows] = await Promise.all([bookings, sessions])
+  const seen = new Map<string, ClosureSession>()
+  for (const row of unwrap(sessionRows)) {
+    const s = row.open_play_sessions
+    if (s && !seen.has(s.id)) seen.set(s.id, { id: s.id, title: s.title, starts_at: s.starts_at, ends_at: s.ends_at })
+  }
+  return {
+    bookings: unwrap(bookingRows).map((row) => {
+      const { start, end } = parseTstzRange(row.during)
+      return { id: row.id, reference_code: row.reference_code, court_name: row.courts?.name ?? 'Court', slot_start: start, slot_end: end, guest_name: row.guest_name }
+    }),
+    sessions: [...seen.values()].sort((a, b) => a.starts_at.localeCompare(b.starts_at)),
+  }
 }

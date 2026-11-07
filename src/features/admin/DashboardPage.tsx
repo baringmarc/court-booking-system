@@ -33,7 +33,10 @@ export function DashboardPage() {
 
   return (
     <section className="page">
-      <h1>Dashboard</h1>
+      <div className="page-head">
+        <h1>Dashboard</h1>
+        <a className="btn btn-small btn-outline" href="/guides/venue-owner-manual.pdf" download>Download owner manual (PDF)</a>
+      </div>
       {venue.status === 'draft' && <SetupChecklist />}
       {settings.isPending || courts.isPending || hours.isPending ? (
         <PageLoader />

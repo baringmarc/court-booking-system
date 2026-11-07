@@ -131,25 +131,26 @@ function EarningsBody({ earnings, period, days, currency, timeZone }: BodyProps)
   )
 }
 
+/** T17.34: a receipt-style sum, owner_earnings = total_revenue − plotline_fees (SPEC §6). */
 const SPLIT_ROWS = [
-  { key: 'totalRevenue', label: 'Total revenue' },
-  { key: 'ownerEarnings', label: 'Your earnings' },
-  { key: 'plotlineFees', label: 'Plotline fees' },
+  { key: 'totalRevenue', label: 'Total revenue', sign: '', className: '' },
+  { key: 'plotlineFees', label: 'Plotline fees', sign: '−', className: 'split-fees' },
+  { key: 'ownerEarnings', label: 'Your earnings', sign: '=', className: 'split-total' },
 ] as const
 
-/** T11.14: total revenue, the owner's earnings and Plotline's fees, each against the period before. */
+/** T11.14: total revenue, Plotline's fees and the owner's earnings, each against the period before. */
 function RevenueSplitList({ split, before, money }: { split: Earnings['split']; before: string; money: (n: number) => string }) {
   const fee = usePlatformFee()
   return (
     <>
       <ul className="list" aria-label="Revenue split">
-        {SPLIT_ROWS.map(({ key, label }) => (
-          <li key={key} className="list-row">
+        {SPLIT_ROWS.map(({ key, label, sign, className }) => (
+          <li key={key} className={`list-row${className ? ` ${className}` : ''}`}>
             <span>
-              {label}
+              {sign && <span className="split-sign" aria-hidden="true">{sign} </span>}{label}
               <span className="small muted block">{changeText(split.current[key], split.previous[key], before, money)}</span>
             </span>
-            <span>{money(split.current[key])}</span>
+            <span className="split-amount">{money(key === 'plotlineFees' && split.current[key] > 0 ? -split.current[key] : split.current[key])}</span>
           </li>
         ))}
       </ul>
@@ -214,7 +215,7 @@ function HoursTable({ earnings }: { earnings: Earnings }) {
         <span className="hours-figures">{figures(total)}</span>
       </p>
       <p className="muted small">
-        Each bar is a court's open hours, minus blackouts. Occupancy is the booked share of those hours. Open play is shown apart and isn't counted as booked. Only courts open for booking now are counted.
+        Each bar is a court's open hours, minus closures. Occupancy is the booked share of those hours. Open play is shown apart and isn't counted as booked. Only courts open for booking now are counted.
       </p>
     </section>
   )

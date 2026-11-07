@@ -19,15 +19,27 @@ async function rowCounts(page: Page, label: string) {
   })
 }
 
-test('the booking rules fields wrap into even rows at every width', async ({ page }) => {
+test('the booking rules fields sit one per row at every width without stretched inputs', async ({ page }) => {
   const admin = await createAdmin()
   await logInAdmin(page, admin.email, admin.password, '/admin/settings/booking')
   await expect(page.getByRole('heading', { name: 'Booking rules', exact: true })).toBeVisible()
+  const labels = ['Booking window', 'Payment hold', 'Cancellation cutoff', 'Proof rejections allowed']
 
-  for (const [width, expected] of [[360, [1, 1, 1, 1]], [820, [2, 2]], [1280, [4]]] as const) {
+  for (const width of [360, 820, 1280]) {
     await page.setViewportSize({ width, height: 900 })
-    await expect.poll(() => rowCounts(page, 'Booking window (days ahead)'), `${width}px`).toEqual(expected)
+    await expect.poll(async () => {
+      const boxes = await Promise.all(labels.map((label) => page.getByLabel(label, { exact: true }).boundingBox()))
+      const tops = boxes.map((box) => Math.round(box?.y ?? -1))
+      return new Set(tops).size === 4 && tops.every((top, i) => i === 0 || top > tops[i - 1])
+    }, `${width}px one per row`).toBe(true)
   }
+  await page.setViewportSize({ width: 1280, height: 900 })
+  for (const label of labels) {
+    const box = await page.getByLabel(label, { exact: true }).boundingBox()
+    expect(box?.width ?? 9999, label).toBeLessThanOrEqual(160)
+  }
+  await page.setViewportSize({ width: 360, height: 900 })
+  expect(await page.evaluate<number>('document.documentElement.scrollWidth - document.documentElement.clientWidth')).toBeLessThanOrEqual(0)
 })
 
 test('the social links fields (seven) never leave one alone on a row', async ({ page }) => {

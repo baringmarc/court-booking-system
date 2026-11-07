@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import {
   adminCancelBooking,
   adminKeys,
@@ -10,12 +10,15 @@ import {
   fetchEarnings,
   fetchProofQueueCount,
   fetchSchedule,
+  fetchClosureConflicts,
   saveSchedule,
   previewScheduleImpact,
   type ScheduleDraft,
   type ScheduleChanges,
   fetchSetupStatus,
-  fetchStatement,
+  fetchStatementCharges,
+  fetchStatementInvoices,
+  fetchStatementSummary,
   publishVenue,
   fetchProofUrl,
   deleteCourt,
@@ -507,8 +510,29 @@ export function usePublishVenue() {
   })
 }
 
-export function useStatement() {
-  return useQuery({ queryKey: adminKeys.statement(), queryFn: fetchStatement, staleTime: 30_000 })
+/** One month's statement totals, accrual and amount due (T17.22); `month` '' is the venue's current month. */
+export function useStatementSummary(month: string) {
+  return useQuery({ queryKey: [...adminKeys.statement(), 'summary', month], queryFn: () => fetchStatementSummary(month), staleTime: 30_000 })
+}
+
+/** One page of a month's charges, optionally narrowed to a booking reference. */
+export function useStatementCharges(input: { month: string; search: string; page: number }) {
+  return useQuery({
+    queryKey: [...adminKeys.statement(), 'charges', input.month, input.search, input.page],
+    queryFn: () => fetchStatementCharges(input),
+    placeholderData: keepPreviousData,
+    staleTime: 30_000,
+  })
+}
+
+/** One page of the venue's invoice history, drafts included. */
+export function useStatementInvoices(input: { status?: string; page: number }) {
+  return useQuery({
+    queryKey: [...adminKeys.statement(), 'invoices', input.status ?? '', input.page],
+    queryFn: () => fetchStatementInvoices(input),
+    placeholderData: keepPreviousData,
+    staleTime: 30_000,
+  })
 }
 
 export function useSchedule() {
@@ -537,5 +561,14 @@ export function useSaveSchedule() {
       qc.invalidateQueries({ queryKey: [currentVenueId(), 'court-rates'] }),
     ]),
     onError: () => qc.invalidateQueries({ queryKey: adminKeys.schedule() }),
+  })
+}
+
+/** Bookings and open play already in a closure's time (T17.33); off until there is a range. */
+export function useClosureConflicts(range: { start: string; end: string; courtId: string | null } | null) {
+  return useQuery({
+    queryKey: adminKeys.closureConflicts(range?.start ?? '', range?.end ?? '', range?.courtId ?? null),
+    queryFn: () => fetchClosureConflicts(range!.start, range!.end, range!.courtId),
+    enabled: range !== null,
   })
 }

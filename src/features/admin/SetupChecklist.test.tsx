@@ -97,6 +97,67 @@ describe('SetupChecklist', () => {
     expect(within(row('Add payment instructions')).getByRole('link')).toHaveAttribute('href', '/admin/settings/payments')
   })
 
+  it('sends the hours item to the Opening hours tab of the schedule (T17.34)', async () => {
+    vi.mocked(fetchSetupStatus).mockResolvedValue({ items: incomplete.items.map((i) => (i.key === 'hours' ? { ...i, done: false } : i)), ready: false })
+    renderChecklist()
+    await screen.findByText('Set opening hours')
+    expect(within(row('Set opening hours')).getByRole('link', { name: /fix/i })).toHaveAttribute('href', '/admin/schedule?tab=hours')
+  })
+
+  it('gives every to-do row a Fix link to the right page (T17.34)', async () => {
+    renderChecklist()
+    await screen.findByText('Add a court')
+    const hrefs: Record<string, string> = {
+      'Add a court': '/admin/courts',
+      'Set court prices': '/admin/courts',
+      'Add payment details': '/admin/settings/payments',
+      'Add payment instructions': '/admin/settings/payments',
+      'Add court photos': '/admin/courts',
+    }
+    for (const [label, href] of Object.entries(hrefs)) {
+      expect(within(row(label)).getByRole('link', { name: /fix/i })).toHaveAttribute('href', href)
+    }
+  })
+
+  it('shows a where-to-fix line under each to-do label (T17.34)', async () => {
+    vi.mocked(fetchSetupStatus).mockResolvedValue({ items: incomplete.items.map((i) => ({ ...i, done: false })), ready: false })
+    renderChecklist()
+    await screen.findByText('Add a court')
+    const where: Record<string, string> = {
+      'Add a court': 'Courts page',
+      'Set court prices': 'Courts page',
+      'Set opening hours': 'Schedule → Opening hours',
+      'Add payment details': 'Settings → Payments',
+      'Add payment instructions': 'Settings → Payments',
+      'Add court photos': 'Courts page',
+    }
+    for (const [label, text] of Object.entries(where)) {
+      expect(within(row(label)).getByText(text)).toBeInTheDocument()
+    }
+  })
+
+  it('shows no where-to-fix line and no Fix link on a done row, and says Done but not To do (T17.34)', async () => {
+    renderChecklist()
+    await screen.findByText('Set opening hours')
+    const done = row('Set opening hours')
+    expect(within(done).queryByText('Schedule → Opening hours')).not.toBeInTheDocument()
+    expect(within(done).queryByRole('link')).not.toBeInTheDocument()
+    expect(within(done).getByText('Done')).toBeInTheDocument()
+    expect(within(done).queryByText('To do')).not.toBeInTheDocument()
+    expect(within(row('Add a court')).queryByText('Done')).not.toBeInTheDocument()
+  })
+
+  it('counts the required items that are done, leaving out the optional photos (T17.34)', async () => {
+    renderChecklist()
+    expect(await screen.findByText('1 of 5 done')).toBeInTheDocument()
+  })
+
+  it('counts all five required items when the venue is ready, photos still to do (T17.34)', async () => {
+    vi.mocked(fetchSetupStatus).mockResolvedValue(ready)
+    renderChecklist()
+    expect(await screen.findByText('5 of 5 done')).toBeInTheDocument()
+  })
+
   it('has no link on an item that is done', async () => {
     renderChecklist()
     await screen.findByText('Set opening hours')

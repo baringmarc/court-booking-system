@@ -4,6 +4,9 @@ import { defineConfig } from 'vite'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  // The local edge runtime runs in Docker and fetches the owner PDF from the dev server through this host (T17.25,
+  // OWNER_GUIDE_URL in supabase/functions/.env). Dev server only; the production build is unaffected.
+  server: { allowedHosts: ['host.docker.internal'] },
   build: {
     rolldownOptions: {
       output: {

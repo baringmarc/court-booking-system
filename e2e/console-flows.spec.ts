@@ -205,8 +205,10 @@ test('an invoice goes from draft to sent to paid, and the venue sees it on its s
       const openNavigation = staffPage.getByRole('button', { name: 'Open navigation' })
       if (await openNavigation.isVisible()) await openNavigation.click()
       await staffPage.getByRole('navigation', { name: 'Admin' }).getByRole('link', { name: 'Reports', exact: true }).click()
-      await expect(staffPage.getByRole('heading', { name: 'Past invoices' })).toBeVisible()
-      await expect(staffPage.getByText(/January 2026 · paid · ₱10/)).toBeVisible()
+      // T17.22 renamed "Past invoices" to "Invoice history"; each invoice is one row.
+      const history = staffPage.getByRole('region', { name: 'Invoice history' })
+      await expect(history.getByRole('heading', { name: 'Invoice history' })).toBeVisible()
+      await expect(history.getByRole('listitem').filter({ hasText: 'January 2026' })).toContainText(/Paid.*₱10\.00/)
     } finally {
       await other.close()
     }

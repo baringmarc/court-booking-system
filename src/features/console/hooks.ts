@@ -1,7 +1,7 @@
 import { useRef } from 'react'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  createVenue, fetchInvoiceDetailPage, fetchInvoicesPage, fetchIsPlatformAdmin, fetchLeadsPage, fetchReviewsPage, fetchVenuesPage,
+  createVenue, deleteLead, deleteUnusedVenue, fetchInvoiceDetailPage, fetchVenueDeletionPreview, retryVenueFileCleanup, fetchInvoicesPage, fetchIsPlatformAdmin, fetchLeadsPage, fetchReviewsPage, fetchVenuesPage,
   inviteVenueOwner, markInvoicePaid, markInvoiceSent, resendOwnerInvite, fetchShowcaseApprovals, setVenueShowcaseApproval,
   reactivateVenue, setReviewApproved, suspendVenue, updateLead, type Lead, type LeadStatus, type ReviewFilter,
 } from './api'
@@ -45,6 +45,14 @@ export function useUpdateLead() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: ({ id, patch }: { id: string; patch: { status?: LeadStatus; notes?: string | null } }) => updateLead(id, patch),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['leads'] }),
+  })
+}
+
+export function useDeleteLead() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (leadId: string) => deleteLead(leadId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['leads'] }),
   })
 }
@@ -102,6 +110,37 @@ export function useReactivateVenue() {
     mutationFn: (venueId: string) => reactivateVenue(venueId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['venues-overview'] }),
   })
+}
+
+/** Loaded only while the delete dialog is open; always fresh, since a booking can arrive at any time. */
+export function useVenueDeletionPreview(venueId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ['venues-overview', 'deletion-preview', venueId],
+    queryFn: () => fetchVenueDeletionPreview(venueId),
+    enabled,
+    staleTime: 0,
+  })
+}
+
+function useVenueDeletionMutation<T>(mutationFn: (input: T) => Promise<{ cleanup: 'done' | 'pending' }>) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn,
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['venues-overview'] }),
+        queryClient.invalidateQueries({ queryKey: ['showcase-approvals'] }),
+      ])
+    },
+  })
+}
+
+export function useDeleteUnusedVenue() {
+  return useVenueDeletionMutation((input: { venueId: string; confirmSlug: string }) => deleteUnusedVenue(input))
+}
+
+export function useRetryVenueFileCleanup() {
+  return useVenueDeletionMutation((venueId: string) => retryVenueFileCleanup(venueId))
 }
 
 function useInvoiceMutation<T>(mutationFn: (input: T) => Promise<void>) {
