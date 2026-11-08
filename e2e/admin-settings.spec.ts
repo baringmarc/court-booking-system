@@ -1,5 +1,6 @@
 import { AxeBuilder } from '@axe-core/playwright'
 import { expect, test } from '@playwright/test'
+import { guardLeaks } from './support/leaks.ts'
 import { addVenueStaff, createPlayer, createVenue, deleteVenue, serviceClient, submitAdminLogin } from './support/helpers.ts'
 
 test('T17.4 category pages preserve values, independent saves and dirty navigation at desktop and 360px', async ({ page }) => {
@@ -65,3 +66,6 @@ test('T17.4 category pages preserve values, independent saves and dirty navigati
     await deleteVenue(venue.id)
   }
 })
+
+// H14: keep last, after this file's own cleanup hooks.
+guardLeaks()

@@ -1,5 +1,6 @@
 // T9.5: an admin deletes a court that was never booked; a booked court is refused and stays.
 import { expect, test } from '@playwright/test'
+import { guardLeaks } from './support/leaks.ts'
 import { createAdmin, E2E_PREFIX, logInAdmin, receiptPng, serviceClient, venueId } from './support/helpers.ts'
 
 test('an admin deletes an unbooked court, and a booked court is refused', async ({ page }) => {
@@ -35,3 +36,6 @@ test('an admin deletes an unbooked court, and a booked court is refused', async 
   await expect(page.getByText(/uncheck “Active” in Details above and save/)).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Badminton 1', level: 1 })).toBeVisible()
 })
+
+// H14: keep last, after this file's own cleanup hooks.
+guardLeaks()

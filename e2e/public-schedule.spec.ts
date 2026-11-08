@@ -1,6 +1,7 @@
 // T17.13: public scheduling follows effective periods for the selected court.
 import { execFileSync } from 'node:child_process'
 import { expect, test } from '@playwright/test'
+import { guardLeaks } from './support/leaks.ts'
 import { createVenue, deleteVenue, serviceClient, venueDate } from './support/helpers.ts'
 
 test('custom-only day, gaps, touching boundaries and overnight checkout', async ({ page }) => {
@@ -47,3 +48,6 @@ test('custom-only day, gaps, touching boundaries and overnight checkout', async 
     await deleteVenue(venue.id)
   }
 })
+
+// H14: keep last, after this file's own cleanup hooks.
+guardLeaks()

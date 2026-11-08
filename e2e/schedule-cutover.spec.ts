@@ -4,6 +4,7 @@
 // weekly rate editor. Desktop and 360px, axe in both themes. All data is E2E-tagged; cleanup runs bookings first (CLAUDE.md L3).
 import { createClient } from '@supabase/supabase-js'
 import { expect, test, type Page } from '@playwright/test'
+import { guardLeaks } from './support/leaks.ts'
 import { addVenueStaff, axeBothSchemes, createPlayer, createVenue, deleteVenue, serviceClient, submitAdminLogin, venueDate } from './support/helpers.ts'
 import { localSupabase } from './support/local.ts'
 
@@ -142,3 +143,6 @@ test('the active venue copies, reverts and warns in Weekly Hours & Rates; the co
   await expect(page).toHaveURL(/\/admin\/schedule$/)
   await expect(page.getByRole('switch', { name: 'Monday open' })).toBeVisible()
 })
+
+// H14: keep last, after this file's own cleanup hooks.
+guardLeaks()

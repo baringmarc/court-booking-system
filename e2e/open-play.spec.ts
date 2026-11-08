@@ -2,6 +2,7 @@
 // can't book it; deleting the session frees the slots. Runs the T9.11c RPCs and get_availability end to end.
 import { AxeBuilder } from '@axe-core/playwright'
 import { expect, test, type Page } from '@playwright/test'
+import { guardLeaks } from './support/leaks.ts'
 import { createAdmin, E2E_PREFIX, logInAdmin, pickDate, serviceClient, venueDate, setColorScheme } from './support/helpers.ts'
 
 const date = venueDate(22)
@@ -83,3 +84,6 @@ test('an admin adds open play, a guest sees its details and cannot book it, and 
   await expect(guest.getByRole('button', { name: /^Badminton 3, 10 AM – 11 AM, ₱/ })).toBeEnabled()
   await guestContext.close()
 })
+
+// H14: keep last, after this file's own cleanup hooks.
+guardLeaks()

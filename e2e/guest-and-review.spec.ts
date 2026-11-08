@@ -2,6 +2,7 @@
 // T11.13: with Plotline's booking fee at ₱10, checkout, the booking page, the proof amount, the booking email and the
 // review panel all show the court price, the fee and the total (amount due).
 import { expect, test, type Locator, type Page } from '@playwright/test'
+import { guardLeaks } from './support/leaks.ts'
 import { createAdmin, E2E_PREFIX, emailText, logInAdmin, pickFirstFreeSlot, serviceClient, uploadProof, venueDate } from './support/helpers.ts'
 
 const FEE = 10
@@ -151,3 +152,6 @@ test.describe.serial('guest booking and admin review', () => {
     expect(data.guest_phone).toBeNull()
   })
 })
+
+// H14: keep last, after this file's own cleanup hooks.
+guardLeaks()

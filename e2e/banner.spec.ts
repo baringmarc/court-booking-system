@@ -1,6 +1,7 @@
 // An admin sets and removes the home page banner, which players see on / and nowhere else. Runs the real
 // browser downscale, the venue-media storage policies and the venue_settings banner CHECKs end to end.
 import { expect, test, type Page } from '@playwright/test'
+import { guardLeaks } from './support/leaks.ts'
 import { createAdmin, logInAdmin, serviceClient, venueId } from './support/helpers.ts'
 
 // A valid 1×1 PNG. The browser decodes it and re-encodes it before upload.
@@ -82,3 +83,6 @@ async function runFlow(page: Page, alt: string) {
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
   await expect(page.locator('.home-banner')).toHaveCount(0)
 }
+
+// H14: keep last, after this file's own cleanup hooks.
+guardLeaks()

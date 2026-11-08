@@ -2,6 +2,7 @@
 // begun. The guest sees the move through their private link and gets an email; the admin's views follow.
 import { AxeBuilder } from '@axe-core/playwright'
 import { expect, test, type Page } from '@playwright/test'
+import { guardLeaks } from './support/leaks.ts'
 import { createHash, randomBytes } from 'node:crypto'
 import { createAdmin, E2E_PREFIX, emailText, logInAdmin, pickDate, pickFirstFreeSlot, runEmailWorker, serviceClient, uploadProof, venueDate, setColorScheme } from './support/helpers.ts'
 
@@ -207,3 +208,6 @@ test('staff split a booking that has begun: both parts are visible to the guest'
   const mail = await emailText(email, new RegExp(`^Booking ${reference} was moved$`))
   expect(mail).toContain(`The moved hours have their own reference, ${moved}.`)
 })
+
+// H14: keep last, after this file's own cleanup hooks.
+guardLeaks()

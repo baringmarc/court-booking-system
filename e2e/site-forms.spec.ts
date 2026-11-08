@@ -3,6 +3,7 @@
 // E2E-tagged leads; reviews have no teardown, so each test deletes its own. Needs LEAD_ALERT_TO set in
 // supabase/functions/.env (and the stack restarted), with the local functions served.
 import { expect, test, type Page } from '@playwright/test'
+import { guardLeaks } from './support/leaks.ts'
 import { createClient } from '@supabase/supabase-js'
 import { E2E_PREFIX, createPlatformAdmin, serviceClient } from './support/helpers.ts'
 import { localSupabase } from './support/local.ts'
@@ -119,3 +120,6 @@ test('a site review stays hidden until the console approves it, and hides again'
     await service.from('reviews').delete().eq('name', name)
   }
 })
+
+// H14: keep last, after this file's own cleanup hooks.
+guardLeaks()

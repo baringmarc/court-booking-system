@@ -2,6 +2,7 @@
 // booking email show the text. The local venue_settings.waiver_text is set for this flow and restored (workers: 1).
 import { AxeBuilder } from '@axe-core/playwright'
 import { expect, test } from '@playwright/test'
+import { guardLeaks } from './support/leaks.ts'
 import { E2E_PREFIX, emailText, pickFirstFreeSlot, serviceClient, venueDate, venueId } from './support/helpers.ts'
 
 const WAIVER = 'E2E waiver: you play at your own risk & you bring your own water.'
@@ -49,3 +50,6 @@ test.describe.serial('waiver', () => {
     expect(mail).toContain(WAIVER)
   })
 })
+
+// H14: keep last, after this file's own cleanup hooks.
+guardLeaks()

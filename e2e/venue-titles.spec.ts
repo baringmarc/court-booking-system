@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { guardLeaks } from './support/leaks.ts'
 import { addVenueStaff, createPlayer, createVenue, deleteVenue, serviceClient, submitAdminLogin } from './support/helpers.ts'
 
 const made: string[] = []
@@ -41,3 +42,6 @@ test('unknown venue remains neutral, and console title is set before its lazy sc
   await expect(page).toHaveTitle('Plotline Admin')
   await expect(page.getByRole('heading', { name: 'Platform console' })).toBeVisible()
 })
+
+// H14: keep last, after this file's own cleanup hooks.
+guardLeaks()

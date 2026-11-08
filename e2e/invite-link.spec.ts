@@ -1,6 +1,7 @@
 // An invited owner opens the emailed link and is signed in, then asked to set a password (T14.5c). The link is a real
 // implicit-flow invite (the session arrives in the URL hash), which the PKCE client used to reject. Local stack only.
 import { expect, test } from '@playwright/test'
+import { guardLeaks } from './support/leaks.ts'
 import { createPlatformAdmin, createVenue, deleteVenue, emailText, serviceClient } from './support/helpers.ts'
 
 // Locally the function redirects to the first PUBLIC_SITE_URL (no PUBLIC_ROOT_DOMAIN); on the hosted project it is the
@@ -79,3 +80,6 @@ test('a platform admin re-sends the invite and the owner signs in with the new l
     await deleteVenue(venue.id)
   }
 })
+
+// H14: keep last, after this file's own cleanup hooks.
+guardLeaks()

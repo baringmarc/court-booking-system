@@ -1,6 +1,7 @@
 // T17.15: the Weekly Hours & Rates editor. Runs in its own E2E venue (deleted afterwards) so the demo venue's schedule is
 // never touched. Desktop and 360px.
 import { expect, test, type Page } from '@playwright/test'
+import { guardLeaks } from './support/leaks.ts'
 import { addVenueStaff, axeBothSchemes, createPlayer, createVenue, deleteVenue, serviceClient, submitAdminLogin } from './support/helpers.ts'
 
 type E2EVenue = Awaited<ReturnType<typeof createVenue>>
@@ -172,3 +173,6 @@ test('a stale revision shows the reload message and keeps the draft', async ({ p
   await expect(page.getByRole('button', { name: 'Review & save' })).toBeDisabled()
   await expect(page.getByRole('button', { name: 'Reload latest' })).toBeVisible()
 })
+
+// H14: keep last, after this file's own cleanup hooks.
+guardLeaks()

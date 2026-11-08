@@ -1,6 +1,7 @@
 // A player signs up (confirming the email, as on the hosted project), books with prefilled details,
 // and reads the booking as its owner (no token).
 import { expect, test } from '@playwright/test'
+import { guardLeaks } from './support/leaks.ts'
 import { confirmationLink, E2E_PREFIX, PASSWORD, pickFirstFreeSlot, uniqueEmail, venueDate } from './support/helpers.ts'
 
 test('a signed-in player books with prefilled details and sees it without a token', async ({ page }) => {
@@ -35,3 +36,6 @@ test('a signed-in player books with prefilled details and sees it without a toke
   await expect(page.getByRole('definition').filter({ hasText: `${E2E_PREFIX} Player` })).toBeVisible()
   await expect(page.getByText('Waiting for payment')).toBeVisible()
 })
+
+// H14: keep last, after this file's own cleanup hooks.
+guardLeaks()

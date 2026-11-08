@@ -1,5 +1,6 @@
 // An admin records a walk-in from the dashboard; staff see the full name, players the first name only.
 import { expect, test } from '@playwright/test'
+import { guardLeaks } from './support/leaks.ts'
 import { createAdmin, E2E_PREFIX, logInAdmin, venueDate } from './support/helpers.ts'
 
 test('an admin records a walk-in and the slot shows as booked on /book', async ({ page }) => {
@@ -46,3 +47,6 @@ test('an admin records a walk-in and the slot shows as booked on /book', async (
   await expect(page.getByRole('button', { name: new RegExp(`^Badminton 4, ${startHour} – \\d+ [AP]M( \\(next day\\))?, Booked by ${E2E_PREFIX}`) })).toBeDisabled()
   await expect(page.getByText('Walk-in', { exact: false })).toHaveCount(0)
 })
+
+// H14: keep last, after this file's own cleanup hooks.
+guardLeaks()

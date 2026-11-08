@@ -1,6 +1,7 @@
 // T17.31: the Schedule page's tabs (Opening hours, Prices, Closures), the sticky save bar and the Review changes dialog.
 // Runs in its own E2E venue (deleted afterwards) so the demo venue's schedule is never touched. Desktop and 360px.
 import { expect, test, type Page } from '@playwright/test'
+import { guardLeaks } from './support/leaks.ts'
 import { addVenueStaff, axeBothSchemes, createPlayer, createVenue, deleteVenue, submitAdminLogin } from './support/helpers.ts'
 
 type E2EVenue = Awaited<ReturnType<typeof createVenue>>
@@ -204,3 +205,6 @@ test('keyboard only: arrow keys switch tabs, and focus returns after each dialog
   await expect(discard).toBeFocused()
   await expect(saturdayCloses(page)).toHaveValue('21')
 })
+
+// H14: keep last, after this file's own cleanup hooks.
+guardLeaks()

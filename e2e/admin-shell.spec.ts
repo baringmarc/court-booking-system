@@ -1,5 +1,6 @@
 // The admin area is its own shell with its own login (SPEC §7); the public site has no way in.
 import { expect, test } from '@playwright/test'
+import { guardLeaks } from './support/leaks.ts'
 import { createAdmin, createPlayer, logInAdmin, submitAdminLogin } from './support/helpers.ts'
 
 test('an admin deep link goes through /admin/login and back; logging out returns to the login', async ({ page }) => {
@@ -34,3 +35,6 @@ test('a player who signs in at /admin/login is refused', async ({ page }) => {
   await page.goto('/admin/bookings')
   await expect(page.getByRole('heading', { name: 'Admins only' })).toBeVisible()
 })
+
+// H14: keep last, after this file's own cleanup hooks.
+guardLeaks()

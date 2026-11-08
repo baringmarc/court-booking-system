@@ -2,6 +2,7 @@
 // an invoice from draft to paid that the venue sees on its statement. Local stack only; teardown removes e2e-* venues,
 // their invoices and charges, and E2E-tagged leads.
 import { expect, test, type Page } from '@playwright/test'
+import { guardLeaks } from './support/leaks.ts'
 import {
   E2E_PREFIX, PASSWORD, axeBothSchemes, createPlatformAdmin, createPlayer, createVenue, addVenueStaff, deleteVenue, serviceClient,
 } from './support/helpers.ts'
@@ -220,3 +221,6 @@ test('an invoice goes from draft to sent to paid, and the venue sees it on its s
     await deleteVenue(venue.id)
   }
 })
+
+// H14: keep last, after this file's own cleanup hooks.
+guardLeaks()

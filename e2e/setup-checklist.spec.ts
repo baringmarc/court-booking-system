@@ -1,6 +1,7 @@
 // T17.34: the dashboard setup checklist of a draft venue: where-to-fix lines, Fix links, the required-items count and
 // the Done / To do status in text. Own E2E venue (deleted afterwards). Desktop and 360px, axe in both color schemes.
 import { expect, test } from '@playwright/test'
+import { guardLeaks } from './support/leaks.ts'
 import { addVenueStaff, axeBothSchemes, createPlayer, createVenue, deleteVenue, serviceClient } from './support/helpers.ts'
 
 type E2EVenue = Awaited<ReturnType<typeof createVenue>>
@@ -53,3 +54,6 @@ test('a draft venue dashboard lists what is left, where to fix it and links ther
   await instructions.getByRole('link', { name: /fix/i }).click()
   await expect(page).toHaveURL(/\/admin\/settings\/payments/)
 })
+
+// H14: keep last, after this file's own cleanup hooks.
+guardLeaks()

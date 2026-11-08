@@ -2,6 +2,7 @@
 // The site (../plotline-site) runs as a second web server on :5180 against the local stack; it reads the public_venues
 // feed in the browser, so a reload is enough (no rebuild). The test deletes its own e2e-* venue in a finally (other specs read venue_settings with .single(), so it must not outlive the test).
 import { expect, test } from '@playwright/test'
+import { guardLeaks } from './support/leaks.ts'
 import { axeBothSchemes, createPlatformAdmin, createVenue, deleteVenue } from './support/helpers.ts'
 
 const SITE = 'http://127.0.0.1:5180/'
@@ -44,3 +45,6 @@ test('approving a venue in the console puts it on the marketing site, and removi
     await deleteVenue(venue.id)
   }
 })
+
+// H14: keep last, after this file's own cleanup hooks.
+guardLeaks()

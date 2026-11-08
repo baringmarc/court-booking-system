@@ -3,6 +3,7 @@
 import { readFileSync } from 'node:fs'
 import { createClient } from '@supabase/supabase-js'
 import { expect, test, type Page } from '@playwright/test'
+import { guardLeaks } from './support/leaks.ts'
 import { axeBothSchemes, createPlatformAdmin, createPlayer, createVenue, deleteVenue, serviceClient, uniqueEmail } from './support/helpers.ts'
 import { localSupabase } from './support/local.ts'
 
@@ -306,3 +307,6 @@ test('an unknown venue address shows "Venue not found" with a sign-in hint for o
   await expect(hint).toHaveAttribute('href', '/admin')
   expect(await axeBothSchemes(page)).toEqual([])
 })
+
+// H14: keep last, after this file's own cleanup hooks.
+guardLeaks()

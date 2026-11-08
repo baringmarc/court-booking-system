@@ -1,6 +1,7 @@
 // Payment accounts and QR codes (T11.11): an admin adds an account with a QR code in /admin/settings, and a guest
 // sees it, scannable and downloadable, while paying. The account and its file are removed after the test.
 import { expect, test } from '@playwright/test'
+import { guardLeaks } from './support/leaks.ts'
 import { axeBothSchemes, createAdmin, E2E_PREFIX, logInAdmin, pickFirstFreeSlot, receiptPng, serviceClient, venueDate } from './support/helpers.ts'
 
 /** The bits of an element read for padding (the e2e tsconfig has no DOM types). */
@@ -98,3 +99,6 @@ test('an admin adds a payment account with a QR code, and a guest sees it while 
 
   expect(await axeBothSchemes(page, '[aria-labelledby="payment-accounts-heading"]')).toEqual([])
 })
+
+// H14: keep last, after this file's own cleanup hooks.
+guardLeaks()

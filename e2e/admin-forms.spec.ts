@@ -1,6 +1,7 @@
 // Even form rows (T11.5): settings fields wrap into columns that divide them evenly (four fields: 4, 2 or 1 per row,
 // never 3 + 1), at phone, tablet and desktop widths. Measured from where the fields actually land.
 import { expect, test, type Page } from '@playwright/test'
+import { guardLeaks } from './support/leaks.ts'
 import { createAdmin, logInAdmin } from './support/helpers.ts'
 
 /** The bits of an element this check reads (the e2e tsconfig has no DOM types). */
@@ -53,3 +54,6 @@ test('the social links fields (seven) never leave one alone on a row', async ({ 
     await expect.poll(() => rowCounts(page, 'Facebook'), `${width}px`).toEqual(expected)
   }
 })
+
+// H14: keep last, after this file's own cleanup hooks.
+guardLeaks()

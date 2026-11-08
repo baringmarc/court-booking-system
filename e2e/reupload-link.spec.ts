@@ -1,6 +1,7 @@
 // T11.30: the non-final rejection email carries "Upload a new proof", a fresh private link. Following it WITHOUT the
 // original link opens the booking with focus on the pay heading; the guest uploads again and the admin approves.
 import { expect, test } from '@playwright/test'
+import { guardLeaks } from './support/leaks.ts'
 import { axeBothSchemes, createAdmin, E2E_PREFIX, emailText, logInAdmin, pickFirstFreeSlot, runEmailWorker, uploadProof, venueDate } from './support/helpers.ts'
 
 // The email link's origin is the site URL (localhost:5173), not the e2e server: open its path and hash on baseURL.
@@ -61,3 +62,6 @@ test('a guest re-uploads a proof through the link in the rejection email', async
   await fresh.close()
   await adminContext.close()
 })
+
+// H14: keep last, after this file's own cleanup hooks.
+guardLeaks()

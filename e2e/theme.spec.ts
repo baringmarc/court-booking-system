@@ -1,6 +1,7 @@
 // Venue color presets (T11.7): the admin's pick reaches a signed-out player, and every preset is axe clean.
 // The theme is venue-wide, so each test puts the saved one back.
 import { expect, test } from '@playwright/test'
+import { guardLeaks } from './support/leaks.ts'
 import { axeBothSchemes, createAdmin, logInAdmin, serviceClient, venueId } from './support/helpers.ts'
 
 const PRESETS = ['plotline', 'court-green', 'ocean', 'plum', 'sunset'] as const
@@ -65,3 +66,6 @@ test('the home page is axe clean with every preset, light and dark', async ({ pa
     expect(await axeBothSchemes(page), preset).toEqual([])
   }
 })
+
+// H14: keep last, after this file's own cleanup hooks.
+guardLeaks()

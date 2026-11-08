@@ -1,6 +1,7 @@
 // Cancelling (SPEC §4): a guest cancels from their private link and the slot is free again;
 // an admin cancels with a reason that the guest then sees.
 import { expect, test, type Page } from '@playwright/test'
+import { guardLeaks } from './support/leaks.ts'
 import { createAdmin, E2E_PREFIX, logInAdmin, pickFirstFreeSlot, venueDate } from './support/helpers.ts'
 
 async function bookAsGuest(page: Page, { date, court }: { date: string; court: string }) {
@@ -53,3 +54,6 @@ test('an admin cancels a booking with a reason the guest sees', async ({ page, b
   await page.goto(url)
   await expect(page.getByText('The venue cancelled this booking: Court maintenance')).toBeVisible()
 })
+
+// H14: keep last, after this file's own cleanup hooks.
+guardLeaks()

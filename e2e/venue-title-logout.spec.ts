@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { guardLeaks } from './support/leaks.ts'
 import { addVenueStaff, createPlayer, createVenue, deleteVenue, submitAdminLogin } from './support/helpers.ts'
 
 test('the venue title remains correct after staff logs out', async ({ page }) => {
@@ -18,3 +19,6 @@ test('the venue title remains correct after staff logs out', async ({ page }) =>
     await deleteVenue(venue.id)
   }
 })
+
+// H14: keep last, after this file's own cleanup hooks.
+guardLeaks()

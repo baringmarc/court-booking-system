@@ -1,6 +1,7 @@
 // T9.4, T11.5a: an admin drags a court by its ☰ handle on /admin/courts (desktop and 360px), and /book shows the
 // new order, then moves it back with the keyboard. The handle's tap menu is used in venue-info.spec.ts.
 import { expect, test, type Page } from '@playwright/test'
+import { guardLeaks } from './support/leaks.ts'
 import { axeBothSchemes, createAdmin, logInAdmin, serviceClient, venueDate } from './support/helpers.ts'
 
 const SEED_ORDER = [{ name: 'Pickleball 1', sort_order: 1 }, { name: 'Pickleball 2', sort_order: 2 }]
@@ -61,3 +62,6 @@ test('an admin drags a court above another and players see the new order on /boo
   await page.reload()
   await expect(pickleballRows(page)).toHaveText(['Pickleball 1', 'Pickleball 2'])
 })
+
+// H14: keep last, after this file's own cleanup hooks.
+guardLeaks()

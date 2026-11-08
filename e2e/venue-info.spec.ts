@@ -2,6 +2,7 @@
 // on the home page (and checkout links the cancellation policy). Everything is restored afterwards.
 import { createClient } from '@supabase/supabase-js'
 import { expect, test } from '@playwright/test'
+import { guardLeaks } from './support/leaks.ts'
 import { axeBothSchemes, createAdmin, E2E_PREFIX, logInAdmin, serviceClient } from './support/helpers.ts'
 import { localSupabase } from './support/local.ts'
 
@@ -137,3 +138,6 @@ test('an admin sets an amenity, an info section and a social link, and anyone ca
   expect(await axeBothSchemes(home)).toEqual([])
   await player.close()
 })
+
+// H14: keep last, after this file's own cleanup hooks.
+guardLeaks()

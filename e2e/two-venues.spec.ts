@@ -1,6 +1,7 @@
 // Two venues on one stack, each on its own subdomain (SPEC §10 2026-10-31, T13.9): players see only their venue,
 // and admin rights do not cross venues.
 import { expect, test } from '@playwright/test'
+import { guardLeaks } from './support/leaks.ts'
 import { addVenueStaff, createAdmin, createPlayer, createVenue, deleteVenue, serviceClient, submitAdminLogin } from './support/helpers.ts'
 
 type E2EVenue = Awaited<ReturnType<typeof createVenue>>
@@ -84,3 +85,6 @@ test('an admin of both venues gets a venue switcher linking to the other venue',
   }
   await expect(page.getByRole('button', { name: 'Account', exact: true })).toBeVisible()
 })
+
+// H14: keep last, after this file's own cleanup hooks.
+guardLeaks()

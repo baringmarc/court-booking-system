@@ -2,6 +2,7 @@
 // and 360px: paging without dropped or duplicated rows, filters, URL state and back navigation, a detail panel,
 // notes that survive paging, no horizontal overflow and axe in both themes. Teardown also removes E2E-tagged leads.
 import { expect, test, type Page } from '@playwright/test'
+import { guardLeaks } from './support/leaks.ts'
 import { E2E_PREFIX, axeBothSchemes, createPlatformAdmin, serviceClient } from './support/helpers.ts'
 
 const CONSOLE = 'http://app.localhost:5179/'
@@ -149,3 +150,6 @@ test('every console section is accessible in both themes without horizontal over
     await service.from('leads').delete().like('venue_name', `${E2E_PREFIX} Page ${tag}%`)
   }
 })
+
+// H14: keep last, after this file's own cleanup hooks.
+guardLeaks()

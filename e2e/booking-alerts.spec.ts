@@ -3,6 +3,7 @@
 // opening /admin/bookings shows the booking and clears the count.
 import { AxeBuilder } from '@axe-core/playwright'
 import { expect, test } from '@playwright/test'
+import { guardLeaks } from './support/leaks.ts'
 import { createAdmin, E2E_PREFIX, logInAdmin, pickFirstFreeSlot, uploadProof, venueDate } from './support/helpers.ts'
 
 test('the admin sees a new booking arrive without reloading', async ({ page, browser }) => {
@@ -38,3 +39,6 @@ test('the admin sees a new booking arrive without reloading', async ({ page, bro
   await expect(nav.getByRole('link', { name: /new$/ })).toHaveCount(0)
   await guestContext.close()
 })
+
+// H14: keep last, after this file's own cleanup hooks.
+guardLeaks()
