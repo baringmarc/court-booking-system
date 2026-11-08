@@ -15,6 +15,8 @@ import { emailTransport, fromFor, sendEmail, type EmailAttachment } from '../_sh
 import {
   OWNER_GUIDE_FILE, OWNER_SUPPORT_EMAIL, inviteRedirectTo, ownerEmail, ownerGuideSource, ownerGuideUrl, ownerLinkAction, parseInviteBody,
 } from '../_shared/ownerInvite.ts'
+import * as Sentry from 'npm:@sentry/deno@10.76.2'
+import { withSentry } from '../_shared/sentry.ts'
 
 const json = (body: unknown, status = 200) => Response.json(body, { status })
 const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024
@@ -47,7 +49,7 @@ async function guideAttachment(source: string): Promise<EmailAttachment | null> 
 }
 
 export default {
-  fetch: withSupabase({ auth: ['user'] }, async (req, ctx) => {
+  fetch: withSupabase({ auth: ['user'] }, withSentry('invite-venue-owner', async (req, ctx) => {
     if (req.method !== 'POST') return json({ code: 'method_not_allowed', message: 'Use POST.' }, 405)
 
     const callerId = callerUserId(ctx)
@@ -142,5 +144,5 @@ export default {
       return json({ code: 'invite_failed', message: "We couldn't send the email. Try again." }, 502)
     }
     return json({ ok: true, invited: action === 'invite', sent: action })
-  }),
+  }, Sentry)),
 }

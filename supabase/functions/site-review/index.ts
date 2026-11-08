@@ -3,10 +3,12 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { isLikelyBot, validateReview } from '../_shared/siteForms.ts'
 import { json, preflight, readJson } from '../_shared/siteHttp.ts'
+import * as Sentry from 'npm:@sentry/deno@10.76.2'
+import { withSentry } from '../_shared/sentry.ts'
 
 const THANKS = 'Thank you! Your review will appear once we have checked it.'
 
-Deno.serve(async (req) => {
+Deno.serve(withSentry('site-review', async (req) => {
   const early = preflight(req)
   if (early) return early
 
@@ -35,4 +37,4 @@ Deno.serve(async (req) => {
     return json(req, { ok: false, error: 'Could not send your review. Please try again.' }, 500)
   }
   return json(req, { ok: true, message: THANKS })
-})
+}, Sentry))

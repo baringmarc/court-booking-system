@@ -5,13 +5,15 @@
 import { withSupabase } from 'npm:@supabase/server@1'
 import { checkProofFile, MAX_PROOF_BYTES, parseProofFields, ProofError } from '../_shared/proof.ts'
 import { callerUserId, rpcError } from '../_shared/payable.ts'
+import * as Sentry from 'npm:@sentry/deno@10.76.2'
+import { withSentry } from '../_shared/sentry.ts'
 
 const BUCKET = 'payment-proofs'
 // File limit plus room for the other multipart fields; checked before the body is read into memory.
 const MAX_REQUEST_BYTES = MAX_PROOF_BYTES + 512 * 1024
 
 export default {
-  fetch: withSupabase({ auth: ['user', 'publishable'] }, async (req, ctx) => {
+  fetch: withSupabase({ auth: ['user', 'publishable'] }, withSentry('submit-payment-proof', async (req, ctx) => {
     if (req.method !== 'POST') {
       return Response.json({ code: 'method_not_allowed', message: 'Use POST.' }, { status: 405 })
     }
@@ -67,5 +69,5 @@ export default {
       console.error('submit-payment-proof failed', e instanceof Error ? e.message : e)
       return Response.json({ code: 'server_error', message: 'Something went wrong. Please try again.' }, { status: 500 })
     }
-  }),
+  }, Sentry)),
 }

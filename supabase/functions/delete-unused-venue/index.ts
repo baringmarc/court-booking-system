@@ -9,6 +9,8 @@
 import { withSupabase } from 'npm:@supabase/server@1'
 import { callerUserId } from '../_shared/payable.ts'
 import { drainVenueFileCleanup, storageAdapter, venueFilesLeft, type ClaimedCleanup, type CleanupQueue } from '../_shared/venueCleanup.ts'
+import * as Sentry from 'npm:@sentry/deno@10.76.2'
+import { withSentry } from '../_shared/sentry.ts'
 
 const json = (body: unknown, status = 200) => Response.json(body, { status })
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -30,7 +32,7 @@ function parseBody(raw: unknown): Body | null {
 }
 
 export default {
-  fetch: withSupabase({ auth: ['user'] }, async (req, ctx) => {
+  fetch: withSupabase({ auth: ['user'] }, withSentry('delete-unused-venue', async (req, ctx) => {
     if (req.method !== 'POST') return json({ code: 'method_not_allowed', message: 'Use POST.' }, 405)
 
     const callerId = callerUserId(ctx)
@@ -79,5 +81,5 @@ export default {
       console.error('delete-unused-venue: cleanup drain failed', e instanceof Error ? e.message : String(e))
     }
     return json({ venue_id: body.venueId, cleanup })
-  }),
+  }, Sentry)),
 }

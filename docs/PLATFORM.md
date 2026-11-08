@@ -111,6 +111,7 @@ M12 (done 2026-10-31) made the schema multi-venue (`venues`, `venue_members`, `p
 | this repo, Edge Function secrets | `SITE_ORIGINS` | Allowed origins for the site functions, comma-separated: `https://plotline.fit,https://www.plotline.fit` (plus `http://localhost:5173` on staging) |
 | this repo, Edge Function secrets | `TURNSTILE_SECRET_KEY` | Cloudflare Turnstile secret. Required on hosted projects; skipped locally when unset. |
 | this repo, Edge Function secrets | `LEAD_ALERT_TO` | Addresses (comma-separated) emailed when `site-contact` stores a lead. Unset: no alert. Uses the booking-email transport (`EMAIL_TRANSPORT`, `RESEND_API_KEY`, `EMAIL_FROM`). |
+| this repo, Edge Function secrets | `SENTRY_DSN` | Sentry DSN for every Edge Function, including `site-contact` and `site-review` (T16.3). Unset: no error reporting. Events are scrubbed (SPEC §10 2026-11-08). |
 | this repo, Edge Function secrets | `PUBLIC_ROOT_DOMAIN` | `plotline.fit` (T13.6). Booking return and email links go to `https://<venue slug>.plotline.fit`, built from the booking's own venue, never from a request value. Unset until the wildcard DNS is live (T13.8); `PUBLIC_SITE_URL` stays as the exact allow-list for localhost and the old Vercel URL. |
 | Supabase Auth, URL configuration | Redirect URLs | Add `https://*.plotline.fit/**` (done by hand in the dashboard; T13.6). Keep the existing entries until T13.8. |
 

@@ -20,6 +20,8 @@ import {
   type CheckoutSession,
 } from '../_shared/paymongo.ts'
 import { venueSiteBase } from '../_shared/venueSite.ts'
+import * as Sentry from 'npm:@sentry/deno@10.76.2'
+import { withSentry } from '../_shared/sentry.ts'
 
 const unavailable = () => new ProofError('payments_unavailable', "Online payment isn't available right now. Please upload a proof instead.", 503)
 
@@ -47,7 +49,7 @@ async function createSession(body: unknown): Promise<CheckoutSession> {
 }
 
 export default {
-  fetch: withSupabase({ auth: ['user', 'publishable'] }, async (req, ctx) => {
+  fetch: withSupabase({ auth: ['user', 'publishable'] }, withSentry('create-paymongo-checkout', async (req, ctx) => {
     if (req.method !== 'POST') {
       return Response.json({ code: 'method_not_allowed', message: 'Use POST.' }, { status: 405 })
     }
@@ -118,5 +120,5 @@ export default {
       console.error('create-paymongo-checkout failed', e instanceof Error ? e.message : e)
       return Response.json({ code: 'server_error', message: 'Something went wrong. Please try again.' }, { status: 500 })
     }
-  }),
+  }, Sentry)),
 }
