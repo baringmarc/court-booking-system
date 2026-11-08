@@ -2213,10 +2213,11 @@ SaaS Phase 6 (`docs/SAAS-PLAN.md`). Breakdown approved by the user on 2026-11-02
 - **Hosted proof (2026-11-08, done):** Sentry projects `plotline-staging` and `plotline-production` (org `plotline-uk`), Data Scrubber, default scrubbers and IP storage off in both. Staging: `SENTRY_DSN` set, all 9 functions redeployed, a temporary `sentry-test` function threw once and the scrubbed issue (`function=sentry-test`) arrived; the function was then deleted. Production (the user approved the release): `SENTRY_DSN` set, all 9 functions redeployed (this also brought `send-emails`, `email-guest-link`, `site-contact`, `site-review` and `paymongo-webhook` up to date and shipped T16.6's `invite-venue-owner` change), frontend built with `VITE_SENTRY_DSN` in the gitignored `.env.production.local` and deployed to Cloudflare (version `43b068c3`). The user threw a test error in the browser console on `claudex-courts.plotline.fit` and `app.plotline.fit` and confirmed both issues (`surface=app`, `surface=console`) arrived in `plotline-production`; resolved afterwards.
 - **Notes:** `src/lib/sentry.ts`, `sentryScrub.ts`, `supabase/functions/_shared/sentry.ts`, `sentryScrub.ts` (+ tests), 9 wrapped functions, SPEC §10 2026-11-08, PLATFORM.md `SENTRY_DSN`. **Follow-ups:** move both SDKs from 10.76.2 to v11 (`dataCollection` replaces `sendDefaultPii`); source map upload (needs a Sentry auth token as a build secret); production Sentry DSN is only in `.env.production.local`, so rebuilds for production need it there.
 
-### [ ] T16.4 Uptime checks
+### [~] T16.4 Uptime checks
 - **Depends:** T16.1
 - **Do:** checks on `claudex-courts.plotline.fit` and the Supabase API with alerts to the user; this task states the exact setup steps for the user.
 - **Acceptance:** both checks report up, and a forced failure sends an alert.
+- **Notes (2026-11-08):** the user chose StatusCake (free plan, commercial use per third-party sources). Setup steps and the proof are in `docs/ops/UPTIME.md`. **Waiting on you:** create the account and the two monitors, run the forced-failure proof, then tell me the result so I tick the task. No code or migration.
 
 ### [ ] T16.5 Runbook
 - **Depends:** T16.2, T16.3, T16.4
