@@ -6,6 +6,8 @@ The working plan. [SPEC.md](SPEC.md) says **what** the product does; this file s
 
 - **Owner email copy polish (2026-11-07, the user's request, commit `2da16be`):** warmer invitation, clearer one-use/expiry instructions, descriptive HTML links, guide/support wording, walkthrough offer and “See you on court” sign-off in `_shared/ownerInvite.ts` (HTML and plain text; existing-account sign-in kept). Reviewer PASS with no findings. Gate: covered by T17.30's full gate with e2e on 2026-11-07 (HEAD `7c0bb7d` contains it). Staging's `invite-venue-owner` was redeployed at 03:50 UTC, after the commit (03:48 UTC), so staging sends this copy; production's deploy order is not verified here (check `updated_at` with the production project linked before inviting a real owner).
 - **Current milestone:** M17 Admin and scheduling improvements ✅ done on 2026-11-07 (T17.1–T17.34; milestone review PASS, its doc findings fixed). /retro M17 done 2026-11-07 (test-writer checklist and /implement brief lines; H13 gate/Stop-hook overlap and H14 e2e leak check queued in the Harness backlog, both done with the user). H13 done 2026-11-07 (the Stop hook skips while a full gate or test run holds its lock). H14 done 2026-11-08 (every e2e spec ends with `guardLeaks()`). **Next task:** M16 T16.4 Uptime checks (the user picks a service whose free plan allows commercial use, at its plan gate) or plotline-site T2.6. T16.3 Sentry done 2026-11-08, live on staging and production (functions and frontend); follow-ups: SDK v11, source maps. M16 T16.4, T16.5 and T16.7 remain queued. T16.6 Owner email next steps done 2026-11-08 (close-out is now T16.7); its `invite-venue-owner` change is deployed to staging and production (T16.3 release).
+- **Scope added (2026-11-10, /propose, promo rates):** new M19 Promo rates (T19.1–T19.4): owners set limited-time fixed-price promos on `/admin/schedule`, applied by `slot_price`. Starts after M18; the next task doesn't change.
+- **Scope added (2026-11-10, /propose):** new M18 Venue feature switches (T18.1–T18.5): console switches for online payments and walk-ins per venue, `create_walk_in` refused while a venue's walk-ins are off, `VITE_FEATURE_WALK_INS` removed. Starts after M16 closes; the next task doesn't change.
 - **Deploy state (2026-11-08):** staging and production both run every Edge Function from `develop` at `ba2f015` (T16.3 release, the user's approval), with `SENTRY_DSN` set on each. That includes T16.6's `invite-venue-owner` change, so the earlier redeploy wait is over.
 - **State (2026-11-07):** every M17 migration is on staging and production; `delete-unused-venue` and `invite-venue-owner` are deployed to both (2026-11-07 Release). Staging's other functions match `develop`; production still runs the 2026-11-01 deploys of `send-emails`, `email-guest-link`, `site-contact`, `site-review` and `paymongo-webhook`. Schedule v2 is not activated on any project (docs/SCHEDULE-CUTOVER.md step 4 needs its own approval). One real owner invite on production is still unproven. plotline-site T3.1 (live venue feed) is committed there as `9f7f2cc`, not pushed or deployed; production `public_venues` is empty until a venue is approved. Per-task details are in each task's Notes.
 - **Release (2026-11-06, the user's approval):** production `/book` failed (`get_public_schedule(p_venue_slug)` 404) because the T17.20 frontend was live on `*.plotline.fit` while the production database stopped at T17.4. Pushed from a clean worktree at `2ec2a5f` (T17.21 excluded): staging got T17.11–T17.14, T17.17, T17.18; production got T17.5, T17.7, T17.9, T17.10 (both), T17.11–T17.14, T17.17, T17.18. Checked on both: 0 venues with `schedule_v2_active`, every venue has `venue_open_periods`, `/book` loads. No Edge Function changed since T14.5d, so none were deployed. Schedule v2 is NOT activated anywhere (docs/SCHEDULE-CUTOVER.md step 4 still needs its own approval). Production `public_venues` is empty until venues are approved in the console (T17.7; the user accepted this). Then a home-page hotfix (`aabe97d`, `summarizeSchedule`) was deployed to Cloudflare (version `78dc1454`).
@@ -2502,6 +2504,81 @@ Approved 2026-11-03. Source: `docs/PLOTLINE_ADMIN_SCHEDULING_IMPLEMENTATION_SPEC
 **Marketing companion (plotline-site T3.1, Milestone 3 there; approved 2026-11-07: empty or failed feed shows the demo card only, `claudex-courts` never in the feed):** depends on T17.7–T17.8. Read public_venues through existing api/hooks and TanStack Query; reuse VenueCard/Slider, map venue-media paths, handle loading/empty/error, refetch without redeployment. Supersedes demo-only decision; keep the separate demo CTA, never substitute unapproved venues into the featured feed. Its own full gate/reviewer and a local cross-repository journey are required. No backend changes in that repo.
 
 **Later contract task:** remove legacy hours/Showcase structures only after deployed references and old clients are proven gone. Not required for initial activation.
+
+---
+
+## Milestone 18: Venue feature switches
+
+Added on 2026-11-10 (`/propose`, the user's calls; SPEC §9 item 18, §10 2026-11-10). Goal: Plotline turns online payments and walk-ins on or off per venue from the console, and the database enforces both. Starts after M16 closes (T16.7). Out of scope: per-venue PayMongo accounts (Phase 4; until then every venue's checkout uses the one platform test-mode key, so switching a new venue on is for demos and testing only), billing walk-ins, and letting owners change either switch. Risky tasks stop at the plan gate (none are pre-approved).
+
+### [ ] T18.1 Migration: online payments switch for platform admins
+- **Depends:** M16 done
+- **Do:**
+  - `public.set_online_payments(p_venue_id uuid, p_enabled boolean)`, modelled on `set_venue_showcase_approval` (`20261104085834_venue_showcase_approval_authority.sql`): refuses anyone but `private.is_platform_admin()` with hint `not_platform_admin`, an unknown venue with `venue_not_found`; updates `venue_settings.online_payments_enabled` for that venue only. Granted to `authenticated` only.
+  - Recreate `private.guard_online_payments()` so a platform admin may also change the flag (today only `postgres` and `service_role`). Venue admins stay refused with `forbidden` through the existing UPDATE policy. Decide at the plan gate whether the RPC is `security definer` (and the guard keeps its role check) or `security invoker` (and the guard checks `private.is_platform_admin()`); never both open.
+  - Expand only: the deployed frontend and `create-paymongo-checkout` already read the flag. No data change (Claudex Courts stays on).
+  - SPEC §6 RPC row and §10 line (L2). Add the RPC to `51_cross_venue_isolation`'s exempt list if it needs one.
+- **Acceptance:** pgTAP `NN_online_payments_switch.test.sql`: a platform admin turns a venue on and off; a venue admin, a player and anon are refused (both the RPC and a direct `update venue_settings`); another venue's flag is unchanged; an unknown venue is refused; `service_role` still works. **Risky** (RPC, trigger, grant).
+
+### [ ] T18.2 Online payments switch in the console
+- **Depends:** T18.1
+- **Do:**
+  - `features/console/api.ts` `setOnlinePayments` and a read of each venue's flag (extend `venues_page` or read `venue_settings` like `fetchShowcaseApprovals`; pick the one that keeps one request per page), with hooks in `hooks.ts` that refresh the Venues list.
+  - On `VenuesPage.tsx`, an "Online payments" switch per venue next to `ShowcaseControl`, with its state as text ("On" / "Off"), a pending state and a readable error. Turning it on shows a confirmation: until Phase 4, players pay through Plotline's PayMongo test-mode account (the user's call, 2026-11-10: test mode only).
+  - The venue's `OnlinePaymentsStatus` stays read-only.
+- **Acceptance:** Vitest in `api.onlinePayments.test.ts` and `VenuesPage.onlinePayments.test.tsx` (switch on with the confirmation, off, error). e2e: a platform admin turns a test venue's online payments on, and that venue's `/booking/:ref` shows "Pay online with PayMongo"; off hides it (desktop and 360px, axe clean).
+
+### [ ] T18.3 Migration: per-venue walk-ins
+- **Depends:** T18.1 (the same guard pattern)
+- **Do:** the user's calls, 2026-11-10: a per-venue switch that only Plotline changes, off by default; walk-ins are **not** billed (they stay outside `billing_charges` and invoices, as in SAAS-PLAN §5).
+  - `venue_settings.walk_ins_enabled boolean not null default false`, every venue including Claudex Courts starting off (production hides walk-ins today). A guard trigger like `guard_online_payments` (platform admin, `postgres`, `service_role` only).
+  - `public.set_walk_ins(p_venue_id uuid, p_enabled boolean)`, the same checks and hints as `set_online_payments`.
+  - Recreate the latest `create_walk_in` so it refuses with hint `walk_ins_off` (P0001) when the venue's flag is off, before any slot check. This closes the gap noted in SAAS-PLAN 2026-11-01 (the database doesn't refuse `create_walk_in`). Existing walk-in bookings, `reschedule_booking` and the reports are unchanged.
+  - Rollout: production has the build flag off, so no client calls `create_walk_in` there; the refusal is safe to deploy before T18.4.
+  - SPEC §5.8, §6 (column, RPC rows, `create_walk_in` hint) and a §10 line (L2); SAAS-PLAN §3 row for the reversal of 2026-10-26 and 2026-11-01. Add `walk_ins_off` to `features/booking/errors.ts` `CODES` with a readable message.
+- **Acceptance:** pgTAP `NN_walk_ins_switch.test.sql`: the default is off; `create_walk_in` refuses with `walk_ins_off` while off and books while on; only a platform admin changes the flag (venue admin, player and anon refused through both the RPC and a direct update); one venue's flag doesn't affect another's; `13_create_walk_in` and the other walk-in tests turn the flag on in their fixtures and still pass. **Risky** (RPC change, trigger, grant).
+
+### [ ] T18.4 Walk-ins in the UI
+- **Depends:** T18.3
+- **Do:**
+  - Remove `VITE_FEATURE_WALK_INS` (the user's call, 2026-11-10): `DashboardPage.tsx` shows the lazy `WalkInSection` when `venue_settings.walk_ins_enabled` is true; remove it from `vite-env.d.ts`, `.env.example`, `playwright.config.ts` and the README. The form stays in the lazy admin chunk.
+  - Console: a "Walk-ins" switch per venue on `VenuesPage.tsx` next to the online payments switch (`setWalkIns` and the hooks as in T18.2). No confirmation needed.
+  - e2e `walk-in.spec.ts` and `earnings.spec.ts` turn the flag on for their venue with the service role and restore it afterwards.
+- **Acceptance:** `DashboardPage.test.tsx` rewritten for the setting (on: the "+ Walk-in" card; off: none). Vitest for the console switch. e2e: with the flag off the dashboard has no walk-in card; with it on a walk-in records as today (desktop and 360px, axe clean). `dist/` contains no `VITE_FEATURE_WALK_INS`.
+
+### [ ] T18.5 Close out M18
+- **Depends:** T18.1–T18.4
+- **Do:** update SPEC §9 and §7 (console Venues row, `/admin` walk-in card), PLATFORM.md if the console's reads changed; milestone review and `/retro`.
+- **Acceptance:** `npm run verify` passes; the reviewer signs off.
+
+## Milestone 19: Promo rates
+
+Added on 2026-11-10 (`/propose`, the user's calls; SPEC §9 item 19, §10 2026-11-10). Goal: a venue admin sets a limited-time promo price that the server applies to matching slots. Starts after M18. Out of scope: percent-off promos, promo codes, per-player promos, a console control. Risky tasks stop at the plan gate (none are pre-approved).
+
+### [ ] T19.1 Migration: promo rates and server pricing
+- **Depends:** M18 done
+- **Do:** the user's calls, 2026-11-10: one fixed hourly price per promo, limited by dates, courts, days of week and hours.
+  - `court_promos` (`id`, `venue_id`, `label` 1–60 chars, `starts_on date`, `ends_on date` (not before `starts_on`), `days_of_week smallint[]` (values 0–6, not empty), `start_hour`, `end_hour` (0–24, `end_hour > start_hour`), `price numeric` (> 0), `is_active`) and `court_promo_courts (promo_id, court_id, venue_id)`. Dates are venue-timezone operating dates. RLS and explicit policies like `court_rates`: anyone reads an active venue's promos, only that venue's admins write; `venue_id` consistency enforced by composite FKs as in `20261030060136_venue_id_fk_names.sql`.
+  - Recreate `private.slot_price(court, slot_start, dow)` so a matching active promo (operating date within the range, day and hour inside the window) wins over `court_rates` and the default rate. Read the latest definition first (`20261030064018_venue_aware_booking_rpcs.sql` and later) and keep the overnight rule: a 1 AM slot after a Friday opening counts as Friday.
+  - `save_court_promo(...)` and `delete_court_promo(id)` for venue admins: refuse an overlap with another active promo on the same court, day, hour and date (hint `promo_overlap`), bad input (`invalid_input`), another venue's court (`court_not_found`).
+  - Expand only: no data change; with no promos every price is as today. Check that `get_availability` returns the promo price and the promo label (add a nullable `promo_label` column to its result only if the plan gate agrees; otherwise the UI reads the promos).
+  - SPEC §5.4 pricing, §6 table and RPC rows, §10 line (L2); add the new table to `51_cross_venue_isolation` if it needs it.
+- **Acceptance:** pgTAP `NN_court_promos.test.sql`: RLS (anon read of active venues only, player refused, other venue's admin refused, own admin writes); constraints; `slot_price` and `get_availability` return the promo price inside the window and the normal price one hour, one day or one court outside it, and after `ends_on`; `create_booking` totals match and an existing booking keeps its total; overlapping promos refused; the overnight slot follows its operating day. **Risky** (table, RLS, pricing function, RPCs).
+
+### [ ] T19.2 Promos tab in the admin schedule
+- **Depends:** T19.1
+- **Do:** `features/admin/promos/api.ts` and `hooks.ts` (`unwrap()`, React Query), and a "Promos" tab on `/admin/schedule` (`ScheduleTabs.tsx`, `?tab=promos`): a list with label, dates, courts and price, an Active/Ended/Upcoming badge, and add/edit/delete (a delete confirmation). The form renders once data has loaded and shows readable errors for `promo_overlap` and `invalid_input` (add them to `features/booking/errors.ts` `CODES`). Money through `Intl.NumberFormat` in the venue currency. Loading, empty and error states.
+- **Acceptance:** Vitest for the api and the tab (add, edit, delete, overlap error, empty state). Tabs test updated. axe clean, 360px.
+
+### [ ] T19.3 Promo prices for players
+- **Depends:** T19.1
+- **Do:** `/book` slot buttons and the checkout summary show the promo price and its label (the old price struck through only if the plan gate's read gives it). No client-side price calculation.
+- **Acceptance:** component tests for a promo slot and a normal slot. e2e: an admin adds a promo, a player books a promo slot and pays the promo total; the promo ending removes it (desktop and 360px, axe clean, `E2E…` data cleaned in FK order, L3).
+
+### [ ] T19.4 Close out M19
+- **Depends:** T19.1–T19.3
+- **Do:** SPEC §9 and §7 (`/admin/schedule` Promos tab), the owner PDF manual and screenshots if the schedule page changed; milestone review and `/retro`.
+- **Acceptance:** `npm run verify` passes; the reviewer signs off.
 
 ## Harness backlog
 - [x] H1 Vitest + `npm run verify` (typecheck, lint, test, build)
