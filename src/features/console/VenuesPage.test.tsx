@@ -19,6 +19,8 @@ vi.mock('./api', async (original) => ({
   ...(await original<typeof import('./api')>()),
   fetchIsPlatformAdmin: mocks.admin, fetchVenuesPage: mocks.venues, suspendVenue: mocks.suspend,
   reactivateVenue: mocks.reactivate, fetchShowcaseApprovals: mocks.approvals,
+  // T18.2: the panel also reads the online payments switch.
+  fetchOnlinePayments: async () => [{ venue_id: 'v1', online_payments_enabled: false }],
 }))
 
 const { ConsoleApp } = await import('./ConsoleApp')

@@ -132,6 +132,17 @@ export async function setVenueShowcaseApproval(input: { venueId: string; approve
   unwrap(await supabase.rpc('set_venue_showcase_approval', { p_venue_id: input.venueId, p_approved: input.approved }))
 }
 
+export type OnlinePaymentsRow = Pick<Tables<'venue_settings'>, 'venue_id' | 'online_payments_enabled'>
+
+/** Every venue's online payments switch in one request (T18.2), separate from the overview like Showcase approval. */
+export async function fetchOnlinePayments(): Promise<OnlinePaymentsRow[]> {
+  return unwrap(await supabase.from('venue_settings').select('venue_id, online_payments_enabled'))
+}
+
+export async function setOnlinePayments(input: { venueId: string; enabled: boolean }): Promise<void> {
+  unwrap(await supabase.rpc('set_online_payments', { p_venue_id: input.venueId, p_enabled: input.enabled }))
+}
+
 export async function suspendVenue(venueId: string): Promise<void> {
   unwrap(await supabase.rpc('suspend_venue', { p_venue_id: venueId }))
 }

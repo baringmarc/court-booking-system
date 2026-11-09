@@ -6,6 +6,7 @@ import { useReactivateVenue, useResendOwnerInvite, useSuspendVenue, useVenuesPag
 import { DetailsButton, ListStatus, RecordPanel, SearchField, StatusFilter } from './ListControls'
 import { focusDetails, returnFocus, useListParams } from './listParams'
 import { Pager } from './Pager'
+import { OnlinePaymentsControl } from './OnlinePaymentsControl'
 import { ShowcaseControl } from './ShowcaseControl'
 
 const VENUE_STATUSES = ['active', 'draft', 'suspended'] as const
@@ -57,6 +58,7 @@ function VenuePanel({ venue, onClose, onDelete }: { venue: VenueOverview; onClos
       <p>{venue.month_transactions} transactions · {formatMoney(venue.month_total)} this month</p>
       <p className="muted">{venue.open_invoices} open {venue.open_invoices === 1 ? 'invoice' : 'invoices'}</p>
       <ShowcaseControl venue={venue} />
+      <OnlinePaymentsControl venue={venue} />
       <div className="form-actions"><ResendInvite venue={venue} /></div>
       {venue.status === 'active' && (
         <div className="form-actions">

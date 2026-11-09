@@ -17,6 +17,8 @@ vi.mock('./api', async (original) => ({
   fetchIsPlatformAdmin: async () => true,
   fetchVenuesPage: mocks.venues,
   fetchShowcaseApprovals: async () => [],
+  // T18.2: the panel also reads the online payments switch.
+  fetchOnlinePayments: async () => [{ venue_id: 'v1', online_payments_enabled: false }],
   fetchVenueDeletionPreview: async () => ({
     slug: 'e2e-alpha', deletable: true, blockers: [],
     counts: { bookings: 0, payments: 0, checkouts: 0, charges: 0, invoices: 0, open_play_sessions: 0, courts: 1, members: 1 },
