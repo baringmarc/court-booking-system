@@ -948,6 +948,9 @@ isOneToOne: false
 "save_schedule":
 { Args: { "p_changes": Json,"p_expected_revision": number,"p_venue_id": string }; Returns: Json
                            },
+"set_online_payments":
+{ Args: { "p_enabled": boolean,"p_venue_id": string }; Returns: undefined
+                           },
 "set_operating_hours":
 { Args: { "p_hours": Json,"p_venue_id"?: string }; Returns: undefined
                            },
