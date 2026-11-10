@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router-dom'
 export const SCHEDULE_TABS = [
   { id: 'hours', label: 'Opening hours' },
   { id: 'prices', label: 'Prices' },
+  { id: 'promos', label: 'Promos' },
   { id: 'closures', label: 'Closures' },
 ] as const
 export type ScheduleTab = (typeof SCHEDULE_TABS)[number]['id']

@@ -31,4 +31,13 @@ describe('booking errors', () => {
     expect(bookingErrorCode(rpcError('walk_ins_off'))).toBe('walk_ins_off')
     expect(bookingErrorMessage(rpcError('walk_ins_off', 'Walk-ins are not enabled for this venue.'))).toMatch(/Walk-ins/)
   })
+
+  it('knows promo_overlap and court_not_found (T19.2) and shows the server message', () => {
+    const overlap = 'This promo overlaps "Happy hour" on the same court, day and hour.'
+    expect(bookingErrorCode(rpcError('promo_overlap'))).toBe('promo_overlap')
+    expect(bookingErrorMessage(rpcError('promo_overlap', overlap))).toBe(overlap)
+    expect(bookingErrorCode(rpcError('court_not_found'))).toBe('court_not_found')
+    expect(bookingErrorMessage(rpcError('court_not_found', 'That court was not found.'))).toBe('That court was not found.')
+    expect(isSlotGone(rpcError('promo_overlap'))).toBe(false)
+  })
 })

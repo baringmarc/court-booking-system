@@ -1,4 +1,4 @@
-// T17.31: the Schedule page's tabs (Opening hours, Prices, Closures): URL state, keyboard behavior, the Prices tab and the
+// T17.31, T19.2: the Schedule page's tabs (Opening hours, Prices, Promos, Closures): URL state, keyboard behavior, the Prices tab and the
 // unsaved-changes dot. Hours and prices stay one draft, so switching tabs keeps it.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, render, screen, within } from '@testing-library/react'
@@ -7,6 +7,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fetchCourts, fetchUpcomingBlackouts, fetchVenueSettings, type CourtWithPhotos, type VenueSettings } from '../catalog/api'
 import { fetchClosureConflicts, fetchSchedule, saveSchedule } from './api'
+import { fetchPromos } from './promos/api'
 import { SchedulePage } from './SchedulePage'
 
 const previewMock = vi.hoisted(() => vi.fn())
@@ -23,6 +24,13 @@ vi.mock('./api', async (importOriginal) => ({
   saveSchedule: vi.fn(),
   fetchClosureConflicts: vi.fn(),
   previewScheduleImpact: previewMock,
+}))
+
+vi.mock('./promos/api', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  fetchPromos: vi.fn(),
+  savePromo: vi.fn(),
+  deletePromo: vi.fn(),
 }))
 
 type Period = { day_of_week: number; start_minute: number; end_minute: number }
@@ -56,6 +64,7 @@ function mount(entry = '/admin/schedule', courts: CourtWithPhotos[] = [court('c1
 const tab = (name: RegExp) => screen.getByRole('tab', { name })
 const HOURS = /^Opening hours/
 const PRICES = /^Prices/
+const PROMOS = /^Promos/
 const CLOSURES = /^Closures/
 // A hidden panel has no accessible name (accname step 2A), so find it through its tab's aria-controls.
 const panel = (name: RegExp) => {
@@ -74,15 +83,16 @@ beforeEach(() => {
   vi.mocked(fetchClosureConflicts).mockReset().mockResolvedValue({ bookings: [], sessions: [] })
   vi.mocked(saveSchedule).mockReset().mockResolvedValue({ venue_id: 'v1', schedule_revision: 8 } as never)
   vi.mocked(fetchCourts).mockReset()
+  vi.mocked(fetchPromos).mockReset().mockResolvedValue([])
   vi.mocked(fetchUpcomingBlackouts).mockReset().mockResolvedValue([])
   vi.mocked(fetchVenueSettings).mockReset().mockResolvedValue({ timezone: 'Asia/Manila' } as VenueSettings)
 })
 
 describe('tabs and the URL', () => {
-  it('offers a tablist named Schedule sections with Opening hours, Prices and Closures, and no Weekly Hours & Rates heading', async () => {
+  it('offers a tablist named Schedule sections with Opening hours, Prices, Promos and Closures in that order, and no Weekly Hours & Rates heading', async () => {
     mount()
     const list = await screen.findByRole('tablist', { name: 'Schedule sections' })
-    expect(within(list).getAllByRole('tab').map((t) => t.textContent)).toEqual(['Opening hours', 'Prices', 'Closures'])
+    expect(within(list).getAllByRole('tab').map((t) => t.textContent)).toEqual(['Opening hours', 'Prices', 'Promos', 'Closures'])
     expect(screen.queryByRole('heading', { name: 'Weekly Hours & Rates' })).not.toBeInTheDocument()
   })
 
@@ -111,14 +121,28 @@ describe('tabs and the URL', () => {
     expect(within(screen.getByRole('tabpanel', { name: CLOSURES })).getByRole('button', { name: 'Add closure' })).toBeInTheDocument()
   })
 
+  it('opens Promos from ?tab=promos, with its heading and Add promo button', async () => {
+    mount('/admin/schedule?tab=promos')
+    await screen.findByRole('tablist', { name: 'Schedule sections' })
+    expect(tab(PROMOS)).toHaveAttribute('aria-selected', 'true')
+    const open = within(screen.getByRole('tabpanel', { name: PROMOS }))
+    expect(open.getByRole('heading', { level: 2, name: 'Promos' })).toBeInTheDocument()
+    expect(await open.findByRole('button', { name: 'Add promo' })).toBeInTheDocument()
+    expect(panel(CLOSURES)).toHaveAttribute('hidden')
+  })
+
   it('clicking a tab pushes the URL, and Back returns to the previous tab', async () => {
     const router = mount()
     await screen.findByRole('tablist', { name: 'Schedule sections' })
     await openTab(PRICES)
     expect(search(router)).toBe('?tab=prices')
     expect(tab(PRICES)).toHaveAttribute('aria-selected', 'true')
+    await openTab(PROMOS)
+    expect(search(router)).toBe('?tab=promos')
     await openTab(CLOSURES)
     expect(search(router)).toBe('?tab=closures')
+    await act(async () => { await router.navigate(-1) })
+    expect(search(router)).toBe('?tab=promos')
     await act(async () => { await router.navigate(-1) })
     expect(search(router)).toBe('?tab=prices')
     expect(tab(PRICES)).toHaveAttribute('aria-selected', 'true')
@@ -129,7 +153,7 @@ describe('tabs and the URL', () => {
   it('each tab controls a tabpanel named by it, and only the open panel is shown', async () => {
     mount()
     await screen.findByRole('tablist', { name: 'Schedule sections' })
-    for (const name of [HOURS, PRICES, CLOSURES]) {
+    for (const name of [HOURS, PRICES, PROMOS, CLOSURES]) {
       const controlled = document.getElementById(tab(name).getAttribute('aria-controls') ?? 'none')
       expect(controlled).toBe(panel(name))
       expect(controlled).toHaveAttribute('role', 'tabpanel')
@@ -137,6 +161,7 @@ describe('tabs and the URL', () => {
     }
     expect(panel(HOURS)).not.toHaveAttribute('hidden')
     expect(panel(PRICES)).toHaveAttribute('hidden')
+    expect(panel(PROMOS)).toHaveAttribute('hidden')
     expect(panel(CLOSURES)).toHaveAttribute('hidden')
   })
 })
@@ -147,6 +172,7 @@ describe('tab keyboard behavior', () => {
     await screen.findByRole('tablist', { name: 'Schedule sections' })
     expect(tab(PRICES)).toHaveAttribute('tabindex', '0')
     expect(tab(HOURS)).toHaveAttribute('tabindex', '-1')
+    expect(tab(PROMOS)).toHaveAttribute('tabindex', '-1')
     expect(tab(CLOSURES)).toHaveAttribute('tabindex', '-1')
     await userEvent.tab()
     expect(tab(PRICES)).toHaveFocus()
@@ -163,6 +189,29 @@ describe('tab keyboard behavior', () => {
     expect(tab(PRICES)).toHaveAttribute('tabindex', '0')
     expect(tab(HOURS)).toHaveAttribute('tabindex', '-1')
     expect(search(router)).toBe('?tab=prices')
+  })
+
+  it('ArrowRight walks Opening hours, Prices, Promos, Closures and wraps to Opening hours', async () => {
+    const router = mount()
+    await screen.findByRole('tablist', { name: 'Schedule sections' })
+    await userEvent.tab()
+    for (const [next, query] of [[PRICES, '?tab=prices'], [PROMOS, '?tab=promos'], [CLOSURES, '?tab=closures'], [HOURS, '?tab=hours']] as const) {
+      await userEvent.keyboard('{ArrowRight}')
+      expect(tab(next)).toHaveFocus()
+      expect(tab(next)).toHaveAttribute('aria-selected', 'true')
+      expect(search(router)).toBe(query)
+    }
+  })
+
+  it('ArrowLeft from Closures lands on Promos', async () => {
+    mount('/admin/schedule?tab=closures')
+    await screen.findByRole('tablist', { name: 'Schedule sections' })
+    await userEvent.tab()
+    await userEvent.keyboard('{ArrowLeft}')
+    expect(tab(PROMOS)).toHaveFocus()
+    expect(tab(PROMOS)).toHaveAttribute('aria-selected', 'true')
+    await userEvent.keyboard('{ArrowLeft}')
+    expect(tab(PRICES)).toHaveFocus()
   })
 
   it('ArrowLeft and ArrowRight wrap around the ends', async () => {
@@ -291,6 +340,7 @@ describe('the unsaved-changes dot', () => {
     await screen.findByRole('tablist', { name: 'Schedule sections' })
     expect(tab(HOURS)).toHaveAccessibleName('Opening hours')
     expect(tab(PRICES)).toHaveAccessibleName('Prices')
+    expect(tab(PROMOS)).toHaveAccessibleName('Promos')
     expect(tab(CLOSURES)).toHaveAccessibleName('Closures')
   })
 
@@ -299,6 +349,7 @@ describe('the unsaved-changes dot', () => {
     await pick('Monday closes', '12')
     expect(tab(HOURS)).toHaveAccessibleName('Opening hours, unsaved changes')
     expect(tab(PRICES)).toHaveAccessibleName('Prices')
+    expect(tab(PROMOS)).toHaveAccessibleName('Promos')
     expect(tab(CLOSURES)).toHaveAccessibleName('Closures')
   })
 
@@ -328,6 +379,15 @@ describe('the unsaved-changes dot', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Discard' }))
     await userEvent.click(within(await screen.findByRole('dialog', { name: 'Discard changes' })).getByRole('button', { name: 'Discard' }))
     expect(tab(HOURS)).toHaveAccessibleName('Opening hours')
+  })
+
+  it('Promos never shows it (a promo saves at once), even with edits elsewhere', async () => {
+    mount('/admin/schedule?tab=promos')
+    await screen.findByRole('tablist', { name: 'Schedule sections' })
+    await openTab(HOURS)
+    await pick('Monday closes', '12')
+    await openTab(PROMOS)
+    expect(tab(PROMOS)).toHaveAccessibleName('Promos')
   })
 
   it('Closures never shows it, even with edits elsewhere', async () => {
