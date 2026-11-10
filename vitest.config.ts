@@ -5,6 +5,9 @@ export default mergeConfig(
   viteConfig,
   defineConfig({
     test: {
+      // Four workers finish the suite as fast as eight (about 75 s) while each file runs 2x faster: the jsdom admin files
+      // are CPU-bound, and with more workers than the machine can serve they time out under load (H12).
+      maxWorkers: 4,
       environment: 'jsdom',
       setupFiles: ['./src/test/setup.ts'],
       // index.css is read as source text by theme.test.ts (`?raw`). Vitest otherwise stubs CSS as empty.

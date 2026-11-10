@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import baseUserEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { zonedLocalToISO } from '../../lib/time'
 import { ApiError } from '../../lib/queryClient'
@@ -8,6 +8,9 @@ import { fetchCourts, fetchOperatingHours, fetchVenueSettings, fetchStaffSchedul
 import { fetchUpcomingOpenPlay, type OpenPlaySession } from '../openPlay/api'
 import { deleteOpenPlay, saveOpenPlay } from './api'
 import { OpenPlayPage } from './OpenPlayPage'
+
+// No per-action macrotask delay (H12): the real-timer waits dominated this file's runtime.
+const userEvent = baseUserEvent.setup({ delay: null })
 
 vi.mock('../catalog/api', async (importOriginal) => ({
   ...(await importOriginal<object>()),

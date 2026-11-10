@@ -2,7 +2,7 @@
 // date picks are deterministic. The api modules are mocked; nothing touches the network.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import baseUserEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { formatDateLabel } from '../../../lib/time'
 import { formatMoney } from '../../../lib/format'
@@ -10,6 +10,9 @@ import { ApiError } from '../../../lib/queryClient'
 import { fetchCourts, fetchVenueSettings, type CourtWithPhotos, type VenueSettings } from '../../catalog/api'
 import { deletePromo, fetchPromos, savePromo, type Promo } from './api'
 import { PromosPanel } from './PromosPanel'
+
+// No per-action macrotask delay (H12): the real-timer waits dominated this file's runtime.
+const userEvent = baseUserEvent.setup({ delay: null })
 
 vi.mock('../../catalog/api', async (importOriginal) => ({
   ...(await importOriginal<object>()),
