@@ -139,6 +139,8 @@ The backend side is done and live on the linked project (`leads` T14.2, `reviews
 - **Pricing (not final):** free for venues; a ₱10 booking fee per confirmed online booking, paid by the player. See SAAS-PLAN §1 and §5. The marketing copy must match.
 - **Support contacts** (email, Messenger): set once in plotline-site's `src/config/site.ts`; this repo's emails and footer use the same values.
 
+- **Admin tour assets (M21):** the pictures and demo video on plotline-site's landing page are made here and only displayed there. Source: `docs/admin-tour/` (ten PNGs, `admin-demo.mp4`, `admin-demo.webm`, `admin-demo-poster.jpg`, `admin-demo.vtt`; stable names, listed in its README). Commands: `npm run tour:shots` and `npm run tour:video` (local stack; the video needs ffmpeg). Each copies its files to `../plotline-site/public/admin-tour/` when that repo is checked out, and the two copies must stay byte-identical. This repo re-captures whenever an admin page in the tour changes, and before a plotline-site release that changes the tour; plotline-site never edits the files.
+
 ## 7. Changing something shared
 
 1. **Update this file first:** the contract, the domains, or the shared values.

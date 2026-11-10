@@ -172,7 +172,8 @@ async function main() {
       await adminPage.goto(`${BASE}/admin/open-play`)
       await adminPage.getByText('Open play: all levels').first().waitFor()
       await shoot(adminPage, 'admin-open-play', kind)
-      await adminPage.goto(`${BASE}/admin/settings`)
+      // Amenities moved to the Appearance category page in T17.4.
+      await adminPage.goto(`${BASE}/admin/settings/appearance`)
       await adminPage.getByRole('heading', { name: 'Amenities' }).scrollIntoViewIfNeeded()
       await shoot(adminPage, 'admin-venue-info', kind)
       await staff.close()

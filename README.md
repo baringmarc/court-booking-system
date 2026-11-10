@@ -93,7 +93,11 @@ Only publishable keys go in the frontend. PayMongo and email secrets are Edge Fu
 npm run verify      # typecheck, lint, Vitest, pgTAP (local database), production build: the gate for "done"
 npm run test:e2e    # Playwright on desktop and 360px against the local stack (needs `npx supabase start`)
 npm run screenshots # regenerates docs/screenshots with temporary demo data, then removes it
+npm run tour:shots  # the admin tour pictures in docs/admin-tour (local stack; also copied to ../plotline-site)
+npm run tour:video  # the admin demo video, poster and captions in docs/admin-tour (needs ffmpeg)
 ```
+
+The admin tour pictures and video are what plotline-site shows; see [docs/admin-tour/README.md](docs/admin-tour/README.md).
 
 pgTAP tests run in a transaction that's rolled back, acting as anon, a player and an admin through `set local role` and JWT claims. The e2e flows tag their data (`E2E…`, `e2e-…@example.com`) so global teardown removes it.
 
