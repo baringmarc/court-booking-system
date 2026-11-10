@@ -3,7 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../../lib/queryClient'
-import { THEME_STORAGE_KEY } from '../../lib/themes'
+import { THEME_PRESETS, THEME_STORAGE_KEY, THEME_SWATCHES } from '../../lib/themes'
 import { updateVenueSettings, type VenueSettings } from '../catalog/api'
 import { ThemePicker } from './ThemePicker'
 
@@ -34,7 +34,7 @@ describe('ThemePicker', () => {
 
   it('shows every preset, with the saved one pressed', () => {
     renderPicker(settings('ocean'))
-    for (const name of ['Plotline', 'Court Green', 'Ocean', 'Plum', 'Sunset']) expect(card(name)).toBeInTheDocument()
+    for (const name of ['Plotline', 'Court Green', 'Ocean', 'Plum', 'Sunset', 'Slate', 'Midnight']) expect(card(name)).toBeInTheDocument()
     expect(card('Ocean')).toHaveAttribute('aria-pressed', 'true')
     expect(card('Plotline')).toHaveAttribute('aria-pressed', 'false')
   })
@@ -47,6 +47,34 @@ describe('ThemePicker', () => {
     expect(document.documentElement.dataset.theme).toBe('plum')
     expect(store.get(THEME_STORAGE_KEY)).toBe('plum')
     expect(await screen.findByRole('status')).toHaveTextContent('Saved')
+  })
+
+  for (const [name, key] of [['Slate', 'slate'], ['Midnight', 'midnight']] as const) {
+    it(`saves ${name} and applies it`, async () => {
+      vi.mocked(updateVenueSettings).mockResolvedValue(settings(key))
+      renderPicker(settings())
+      await userEvent.click(card(name))
+      expect(updateVenueSettings).toHaveBeenCalledWith({ theme: key })
+      expect(document.documentElement.dataset.theme).toBe(key)
+      expect(store.get(THEME_STORAGE_KEY)).toBe(key)
+    })
+  }
+
+  it("each card's hidden previews show the preset's page background, card and text colors", () => {
+    renderPicker(settings())
+    for (const preset of THEME_PRESETS) {
+      const label = { plotline: 'Plotline', 'court-green': 'Court Green', ocean: 'Ocean', plum: 'Plum', sunset: 'Sunset', slate: 'Slate', midnight: 'Midnight' }[preset]
+      const previews = card(label).querySelector('.theme-previews')!
+      expect(previews).toHaveAttribute('aria-hidden', 'true')
+      const [light, dark] = [...previews.querySelectorAll<HTMLElement>('.theme-preview')]
+      expect(previews.querySelectorAll('.theme-preview')).toHaveLength(2)
+      for (const [el, scheme] of [[light, 'light'], [dark, 'dark']] as const) {
+        const want = (THEME_SWATCHES as unknown as Record<string, Record<string, Record<string, string>>>)[preset][scheme]
+        expect(el.style.getPropertyValue('--p-bg'), `${preset} ${scheme} bg`).toBe(want.bg)
+        expect(el.style.getPropertyValue('--p-surface'), `${preset} ${scheme} surface`).toBe(want.surface)
+        expect(el.style.getPropertyValue('--p-text'), `${preset} ${scheme} text`).toBe(want.text)
+      }
+    }
   })
 
   it('marks the group busy and the new pick pressed while saving, ignoring other taps', async () => {

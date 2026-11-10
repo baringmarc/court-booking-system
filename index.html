@@ -11,11 +11,21 @@
     <meta name="referrer" content="no-referrer" />
     <title>Plotline</title>
     <!-- The venue's color preset (T11.7): the last one seen, set before first paint so the default never flashes.
-         The app sets the live value once venue settings load. Keys: src/lib/themes.ts. -->
+         The app sets the live value once venue settings load. Keys and page backgrounds (light, dark; the theme-color
+         metas above follow them): THEME_SWATCHES in src/lib/themes.ts. -->
     <script>
       try {
         var theme = localStorage.getItem('plotline-theme')
-        if (['court-green', 'ocean', 'plum', 'sunset'].indexOf(theme) >= 0) document.documentElement.dataset.theme = theme
+        if (['court-green', 'ocean', 'plum', 'sunset', 'slate', 'midnight'].indexOf(theme) >= 0) {
+          document.documentElement.dataset.theme = theme
+          var bg = {
+            'court-green': '#eef6f1 #141f18', 'ocean': '#eef3f6 #141a1f', 'plum': '#f6eef6 #1e141f',
+            'sunset': '#f6f2ee #1f1914', 'slate': '#f1f2f3 #18191b', 'midnight': '#14151f #14151f'
+          }[theme].split(' ')
+          var metas = document.querySelectorAll('meta[name="theme-color"]')
+          metas[0].content = bg[0]
+          metas[1].content = bg[1]
+        }
       } catch (e) {}
     </script>
   </head>

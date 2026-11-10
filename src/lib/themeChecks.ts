@@ -77,6 +77,8 @@ export function themeChecks(t: Tokens): Check[] {
     ['Heading on sage band', contrast(t.text, t.tintSage), 4.5],
     ['Muted text on sage band', contrast(t.muted, t.tintSage), 4.5],
     ['Heading on rose band', contrast(t.text, t.tintRose), 4.5],
+    ['Muted text on rose band', contrast(t.muted, t.tintRose), 4.5],
+    ['Text on pending fill', contrast(t.text, over(t.pendingBg, t.bg)), 4.5],
     ['Countdown on rose band', contrast(t.accent, t.tintRose), 4.5],
     // The current page's nav tab: btn-text on btn is checked above; its ink edge against the header.
     ['Active tab edge on header', contrast(t.accent, t.surface), 3],

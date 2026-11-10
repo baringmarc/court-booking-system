@@ -2,9 +2,9 @@
 // The theme is venue-wide, so each test puts the saved one back.
 import { expect, test } from '@playwright/test'
 import { guardLeaks } from './support/leaks.ts'
-import { axeBothSchemes, createAdmin, logInAdmin, serviceClient, venueId } from './support/helpers.ts'
+import { axeBothSchemes, createAdmin, logInAdmin, serviceClient, setColorScheme, venueId } from './support/helpers.ts'
 
-const PRESETS = ['plotline', 'court-green', 'ocean', 'plum', 'sunset'] as const
+const PRESETS = ['plotline', 'court-green', 'ocean', 'plum', 'sunset', 'slate', 'midnight'] as const
 let saved = 'plotline'
 
 async function setTheme(theme: string) {
@@ -51,6 +51,43 @@ test("an admin's preset shows for a signed-out player", async ({ page, browser }
   await expect.poll(() => home.evaluate<string | undefined>('globalThis.__themeAtParse')).toBe('ocean')
   await expect(home.locator('html')).toHaveAttribute('data-theme', 'ocean')
   await player.close()
+})
+
+test('an admin picks Slate, then Midnight, which is dark in both color schemes', async ({ page }) => {
+  await setTheme('plotline')
+  const admin = await createAdmin()
+  await logInAdmin(page, admin.email, admin.password, '/admin/settings/appearance')
+  const picker = page.getByRole('group', { name: 'Website colors' })
+
+  await picker.getByRole('button', { name: 'Slate' }).click()
+  await expect(page.getByRole('status').filter({ hasText: 'Saved' })).toBeVisible()
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'slate')
+  expect(await axeBothSchemes(page, '.theme-grid')).toEqual([])
+
+  await picker.getByRole('button', { name: 'Midnight' }).click()
+  await expect(picker.getByRole('button', { name: 'Midnight' })).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'midnight')
+  for (const scheme of ['light', 'dark'] as const) {
+    await setColorScheme(page, scheme)
+    const bg = await page.evaluate<string>('getComputedStyle(document.body).backgroundColor')
+    expect(bg, scheme).toBe('rgb(20, 21, 31)')
+  }
+  expect(await axeBothSchemes(page, '.theme-grid')).toEqual([])
+})
+
+test("the picker's cards fit the screen without sideways scrolling", async ({ page }) => {
+  const admin = await createAdmin()
+  await logInAdmin(page, admin.email, admin.password, '/admin/settings/appearance')
+  const grid = page.getByRole('group', { name: 'Website colors' })
+  await expect(grid.getByRole('button', { name: 'Midnight' })).toBeVisible()
+  const sizes = await page.evaluate<{ scroll: number; client: number }>(
+    "(() => { const g = document.querySelector('.theme-grid'); return { scroll: g.scrollWidth, client: g.clientWidth } })()",
+  )
+  expect(sizes.scroll).toBeLessThanOrEqual(sizes.client)
+  const page_ = await page.evaluate<{ scroll: number; client: number }>(
+    '({ scroll: document.documentElement.scrollWidth, client: document.documentElement.clientWidth })',
+  )
+  expect(page_.scroll).toBeLessThanOrEqual(page_.client)
 })
 
 test('the home page is axe clean with every preset, light and dark', async ({ page }) => {
