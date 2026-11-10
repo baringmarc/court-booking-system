@@ -18,6 +18,8 @@ const mocks = vi.hoisted(() => ({
 vi.mock('./api', async (original) => ({
   ...(await original<typeof import('./api')>()),
   fetchOnlinePayments: mocks.rows, setOnlinePayments: mocks.save,
+  // T18.4: the panel also reads the walk-ins switch.
+  fetchWalkIns: async () => [{ venue_id: 'v1', walk_ins_enabled: false }],
   fetchShowcaseApprovals: mocks.approvals,
   fetchVenuesPage: mocks.venues, fetchIsPlatformAdmin: mocks.admin,
 }))

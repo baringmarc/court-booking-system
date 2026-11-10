@@ -22,7 +22,7 @@ More screenshots, at phone and desktop sizes, are in [docs/screenshots](docs/scr
 - Manage the booking from a private link (guests) or from My bookings (accounts). Cancel up to the venue's cutoff. If staff move a booking, the page shows the new time and the reason, and the player gets an email.
 
 **Staff** (the `/admin` area, lazy-loaded so players never download it):
-- See today's courts with each booker's name and review payment proofs. A new booking or proof shows live in the browser tab's title. Search and sort bookings. Walk-ins are built but hidden behind a code flag.
+- See today's courts with each booker's name and review payment proofs. A new booking or proof shows live in the browser tab's title. Search and sort bookings. Walk-ins appear only at venues where Plotline has turned them on (a console switch).
 - Follow the money on the dashboard: total revenue, the owner's earnings and Plotline's booking fees, what was collected per payment method for a day, week, month or custom range (with the change from the period before), booked hours and occupancy per court and sport, a daily chart, and what's coming up. Export bookings and payments to CSV (contact details only when ticked).
 - Reschedule a confirmed booking to another court of the same sport or another time, with a reason the player sees. Once a booking has started, the rest of it moves as a booking of its own, so nothing already played is rewritten.
 - Edit courts, rates by day and hour, opening hours (including overnight and 24 hours), blackouts and photos. Drag courts and info sections into order.

@@ -9,7 +9,7 @@ import { WalkInForm } from './WalkInForm'
 
 type Props = { today: string; courts: Court[]; now: Date; timeZone: string; currency: string; periods: StaffSchedulePeriod[] }
 
-/** The dashboard's "+ Walk-in" card. Only loaded when VITE_FEATURE_WALK_INS is on (DashboardPage). */
+/** The dashboard's "+ Walk-in" card. Only loaded when the venue has walk-ins on (DashboardPage, T18.4). */
 export function WalkInSection({ today, courts, now, timeZone, currency, periods }: Props) {
   const [showWalkIn, setShowWalkIn] = useState(false)
   const [lastWalkIn, setLastWalkIn] = useState<string | null>(null)

@@ -2,7 +2,7 @@ import { useRef } from 'react'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   createVenue, deleteLead, deleteUnusedVenue, fetchInvoiceDetailPage, fetchVenueDeletionPreview, retryVenueFileCleanup, fetchInvoicesPage, fetchIsPlatformAdmin, fetchLeadsPage, fetchReviewsPage, fetchVenuesPage,
-  inviteVenueOwner, markInvoicePaid, markInvoiceSent, resendOwnerInvite, fetchShowcaseApprovals, setVenueShowcaseApproval, fetchOnlinePayments, setOnlinePayments,
+  inviteVenueOwner, markInvoicePaid, markInvoiceSent, resendOwnerInvite, fetchShowcaseApprovals, setVenueShowcaseApproval, fetchOnlinePayments, setOnlinePayments, fetchWalkIns, setWalkIns,
   reactivateVenue, setReviewApproved, suspendVenue, updateLead, type Lead, type LeadStatus, type ReviewFilter,
 } from './api'
 
@@ -90,6 +90,23 @@ export function useSetOnlinePayments() {
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['online-payments'] }),
+        queryClient.invalidateQueries({ queryKey: ['venues-overview'] }),
+      ])
+    },
+  })
+}
+
+export function useWalkIns() {
+  return useQuery({ queryKey: ['walk-ins'], queryFn: fetchWalkIns, refetchOnWindowFocus: true })
+}
+
+export function useSetWalkIns() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: { venueId: string; enabled: boolean }) => setWalkIns(input),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['walk-ins'] }),
         queryClient.invalidateQueries({ queryKey: ['venues-overview'] }),
       ])
     },

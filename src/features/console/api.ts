@@ -143,6 +143,17 @@ export async function setOnlinePayments(input: { venueId: string; enabled: boole
   unwrap(await supabase.rpc('set_online_payments', { p_venue_id: input.venueId, p_enabled: input.enabled }))
 }
 
+export type WalkInsRow = Pick<Tables<'venue_settings'>, 'venue_id' | 'walk_ins_enabled'>
+
+/** Every venue's walk-ins switch in one request (T18.4), read like the online payments switch. */
+export async function fetchWalkIns(): Promise<WalkInsRow[]> {
+  return unwrap(await supabase.from('venue_settings').select('venue_id, walk_ins_enabled'))
+}
+
+export async function setWalkIns(input: { venueId: string; enabled: boolean }): Promise<void> {
+  unwrap(await supabase.rpc('set_walk_ins', { p_venue_id: input.venueId, p_enabled: input.enabled }))
+}
+
 export async function suspendVenue(venueId: string): Promise<void> {
   unwrap(await supabase.rpc('suspend_venue', { p_venue_id: venueId }))
 }

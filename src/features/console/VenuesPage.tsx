@@ -8,6 +8,7 @@ import { focusDetails, returnFocus, useListParams } from './listParams'
 import { Pager } from './Pager'
 import { OnlinePaymentsControl } from './OnlinePaymentsControl'
 import { ShowcaseControl } from './ShowcaseControl'
+import { WalkInsControl } from './WalkInsControl'
 
 const VENUE_STATUSES = ['active', 'draft', 'suspended'] as const
 const FILTER_OPTIONS = [['', 'All'], ['active', 'Active'], ['draft', 'Draft'], ['suspended', 'Suspended']] as const
@@ -59,6 +60,7 @@ function VenuePanel({ venue, onClose, onDelete }: { venue: VenueOverview; onClos
       <p className="muted">{venue.open_invoices} open {venue.open_invoices === 1 ? 'invoice' : 'invoices'}</p>
       <ShowcaseControl venue={venue} />
       <OnlinePaymentsControl venue={venue} />
+      <WalkInsControl venue={venue} />
       <div className="form-actions"><ResendInvite venue={venue} /></div>
       {venue.status === 'active' && (
         <div className="form-actions">
