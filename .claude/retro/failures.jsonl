@@ -567,3 +567,4 @@
 {"ts":"2026-11-10T13:36:38.938Z","task":"T20.3","source":"gate","tier":"fast","category":"test","summary":"❯ src/lib/theme.test.ts (35 tests | 1 failed) 23ms"}
 {"ts":"2026-11-10T13:38:22.425Z","task":"T20.3","source":"reviewer","severity":"blocker","category":"acceptance-unmet","file":"src/lib/theme.test.ts:157","summary":"Disputed test expects a light shadow for Midnight, contradicting RESEARCH M20 (identical light/dark blocks); ruled wrong, test-writer to fix","round":1}
 {"ts":"2026-11-10T13:38:37.450Z","task":"T20.3","source":"dispute","file":"src/lib/theme.test.ts","summary":"midnight light shadow expected 0 12px 34px but Midnight light block equals dark (shadow none)","outcome":"test fixed"}
+{"ts":"2026-11-10T14:02:15.349Z","task":"adhoc","source":"reviewer","severity":"major","category":"docs-drift","file":"SPEC.md:370","summary":"§7 Website colors row still lists five presets","round":1}
