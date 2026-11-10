@@ -15,6 +15,8 @@ export type Slot = {
   open_play_session_id: string | null
   /** The booking, open play session or blackout this slot belongs to; slots of one block share it (T10.4). */
   block_key: string | null
+  /** The promo pricing this slot, on promo slots only (T19.3); `price` already is the promo price. */
+  promo_label?: string | null
   period_end?: string
 }
 
@@ -63,7 +65,12 @@ export function reconcileSelection(selection: Selection, courtSlots: Slot[]): Se
   return run.every((s) => s !== undefined) && isRunOfFreeSlots(run as Slot[]) ? selection : null
 }
 
-export type SelectionSummary = { courtId: string; start: string; end: string; slots: number; total: number }
+export type SelectionSummary = { courtId: string; start: string; end: string; slots: number; total: number; promoLabels: string[] }
+
+/** The distinct promo labels of a run of slots, in slot order (T19.3). */
+export function promoLabelsOf(slots: Slot[]): string[] {
+  return [...new Set(slots.map((s) => s.promo_label).filter((l): l is string => !!l))]
+}
 
 export function summarizeSelection(selection: Selection, courtSlots: Slot[]): SelectionSummary | null {
   if (!selection || selection.starts.length === 0) return null
@@ -76,5 +83,6 @@ export function summarizeSelection(selection: Selection, courtSlots: Slot[]): Se
     end: slots.at(-1)!.slot_end,
     slots: slots.length,
     total: slots.reduce((sum, s) => sum + s.price, 0),
+    promoLabels: promoLabelsOf(slots),
   }
 }

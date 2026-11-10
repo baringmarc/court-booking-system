@@ -80,7 +80,22 @@ describe('summarizeSelection', () => {
       end: H(16),
       slots: 3,
       total: 350 + 450 + 450,
+      promoLabels: [],
     })
+  })
+
+  it('T19.3: lists the distinct non-empty promo labels of the selected slots in slot order', () => {
+    const slots = court('P').map((s) => (
+      s.slot_start === H(10) ? { ...s, promo_label: 'Happy hour' }
+        : s.slot_start === H(11) ? { ...s, promo_label: 'Early bird' }
+        : s.slot_start === H(12) ? { ...s, promo_label: 'Happy hour' }
+        : s.slot_start === H(13) ? { ...s, promo_label: null }
+        : s.slot_start === H(14) ? { ...s, promo_label: '' } : s
+    ))
+    expect(summarizeSelection(sel('P', 10, 11, 12), slots)?.promoLabels).toEqual(['Happy hour', 'Early bird'])
+    expect(summarizeSelection(sel('P', 12, 13, 14, 15), slots)?.promoLabels).toEqual(['Happy hour'])
+    expect(summarizeSelection(sel('P', 13, 14), slots)?.promoLabels).toEqual([])
+    expect(summarizeSelection(sel('P', 15), slots)?.promoLabels).toEqual([])
   })
 
   it('returns null without a selection', () => {

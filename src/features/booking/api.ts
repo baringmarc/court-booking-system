@@ -118,6 +118,8 @@ export async function fetchAvailability(date: string): Promise<Slot[]> {
     open_play_session_id: r.open_play_session_id || null,
     // Also typed string, but null on free and past slots (T10.4).
     block_key: r.block_key || null,
+    // Typed string, but null on slots without a promo (T19.1).
+    promo_label: r.promo_label || null,
   }))
 }
 

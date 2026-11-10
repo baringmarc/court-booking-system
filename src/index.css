@@ -482,6 +482,8 @@ button.day:focus-visible, .slot:focus-visible { outline: 2px solid var(--accent)
 .day-past, .day-none { color: var(--muted); text-align: center; }
 /* The booker's first name under "Booked" (T9.8), cut with an ellipsis in narrow cells. A fixed max width so a
    long name can't widen the grid's columns (table cells size to their content). */
+.slot-promo { display: block; max-width: 8em; margin: 0 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.7rem; font-weight: 700; }
+.selection-promo { display: block; color: var(--accent); font-weight: 700; }
 .slot-name { display: block; max-width: 7em; margin: 0 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.75rem; font-weight: 400; }
 .slot-blackout {
   background: repeating-linear-gradient(135deg, transparent 0 5px, var(--slot-closed-stripe) 5px 9px);

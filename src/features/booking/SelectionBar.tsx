@@ -22,6 +22,7 @@ export function SelectionBar({ summary, courtName, date, timeZone, currency, onC
         <span className="muted small">
           {formatDateLabel(date, timeZone)} · {from}–{to} · {summary.slots} {summary.slots === 1 ? 'hour' : 'hours'}
         </span>
+        {summary.promoLabels.length > 0 && <span className="selection-promo small">{`Promo: ${summary.promoLabels.join(', ')}`}</span>}
       </div>
       <strong className="selection-total">{formatMoney(summary.total, currency)}</strong>
       <div className="selection-actions">
