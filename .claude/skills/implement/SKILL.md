@@ -106,6 +106,7 @@ For a task that isn't risky, state your plan in two or three lines, naming what 
   - the list of files this task created or changed, and the files that were already dirty before you started (from step 1), so it can tell them apart
   - the test files that prove the acceptance criteria (the test-writer's and yours)
   - any `Test dispute:` lines, for it to rule on
+- Tell it to judge from the files, the diff and the recorded gate result only: it can't run project scripts (`--check` modes), media tools such as `ffprobe`, or `git -C` on another repository, and the guard blocks them (/retro M21: 4 blocks). Name any such evidence in the task Notes for it to read instead.
 - **Don't** summarize what you built, explain your reasoning, or say it's correct. The reviewer judges the code against SPEC with fresh eyes; your account of it would only bias that.
 - After every verdict, log each **blocker** and **major** finding, one call each, using the category the reviewer gave it:
   `node .claude/hooks/log-event.mjs reviewer '{"severity":"blocker","category":"rls","file":"<file:line>","summary":"<one line>","round":1}'`
