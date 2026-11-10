@@ -36,6 +36,7 @@ You may only write test files: `*.test.ts(x)`, `e2e/*.ts`, `supabase/tests/**/*.
    - pgTAP fixtures satisfy the table's check constraints (read them in the migration, e.g. `bookings_reference_code_check`), calls cast arguments to the exact overload and parameter types (`::date`, the court-aware overload), and an assertion about another venue's rows reads them as a role that can see them (`reset role` or `postgres`), not as the other venue's admin whom RLS blinds (T17.10, T17.11, T17.21);
    - selectors and labels for markup you didn't write (another component, an RPC's labels, the other repository) come from that source file, cited, never assumed: a card may be a `div`, not a list item, and a status label may differ from its key (T17.30, T17.34);
    - an e2e spec that creates tagged data (`createVenue`, rows in `private` tables) deletes it in a `finally`, in foreign-key order, and doesn't leave it to global teardown: other specs read `venue_settings` with `.single()` (T17.27, T17.30; L3);
+   - both sides of a pgTAP `is()`/`results_eq` have the same type: read the column's type in its migration and cast `smallint`, `numeric` and enum values (`::int`, `::text`). It matters most when the column doesn't exist yet, so the file can't run red to show you (T18.3, /retro M18);
    - a hidden or shown state is asserted with `toBeVisible()` / `not.toBeVisible()`, not only the `hidden` attribute or ARIA state (T17.31 shipped closed tab panels that CSS still showed).
 
 ## Dispute mode

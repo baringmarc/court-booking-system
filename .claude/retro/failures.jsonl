@@ -552,3 +552,4 @@
 {"ts":"2026-11-10T09:22:12.471Z","task":"T18.3","source":"reviewer","severity":"blocker","category":"acceptance-unmet","file":"supabase/tests/database/81_walk_ins_switch.test.sql:176","summary":"81 aborts at the smallint vs integer is(); dispute upheld, tests 43-45 never run","round":1}
 {"ts":"2026-11-10T09:23:05.593Z","task":"T18.3","source":"dispute","file":"supabase/tests/database/81_walk_ins_switch.test.sql","summary":"is(smallint, integer) has no pgTAP overload; cast payment_hold_minutes::int","outcome":"test fixed"}
 {"ts":"2026-11-10T10:03:56.993Z","task":"T18.5","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"npm run verify"}
+{"ts":"2026-11-10T10:14:57.649Z","task":"adhoc","source":"retro","milestone":"M18","summary":"4 proposals, 4 approved: L3 brief runtime facts, L1 pgTAP type match, reviewer verify wording; H15 types regeneration task"}
