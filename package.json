@@ -30,6 +30,7 @@
     "smoke:prod": "node scripts/smoke-production.mjs",
     "screenshots": "node scripts/screenshots.mjs",
     "tour:shots": "node scripts/admin-tour.mjs",
+    "tour:video": "node scripts/admin-demo-video.mjs",
     "check:drift": "node scripts/check-drift.mjs"
   },
   "dependencies": {
