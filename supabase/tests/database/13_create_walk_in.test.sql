@@ -39,6 +39,8 @@ select private.default_venue_id(), 'c0000000-0000-0000-0000-000000000001', t10 +
 
 -- Access
 select ok(not has_function_privilege('anon', 'public.create_walk_in(uuid, timestamptz, integer, text, text, public.payment_method, numeric, text)', 'execute'), 'anon cannot record walk-ins');
+-- T18.3: walk-ins are off by default; this file records walk-ins, so its venues switch them on (as postgres).
+update public.venue_settings set walk_ins_enabled = true;
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub": "11111111-1111-1111-1111-111111111111", "role": "authenticated"}', true);
 select is(pg_temp.hint_of($$ select * from public.create_walk_in('c0000000-0000-0000-0000-000000000001', (select t10 from fx), 1, 'Walker') $$),

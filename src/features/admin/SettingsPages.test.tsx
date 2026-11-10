@@ -20,7 +20,7 @@ const INITIAL: VenueSettings = {
   maps_url: '', max_rejections: 2, online_payments_enabled: false, payment_hold_minutes: 60,
   payment_instructions: 'Pay to the account above.', showcase_opt_in: false, slot_minutes: 60,
   sport_order: ['badminton', 'pickleball', 'tennis'], theme: 'plotline', timezone: 'Asia/Manila',
-  updated_at: '2026-11-04T00:00:00Z', waiver_text: 'Respect venue rules.',
+  updated_at: '2026-11-04T00:00:00Z', waiver_text: 'Respect venue rules.', walk_ins_enabled: false,
 }
 let stored: VenueSettings
 const categories = [

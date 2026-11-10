@@ -315,6 +315,8 @@ select is(pg_temp.qh($$ select private.admin_venue('a0000000-0000-0000-0000-0000
 select set_config('request.jwt.claims', '{"role": "anon"}', true);
 select is(pg_temp.qh($$ select private.admin_venue() $$), 'forbidden', 'admin_venue: anon is forbidden');
 
+-- T18.3: walk-ins are off by default; this file records walk-ins, so its venues switch them on (as postgres).
+update public.venue_settings set walk_ins_enabled = true;
 set local role authenticated;
 
 -- ---------------------------------------------------------------- get_earnings

@@ -254,6 +254,8 @@ insert into public.billing_charges (venue_id, booking_id, kind, amount, billing_
   ('b0000000-0000-0000-0000-00000000000b', 'b1000000-0000-0000-0000-0000000000b1', 'booking_fee', 10, date_trunc('month', now())::date, '1a000000-0000-0000-0000-0000000000b1');
 
 -- Objects as the storage service would create them (the service role bypasses RLS)
+-- T18.3: walk-ins are off by default; this file records walk-ins, so its venues switch them on (as postgres).
+update public.venue_settings set walk_ins_enabled = true;
 set local role service_role;
 insert into storage.objects (bucket_id, name) values
   ('venue-media', 'a0000000-0000-0000-0000-00000000000a/banner/11111111-bbbb-bbbb-bbbb-bbbbbbbbbbbb.webp'),
@@ -510,11 +512,11 @@ select is_empty(
          -- schedule RPCs: get_staff_schedule is probed above; others are cross-venue tested in 68_schedule_rpcs
          'get_schedule', 'preview_schedule_impact', 'save_schedule', 'get_staff_schedule',
          -- platform admins only: refuse anyone who is not a platform admin (59_venues_overview, 61_invoice_review, 66_showcase_authority,
-         -- 77_console_pagination, 79_guarded_deletion, 80_online_payments_switch)
+         -- 77_console_pagination, 79_guarded_deletion, 80_online_payments_switch, 81_walk_ins_switch)
          'venues_overview', 'suspend_venue', 'reactivate_venue',
          'invoices_overview', 'invoice_detail', 'mark_invoice_sent', 'mark_invoice_paid', 'set_venue_showcase_approval',
          'venues_page', 'invoices_page', 'invoice_detail_page',
-         'delete_lead', 'venue_deletion_preview', 'delete_unused_venue', 'set_online_payments'
+         'delete_lead', 'venue_deletion_preview', 'delete_unused_venue', 'set_online_payments', 'set_walk_ins'
        ]) $$,
   'every RPC a client can execute is probed above or exempt (a new venue-scoped RPC needs a cross-venue test here)');
 select is_empty(

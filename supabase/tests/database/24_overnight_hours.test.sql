@@ -77,6 +77,8 @@ create temp view night as
 select * from public.get_availability((select d from fx), 'c0000000-0000-0000-0000-000000000001');
 grant select on night to anon;
 
+-- T18.3: walk-ins are off by default; this file records walk-ins, so its venues switch them on (as postgres).
+update public.venue_settings set walk_ins_enabled = true;
 set local role anon;
 select set_config('request.jwt.claims', '{"role": "anon"}', true);
 select is((select count(*)::int from night), 23, 'the overnight day has 23 slots (06:00 to 05:00)');

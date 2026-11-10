@@ -80,6 +80,8 @@ select ok(not has_table_privilege('authenticated', 'public.platform_pricing', 'i
       and not has_table_privilege('authenticated', 'public.platform_pricing', 'delete'),
   'authenticated (admins included) has no insert, update or delete grant on platform_pricing');
 
+-- T18.3: walk-ins are off by default; this file records walk-ins, so its venues switch them on (as postgres).
+update public.venue_settings set walk_ins_enabled = true;
 set local role anon;
 select pg_temp.as_anon();
 select results_eq($$ select booking_fee from public.platform_pricing $$, $$ values (0.00::numeric) $$,

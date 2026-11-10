@@ -71,6 +71,8 @@ select lives_ok($$ update public.venue_settings set waiver_text = repeat('x', 20
 update public.venue_settings set waiver_text = '';
 
 -- RLS: anon and players read, only admins write
+-- T18.3: walk-ins are off by default; this file records walk-ins, so its venues switch them on (as postgres).
+update public.venue_settings set walk_ins_enabled = true;
 set local role anon;
 select pg_temp.as_anon();
 select is((select waiver_text from public.venue_settings), '', 'anon can read the waiver');

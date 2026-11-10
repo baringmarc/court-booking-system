@@ -26,4 +26,9 @@ describe('booking errors', () => {
     expect(bookingErrorMessage(new ApiError('relation "x" does not exist', '42P01'))).toMatch(/Something went wrong/)
     expect(bookingErrorMessage(new TypeError('Failed to fetch'))).toMatch(/Something went wrong/)
   })
+
+  it('knows walk_ins_off (T18.3) and shows its readable message', () => {
+    expect(bookingErrorCode(rpcError('walk_ins_off'))).toBe('walk_ins_off')
+    expect(bookingErrorMessage(rpcError('walk_ins_off', 'Walk-ins are not enabled for this venue.'))).toMatch(/Walk-ins/)
+  })
 })

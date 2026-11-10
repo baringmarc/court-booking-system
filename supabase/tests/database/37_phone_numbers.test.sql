@@ -99,6 +99,8 @@ select is(
 -- ---------------------------------------------------------------------------
 -- create_booking: guest without a phone, with formats, with a bad phone
 -- ---------------------------------------------------------------------------
+-- T18.3: walk-ins are off by default; this file records walk-ins, so its venues switch them on (as postgres).
+update public.venue_settings set walk_ins_enabled = true;
 set local role anon;
 select pg_temp.as_anon();
 select lives_ok(

@@ -1,7 +1,16 @@
 // An admin records a walk-in from the dashboard; staff see the full name, players the first name only.
 import { expect, test } from '@playwright/test'
 import { guardLeaks } from './support/leaks.ts'
-import { createAdmin, E2E_PREFIX, logInAdmin, venueDate } from './support/helpers.ts'
+import { createAdmin, E2E_PREFIX, logInAdmin, serviceClient, venueDate, venueId } from './support/helpers.ts'
+
+// T18.3: walk-ins are off by default and the database refuses them; turn them on for this file and put it back (workers: 1).
+test.describe.serial('walk-ins on', () => {
+  test.beforeAll(async () => {
+    await serviceClient().from('venue_settings').update({ walk_ins_enabled: true }).eq('venue_id', await venueId()).throwOnError()
+  })
+  test.afterAll(async () => {
+    await serviceClient().from('venue_settings').update({ walk_ins_enabled: false }).eq('venue_id', await venueId()).throwOnError()
+  })
 
 test('an admin records a walk-in and the slot shows as booked on /book', async ({ page }) => {
   const admin = await createAdmin()
@@ -46,6 +55,7 @@ test('an admin records a walk-in and the slot shows as booked on /book', async (
   const startHour = hourLabel.replace(' (next day)', '')
   await expect(page.getByRole('button', { name: new RegExp(`^Badminton 4, ${startHour} – \\d+ [AP]M( \\(next day\\))?, Booked by ${E2E_PREFIX}`) })).toBeDisabled()
   await expect(page.getByText('Walk-in', { exact: false })).toHaveCount(0)
+})
 })
 
 // H14: keep last, after this file's own cleanup hooks.

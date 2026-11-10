@@ -723,14 +723,14 @@ isOneToOne: true
                   ]
                 },"venue_settings": {
                   Row: {
-                    "address": string,"banner_alt": string | null,"banner_path": string | null,"booking_window_days": number,"cancel_cutoff_hours": number,"city": string,"currency": string,"maps_url": string,"max_rejections": number,"name": string,"online_payments_enabled": boolean,"payment_hold_minutes": number,"payment_instructions": string,"showcase_opt_in": boolean,"slot_minutes": number,"sport_order": (Database["public"]['Enums']["sport"])[],"theme": string,"timezone": string,"updated_at": string,"venue_id": string,"waiver_text": string
+                    "address": string,"banner_alt": string | null,"banner_path": string | null,"booking_window_days": number,"cancel_cutoff_hours": number,"city": string,"currency": string,"maps_url": string,"max_rejections": number,"name": string,"online_payments_enabled": boolean,"payment_hold_minutes": number,"payment_instructions": string,"showcase_opt_in": boolean,"slot_minutes": number,"sport_order": (Database["public"]['Enums']["sport"])[],"theme": string,"timezone": string,"updated_at": string,"venue_id": string,"waiver_text": string,"walk_ins_enabled": boolean
                   }
                   ComputedFields: never
                   Insert: {
-                    "address"?: string,"banner_alt"?: string | null,"banner_path"?: string | null,"booking_window_days"?: number,"cancel_cutoff_hours"?: number,"city"?: string,"currency"?: string,"maps_url"?: string,"max_rejections"?: number,"name": string,"online_payments_enabled"?: boolean,"payment_hold_minutes"?: number,"payment_instructions"?: string,"showcase_opt_in"?: boolean,"slot_minutes"?: number,"sport_order"?: (Database["public"]['Enums']["sport"])[],"theme"?: string,"timezone"?: string,"updated_at"?: string,"venue_id": string,"waiver_text"?: string
+                    "address"?: string,"banner_alt"?: string | null,"banner_path"?: string | null,"booking_window_days"?: number,"cancel_cutoff_hours"?: number,"city"?: string,"currency"?: string,"maps_url"?: string,"max_rejections"?: number,"name": string,"online_payments_enabled"?: boolean,"payment_hold_minutes"?: number,"payment_instructions"?: string,"showcase_opt_in"?: boolean,"slot_minutes"?: number,"sport_order"?: (Database["public"]['Enums']["sport"])[],"theme"?: string,"timezone"?: string,"updated_at"?: string,"venue_id": string,"waiver_text"?: string,"walk_ins_enabled"?: boolean
                   }
                   Update: {
-                    "address"?: string,"banner_alt"?: string | null,"banner_path"?: string | null,"booking_window_days"?: number,"cancel_cutoff_hours"?: number,"city"?: string,"currency"?: string,"maps_url"?: string,"max_rejections"?: number,"name"?: string,"online_payments_enabled"?: boolean,"payment_hold_minutes"?: number,"payment_instructions"?: string,"showcase_opt_in"?: boolean,"slot_minutes"?: number,"sport_order"?: (Database["public"]['Enums']["sport"])[],"theme"?: string,"timezone"?: string,"updated_at"?: string,"venue_id"?: string,"waiver_text"?: string
+                    "address"?: string,"banner_alt"?: string | null,"banner_path"?: string | null,"booking_window_days"?: number,"cancel_cutoff_hours"?: number,"city"?: string,"currency"?: string,"maps_url"?: string,"max_rejections"?: number,"name"?: string,"online_payments_enabled"?: boolean,"payment_hold_minutes"?: number,"payment_instructions"?: string,"showcase_opt_in"?: boolean,"slot_minutes"?: number,"sport_order"?: (Database["public"]['Enums']["sport"])[],"theme"?: string,"timezone"?: string,"updated_at"?: string,"venue_id"?: string,"waiver_text"?: string,"walk_ins_enabled"?: boolean
                   }
                   Relationships: [
                     {
@@ -956,6 +956,9 @@ isOneToOne: false
                            },
 "set_venue_showcase_approval":
 { Args: { "p_approved": boolean,"p_venue_id": string }; Returns: undefined
+                           },
+"set_walk_ins":
+{ Args: { "p_enabled": boolean,"p_venue_id": string }; Returns: undefined
                            },
 "statement_charges_page":
 { Args: { "p_limit"?: number,"p_month"?: string,"p_offset"?: number,"p_search"?: string,"p_venue_id"?: string }; Returns: Json

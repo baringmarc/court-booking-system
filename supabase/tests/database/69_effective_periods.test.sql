@@ -62,6 +62,8 @@ select is(private.range_price('c0000000-0000-0000-0000-000000001711',
 create temp view effective_day as
 select * from public.get_availability((select d from fx), 'c0000000-0000-0000-0000-000000001711');
 grant select on effective_day to anon;
+-- T18.3: walk-ins are off by default; this file records walk-ins, so its venues switch them on (as postgres).
+update public.venue_settings set walk_ins_enabled = true;
 set local role anon;
 select is((select count(*)::int from effective_day), 18, 'availability lists both periods, not the closed gap');
 select is((select count(*)::int from effective_day where slot_start = pg_temp.at((select d from fx), '10:00')), 0,
