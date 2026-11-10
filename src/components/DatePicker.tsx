@@ -1,3 +1,4 @@
+import { CalendarDays } from 'lucide-react'
 import { lazy, Suspense, useEffect, useId, useRef, useState } from 'react'
 import { addDays, formatDateLabel } from '../lib/time'
 import type { CalendarProps } from './Calendar'
@@ -22,13 +23,15 @@ type Props = {
   hideLabel?: boolean
   /** Previous and next day buttons beside the date, kept within min and max (/book). */
   stepper?: boolean
+  /** A calendar icon on the date button, like /book's "Jump to date" (the promo form). */
+  calendarIcon?: boolean
 }
 
 /**
  * A date with "Today" and "Tomorrow" quick picks and a calendar in a dialog (T10.2). The calendar is a lazy chunk,
  * fetched the first time it opens.
  */
-export function DatePicker({ label, value, onChange, today, min, max, closedDays, timeZone, hideLabel = false, stepper = false }: Props) {
+export function DatePicker({ label, value, onChange, today, min, max, closedDays, timeZone, hideLabel = false, stepper = false, calendarIcon = false }: Props) {
   const [open, setOpen] = useState(false)
   const labelId = useId()
   const rules = { min, max, closedDays }
@@ -55,8 +58,9 @@ export function DatePicker({ label, value, onChange, today, min, max, closedDays
             <button type="button" className="btn btn-small btn-outline" aria-label="Previous day"
               disabled={!!min && value <= min} onClick={() => onChange(addDays(value, -1))}>‹</button>
           )}
-          <button type="button" className="btn btn-outline btn-small" aria-haspopup="dialog"
+          <button type="button" className={`btn btn-outline btn-small${calendarIcon ? ' date-jump' : ''}`} aria-haspopup="dialog"
             aria-label={`Choose a date, ${shown}`} onClick={() => setOpen(true)}>
+            {calendarIcon && <CalendarDays aria-hidden="true" className="social-icon" />}
             {shown}
           </button>
           {stepper && (

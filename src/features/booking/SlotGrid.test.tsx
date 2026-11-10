@@ -262,5 +262,27 @@ describe('SlotGrid promo slots (T19.3)', () => {
     expect(plain).not.toHaveTextContent(/promo|happy/i)
     expect(screen.getAllByRole('button', { name: /promo:/ })).toHaveLength(1)
   })
+
+  it('gives free promo slots their own look and lists Promo in the key, but not once selected', () => {
+    const { rerender } = render(
+      <SlotGrid courts={courts} times={times} slotsByCourt={promoSlots} selection={null}
+        onToggle={vi.fn()} timeZone="Asia/Manila" currency="PHP" />,
+    )
+    expect(screen.getByRole('button', { name: /promo: Happy hour/ })).toHaveClass('slot-free', 'slot-promo-free')
+    expect(screen.getByRole('button', { name: 'Badminton 2, 10 AM – 11 AM, ₱350' })).not.toHaveClass('slot-promo-free')
+    const key = screen.getByRole('list', { name: 'Slot key' })
+    expect(within(key).getByText('Promo').querySelector('.slot-promo-free')).not.toBeNull()
+
+    rerender(
+      <SlotGrid courts={courts} times={times} slotsByCourt={promoSlots} selection={{ courtId: 'A', starts: [times[0]] }}
+        onToggle={vi.fn()} timeZone="Asia/Manila" currency="PHP" />,
+    )
+    expect(screen.getByRole('button', { name: /promo: Happy hour/ })).not.toHaveClass('slot-promo-free')
+  })
+
+  it('leaves Promo out of the key on a day without promo slots', () => {
+    renderGrid()
+    expect(within(screen.getByRole('list', { name: 'Slot key' })).queryByText('Promo')).not.toBeInTheDocument()
+  })
 })
 

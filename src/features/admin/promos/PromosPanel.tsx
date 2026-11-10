@@ -78,7 +78,7 @@ export function PromosPanel() {
         <PageLoader />
       )}
 
-      <h3 ref={listTitle} tabIndex={-1}>Your promos</h3>
+      <h3 ref={listTitle} tabIndex={-1} className="promo-list-title">Your promos</h3>
       {promos.isPending ? (
         <PageLoader />
       ) : promos.isError ? (
@@ -180,8 +180,8 @@ function PromoForm({ promo, courts, today, timeZone, onDone }: {
       </label>
 
       <div className="form-grid">
-        <DatePicker label="Starts on" value={startsOn} onChange={setStartsOn} today={today} min={minStart} timeZone={timeZone} />
-        <DatePicker label="Ends on" value={endsOn} onChange={setPickedEnd} today={today} min={startsOn} timeZone={timeZone} />
+        <DatePicker label="Starts on" value={startsOn} onChange={setStartsOn} today={today} min={minStart} timeZone={timeZone} calendarIcon />
+        <DatePicker label="Ends on" value={endsOn} onChange={setPickedEnd} today={today} min={startsOn} timeZone={timeZone} calendarIcon />
       </div>
 
       <fieldset className="field">

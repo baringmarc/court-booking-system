@@ -44,6 +44,8 @@ export function SlotGrid({ courts, times, slotsByCourt, selection, onToggle, onO
   const grid = groupBlocks(times.length, courts.length, (row, col) => slotAt(row, col)?.block_key ?? null)
   const hour = (iso: string) => formatHour(hourInZone(iso, timeZone))
   const nextDayOf = (iso: string) => !!date && isAfterMidnight(iso, date, timeZone)
+  // The key lists Promo only on days that have a free promo slot.
+  const hasPromo = [...slotsByCourt.values()].some((slots) => slots.some((s) => s.status === 'free' && s.promo_label))
 
   return (
     <div>
@@ -54,6 +56,12 @@ export function SlotGrid({ courts, times, slotsByCourt, selection, onToggle, onO
             {SLOT_LOOK_LABEL[look]}
           </li>
         ))}
+        {hasPromo && (
+          <li>
+            <span className="slot-swatch slot-free slot-promo-free" aria-hidden="true" />
+            Promo
+          </li>
+        )}
       </ul>
       <div className="table-scroll">
         <table className="slot-grid">
@@ -102,7 +110,7 @@ export function SlotGrid({ courts, times, slotsByCourt, selection, onToggle, onO
                         colSpan={cell.colSpan > 1 ? cell.colSpan : undefined} className={spans ? 'slot-span' : undefined}>
                         <button
                           type="button"
-                          className={`slot slot-${look}`}
+                          className={`slot slot-${look}${look === 'free' && promo ? ' slot-promo-free' : ''}`}
                           disabled={!free && !sessionId}
                           aria-pressed={free ? selected : undefined}
                           aria-haspopup={sessionId ? 'dialog' : undefined}
