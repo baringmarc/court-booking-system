@@ -233,6 +233,52 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"court_promo_courts": {
+                  Row: {
+                    "court_id": string,"promo_id": string,"venue_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "court_id": string,"promo_id": string,"venue_id": string
+                  }
+                  Update: {
+                    "court_id"?: string,"promo_id"?: string,"venue_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "court_promo_courts_court_fkey"
+      columns: ["venue_id","court_id"]
+isOneToOne: false
+      referencedRelation: "courts"
+      referencedColumns: ["venue_id","id"]
+    },{
+      foreignKeyName: "court_promo_courts_promo_fkey"
+      columns: ["venue_id","promo_id"]
+isOneToOne: false
+      referencedRelation: "court_promos"
+      referencedColumns: ["venue_id","id"]
+    }
+                  ]
+                },"court_promos": {
+                  Row: {
+                    "created_at": string,"days_of_week": number[],"end_hour": number,"ends_on": string,"id": string,"is_active": boolean,"label": string,"price": number,"start_hour": number,"starts_on": string,"venue_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"days_of_week": number[],"end_hour": number,"ends_on": string,"id"?: string,"is_active"?: boolean,"label": string,"price": number,"start_hour": number,"starts_on": string,"venue_id": string
+                  }
+                  Update: {
+                    "created_at"?: string,"days_of_week"?: number[],"end_hour"?: number,"ends_on"?: string,"id"?: string,"is_active"?: boolean,"label"?: string,"price"?: number,"start_hour"?: number,"starts_on"?: string,"venue_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "court_promos_venue_id_fkey"
+      columns: ["venue_id"]
+isOneToOne: false
+      referencedRelation: "venues"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"court_rates": {
                   Row: {
                     "court_id": string,"day_of_week": number,"price": number,"start_hour": number,"venue_id": string
@@ -827,6 +873,9 @@ isOneToOne: false
 "delete_court":
 { Args: { "p_court_id": string }; Returns: undefined
                            },
+"delete_court_promo":
+{ Args: { "p_id": string }; Returns: undefined
+                           },
 "delete_lead":
 { Args: { "p_lead_id": string }; Returns: undefined
                            },
@@ -844,7 +893,7 @@ isOneToOne: false
                            },
 "get_availability":
 { Args: { "p_court_id"?: string,"p_date": string,"p_venue_slug"?: string }; Returns: {
-              "block_key": string,"booker_first_name": string,"court_id": string,"open_play_session_id": string,"price": number,"slot_end": string,"slot_start": string,"status": string
+              "block_key": string,"booker_first_name": string,"court_id": string,"open_play_session_id": string,"price": number,"promo_label": string,"slot_end": string,"slot_start": string,"status": string
             }[]
                            },
 "get_earnings":
@@ -944,6 +993,9 @@ isOneToOne: false
 { Args: { "p_approve": boolean,"p_booking_id": string,"p_note"?: string }; Returns: {
               "status": Database["public"]['Enums']["booking_status"]
             }[]
+                           },
+"save_court_promo":
+{ Args: { "p_court_ids": (string)[],"p_days": (number)[],"p_end_hour": number,"p_ends_on": string,"p_id": string,"p_is_active": boolean,"p_label": string,"p_price": number,"p_start_hour": number,"p_starts_on": string }; Returns: string
                            },
 "save_schedule":
 { Args: { "p_changes": Json,"p_expected_revision": number,"p_venue_id": string }; Returns: Json

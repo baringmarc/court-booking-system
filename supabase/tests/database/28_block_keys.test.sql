@@ -52,8 +52,8 @@ insert into public.open_play_courts (session_id, court_id, during) values
 -- ---------------------------------------------------------------------------
 select is(
   pg_get_function_result('public.get_availability(date, uuid, text)'::regprocedure),
-  'TABLE(court_id uuid, slot_start timestamp with time zone, slot_end timestamp with time zone, price numeric, status text, booker_first_name text, open_play_session_id uuid, block_key text)',
-  'get_availability gains block_key after its earlier columns'
+  'TABLE(court_id uuid, slot_start timestamp with time zone, slot_end timestamp with time zone, price numeric, status text, booker_first_name text, open_play_session_id uuid, block_key text, promo_label text)',
+  'get_availability gains block_key after its earlier columns (and promo_label after it, T19.1)'
 );
 select ok(has_function_privilege('anon', 'public.get_availability(date, uuid, text)', 'EXECUTE'), 'anon can still call it');
 select ok(not has_function_privilege('public', 'public.get_availability(date, uuid, text)', 'EXECUTE'), 'PUBLIC still has no execute grant');

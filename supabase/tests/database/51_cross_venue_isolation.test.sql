@@ -11,7 +11,7 @@
 -- Fixture: venue A and venue B (both active), each with staff, courts, bookings, payments, charges and an invoice.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(80);
+select plan(84);
 
 -- ---------------------------------------------------------------- helpers
 create function pg_temp.as_user(p_user uuid) returns void language sql as $$
@@ -95,7 +95,7 @@ declare t text; r text;
 begin
   for t in select s.tbl from pg_temp.swp s order by s.tbl loop
     -- the published catalog of an ACTIVE venue is readable by everyone on purpose (45); everything else must stay private
-    continue when p_kind = 'select' and t = any (array['blackouts', 'court_photos', 'court_rates', 'courts', 'open_play_courts', 'open_play_sessions',
+    continue when p_kind = 'select' and t = any (array['blackouts', 'court_photos', 'court_promo_courts', 'court_promos', 'court_rates', 'courts', 'open_play_courts', 'open_play_sessions',
       'operating_hours', 'venue_amenities', 'venue_info_sections', 'venue_payment_accounts', 'venue_settings', 'venue_social_links']);
     r := pg_temp.probe(p_kind, t, p_victim, p_own);
     if r <> 'blocked' then return next t || ': ' || r; end if;
@@ -182,6 +182,13 @@ insert into public.court_open_periods (venue_id, court_id, day_of_week, start_mi
 insert into public.court_rates (court_id, day_of_week, start_hour, price) values
   ('c0000000-0000-0000-0000-0000000000a1', 1, 9, 550),
   ('c0000000-0000-0000-0000-0000000000b1', 1, 9, 650);
+-- T19.1: one promo per venue, far in the future so no price in this file changes.
+insert into public.court_promos (id, venue_id, label, starts_on, ends_on, days_of_week, start_hour, end_hour, price) values
+  ('e3000000-0000-0000-0000-00000000a001', 'a0000000-0000-0000-0000-00000000000a', 'E2E Iso promo A', '2031-01-01', '2031-01-31', '{1}', 9, 11, 100),
+  ('e3000000-0000-0000-0000-00000000b001', 'b0000000-0000-0000-0000-00000000000b', 'E2E Iso promo B', '2031-01-01', '2031-01-31', '{1}', 9, 11, 100);
+insert into public.court_promo_courts (promo_id, court_id, venue_id) values
+  ('e3000000-0000-0000-0000-00000000a001', 'c0000000-0000-0000-0000-0000000000a1', 'a0000000-0000-0000-0000-00000000000a'),
+  ('e3000000-0000-0000-0000-00000000b001', 'c0000000-0000-0000-0000-0000000000b1', 'b0000000-0000-0000-0000-00000000000b');
 insert into public.court_photos (id, court_id, path, sort_order) values
   ('e2000000-0000-0000-0000-00000000a001', 'c0000000-0000-0000-0000-0000000000a1', 'a0000000-0000-0000-0000-00000000000a/courts/c0000000-0000-0000-0000-0000000000a1/00000000-0000-0000-0000-00000000a001.jpg', 0),
   ('e2000000-0000-0000-0000-00000000a002', 'c0000000-0000-0000-0000-0000000000a1', 'a0000000-0000-0000-0000-00000000000a/courts/c0000000-0000-0000-0000-0000000000a1/00000000-0000-0000-0000-00000000a002.jpg', 1),
@@ -301,7 +308,7 @@ select is_empty(
      where tbl not in (select tbl from pg_temp.tpl where venue_id = 'a0000000-0000-0000-0000-00000000000a')
         or tbl not in (select tbl from pg_temp.tpl where venue_id = 'b0000000-0000-0000-0000-00000000000b') $$,
   'every table with a venue_id has fixture rows in venue A and in venue B (add rows here when a table is added)');
-select is((select count(*)::int from pg_temp.swp), 25, 'the catalog sweep includes the four schedule tables');
+select is((select count(*)::int from pg_temp.swp), 27, 'the catalog sweep includes the four schedule tables and the two promo tables (T19.1)');
 select is(
   (select count(*)::int from pg_temp.swp where tbl in ('billing_charges', 'invoices', 'venue_members', 'guest_link_tokens', 'bookings', 'payments')),
   6, 'the sweep includes the billing, membership, booking and payment tables');
@@ -481,6 +488,17 @@ select isnt(pg_temp.hint_of($$ select public.update_open_play('e0000000-0000-000
 select is(pg_temp.hint_of($$ select * from public.get_staff_schedule('b0000000-0000-0000-0000-00000000000b', current_date) $$), 'forbidden', 'staff A cannot read venue B staff schedule');
 select is(pg_temp.hint_of($$ select public.delete_open_play('e0000000-0000-0000-0000-0000000000b1') $$), 'forbidden',
   'delete_open_play: staff A cannot delete a session of venue B');
+select is(pg_temp.hint_of($$ select public.save_court_promo(null, 'E2E iso', '2031-02-01', '2031-02-28', array['c0000000-0000-0000-0000-0000000000b2']::uuid[],
+    array[1]::smallint[], 9::smallint, 10::smallint, 1, true) $$), 'court_not_found',
+  'save_court_promo: staff A cannot add a promo on a court of venue B (court_not_found)');
+select is(pg_temp.hint_of($$ select public.save_court_promo('e3000000-0000-0000-0000-00000000b001', 'E2E hijack', '2031-01-01', '2031-01-31',
+    array['c0000000-0000-0000-0000-0000000000b1']::uuid[], array[1]::smallint[], 9::smallint, 11::smallint, 1, true) $$), 'court_not_found',
+  'save_court_promo: staff A cannot edit a promo of venue B');
+select is(pg_temp.hint_of($$ select public.save_court_promo('e3000000-0000-0000-0000-00000000b001', 'E2E hijack', '2031-01-01', '2031-01-31',
+    array['c0000000-0000-0000-0000-0000000000a2']::uuid[], array[1]::smallint[], 9::smallint, 11::smallint, 1, true) $$), 'not_found',
+  'save_court_promo: staff A cannot move a promo of venue B onto their own court');
+select is(pg_temp.hint_of($$ select public.delete_court_promo('e3000000-0000-0000-0000-00000000b001') $$), 'not_found',
+  'delete_court_promo: staff A cannot delete a promo of venue B');
 reset role;
 select is(pg_temp.vstate('b0000000-0000-0000-0000-00000000000b'), (select v from snap where k = 'b'),
   'after all those calls venue B''s rows in every table are byte for byte unchanged');
@@ -496,7 +514,7 @@ select is_empty(
          -- probed above with a cross-venue call
          'cancel_booking', 'review_payment', 'create_walk_in', 'reschedule_booking', 'delete_court', 'reorder_court_photos',
          'reorder_courts', 'reorder_info_sections', 'reorder_payment_accounts', 'set_operating_hours', 'get_earnings',
-         'create_open_play', 'update_open_play', 'delete_open_play',
+         'create_open_play', 'update_open_play', 'delete_open_play', 'save_court_promo', 'delete_court_promo',
          -- public by design: they take a court or a slug and only ever act on that venue's own published data
          'create_booking', 'get_availability', 'get_public_schedule',
          -- by secret token or by the caller's own account: no venue id to cross
