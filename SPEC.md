@@ -476,7 +476,7 @@ Until emails ship, the confirmation page shows the private link with a "save thi
     - **2026-11-07, close-out polish (T17.30, source spec P11):** Courts page title, counts and archived rows below the active ones; Dashboard Today's bookings and Next booking cards; no-courts and no-bookings empty states with today's hours; the marketing site's live venue feed (plotline-site T3.1) proven end to end with the console's Showcase approval.
     - **2026-11-06, dashboard polish (low–medium, T17.34):** setup checklist rows with a status icon, the item, a where-to-fix line and a Fix button, plus a required-items count; the earnings split shown as a receipt-style sum with Your earnings emphasized.
 
-18. **Venue feature switches** (added 2026-11-10; after M16; T18.1–T18.5 in TASKS): platform admins turn online payments (PayMongo) and walk-ins on or off per venue from the console; `create_walk_in` refuses at a venue with walk-ins off; the `VITE_FEATURE_WALK_INS` build flag is removed.
+18. ✅ **Venue feature switches** (added 2026-11-10; started before M16 closed, the user's call; done 2026-11-10; T18.1–T18.5 in TASKS; T18.1 and T18.3's migrations are on staging only, production needs a release approval): platform admins turn online payments (PayMongo) and walk-ins on or off per venue from the console; `create_walk_in` refuses at a venue with walk-ins off; the `VITE_FEATURE_WALK_INS` build flag is removed.
 19. **Promo rates** (added 2026-11-10; after M18; T19.1–T19.4 in TASKS): owners set limited-time promo prices per court group on `/admin/schedule` (a date range, days of week and hours, one fixed hourly price). The server applies the promo in `private.slot_price`; players see the promo price with its label.
 
 ## 10. Decisions log
