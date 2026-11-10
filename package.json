@@ -29,6 +29,7 @@
     "db:reset:local": "sh scripts/with-docker.sh supabase db reset --local",
     "smoke:prod": "node scripts/smoke-production.mjs",
     "screenshots": "node scripts/screenshots.mjs",
+    "tour:shots": "node scripts/admin-tour.mjs",
     "check:drift": "node scripts/check-drift.mjs"
   },
   "dependencies": {
