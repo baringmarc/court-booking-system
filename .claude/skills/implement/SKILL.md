@@ -100,6 +100,7 @@ For a task that isn't risky, state your plan in two or three lines, naming what 
 
 ## 7. Review
 
+- Before launching it, grep the TASKS.md Handoff for the task ID and confirm it states the task's current step (built, verified, awaiting review), not "plan gate pending" or an earlier state (L2, promoted in /retro M20: T20.2).
 - Launch the `reviewer` agent in the foreground, because you need its verdict before continuing. Give it **only**:
   - the task ID
   - the list of files this task created or changed, and the files that were already dirty before you started (from step 1), so it can tell them apart
