@@ -88,13 +88,13 @@ describe('CourtGallery', () => {
     expect(scrollTo).toHaveBeenCalled()
   })
 
-  it('opens every photo from the cover alone (the home page tiles)', async () => {
+  it('shows the cover alone as a plain image, with no full-screen button or dialog (the home page tiles)', async () => {
     render(<CourtGallery court={court} photos={photos} coverOnly />)
     expect(screen.getAllByRole('img')).toHaveLength(1)
-    await userEvent.click(screen.getByRole('button', { name: 'View full screen: Photo of Badminton 1' }))
-    const viewer = screen.getByRole('dialog')
-    expect(within(viewer).getByText('1 of 3')).toBeInTheDocument()
-    expect(within(viewer).getByRole('img')).toHaveAttribute('alt', 'Photo 1 of 3 of Badminton 1')
+    expect(screen.getByRole('img')).toHaveAttribute('alt', 'Photo of Badminton 1')
+    expect(screen.queryByRole('button')).toBeNull()
+    await userEvent.click(screen.getByRole('img'))
+    expect(screen.queryByRole('dialog')).toBeNull()
   })
 
   it('stays within the list when it shrinks under an open gallery', async () => {

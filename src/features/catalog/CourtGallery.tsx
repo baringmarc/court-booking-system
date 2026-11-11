@@ -7,7 +7,7 @@ import { mediaUrl } from './media'
 type Props = {
   court: Pick<Court, 'name' | 'sport'>
   photos: CourtPhotoRow[]
-  /** Only the cover (the home page's tiles); tapping it still opens every photo full screen. */
+  /** Only the cover, as a plain image (the home page's tiles sit inside the sport card's link, T22.1b). */
   coverOnly?: boolean
 }
 
@@ -31,12 +31,14 @@ export function CourtGallery({ court, photos, coverOnly = false }: Props) {
       label={`Photos of ${court.name}`}
       onClose={(last) => {
         setViewing(null)
-        if (!coverOnly && total > 1) show(last) // the strip follows the viewer
+        if (total > 1) show(last) // the strip follows the viewer
       }}
     />
   )
 
-  if (coverOnly || total <= 1) {
+  if (coverOnly) return <CourtPhoto court={court} path={photos[0]?.path ?? null} />
+
+  if (total <= 1) {
     return (
       <>
         <CourtPhoto court={court} path={photos[0]?.path ?? null} onOpen={total ? () => setViewing(0) : undefined} />

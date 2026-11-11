@@ -62,6 +62,9 @@ test('an admin builds a court gallery that players see on the home page and /boo
     await cover.scrollIntoViewIfNeeded() // lazy-loaded
     await expect(cover).toHaveAttribute('src', new RegExp(`${two}$`))
     await expect(cover).toHaveJSProperty('naturalWidth', 1)
+    // T22.1b: the cover is a plain image inside the sport card's link, not a full-screen button.
+    await expect(page.getByRole('button', { name: `View full screen: Photo of ${name}` })).toHaveCount(0)
+    await expect(page.locator('a[href="/book?sport=tennis"]').filter({ has: cover })).toHaveCount(1)
 
     await page.goto('/book?sport=tennis')
     // Open by default (T9.11f).
