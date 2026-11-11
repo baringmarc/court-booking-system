@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { PageLoader } from '../components/PageLoader'
 import { ErrorMessage } from '../components/ErrorMessage'
 import { useCourts, usePublicSchedule, useVenueSettings } from '../features/catalog/hooks'
-import { SPORT_LABELS, type CourtWithPhotos } from '../features/catalog/api'
+import { SPORT_LABELS, type CourtWithPhotos, type Sport } from '../features/catalog/api'
 import { sportsOf } from '../features/catalog/sportOrder'
 import { CourtTiles } from '../features/catalog/CourtTiles'
 import { HomeBanner } from '../features/catalog/HomeBanner'
@@ -61,7 +61,7 @@ export function HomePage() {
         <div className="stack">
           {/* Courts arrive in the venue's sport order (fetchCourts), so group them in that order. */}
           {sportsOf(courts.data).map((sport) => (
-            <SportGroup key={sport} title={SPORT_LABELS[sport]} courts={courts.data.filter((c) => c.sport === sport)} currency={currency} />
+            <SportGroup key={sport} sport={sport} courts={courts.data.filter((c) => c.sport === sport)} currency={currency} />
           ))}
         </div>
       )}
@@ -71,18 +71,22 @@ export function HomePage() {
   )
 }
 
-function SportGroup({ title, courts, currency }: { title: string; courts: CourtWithPhotos[]; currency: string }) {
+/** T22.1: the whole card is one link to /book on this sport's tab. The aria-label keeps its name short, so a screen reader hears one link, not the card's text. */
+function SportGroup({ sport, courts, currency }: { sport: Sport; courts: CourtWithPhotos[]; currency: string }) {
+  const title = SPORT_LABELS[sport]
   const minRate = Math.min(...courts.map((c) => c.default_hourly_rate))
   return (
-    <section className="card">
-      <div className="sport-head card-head">
-        <h3>{title}</h3>
-        <span className="muted">
-          {courts.length} {courts.length === 1 ? 'court' : 'courts'} · from {formatMoney(minRate, currency)}/hr
-        </span>
-      </div>
-      <p className="muted small">{courts[0].description}</p>
-      <CourtTiles courts={courts} />
+    <section className="card sport-card">
+      <Link to={`/book?sport=${sport}`} className="sport-card-link" aria-label={`Book ${title.toLowerCase()} courts`}>
+        <div className="sport-head card-head">
+          <h3>{title}</h3>
+          <span className="muted">
+            {courts.length} {courts.length === 1 ? 'court' : 'courts'} · from {formatMoney(minRate, currency)}/hr
+          </span>
+        </div>
+        <p className="muted small">{courts[0].description}</p>
+        <CourtTiles courts={courts} />
+      </Link>
     </section>
   )
 }
