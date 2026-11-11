@@ -1,6 +1,7 @@
 // T11.28: "Paid with" on the proof form lists the venue's payment accounts. A guest picks an E2E account, uploads a
 // proof, and the admin sees that account's label in the review panel. Accessible and usable at 360px.
 import { expect, test } from '@playwright/test'
+import { guardLeaks } from './support/leaks.ts'
 import { axeBothSchemes, createAdmin, E2E_PREFIX, logInAdmin, pickFirstFreeSlot, receiptPng, serviceClient, venueDate, venueId } from './support/helpers.ts'
 
 const LABEL = `${E2E_PREFIX} Paid With Bank`
@@ -56,3 +57,6 @@ test('a guest pays with a payment account and the admin sees its label in the re
   expect(await axeBothSchemes(adminPage, `[aria-label="Booking ${reference}"]`)).toEqual([])
   await adminContext.close()
 })
+
+// H14: keep last, after this file's own cleanup hooks.
+guardLeaks()

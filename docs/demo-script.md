@@ -38,7 +38,7 @@ A walkthrough of Claudex Courts, about 4 to 5 minutes. Record it at 1080p, with 
 
 **On screen:**
 - The dashboard: today's courts with full names (a booking is one block over its hours), the proofs to review, and the earnings. Switch between Today, This week and This month, point at Total revenue, Your earnings and Plotline fees, the collected total per method, the change from the period before, the occupancy table and the daily bars, then use "Export bookings (CSV)" and "Export payments (CSV)".
-- Leave the tab in the background while a guest books: the title shows the new-booking count. (Walk-ins are hidden unless `VITE_FEATURE_WALK_INS=true`, so skip them.)
+- Leave the tab in the background while a guest books: the title shows the new-booking count. (Walk-ins are off unless Plotline turns them on for the venue in the console, so skip them.)
 - Open play: create a session, and show the error when it overlaps a booking.
 - Schedule: set a day that closes at 2 AM, and point out "closes next day".
 - Settings: pick a website color preset and drag a court into a new order.
@@ -58,3 +58,22 @@ If the booking has already started (do this with a booking made for the current 
 **On screen:** briefly show the repo: the migrations folder, a pgTAP test, `npm run verify` passing in a terminal, and the Playwright report at phone size.
 
 **Narration:** "It's built with React, TypeScript and Supabase. Row Level Security is on every table, there are pgTAP tests for each rule acting as a guest, a player and an admin, and Playwright runs every flow at desktop and phone sizes with accessibility checks. Thanks for watching."
+
+---
+
+## Admin demo (scripted)
+
+A separate, silent, captioned recording of about 70 seconds for the admin tour on plotline-site: an owner running a venue, admin side only. Nobody records it by hand: `npm run tour:video` (`scripts/admin-demo-video.mjs`) drives the local stack with demo data and writes the MP4, WebM, poster and captions to `docs/admin-tour/`. The captions below are the `CAPTIONS` list in that script, word for word; change both together (`node scripts/admin-demo-video.mjs --check` compares the captions file with the script).
+
+| # | On screen | Caption |
+| --- | --- | --- |
+| 1 | The Dashboard: Proofs to review, Today's bookings, Next booking; a scroll down to today's earnings and back | Your day at a glance: today’s bookings, payments to check and who is next. |
+| 2 | Bookings: search a reference, the booking opens with its GCash receipt, "Approve and confirm", the confirmation message | A player sent a payment proof. Open it, check the receipt and confirm the booking. |
+| 3 | Tomorrow's bookings: open a confirmed one, Reschedule, Tomorrow, another court, 4 PM, the reason "Rain: the court is wet", "Move booking" | Rain or repairs? Move a booking to another court or time, and tell the player why. |
+| 4 | Schedule: Sunday closes at 11 PM instead of 10 PM, "Review & save", "Save changes" | Change your opening hours whenever you need to. Your booking page updates right away. |
+| 5 | Schedule, the Prices tab | Prices by day and hour are yours to set, too. |
+| 6 | The Dashboard's Earnings, "This month": collected, Plotline fees, Your earnings, booked hours | See what you earned, with Plotline’s booking fee shown apart from your own earnings. |
+| 7 | Back to the top of Earnings | Your courts, your bookings, your money: all in one admin. |
+
+After the recording the script sets Sunday back to 10 PM and checks the venue's hours are what they were.
+

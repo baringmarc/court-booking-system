@@ -1,5 +1,6 @@
 import { AxeBuilder } from '@axe-core/playwright'
 import { expect, test } from '@playwright/test'
+import { guardLeaks } from './support/leaks.ts'
 import { createAdmin, logInAdmin } from './support/helpers.ts'
 
 test('T17.3 seven destinations, collapse, mobile focus and Reports compatibility', async ({ page }) => {
@@ -58,3 +59,6 @@ test('T17.3 seven destinations, collapse, mobile focus and Reports compatibility
   await page.getByRole('button', { name: 'Log out' }).click()
   await expect(page.getByRole('heading', { name: 'Admin log in' })).toBeVisible()
 })
+
+// H14: keep last, after this file's own cleanup hooks.
+guardLeaks()

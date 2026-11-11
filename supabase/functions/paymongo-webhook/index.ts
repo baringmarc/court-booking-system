@@ -6,6 +6,8 @@
 // A database error answers 500 so PayMongo retries (up to 12 times); everything handled answers 200.
 import { withSupabase } from 'npm:@supabase/server@1'
 import { LOCAL_WEBHOOK_SECRET, parseSignatureHeader, readPaidEvent, verifyWebhookSignature } from '../_shared/paymongo.ts'
+import * as Sentry from 'npm:@sentry/deno@10.76.2'
+import { withSentry } from '../_shared/sentry.ts'
 
 const json = (body: unknown, status = 200) => Response.json(body, { status })
 // Signatures older than this are logged (retries may reuse the original timestamp, so they aren't refused).
@@ -19,7 +21,7 @@ function webhookSecret() {
 }
 
 export default {
-  fetch: withSupabase({ auth: 'none' }, async (req, ctx) => {
+  fetch: withSupabase({ auth: 'none' }, withSentry('paymongo-webhook', async (req, ctx) => {
     if (req.method !== 'POST') return json({ code: 'method_not_allowed' }, 405)
 
     const secret = webhookSecret()
@@ -70,5 +72,5 @@ export default {
       console.warn('paymongo-webhook:', outcome, paid.eventId, paid.checkoutId)
     }
     return json({ received: true, outcome })
-  }),
+  }, Sentry)),
 }

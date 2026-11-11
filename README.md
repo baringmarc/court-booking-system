@@ -22,7 +22,7 @@ More screenshots, at phone and desktop sizes, are in [docs/screenshots](docs/scr
 - Manage the booking from a private link (guests) or from My bookings (accounts). Cancel up to the venue's cutoff. If staff move a booking, the page shows the new time and the reason, and the player gets an email.
 
 **Staff** (the `/admin` area, lazy-loaded so players never download it):
-- See today's courts with each booker's name and review payment proofs. A new booking or proof shows live in the browser tab's title. Search and sort bookings. Walk-ins are built but hidden behind a code flag.
+- See today's courts with each booker's name and review payment proofs. A new booking or proof shows live in the browser tab's title. Search and sort bookings. Walk-ins appear only at venues where Plotline has turned them on (a console switch).
 - Follow the money on the dashboard: total revenue, the owner's earnings and Plotline's booking fees, what was collected per payment method for a day, week, month or custom range (with the change from the period before), booked hours and occupancy per court and sport, a daily chart, and what's coming up. Export bookings and payments to CSV (contact details only when ticked).
 - Reschedule a confirmed booking to another court of the same sport or another time, with a reason the player sees. Once a booking has started, the rest of it moves as a booking of its own, so nothing already played is rewritten.
 - Edit courts, rates by day and hour, opening hours (including overnight and 24 hours), blackouts and photos. Drag courts and info sections into order.
@@ -93,7 +93,11 @@ Only publishable keys go in the frontend. PayMongo and email secrets are Edge Fu
 npm run verify      # typecheck, lint, Vitest, pgTAP (local database), production build: the gate for "done"
 npm run test:e2e    # Playwright on desktop and 360px against the local stack (needs `npx supabase start`)
 npm run screenshots # regenerates docs/screenshots with temporary demo data, then removes it
+npm run tour:shots  # the admin tour pictures in docs/admin-tour (local stack; also copied to ../plotline-site)
+npm run tour:video  # the admin demo video, poster and captions in docs/admin-tour (needs ffmpeg)
 ```
+
+The admin tour pictures and video are what plotline-site shows; see [docs/admin-tour/README.md](docs/admin-tour/README.md).
 
 pgTAP tests run in a transaction that's rolled back, acting as anon, a player and an admin through `set local role` and JWT claims. The e2e flows tag their data (`E2E…`, `e2e-…@example.com`) so global teardown removes it.
 

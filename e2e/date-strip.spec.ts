@@ -2,6 +2,7 @@
 // through the calendar; the URL follows and the strip slides to show the chosen day. Reads the venue's own closed
 // days and booking window, so it holds on a local stack with edited hours.
 import { expect, test } from '@playwright/test'
+import { guardLeaks } from './support/leaks.ts'
 import { pickDate, serviceClient, venueDate } from './support/helpers.ts'
 
 const dow = (date: string) => new Date(`${date}T12:00Z`).getUTCDay()
@@ -49,3 +50,6 @@ test('a guest picks days from the strip, steps with the arrows and jumps to a da
   const overflow = await page.evaluate<number>('document.documentElement.scrollWidth - document.documentElement.clientWidth')
   expect(overflow, '/book scrolls sideways').toBeLessThanOrEqual(0)
 })
+
+// H14: keep last, after this file's own cleanup hooks.
+guardLeaks()

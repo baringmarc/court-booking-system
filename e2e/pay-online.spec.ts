@@ -5,6 +5,7 @@
 import { createHmac } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { expect, test, type Page } from '@playwright/test'
+import { guardLeaks } from './support/leaks.ts'
 import { createAdmin, E2E_PREFIX, logInAdmin, pickFirstFreeSlot, serviceClient, venueDate } from './support/helpers.ts'
 import { localSupabase } from './support/local.ts'
 
@@ -128,3 +129,6 @@ test('a guest who cancels on PayMongo comes back to a payable booking', async ({
   await expect(page.getByRole('button', { name: 'Pay online with PayMongo' })).toBeEnabled()
   await expect(page.getByRole('button', { name: 'Submit proof of payment' })).toBeVisible()
 })
+
+// H14: keep last, after this file's own cleanup hooks.
+guardLeaks()

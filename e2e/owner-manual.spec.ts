@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import { expect, test } from '@playwright/test'
+import { guardLeaks } from './support/leaks.ts'
 import { createAdmin, logInAdmin } from './support/helpers.ts'
 
 test('the Dashboard downloads the complete PDF available at the public guide and attachment URLs', async ({ page, request }) => {
@@ -24,3 +25,6 @@ test('the Dashboard downloads the complete PDF available at the public guide and
     expect(downloaded.equals(await response.body())).toBe(true)
   }
 })
+
+// H14: keep last, after this file's own cleanup hooks.
+guardLeaks()

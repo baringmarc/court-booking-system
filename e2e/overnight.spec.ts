@@ -1,6 +1,7 @@
 // T9.10 / T17.15: an admin opens a day past midnight in the Weekly Hours editor; players see and book its after-midnight
 // slots under that day. Runs in its own E2E venue with scheduling activated, so shared data is never touched.
 import { expect, test } from '@playwright/test'
+import { guardLeaks } from './support/leaks.ts'
 import { addVenueStaff, createPlayer, createVenue, deleteVenue, E2E_PREFIX, serviceClient, submitAdminLogin, venueDate } from './support/helpers.ts'
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
@@ -72,3 +73,6 @@ test('an admin opens a day until 2 AM and a guest books an after-midnight slot',
   await expect(guest.getByRole('button', { name: `${venue!.court}, ${hourLabel}, Booked by ${E2E_PREFIX}` })).toBeDisabled()
   await guestContext.close()
 })
+
+// H14: keep last, after this file's own cleanup hooks.
+guardLeaks()

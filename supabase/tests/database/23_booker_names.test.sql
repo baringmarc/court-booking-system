@@ -33,8 +33,8 @@ from fx;
 -- ---------------------------------------------------------------------------
 select is(
   pg_get_function_result('public.get_availability(date, uuid, text)'::regprocedure),
-  'TABLE(court_id uuid, slot_start timestamp with time zone, slot_end timestamp with time zone, price numeric, status text, booker_first_name text, open_play_session_id uuid, block_key text)',
-  'get_availability returns the slot columns plus booker_first_name, and no other personal field (block_key is an opaque hash, T10.4)'
+  'TABLE(court_id uuid, slot_start timestamp with time zone, slot_end timestamp with time zone, price numeric, status text, booker_first_name text, open_play_session_id uuid, block_key text, promo_label text)',
+  'get_availability returns the slot columns plus booker_first_name, and no other personal field (block_key is an opaque hash, T10.4; promo_label is the promo''s public label, T19.1)'
 );
 select ok(has_function_privilege('anon', 'public.get_availability(date, uuid, text)', 'EXECUTE'), 'anon can still call get_availability');
 select ok(has_function_privilege('authenticated', 'public.get_availability(date, uuid, text)', 'EXECUTE'), 'authenticated can still call it');

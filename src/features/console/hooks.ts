@@ -2,7 +2,7 @@ import { useRef } from 'react'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   createVenue, deleteLead, deleteUnusedVenue, fetchInvoiceDetailPage, fetchVenueDeletionPreview, retryVenueFileCleanup, fetchInvoicesPage, fetchIsPlatformAdmin, fetchLeadsPage, fetchReviewsPage, fetchVenuesPage,
-  inviteVenueOwner, markInvoicePaid, markInvoiceSent, resendOwnerInvite, fetchShowcaseApprovals, setVenueShowcaseApproval,
+  inviteVenueOwner, markInvoicePaid, markInvoiceSent, resendOwnerInvite, fetchShowcaseApprovals, setVenueShowcaseApproval, fetchOnlinePayments, setOnlinePayments, fetchWalkIns, setWalkIns,
   reactivateVenue, setReviewApproved, suspendVenue, updateLead, type Lead, type LeadStatus, type ReviewFilter,
 } from './api'
 
@@ -77,6 +77,40 @@ export function useCreateVenueFromLead() {
 /** Sends a venue's owner a fresh invite or sign-in link (T14.5d). */
 export function useResendOwnerInvite() {
   return useMutation({ mutationFn: (input: { venueId: string; email: string }) => resendOwnerInvite(input) })
+}
+
+export function useOnlinePayments() {
+  return useQuery({ queryKey: ['online-payments'], queryFn: fetchOnlinePayments, refetchOnWindowFocus: true })
+}
+
+export function useSetOnlinePayments() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: { venueId: string; enabled: boolean }) => setOnlinePayments(input),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['online-payments'] }),
+        queryClient.invalidateQueries({ queryKey: ['venues-overview'] }),
+      ])
+    },
+  })
+}
+
+export function useWalkIns() {
+  return useQuery({ queryKey: ['walk-ins'], queryFn: fetchWalkIns, refetchOnWindowFocus: true })
+}
+
+export function useSetWalkIns() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: { venueId: string; enabled: boolean }) => setWalkIns(input),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['walk-ins'] }),
+        queryClient.invalidateQueries({ queryKey: ['venues-overview'] }),
+      ])
+    },
+  })
 }
 
 export function useShowcaseApprovals() {

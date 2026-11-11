@@ -1,7 +1,7 @@
 import type { ComponentType } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, render, screen, waitFor, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import baseUserEvent from '@testing-library/user-event'
 import { createMemoryRouter, RouterProvider } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../../lib/queryClient'
@@ -9,6 +9,9 @@ import { catalogKeys, fetchVenueSettings, updateVenueSettings, type VenueSetting
 import { fetchAmenities, fetchInfoSections, fetchPaymentAccounts, fetchSocialLinks, type PaymentAccount, type InfoSection } from '../venue/api'
 import { saveInfoSection, savePaymentAccount } from './api'
 import { SettingsPage } from './SettingsPage'
+
+// No per-action macrotask delay (H12): the real-timer waits dominated this file's runtime.
+const userEvent = baseUserEvent.setup({ delay: null })
 
 vi.mock('../catalog/api', async (original) => ({ ...(await original<typeof import('../catalog/api')>()), fetchVenueSettings: vi.fn(), updateVenueSettings: vi.fn() }))
 vi.mock('../venue/api', async (original) => ({ ...(await original<typeof import('../venue/api')>()), fetchAmenities: vi.fn(), fetchInfoSections: vi.fn(), fetchPaymentAccounts: vi.fn(), fetchSocialLinks: vi.fn() }))
@@ -20,7 +23,7 @@ const INITIAL: VenueSettings = {
   maps_url: '', max_rejections: 2, online_payments_enabled: false, payment_hold_minutes: 60,
   payment_instructions: 'Pay to the account above.', showcase_opt_in: false, slot_minutes: 60,
   sport_order: ['badminton', 'pickleball', 'tennis'], theme: 'plotline', timezone: 'Asia/Manila',
-  updated_at: '2026-11-04T00:00:00Z', waiver_text: 'Respect venue rules.',
+  updated_at: '2026-11-04T00:00:00Z', waiver_text: 'Respect venue rules.', walk_ins_enabled: false,
 }
 let stored: VenueSettings
 const categories = [

@@ -8,8 +8,10 @@ import { isLikelyBot, validateContact } from '../_shared/siteForms.ts'
 import { emailTransport } from '../_shared/email.ts'
 import { sendLeadAlert } from '../_shared/leadAlert.ts'
 import { json, preflight, readJson, verifyTurnstile } from '../_shared/siteHttp.ts'
+import * as Sentry from 'npm:@sentry/deno@10.76.2'
+import { withSentry } from '../_shared/sentry.ts'
 
-Deno.serve(async (req) => {
+Deno.serve(withSentry('site-contact', async (req) => {
   const early = preflight(req)
   if (early) return early
 
@@ -64,4 +66,4 @@ Deno.serve(async (req) => {
     log: console.error,
   })
   return json(req, { ok: true })
-})
+}, Sentry))

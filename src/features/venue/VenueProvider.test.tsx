@@ -207,3 +207,36 @@ describe('VenueProvider staff sign-in (T13.4)', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2)
   })
 })
+
+describe('VenueProvider owner hint (T16.6)', () => {
+  it('"Venue not found" offers owners a sign-in link to /admin', async () => {
+    fetchMock.mockResolvedValue(null)
+    renderProvider()
+    await screen.findByRole('heading', { name: 'Venue not found' })
+    const link = screen.getByRole('link', { name: /sign in to set it up/i })
+    expect(link).toHaveAttribute('href', '/admin')
+    expect(link).toHaveTextContent('Own this venue? Sign in to set it up')
+  })
+
+  it('the no-slug "Venue not found" has the hint too', async () => {
+    window.history.replaceState(null, '', '/')
+    renderProvider()
+    await screen.findByRole('heading', { name: 'Venue not found' })
+    expect(screen.getByRole('link', { name: /sign in to set it up/i })).toHaveAttribute('href', '/admin')
+  })
+
+  it('the staff sign-in form does not show the hint', async () => {
+    window.history.replaceState(null, '', '/admin?venue=bay-courts')
+    fetchMock.mockResolvedValue(null)
+    renderProvider()
+    await screen.findByRole('heading', { name: 'Staff sign in' })
+    expect(screen.queryByRole('link', { name: /sign in to set it up/i })).not.toBeInTheDocument()
+  })
+
+  it('a loaded venue does not show the hint', async () => {
+    fetchMock.mockResolvedValue(BAY)
+    renderProvider()
+    await screen.findByText('venue:bay-courts')
+    expect(screen.queryByRole('link', { name: /sign in to set it up/i })).not.toBeInTheDocument()
+  })
+})

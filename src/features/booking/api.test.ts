@@ -34,7 +34,7 @@ vi.mock('../../lib/supabase', () => ({
   },
 }))
 
-const { fetchGuestBooking, fetchOwnBooking, fetchPlatformFee } = await import('./api')
+const { fetchAvailability, fetchGuestBooking, fetchOwnBooking, fetchPlatformFee } = await import('./api')
 const { supabase } = await import('../../lib/supabase')
 
 beforeEach(() => {
@@ -100,5 +100,23 @@ describe('booking amounts (T11.13)', () => {
     const own = selects.find(([table, columns]) => table === 'bookings' && /\btotal_amount\b/.test(columns))?.[1] ?? ''
     expect(own).toMatch(/\bbooking_fee\b/)
     expect(own).toMatch(/\bamount_due\b/)
+  })
+})
+
+describe('fetchAvailability promo_label (T19.3)', () => {
+  const row = (start: string, promo_label: string | null) => ({
+    court_id: 'c1', slot_start: start, slot_end: start, price: 500, status: 'free',
+    booker_first_name: null, open_play_session_id: null, block_key: null, promo_label,
+  })
+
+  it('carries the promo label through and maps null or empty to null', async () => {
+    rpcs.get_availability = [
+      row('2030-01-06T23:00:00.000Z', 'Happy hour'),
+      row('2030-01-07T00:00:00.000Z', null),
+      row('2030-01-07T01:00:00.000Z', ''),
+    ]
+    const slots = await fetchAvailability('2030-01-07')
+    expect(slots.map((s) => s.promo_label)).toEqual(['Happy hour', null, null])
+    expect(slots[0].price).toBe(500)
   })
 })

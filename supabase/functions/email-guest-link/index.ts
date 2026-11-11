@@ -12,6 +12,8 @@ import { renderEmail, type BookingStatus, type EmailData } from '../_shared/emai
 import { venueSiteBase } from '../_shared/venueSite.ts'
 import { normalizeReference } from '../_shared/payable.ts'
 import { ProofError } from '../_shared/proof.ts'
+import * as Sentry from 'npm:@sentry/deno@10.76.2'
+import { withSentry } from '../_shared/sentry.ts'
 
 const json = (body: unknown, status = 200) => Response.json(body, { status })
 const notFound = () => json({ code: 'not_found', message: 'Booking not found.' }, 404)
@@ -19,7 +21,7 @@ const notFound = () => json({ code: 'not_found', message: 'Booking not found.' }
 type ClaimedLink = { id: string; booking_id: string; reference_code: string; to_email: string; data: EmailData }
 
 export default {
-  fetch: withSupabase({ auth: ['user', 'publishable'] }, async (req, ctx) => {
+  fetch: withSupabase({ auth: ['user', 'publishable'] }, withSentry('email-guest-link', async (req, ctx) => {
     if (req.method !== 'POST') return json({ code: 'method_not_allowed', message: 'Use POST.' }, 405)
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
@@ -86,5 +88,5 @@ export default {
     // The worker retries this row later, without the link (it never has the token).
     console.error('email-guest-link: send failed', row.id, result.error)
     return finish('failed', result.error)
-  }),
+  }, Sentry)),
 }

@@ -93,6 +93,8 @@ select ok(not has_function_privilege('anon', 'public.paymongo_checkout_for(uuid)
       and has_function_privilege('service_role', 'public.paymongo_checkout_for(uuid)', 'execute'),
   'only service_role can execute paymongo_checkout_for');
 
+-- T18.3: walk-ins are off by default; this file records walk-ins, so its venues switch them on (as postgres).
+update public.venue_settings set walk_ins_enabled = true;
 set local role anon;
 select set_config('request.jwt.claims', '{"role": "anon"}', true);
 select throws_ok($$ select * from public.paymongo_checkouts $$, '42501', null, 'anon cannot read PayMongo checkouts');

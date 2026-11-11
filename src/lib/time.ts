@@ -1,7 +1,20 @@
 // Timezone helpers. All timestamps are stored in UTC; the venue timezone is only for input/display.
 
+// Building an Intl.DateTimeFormat is far slower than using one, and these helpers run once per rendered slot,
+// so formatters are cached by locale, zone and options (H12).
+const formatters = new Map<string, Intl.DateTimeFormat>()
+function formatter(locale: string, options: Intl.DateTimeFormatOptions) {
+  const key = `${locale}|${JSON.stringify(options)}`
+  let f = formatters.get(key)
+  if (!f) {
+    f = new Intl.DateTimeFormat(locale, options)
+    formatters.set(key, f)
+  }
+  return f
+}
+
 function tzOffsetMs(date: Date, timeZone: string) {
-  const parts = new Intl.DateTimeFormat('en-US', {
+  const parts = formatter('en-US', {
     timeZone,
     hourCycle: 'h23',
     year: 'numeric',
@@ -35,7 +48,7 @@ export function isoToZonedLocal(iso: string, timeZone: string) {
 }
 
 export function formatInZone(iso: string, timeZone: string, options: Intl.DateTimeFormatOptions) {
-  return new Intl.DateTimeFormat('en-PH', { timeZone, ...options }).format(new Date(iso))
+  return formatter('en-PH', { timeZone, ...options }).format(new Date(iso))
 }
 
 export function formatDateTimeInZone(iso: string, timeZone: string) {
@@ -50,7 +63,7 @@ export function formatDateTimeInZone(iso: string, timeZone: string) {
 
 /** Today's date ("YYYY-MM-DD") in `timeZone`. */
 export function todayInZone(timeZone: string, now = new Date()) {
-  return new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(now)
+  return formatter('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(now)
 }
 
 /** "YYYY-MM-DD" + n calendar days (timezone-free date arithmetic). */

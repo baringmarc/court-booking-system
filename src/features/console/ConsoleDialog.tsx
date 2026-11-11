@@ -4,12 +4,13 @@ const FOCUSABLE = 'button:not([disabled]), input:not([disabled]), select:not([di
 
 /**
  * A console modal (T17.28): Escape cancels and Tab stays inside. The opener gets focus back from its caller
- * (`returnFocus`), since the panel that opened it can be re-rendered while the dialog is open.
+ * (`returnFocus`), since the panel that opened it can be re-rendered while the dialog is open. `tabIndex={-1}` keeps
+ * focus in the dialog when its text is clicked, so Escape still cancels (T18.2).
  */
 export function ConsoleDialog({ id, title, onCancel, children }: { id: string; title: string; onCancel: () => void; children: ReactNode }) {
   return (
     <div className="modal-backdrop" role="presentation">
-      <section className="dialog card stack" role="dialog" aria-modal="true" aria-labelledby={`${id}-title`} onKeyDown={(event) => {
+      <section className="dialog card stack" role="dialog" aria-modal="true" aria-labelledby={`${id}-title`} tabIndex={-1} onKeyDown={(event) => {
         if (event.key === 'Escape') { event.preventDefault(); onCancel() }
         if (event.key !== 'Tab') return
         const items = event.currentTarget.querySelectorAll<HTMLElement>(FOCUSABLE)

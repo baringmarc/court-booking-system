@@ -29,6 +29,8 @@
     "db:reset:local": "sh scripts/with-docker.sh supabase db reset --local",
     "smoke:prod": "node scripts/smoke-production.mjs",
     "screenshots": "node scripts/screenshots.mjs",
+    "tour:shots": "node scripts/admin-tour.mjs",
+    "tour:video": "node scripts/admin-demo-video.mjs",
     "check:drift": "node scripts/check-drift.mjs"
   },
   "dependencies": {
@@ -38,6 +40,7 @@
     "@dnd-kit/utilities": "3.2.2",
     "@fontsource/dm-sans": "5.3.0",
     "@fontsource/fraunces": "5.3.0",
+    "@sentry/react": "10.76.2",
     "@supabase/supabase-js": "^2.118.0",
     "@tanstack/react-query": "5.104.3",
     "lucide-react": "^1.61.0",

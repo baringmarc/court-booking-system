@@ -91,6 +91,7 @@
 | 2026-10-27 | PayMongo per venue, hardened (Phase 4): every use of a venue's key is logged, the code uses keys only to create checkouts, register our webhook and refund late payments, a daily health check hides "Pay online" when a venue's key or webhook stops working, and each venue's setup is proven with one small live payment and refund during onboarding. |
 | 2026-11-01 | Pilot first, then Phase 4 when a venue wants online payments. The pilot stays on the current linked project (staging) until a separate production project is created; walk-ins stay hidden behind the code flag (the database does not refuse `create_walk_in`). The Terms already state how venues' PayMongo keys are stored, used and handled if one leaks (plotline-site `legal.ts`), so open question 6 is settled. The user removes the Terms and Privacy draft notice without a separate legal review. |
 | 2026-11-02 | The leaving terms, the 1-week fee-change notice and the 1-year lead retention that plotline-site's Terms and Privacy state are recorded in §1 (the user asked for them to be copied here, where business terms are decided). They were set by the user on 2026-10-29. |
+| 2026-11-10 | Walk-ins become a per-venue switch that only Plotline changes (M18), reversing 2026-10-26 (one code flag for everyone) and 2026-11-01 (the database does not refuse `create_walk_in`). Every venue starts off; `create_walk_in` now refuses with `walk_ins_off` while a venue's switch is off (T18.3). Walk-ins stay unbilled (§5). |
 
 ## 4. Open questions
 
@@ -101,7 +102,7 @@
 2. ~~Domain~~ Settled on 2026-10-27: `plotline.fit`.
 3. ~~Demo slug~~ Settled on 2026-10-27: `claudex-courts`. Whether `demo.plotline.fit` also redirects to it is a Phase 2 detail.
 6. ~~**Holding venues' PayMongo keys** (Phase 4): what our terms say about how we store and use them, and what we do if one leaks (rotate, tell the venue, review the key-use log).~~ Settled on 2026-11-01: the Terms in plotline-site cover it.
-4. ~~**Walk-ins:** hide the form (kept for us and old data) or remove it?~~ Settled on 2026-10-26: hidden behind a code flag, off by default (M11, T11.2). Existing walk-in bookings on Claudex Courts stay as history. Settled on 2026-11-01: the database does not refuse `create_walk_in`; the form stays hidden. Note that a free blackout could still be used to hold a court for an offline customer; we accept that, as it hides the slot from players and costs the venue bookings.
+4. ~~**Walk-ins:** hide the form (kept for us and old data) or remove it?~~ Settled on 2026-10-26: hidden behind a code flag, off by default (M11, T11.2). Existing walk-in bookings on Claudex Courts stay as history. Settled on 2026-11-01: the database does not refuse `create_walk_in`; the form stays hidden. Reversed on 2026-11-10 (M18): a per-venue switch only Plotline changes, and `create_walk_in` refuses while it's off. Note that a free blackout could still be used to hold a court for an offline customer; we accept that, as it hides the slot from players and costs the venue bookings.
 5. **Tax treatment of the fee:** the venue collects the ₱10 and passes it on to us. Ask an accountant how the venue and Plotline should each record and receipt it, before the first real invoice.
 
 ## 5. Billing rules
@@ -197,8 +198,8 @@ Also on the single-venue app (approved 2026-10-26; breakdown in TASKS.md M11). P
 
 **Built (done 2026-10-30), and what Phase 1 inherits:**
 - `platform_pricing.booking_fee` (₱10, set on production after the merge into `master`) is copied onto each online booking as `bookings.booking_fee`; `amount_due` is the price plus the fee. `get_earnings.split` gives total revenue, Plotline fees and owner earnings. Phase 1 adds the per-venue override question and the billing ledger on top.
-- `venue_settings.theme` (five presets), `maps_url`, `waiver_text`, `online_payments_enabled` (only Plotline can change it) and `venue_payment_accounts` with the `payment-qr` bucket are single-venue today; Phase 1 makes each per venue like the rest of `venue_settings`.
-- Walk-ins stay behind `VITE_FEATURE_WALK_INS` (a build flag, so not per venue).
+- `venue_settings.theme` (seven presets since M20), `maps_url`, `waiver_text`, `online_payments_enabled` (only Plotline can change it) and `venue_payment_accounts` with the `payment-qr` bucket are single-venue today; Phase 1 makes each per venue like the rest of `venue_settings`.
+- Walk-ins are a per-venue switch only Plotline changes (`venue_settings.walk_ins_enabled`, console; M18). The `VITE_FEATURE_WALK_INS` build flag is gone.
 - Email runs through Resend from `mail.plotline.fit`, and guests get fresh private links (`guest_link_tokens`, `issue_guest_link`) in the re-upload email.
 - T11.15 (the contract migration) is done: `maps_query`, `move_court` and `move_info_section` are dropped, so Phase 1 starts without them.
 

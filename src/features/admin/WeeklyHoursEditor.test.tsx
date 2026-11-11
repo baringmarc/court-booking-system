@@ -2,13 +2,16 @@
 // and touching periods are never merged. One save_schedule call carries every pending change with the expected revision.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import baseUserEvent from '@testing-library/user-event'
 import { createMemoryRouter, Link, RouterProvider } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../../lib/queryClient'
 import { fetchCourts, fetchUpcomingBlackouts, fetchVenueSettings, type CourtWithPhotos, type VenueSettings } from '../catalog/api'
 import { fetchSchedule, saveSchedule } from './api'
 import { SchedulePage } from './SchedulePage'
+
+// No per-action macrotask delay (H12): the real-timer waits dominated this file's runtime.
+const userEvent = baseUserEvent.setup({ delay: null })
 
 const previewMock = vi.hoisted(() => vi.fn())
 

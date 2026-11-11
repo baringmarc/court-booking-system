@@ -3,12 +3,15 @@
 // app's own dialog) returns it to the venue's hours; Give this court different hours starts from a copy of the venue's.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import baseUserEvent from '@testing-library/user-event'
 import { createMemoryRouter, RouterProvider } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fetchCourts, fetchUpcomingBlackouts, fetchVenueSettings, type CourtWithPhotos, type VenueSettings } from '../catalog/api'
 import { fetchSchedule, saveSchedule, type ScheduleData, type SchedulePeriod } from './api'
 import { SchedulePage } from './SchedulePage'
+
+// No per-action macrotask delay (H12): the real-timer waits dominated this file's runtime.
+const userEvent = baseUserEvent.setup({ delay: null })
 
 vi.mock('../catalog/api', async (importOriginal) => ({
   ...(await importOriginal<object>()),

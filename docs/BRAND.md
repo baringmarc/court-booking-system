@@ -68,3 +68,9 @@ Flat geometric shapes (quarter circles, rings, arches, leaf and star cut-outs) i
 - **Shapes:** a sand ring (320px, 56px border) and a rose dot (180px) positioned behind the hero, clipped by the section, decorative only.
 - **Radius** 18px for cards; 14px for details/FAQ rows. Shadow `0 12px 34px rgba(59,47,42,.1)`.
 - **Meta:** `theme-color` `#F5EFE6` (light) and `#3B2F2A` (dark) by media query; favicon is `logo.svg`.
+
+## Venue theme presets (M20)
+
+A venue's "Website colors" preset (`plotline`, `court-green`, `ocean`, `plum`, `sunset`, `slate`, `midnight`) owns the **full role-token palette**: page, cards, fields, text and muted tone, borders, both heading bands, badge and highlight tones, the footer band, hero shapes, open-play hue, shadow and the `theme-color` meta, in light and dark (`src/index.css`, values in RESEARCH "Milestone 20"). `midnight` is dark in both modes. `plotline` is the default and the brand reference.
+
+What stays Plotline's on every preset: Fraunces and DM Sans, the logo and wordmark, the brand shapes, the shared `--danger`, and the "Powered by Plotline" footer. No custom colors. Every palette must pass the WCAG AA pairs in `src/lib/theme.test.ts`.

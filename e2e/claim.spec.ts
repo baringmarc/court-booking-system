@@ -1,6 +1,7 @@
 // SPEC §5.7: a guest books, later signs up with the same email and confirms it, and the booking
 // appears in My bookings (the claim runs after sign-in).
 import { expect, test } from '@playwright/test'
+import { guardLeaks } from './support/leaks.ts'
 import { confirmationLink, E2E_PREFIX, PASSWORD, pickFirstFreeSlot, uniqueEmail, venueDate } from './support/helpers.ts'
 
 test('a guest booking shows up in My bookings after signing up with the same email', async ({ page }) => {
@@ -31,3 +32,6 @@ test('a guest booking shows up in My bookings after signing up with the same ema
   await expect(page).toHaveURL(new RegExp(`/booking/${reference}$`))
   await expect(page.getByRole('definition').filter({ hasText: reference })).toBeVisible()
 })
+
+// H14: keep last, after this file's own cleanup hooks.
+guardLeaks()

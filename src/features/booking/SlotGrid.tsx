@@ -44,6 +44,8 @@ export function SlotGrid({ courts, times, slotsByCourt, selection, onToggle, onO
   const grid = groupBlocks(times.length, courts.length, (row, col) => slotAt(row, col)?.block_key ?? null)
   const hour = (iso: string) => formatHour(hourInZone(iso, timeZone))
   const nextDayOf = (iso: string) => !!date && isAfterMidnight(iso, date, timeZone)
+  // The key lists Promo only on days that have a free promo slot.
+  const hasPromo = [...slotsByCourt.values()].some((slots) => slots.some((s) => s.status === 'free' && s.promo_label))
 
   return (
     <div>
@@ -54,6 +56,12 @@ export function SlotGrid({ courts, times, slotsByCourt, selection, onToggle, onO
             {SLOT_LOOK_LABEL[look]}
           </li>
         ))}
+        {hasPromo && (
+          <li>
+            <span className="slot-swatch slot-free slot-promo-free" aria-hidden="true" />
+            Promo
+          </li>
+        )}
       </ul>
       <div className="table-scroll">
         <table className="slot-grid">
@@ -93,15 +101,16 @@ export function SlotGrid({ courts, times, slotsByCourt, selection, onToggle, onO
                     const sessionId = slot.status === 'open_play' && onOpenPlay ? slot.open_play_session_id : null
                     // Booked slots name the booker by first name only (T9.8; the server never sends more).
                     const booker = slot.status === 'booked' ? slot.booker_first_name : null
+                    const promo = free ? slot.promo_label || null : null
                     const label = free
-                      ? formatMoney(slot.price, currency)
+                      ? `${formatMoney(slot.price, currency)}${promo ? `, promo: ${promo}` : ''}`
                       : booker ? `Booked by ${booker}` : SLOT_LOOK_LABEL[slot.status]
                     return (
                       <td key={court.id} rowSpan={cell.rowSpan > 1 ? cell.rowSpan : undefined}
                         colSpan={cell.colSpan > 1 ? cell.colSpan : undefined} className={spans ? 'slot-span' : undefined}>
                         <button
                           type="button"
-                          className={`slot slot-${look}`}
+                          className={`slot slot-${look}${look === 'free' && promo ? ' slot-promo-free' : ''}`}
                           disabled={!free && !sessionId}
                           aria-pressed={free ? selected : undefined}
                           aria-haspopup={sessionId ? 'dialog' : undefined}
@@ -111,6 +120,8 @@ export function SlotGrid({ courts, times, slotsByCourt, selection, onToggle, onO
                           {selected && <span aria-hidden="true">✓ </span>}
                           {booker ? (
                             <>Booked<span className="slot-name">{booker}</span></>
+                          ) : promo ? (
+                            <>{formatMoney(slot.price, currency)}<span className="slot-promo">{promo}</span></>
                           ) : (
                             VISIBLE_LABEL[look] ?? label
                           )}

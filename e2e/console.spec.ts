@@ -1,6 +1,7 @@
 // The platform console lives on app.<domain> and is for platform admins only (SPEC §10 2026-10-31, T13.9).
 // T17.19: it is routed (/leads, /venues, /invoices, /reviews) with a sidebar, or a Menu drawer on a phone.
 import { expect, test, type Page } from '@playwright/test'
+import { guardLeaks } from './support/leaks.ts'
 import { createPlatformAdmin, createPlayer } from './support/helpers.ts'
 
 const CONSOLE = 'http://app.localhost:5179/'
@@ -80,3 +81,6 @@ test('a plain player is told "Platform admins only"', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Platform admins only' })).toBeVisible()
   await expect(page.getByRole('navigation', { name: 'Console' })).toHaveCount(0)
 })
+
+// H14: keep last, after this file's own cleanup hooks.
+guardLeaks()

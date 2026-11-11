@@ -2,7 +2,7 @@
 // through the existing blackout writes; the form only warns about bookings and open play already in the time.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import baseUserEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../../lib/queryClient'
@@ -12,6 +12,9 @@ import {
 } from '../catalog/api'
 import { fetchClosureConflicts, fetchSchedule } from './api'
 import { ClosuresPanel } from './ClosuresPanel'
+
+// No per-action macrotask delay (H12): the real-timer waits dominated this file's runtime.
+const userEvent = baseUserEvent.setup({ delay: null })
 
 vi.mock('../catalog/api', async (importOriginal) => ({
   ...(await importOriginal<object>()),

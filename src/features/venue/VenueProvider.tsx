@@ -25,6 +25,10 @@ function VenueNotFound() {
     <section className="page narrow">
       <h1>Venue not found</h1>
       <p className="muted">We couldn't find a venue at this address. Check the link you were given.</p>
+      {/* Outside the router, so a plain link. A draft venue is "not found" to anon; its owner signs in at /admin (T16.6). */}
+      <p>
+        <a href="/admin">Own this venue? Sign in to set it up</a>
+      </p>
     </section>
   )
 }

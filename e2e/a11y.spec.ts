@@ -2,6 +2,7 @@
 // pages, in light and dark mode, and no page scrolls sideways at 360px or at 200% zoom.
 import { AxeBuilder } from '@axe-core/playwright'
 import { expect, test, type Page } from '@playwright/test'
+import { guardLeaks } from './support/leaks.ts'
 import { createAdmin, createPlayer, E2E_PREFIX, logInAdmin, pickFirstFreeSlot, venueDate, setColorScheme } from './support/helpers.ts'
 
 async function axeViolations(page: Page) {
@@ -119,3 +120,6 @@ test('pages reflow at 200% zoom', async ({ page }, testInfo) => {
   await openBook(page)
   await checkPage(page, 'book at 200%')
 })
+
+// H14: keep last, after this file's own cleanup hooks.
+guardLeaks()

@@ -73,6 +73,8 @@ select throws_ok(
   '23514', null, 'the table itself refuses a link that is not https');
 
 -- Player: can't write, can't call the RPCs.
+-- T18.3: walk-ins are off by default; this file records walk-ins, so its venues switch them on (as postgres).
+update public.venue_settings set walk_ins_enabled = true;
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub": "11111111-1111-1111-1111-111111111111", "role": "authenticated"}', true);
 select throws_ok(

@@ -111,3 +111,33 @@ describe('CheckoutPage: court price, booking fee and total (T11.13)', () => {
     expect(screen.queryByText('Total')).not.toBeInTheDocument()
   })
 })
+
+describe('CheckoutPage: promo row (T19.3)', () => {
+  it('shows the promo label and the promo total when the run has a promo (early morning)', async () => {
+    vi.mocked(fetchAvailability).mockResolvedValue([
+      { ...slot('2030-01-06T23:00:00.000Z', '2030-01-07T00:00:00.000Z', 250), promo_label: 'Early bird' },
+      { ...slot('2030-01-07T00:00:00.000Z', '2030-01-07T01:00:00.000Z', 250), promo_label: 'Early bird' },
+    ])
+    renderCheckout(MORNING[0].slot_start, 2)
+    expect(await amountFor('Promo')).toBe('Early bird')
+    expect(await amountFor('Court price')).toBe('₱500')
+    expect(await amountFor('Total')).toBe('₱510')
+  })
+
+  it('lists each distinct label once, joined with a comma (late night)', async () => {
+    vi.mocked(fetchAvailability).mockResolvedValue([
+      { ...slot(NIGHT[0].slot_start, NIGHT[0].slot_end, 300), promo_label: 'Night owl' },
+      { ...slot(NIGHT[1].slot_start, NIGHT[1].slot_end, 400), promo_label: 'Last call' },
+    ])
+    renderCheckout(NIGHT[0].slot_start, 2)
+    expect(await amountFor('Promo')).toBe('Night owl, Last call')
+    expect(await amountFor('Court price')).toBe('₱700')
+  })
+
+  it('has no Promo row when the run has no promo', async () => {
+    renderCheckout(MORNING[0].slot_start, 2)
+    expect(await amountFor('Court price')).toBe('₱750')
+    expect(screen.queryByText('Promo', { exact: true })).not.toBeInTheDocument()
+  })
+})
+

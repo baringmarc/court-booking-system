@@ -2,6 +2,7 @@
 // proof. venue_settings.online_payments_enabled is turned off for this file and restored (workers: 1).
 import { AxeBuilder } from '@axe-core/playwright'
 import { expect, test } from '@playwright/test'
+import { guardLeaks } from './support/leaks.ts'
 import { E2E_PREFIX, pickFirstFreeSlot, serviceClient, uploadProof, venueDate, venueId } from './support/helpers.ts'
 
 test.describe.serial('online payments off', () => {
@@ -33,3 +34,6 @@ test.describe.serial('online payments off', () => {
     await uploadProof(page)
   })
 })
+
+// H14: keep last, after this file's own cleanup hooks.
+guardLeaks()

@@ -8,6 +8,8 @@ import { withSupabase } from 'npm:@supabase/server@1'
 import { emailAction, emailTransport, fromFor, sendEmail, workerAuthorized, workerSecret } from '../_shared/email.ts'
 import { renderEmail, type BookingStatus, type EmailData, type EmailKind } from '../_shared/emailTemplates.ts'
 import { venueSiteBase } from '../_shared/venueSite.ts'
+import * as Sentry from 'npm:@sentry/deno@10.76.2'
+import { withSentry } from '../_shared/sentry.ts'
 
 const json = (body: unknown, status = 200) => Response.json(body, { status })
 const BATCH = 20
@@ -24,7 +26,7 @@ type Claimed = {
 }
 
 export default {
-  fetch: withSupabase({ auth: 'none' }, async (req, ctx) => {
+  fetch: withSupabase({ auth: 'none' }, withSentry('send-emails', async (req, ctx) => {
     if (req.method !== 'POST') return json({ code: 'method_not_allowed' }, 405)
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
@@ -94,5 +96,5 @@ export default {
     }
 
     return json({ transport, ...counts })
-  }),
+  }, Sentry)),
 }

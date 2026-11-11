@@ -28,6 +28,8 @@ grant select on fx to anon, authenticated, service_role;
 grant select, insert on b to anon, authenticated, service_role;
 
 -- Bookings: a guest, a player, and a guest booking per later event
+-- T18.3: walk-ins are off by default; this file records walk-ins, so its venues switch them on (as postgres).
+update public.venue_settings set walk_ins_enabled = true;
 set local role anon;
 select set_config('request.jwt.claims', '{"role": "anon"}', true);
 insert into b select 'guest', r.id, r.reference_code, r.guest_token

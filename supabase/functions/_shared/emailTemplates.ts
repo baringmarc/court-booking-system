@@ -59,6 +59,10 @@ export function shouldSkip(kind: EmailKind, currentStatus: BookingStatus | null 
   return kind === 'booking_created' && (currentStatus === 'cancelled' || currentStatus === 'expired' || currentStatus === 'rejected')
 }
 
+/** The Plotline pill button (T11.4, docs/BRAND.md), shared with the owner emails (T16.6). */
+export const BUTTON_STYLE =
+  'display:inline-block;background:#b7c4a8;color:#3b2f2a;border:1.5px solid #4c6b3c;padding:10px 20px;border-radius:999px;font-weight:700;text-decoration:none'
+
 export function escapeHtml(value: string): string {
   return value
     .replaceAll('&', '&amp;')
@@ -259,7 +263,7 @@ ${block.paragraphs.map((p) => `<p style="margin:0 0 16px">${e(p)}</p>`).join('\n
 <table style="border-collapse:collapse;margin:0 0 16px;width:100%;background:#e5ebdd;border-radius:12px">${block.facts
     .map(([k, v]) => `<tr><td style="padding:4px 16px 4px 12px;color:#5a4a42">${e(k)}</td><td style="padding:4px 12px 4px 0;font-weight:700">${e(v)}</td></tr>`)
     .join('')}</table>
-${block.link ? `<p style="margin:0 0 16px"><a href="${e(block.link.href)}" style="display:inline-block;background:#b7c4a8;color:#3b2f2a;border:1.5px solid #4c6b3c;padding:10px 20px;border-radius:999px;font-weight:700;text-decoration:none">${e(block.link.label)}</a></p>` : ''}
+${block.link ? `<p style="margin:0 0 16px"><a href="${e(block.link.href)}" style="${BUTTON_STYLE}">${e(block.link.label)}</a></p>` : ''}
 ${block.footer.map((p) => `<p style="margin:0 0 16px;color:#5a4a42;font-size:14px">${e(p)}</p>`).join('\n')}
 <p style="margin:0;color:#5a4a42">— ${e(venue)}</p>
 </div>

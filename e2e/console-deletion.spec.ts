@@ -3,6 +3,7 @@
 // (`npx supabase functions serve`, like the site-forms flows). Data is tagged E2E / e2e-. The venue and Storage
 // fixtures are removed in each test's finally, in foreign-key order, and verified.
 import { expect, test, type Page } from '@playwright/test'
+import { guardLeaks } from './support/leaks.ts'
 import { createClient } from '@supabase/supabase-js'
 import { drainVenueFileCleanup, storageAdapter, type CleanupStorage } from '../supabase/functions/_shared/venueCleanup.ts'
 import { E2E_PREFIX, addVenueStaff, axeBothSchemes, createPlatformAdmin, createPlayer, createVenue, deleteVenue, serviceClient } from './support/helpers.ts'
@@ -415,3 +416,6 @@ test('deleting the only lead on page 2 returns to page 1', async ({ page }) => {
   }
 })
 
+
+// H14: keep last, after this file's own cleanup hooks.
+guardLeaks()

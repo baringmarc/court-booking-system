@@ -111,6 +111,7 @@ M12 (done 2026-10-31) made the schema multi-venue (`venues`, `venue_members`, `p
 | this repo, Edge Function secrets | `SITE_ORIGINS` | Allowed origins for the site functions, comma-separated: `https://plotline.fit,https://www.plotline.fit` (plus `http://localhost:5173` on staging) |
 | this repo, Edge Function secrets | `TURNSTILE_SECRET_KEY` | Cloudflare Turnstile secret. Required on hosted projects; skipped locally when unset. |
 | this repo, Edge Function secrets | `LEAD_ALERT_TO` | Addresses (comma-separated) emailed when `site-contact` stores a lead. Unset: no alert. Uses the booking-email transport (`EMAIL_TRANSPORT`, `RESEND_API_KEY`, `EMAIL_FROM`). |
+| this repo, Edge Function secrets | `SENTRY_DSN` | Sentry DSN for every Edge Function, including `site-contact` and `site-review` (T16.3). Unset: no error reporting. Events are scrubbed (SPEC §10 2026-11-08). |
 | this repo, Edge Function secrets | `PUBLIC_ROOT_DOMAIN` | `plotline.fit` (T13.6). Booking return and email links go to `https://<venue slug>.plotline.fit`, built from the booking's own venue, never from a request value. Unset until the wildcard DNS is live (T13.8); `PUBLIC_SITE_URL` stays as the exact allow-list for localhost and the old Vercel URL. |
 | Supabase Auth, URL configuration | Redirect URLs | Add `https://*.plotline.fit/**` (done by hand in the dashboard; T13.6). Keep the existing entries until T13.8. |
 
@@ -137,6 +138,8 @@ The backend side is done and live on the linked project (`leads` T14.2, `reviews
 - **Product name:** Plotline. Venues' public pages show the venue's name, with "Powered by Plotline" linking to `https://plotline.fit`.
 - **Pricing (not final):** free for venues; a ₱10 booking fee per confirmed online booking, paid by the player. See SAAS-PLAN §1 and §5. The marketing copy must match.
 - **Support contacts** (email, Messenger): set once in plotline-site's `src/config/site.ts`; this repo's emails and footer use the same values.
+
+- **Admin tour assets (M21):** the pictures and demo video on plotline-site's landing page are made here and only displayed there. Source: `docs/admin-tour/` (ten PNGs, `admin-demo.mp4`, `admin-demo.webm`, `admin-demo-poster.jpg`, `admin-demo.vtt`; stable names, listed in its README). Commands: `npm run tour:shots` and `npm run tour:video` (local stack; the video needs ffmpeg). Each copies its files to `../plotline-site/public/admin-tour/` when that repo is checked out, and the two copies must stay byte-identical. This repo re-captures whenever an admin page in the tour changes, and before a plotline-site release that changes the tour; plotline-site never edits the files.
 
 ## 7. Changing something shared
 

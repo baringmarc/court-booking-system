@@ -15,8 +15,14 @@ import { router } from './routes/router'
 import './index.css'
 
 const root = document.getElementById('root')!
+const isConsole = bootMode(window.location.hostname, window.location.search, window.sessionStorage) === 'console'
 
-if (bootMode(window.location.hostname, window.location.search, window.sessionStorage) === 'console') {
+// Error reporting is its own chunk, loaded only when a DSN is configured (T16.3).
+if (import.meta.env.VITE_SENTRY_DSN?.trim()) {
+  void import('./lib/sentry').then((m) => m.initSentry(isConsole ? 'console' : 'app'))
+}
+
+if (isConsole) {
   document.title = 'Plotline Admin'
   // The platform console (app. host) is its own lazy chunk: no venue is resolved for it.
   void import('./features/console/mountConsole').then((m) => m.mountConsole(root))

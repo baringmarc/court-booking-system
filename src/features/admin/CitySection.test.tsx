@@ -27,7 +27,7 @@ const savedSettings: VenueSettings = {
   maps_url: '', max_rejections: 2, online_payments_enabled: false, payment_hold_minutes: 60,
   payment_instructions: '', showcase_opt_in: false, slot_minutes: 60,
   sport_order: ['badminton', 'pickleball', 'tennis'], theme: 'plotline', timezone: 'Asia/Manila',
-  updated_at: '2026-11-04T00:00:00Z', waiver_text: '',
+  updated_at: '2026-11-04T00:00:00Z', waiver_text: '', walk_ins_enabled: false,
 }
 
 describe('CitySection', () => {

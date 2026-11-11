@@ -1,6 +1,7 @@
 // T17.14: staff cannot select an open-play duration crossing effective periods.
 import { execFileSync } from 'node:child_process'
 import { expect, test } from '@playwright/test'
+import { guardLeaks } from './support/leaks.ts'
 import { addVenueStaff, createPlayer, createVenue, deleteVenue, submitAdminLogin, pickDate, serviceClient, venueDate } from './support/helpers.ts'
 
 test('open play follows the selected court periods and excludes gaps', async ({ page }) => {
@@ -39,3 +40,6 @@ test('open play follows the selected court periods and excludes gaps', async ({ 
     await deleteVenue(venue.id)
   }
 })
+
+// H14: keep last, after this file's own cleanup hooks.
+guardLeaks()

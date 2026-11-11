@@ -12,6 +12,7 @@ import { parseCheckoutSearch, type CheckoutParams } from './checkoutParams'
 import type { Contact } from './contact'
 import { bookingErrorMessage, isSlotGone } from './errors'
 import { useAvailability, useCreateBooking, usePlatformFee } from './hooks'
+import { promoLabelsOf } from './selection'
 import { CancellationPolicyLink } from '../venue/VenueInfo'
 
 export function CheckoutPage() {
@@ -80,6 +81,7 @@ function Checkout({ choice, settings, court, hours }: { choice: CheckoutParams; 
   }
 
   const courtPrice = run.reduce((sum, s) => sum + s.price, 0)
+  const promoLabels = promoLabelsOf(run)
   const fee = platformFee.data
   const end = run.at(-1)?.slot_end ?? choice.start
   const isGuest = !user
@@ -117,6 +119,7 @@ function Checkout({ choice, settings, court, hours }: { choice: CheckoutParams; 
             <dt>Time</dt>
             <dd>{formatHour(hourInZone(choice.start, tz))}–{formatHour(hourInZone(end, tz))} ({choice.slots} {choice.slots === 1 ? 'hour' : 'hours'})</dd>
           </div>
+          {promoLabels.length > 0 && <div><dt>Promo</dt><dd>{promoLabels.join(', ')}</dd></div>}
           <div><dt>Court price</dt><dd>{formatMoney(courtPrice, settings.currency)}</dd></div>
           {fee > 0 && <div><dt>Booking fee</dt><dd>{formatMoney(fee, settings.currency)}</dd></div>}
           <div><dt>Total</dt><dd>{formatMoney(courtPrice + fee, settings.currency)}</dd></div>

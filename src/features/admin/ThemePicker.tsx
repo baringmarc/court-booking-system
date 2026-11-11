@@ -47,15 +47,20 @@ export function ThemePicker({ settings }: { settings: VenueSettings }) {
 
 function Preview({ preset, scheme }: { preset: ThemePreset; scheme: 'light' | 'dark' }) {
   const s = THEME_SWATCHES[preset][scheme]
-  const style = { '--p-accent': s.accent, '--p-btn': s.btn, '--p-btn-text': s.btnText } as CSSProperties
+  const style = {
+    '--p-accent': s.accent, '--p-btn': s.btn, '--p-btn-text': s.btnText, '--p-bg': s.bg, '--p-surface': s.surface, '--p-text': s.text,
+  } as CSSProperties
+  // The page background around a card, as the booking site shows them (T20.3).
   return (
     <span className={`theme-preview ${scheme}`} style={style}>
-      <span className="p-btn">Book</span>
-      <span className="p-badge">Confirmed</span>
-      <span className="p-slots">
-        <span className="p-slot free" />
-        <span className="p-slot selected" />
-        <span className="p-slot booked" />
+      <span className="p-card">
+        <span className="p-btn">Book</span>
+        <span className="p-badge">Confirmed</span>
+        <span className="p-slots">
+          <span className="p-slot free" />
+          <span className="p-slot selected" />
+          <span className="p-slot booked" />
+        </span>
       </span>
     </span>
   )

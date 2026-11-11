@@ -3,6 +3,7 @@
 import { AxeBuilder } from '@axe-core/playwright'
 import { createHash, randomBytes } from 'node:crypto'
 import { expect, test, type Page } from '@playwright/test'
+import { guardLeaks } from './support/leaks.ts'
 import { createAdmin, E2E_PREFIX, logInAdmin, pickDate, serviceClient, venueDate, setColorScheme } from './support/helpers.ts'
 
 const date = venueDate(23)
@@ -182,3 +183,6 @@ test('the form lists a booking already in the time, links to it, and cancels not
   const { data: after } = await service.from('bookings').select('status').eq('id', booking?.id ?? '').single()
   expect(after?.status).toBe('confirmed')
 })
+
+// H14: keep last, after this file's own cleanup hooks.
+guardLeaks()

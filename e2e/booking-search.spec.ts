@@ -1,6 +1,7 @@
 // Bookings search (T11.5b): a guest books; an admin finds the booking on /admin/bookings by its reference (it opens
 // in the panel, whatever the status filter), then by part of the guest's email, then sorts by when it was booked.
 import { expect, test } from '@playwright/test'
+import { guardLeaks } from './support/leaks.ts'
 import { axeBothSchemes, createAdmin, E2E_PREFIX, logInAdmin, pickFirstFreeSlot, venueDate } from './support/helpers.ts'
 
 test('an admin finds a booking by its reference, then by its email', async ({ page, browser }) => {
@@ -45,3 +46,6 @@ test('an admin finds a booking by its reference, then by its email', async ({ pa
   await expect(page).not.toHaveURL(/[?&]q=/)
   await expect(page.getByText(/Searching all bookings/)).toHaveCount(0)
 })
+
+// H14: keep last, after this file's own cleanup hooks.
+guardLeaks()

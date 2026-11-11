@@ -5,7 +5,8 @@
 import { AxeBuilder } from '@axe-core/playwright'
 import { readFile } from 'node:fs/promises'
 import { expect, test, type Page } from '@playwright/test'
-import { createAdmin, E2E_PREFIX, logInAdmin, serviceClient, venueDate, setColorScheme } from './support/helpers.ts'
+import { guardLeaks } from './support/leaks.ts'
+import { createAdmin, E2E_PREFIX, logInAdmin, serviceClient, venueDate, venueId, setColorScheme } from './support/helpers.ts'
 
 /** Serious or critical WCAG A/AA violations, in light and dark mode (the a11y spec's rule). */
 async function axeViolations(page: Page) {
@@ -29,9 +30,12 @@ const FEE = 10
 // Walk-ins carry no fee, so the walk-in test below is unaffected.
 test.beforeAll(async () => {
   await serviceClient().from('platform_pricing').update({ booking_fee: FEE }).eq('id', true).throwOnError()
+  // T18.3: the database refuses walk-ins while a venue's walk-ins are off (the default).
+  await serviceClient().from('venue_settings').update({ walk_ins_enabled: true }).eq('venue_id', await venueId()).throwOnError()
 })
 test.afterAll(async () => {
   await serviceClient().from('platform_pricing').update({ booking_fee: 0 }).eq('id', true).throwOnError()
+  await serviceClient().from('venue_settings').update({ walk_ins_enabled: false }).eq('venue_id', await venueId()).throwOnError()
 })
 
 const SPLIT_LABELS = ['Total revenue', 'Plotline fees', 'Your earnings'] as const
@@ -184,3 +188,6 @@ test('a confirmed online booking paid today raises total revenue, your earnings 
     await service.from('bookings').delete().eq('id', booking!.id).throwOnError()
   }
 })
+
+// H14: keep last, after this file's own cleanup hooks.
+guardLeaks()

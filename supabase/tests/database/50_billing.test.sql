@@ -192,6 +192,8 @@ grant select on v, fx, inv to anon, authenticated, service_role;
 grant select, insert, update on b to anon, authenticated, service_role;
 
 -- ---------------------------------------------------------------- online bookings, all pending
+-- T18.3: walk-ins are off by default; this file records walk-ins, so its venues switch them on (as postgres).
+update public.venue_settings set walk_ins_enabled = true;
 set local role anon;
 select pg_temp.as_anon();
 insert into b (label, id, ref, token)

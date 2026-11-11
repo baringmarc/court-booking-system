@@ -2,6 +2,7 @@
 // selected month's totals come from the whole month; charges and invoice history page; a charge opens its booking.
 // Local stack only; the venue is e2e-*, its bookings (charges cascade) and invoices are removed in FK order.
 import { expect, test } from '@playwright/test'
+import { guardLeaks } from './support/leaks.ts'
 import { addVenueStaff, axeBothSchemes, createPlayer, createVenue, deleteVenue, E2E_PREFIX, serviceClient } from './support/helpers.ts'
 
 /** First day of the month `back` months before now, as YYYY-MM-01 plus the English label the page shows. */
@@ -152,3 +153,6 @@ test('a venue with no charges and no invoices says so', async ({ page }) => {
     await deleteVenue(venue.id)
   }
 })
+
+// H14: keep last, after this file's own cleanup hooks.
+guardLeaks()

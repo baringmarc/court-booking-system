@@ -3,6 +3,7 @@
 // and the court_photos rules end to end.
 import { AxeBuilder } from '@axe-core/playwright'
 import { expect, test } from '@playwright/test'
+import { guardLeaks } from './support/leaks.ts'
 import { createAdmin, E2E_PREFIX, logInAdmin, serviceClient, venueId } from './support/helpers.ts'
 
 // A valid 1×1 PNG. The browser decodes it and re-encodes it before upload.
@@ -101,3 +102,6 @@ test('an admin builds a court gallery that players see on the home page and /boo
   await expect.poll(() => galleryRows(court.id)).toEqual([one])
   await expect.poll(() => storedPhotos(court.id)).toEqual([one])
 })
+
+// H14: keep last, after this file's own cleanup hooks.
+guardLeaks()

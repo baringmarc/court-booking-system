@@ -19,6 +19,10 @@ const CODES = [
   'not_confirmed', 'from_past', 'different_sport', 'no_change', 'try_again',
   // M11: the phone trigger (T11.17) and the venue waiver (T11.19).
   'invalid_phone', 'waiver_required',
+  // M18 (T18.3): create_walk_in while Plotline has the venue's walk-ins off.
+  'walk_ins_off',
+  // M19 (T19.1): save_court_promo / delete_court_promo.
+  'promo_overlap', 'court_not_found',
 ] as const
 
 export type BookingErrorCode = (typeof CODES)[number]
