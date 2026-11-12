@@ -41,6 +41,12 @@ const scripts = readJson(join(root, 'package.json'), {}).scripts ?? {}
 const state = readJson(paths.verifyState, {})
 const code = codeFingerprint()
 
+/** H16: the first failing test of a Playwright list-reporter run ("✘  12 [desktop] › e2e/x.spec.ts:47:1 › title (3.2s)"), or ''. */
+function firstFailingTest(output) {
+  const m = output.match(/^\s*[✘×]\s+\d+\s+(.+?)(?:\s+\(\d[\d.]*m?s\))?\s*$/m)
+  return m ? m[1].trim() : ''
+}
+
 function run(script) {
   const result = spawnSync('npm', ['run', script, '--silent'], {
     cwd: root,
@@ -50,7 +56,8 @@ function run(script) {
   })
   const output = `${result.stdout ?? ''}\n${result.stderr ?? ''}`.trim()
   const lines = output.split('\n')
-  const summary = (lines.find((l) => /error|fail|✗|×|not ok|expected/i.test(l)) ?? lines.at(-1) ?? '').trim().slice(0, 240)
+  const failing = script === config.e2e?.script ? firstFailingTest(output) : ''
+  const summary = failing ? `first failing: ${failing}`.slice(0, 240) : (lines.find((l) => /error|fail|✗|×|not ok|expected/i.test(l)) ?? lines.at(-1) ?? '').trim().slice(0, 240)
   return { ok: result.status === 0, tail: lines.slice(-60).join('\n'), summary }
 }
 

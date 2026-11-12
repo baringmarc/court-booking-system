@@ -39,7 +39,10 @@ test('an admin drags a court above another and players see the new order on /boo
   await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2)
   await page.mouse.down()
   await page.mouse.move(from.x + from.width / 2, to.y - 4, { steps: 12 })
+  // H16: the drop saves through reorder_courts; wait for that call to land before reloading, or the reload can race it.
+  const saved = page.waitForResponse((r) => r.url().includes('/rpc/reorder_courts') && r.request().method() === 'POST')
   await page.mouse.up()
+  expect((await saved).ok(), 'reorder_courts saved').toBe(true)
   await expect(pickleballRows(page)).toHaveText(['Pickleball 2', 'Pickleball 1'])
 
   // Saved: still in the new order after a reload.
@@ -56,7 +59,9 @@ test('an admin drags a court above another and players see the new order on /boo
   await page.keyboard.press('Space')
   await page.keyboard.press('ArrowUp')
   await expect(pickleballRows(page)).toHaveText(['Pickleball 1', 'Pickleball 2'])
+  const savedByKeyboard = page.waitForResponse((r) => r.url().includes('/rpc/reorder_courts') && r.request().method() === 'POST')
   await page.keyboard.press('Space')
+  expect((await savedByKeyboard).ok(), 'reorder_courts saved').toBe(true)
   await expect(page.getByText('Dropped Pickleball 1 at position 1 of 2.')).toBeAttached()
   await expect(pickleballRows(page)).toHaveText(['Pickleball 1', 'Pickleball 2'])
   await page.reload()
