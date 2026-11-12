@@ -1,7 +1,8 @@
 // Smoke test for the invite-venue-owner Edge Function against the LOCAL stack (`npx supabase start`).
 // Run: npm run smoke:invite. Local keys only. It creates a tagged venue and users, checks the guard, an invite for a
 // new email (arrives in Mailpit and lands on the venue's /admin) and a membership-only run for an existing account,
-// then removes what it made.
+// a staff invite (T24.1: a staff row, a staff email landing on /admin, and an existing owner never demoted), then
+// removes what it made.
 import { execSync } from 'node:child_process'
 import { createClient } from '@supabase/supabase-js'
 
@@ -60,6 +61,26 @@ try {
   check('an existing account gets no invite, only the membership', r2.status === 200 && r2.body?.invited === false, JSON.stringify(r2))
   const { data: m2 } = await service.from('venue_members').select('role').eq('venue_id', venue.id).eq('user_id', player.id)
   check('the existing user is an owner', m2?.[0]?.role === 'owner')
+
+  // T24.1: staff invites.
+  check('an unknown role is refused', (await call(admin.token, { venue_id: venue.id, email: 'x@example.com', role: 'admin' })).status === 400)
+  const staff = `e2e-invite-staff-${tag}@example.com`
+  const r3 = await call(admin.token, { venue_id: venue.id, email: staff, role: 'staff' })
+  check('a new staff email is invited as staff', r3.status === 200 && r3.body?.invited === true && r3.body?.role === 'staff', JSON.stringify(r3))
+  const { data: su } = await service.rpc('user_id_by_email', { p_email: staff })
+  const { data: m3 } = await service.from('venue_members').select('role').eq('venue_id', venue.id).eq('user_id', su)
+  check('the staff invitee has one staff row', m3?.length === 1 && m3[0].role === 'staff', JSON.stringify(m3))
+  const staffMail = await fetch(`${env.INBUCKET_URL ?? 'http://127.0.0.1:54324'}/api/v1/search?query=${encodeURIComponent(`to:${staff}`)}`).then((r) => r.json()).catch(() => null)
+  const staffMsg = staffMail?.messages?.[0]
+  check('the staff email reached Mailpit and says staff', /staff/i.test(staffMsg?.Subject ?? ''), staffMsg?.Subject ?? 'no message')
+  const staffFull = staffMsg?.ID ? await fetch(`http://127.0.0.1:54324/api/v1/message/${staffMsg.ID}`).then((r) => r.json()).catch(() => null) : null
+  const staffLink = decodeURIComponent(`${staffFull?.HTML ?? ''}${staffFull?.Text ?? ''}`)
+  check('the staff link lands on the venue admin', /redirect_to=[^&"\s]*\/admin/.test(staffLink), staffLink.slice(0, 200))
+  check('the staff email has no attachment', (staffFull?.Attachments?.length ?? 0) === 0)
+
+  const r4 = await call(admin.token, { venue_id: venue.id, email: `e2e-invite-player-${tag}@example.com`, role: 'staff' })
+  const { data: m4 } = await service.from('venue_members').select('role').eq('venue_id', venue.id).eq('user_id', player.id)
+  check('a staff invite never demotes an owner', r4.status === 200 && r4.body?.role === 'owner' && m4?.length === 1 && m4[0].role === 'owner', JSON.stringify({ r4, m4 }))
 } finally {
   await service.from('venue_members').delete().eq('venue_id', venue.id)
   await service.from('venues').delete().eq('id', venue.id)
@@ -67,5 +88,7 @@ try {
   for (const id of [admin.id, player.id]) await service.auth.admin.deleteUser(id)
   const { data: u } = await service.rpc('user_id_by_email', { p_email: `e2e-invitee-${tag}@example.com` })
   if (u) await service.auth.admin.deleteUser(u)
+  const { data: s } = await service.rpc('user_id_by_email', { p_email: `e2e-invite-staff-${tag}@example.com` })
+  if (s) await service.auth.admin.deleteUser(s)
 }
 process.exit(failed ? 1 : 0)

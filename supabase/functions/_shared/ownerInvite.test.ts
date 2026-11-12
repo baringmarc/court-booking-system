@@ -51,6 +51,7 @@ describe('parseInviteBody', () => {
       ok: true,
       venueId: VENUE,
       email: 'owner@example.com',
+      role: 'owner',
     })
   })
   it.each([

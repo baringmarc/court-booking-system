@@ -1,19 +1,22 @@
-// POST JSON { venue_id, email } from the platform console (T14.5, T17.25). Platform admins only.
+// POST JSON { venue_id, email, role? } from the platform console (T14.5, T17.25, T24.1). Platform admins only.
+// `role` is 'owner' (the default) or 'staff'.
 //   1. the caller (a verified session) must have a platform_admins row
 //   2. the venue must exist
 //   3. by account state: no account gets an account-setup invitation; an account that was invited but never set a
 //      password gets a fresh access link; any other account gets a welcome email with the venue's sign-in URL and no
 //      password reset. Links come from generateLink and always redirect to the venue's own admin area.
-//   4. the user becomes an owner of the venue (venue_members, an idempotent upsert) before anything is sent, so a retry
-//      after a failed send never adds a second row
-//   5. the function sends the email itself (Plotline identity, support reply-to, the owner PDF attached when it can be
-//      fetched, its download link always). A failed send is a 502, never ok.
+//   4. the user becomes a member of the venue with the requested role (venue_members, an idempotent upsert) before
+//      anything is sent, so a retry after a failed send never adds a second row; owner wins, so a staff invite never
+//      demotes an owner and an owner invite promotes staff (mergeMemberRole)
+//   5. the function sends the email itself (Plotline identity, support reply-to, the owner PDF attached to owner emails
+//      when it can be fetched, its download link always; staff emails link it only). A failed send is a 502, never ok.
 // Links and tokens are never logged or returned.
 import { withSupabase } from 'npm:@supabase/server@1'
 import { callerUserId } from '../_shared/payable.ts'
 import { emailTransport, fromFor, sendEmail, type EmailAttachment } from '../_shared/email.ts'
 import {
   OWNER_GUIDE_FILE, OWNER_SUPPORT_EMAIL, inviteRedirectTo, ownerEmail, ownerGuideSource, ownerGuideUrl, ownerLinkAction, parseInviteBody,
+  mergeMemberRole, type MemberRole,
 } from '../_shared/ownerInvite.ts'
 import * as Sentry from 'npm:@sentry/deno@10.76.2'
 import { withSentry } from '../_shared/sentry.ts'
@@ -112,9 +115,16 @@ export default {
       userId = generated.data.user.id
     }
 
+    const current = await admin
+      .from('venue_members').select('role').eq('venue_id', venue.id).eq('user_id', userId!).maybeSingle()
+    if (current.error) {
+      console.error('invite-venue-owner: membership lookup failed', current.error.message)
+      return json({ code: 'server_error', message: 'Something went wrong. Please try again.' }, 500)
+    }
+    const role = mergeMemberRole((current.data?.role as MemberRole | undefined) ?? null, parsed.role)
     const { error } = await admin
       .from('venue_members')
-      .upsert({ venue_id: venue.id, user_id: userId!, role: 'owner' }, { onConflict: 'venue_id,user_id' })
+      .upsert({ venue_id: venue.id, user_id: userId!, role }, { onConflict: 'venue_id,user_id' })
     if (error) {
       console.error('invite-venue-owner: membership failed', error.message)
       return json({ code: 'server_error', message: 'Something went wrong. Please try again.' }, 500)
@@ -122,7 +132,7 @@ export default {
 
     const { data: settings } = await admin.from('venue_settings').select('name').eq('venue_id', venue.id).maybeSingle()
     const guideUrl = ownerGuideUrl(siteBase)
-    const attachment = await guideAttachment(ownerGuideSource(siteBase, Deno.env.get('OWNER_GUIDE_URL')))
+    const attachment = role === 'staff' ? null : await guideAttachment(ownerGuideSource(siteBase, Deno.env.get('OWNER_GUIDE_URL')))
     const mail = ownerEmail({
       kind: action,
       venueName: settings?.name ?? '',
@@ -131,18 +141,19 @@ export default {
       guideUrl,
       venueAddress: rootDomain ? `${venue.slug}.${rootDomain}` : venue.slug,
       venueStatus: venue.status,
+      role,
     })
     const sent = await sendEmail(
       fetch,
       transport,
       { from: fromFor('Plotline', Deno.env.get('EMAIL_FROM')), resendKey, mailpitUrl },
       { to: parsed.email, ...mail, replyTo: OWNER_SUPPORT_EMAIL, attachments: attachment ? [attachment] : undefined },
-      `owner-${action}-${venue.id}-${userId}-${Date.now()}`,
+      `${role}-${action}-${venue.id}-${userId}-${Date.now()}`,
     )
     if (!sent.ok) {
       console.error('invite-venue-owner: send failed', sent.error)
       return json({ code: 'invite_failed', message: "We couldn't send the email. Try again." }, 502)
     }
-    return json({ ok: true, invited: action === 'invite', sent: action })
+    return json({ ok: true, invited: action === 'invite', sent: action, role })
   }, Sentry)),
 }
