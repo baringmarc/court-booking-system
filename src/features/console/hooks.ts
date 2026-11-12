@@ -2,7 +2,7 @@ import { useRef } from 'react'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   createVenue, deleteLead, deleteUnusedVenue, fetchInvoiceDetailPage, fetchVenueDeletionPreview, retryVenueFileCleanup, fetchInvoicesPage, fetchIsPlatformAdmin, fetchLeadsPage, fetchReviewsPage, fetchVenuesPage,
-  inviteVenueOwner, markInvoicePaid, markInvoiceSent, resendOwnerInvite, fetchShowcaseApprovals, setVenueShowcaseApproval, fetchOnlinePayments, setOnlinePayments, fetchWalkIns, setWalkIns,
+  inviteVenueOwner, inviteVenueStaff, markInvoicePaid, markInvoiceSent, resendOwnerInvite, fetchShowcaseApprovals, setVenueShowcaseApproval, fetchOnlinePayments, setOnlinePayments, fetchWalkIns, setWalkIns,
   reactivateVenue, setReviewApproved, suspendVenue, updateLead, type Lead, type LeadStatus, type ReviewFilter,
 } from './api'
 
@@ -77,6 +77,11 @@ export function useCreateVenueFromLead() {
 /** Sends a venue's owner a fresh invite or sign-in link (T14.5d). */
 export function useResendOwnerInvite() {
   return useMutation({ mutationFn: (input: { venueId: string; email: string }) => resendOwnerInvite(input) })
+}
+
+/** Invites a venue's staff member to set up their admin account (T24.2). */
+export function useInviteVenueStaff() {
+  return useMutation({ mutationFn: (input: { venueId: string; email: string }) => inviteVenueStaff(input) })
 }
 
 export function useOnlinePayments() {

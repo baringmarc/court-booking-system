@@ -2,7 +2,7 @@ import { startTransition, useState, type FormEvent } from 'react'
 import { formatMoney } from '../../lib/format'
 import type { OwnerInviteSent, VenueOverview } from './api'
 import { DeleteVenueDialog } from './DeleteVenueDialog'
-import { useReactivateVenue, useResendOwnerInvite, useSuspendVenue, useVenuesPage } from './hooks'
+import { useInviteVenueStaff, useReactivateVenue, useResendOwnerInvite, useSuspendVenue, useVenuesPage } from './hooks'
 import { DetailsButton, ListStatus, RecordPanel, SearchField, StatusFilter } from './ListControls'
 import { focusDetails, returnFocus, useListParams } from './listParams'
 import { Pager } from './Pager'
@@ -13,32 +13,45 @@ import { WalkInsControl } from './WalkInsControl'
 const VENUE_STATUSES = ['active', 'draft', 'suspended'] as const
 const FILTER_OPTIONS = [['', 'All'], ['active', 'Active'], ['draft', 'Draft'], ['suspended', 'Suspended']] as const
 
-/** Re-sends the owner a way in: the first invite can be used up, expired or never delivered (T14.5d). */
-function ResendInvite({ venue }: { venue: VenueOverview }) {
+type InviteMutation = ReturnType<typeof useResendOwnerInvite>
+
+/** An email form that sends someone a way into the venue's admin; the owner and staff forms share it. */
+function InviteForm({ venue, invite, openLabel, emailLabel, submitLabel }: {
+  venue: VenueOverview; invite: InviteMutation; openLabel: string; emailLabel: string; submitLabel: string
+}) {
   const [open, setOpen] = useState(false)
   const [email, setEmail] = useState('')
-  const resend = useResendOwnerInvite()
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
-    resend.mutate({ venueId: venue.venue_id, email })
+    invite.mutate({ venueId: venue.venue_id, email })
   }
 
   if (!open) {
-    return <button type="button" className="btn btn-ghost" onClick={() => setOpen(true)}>Resend invite</button>
+    return <button type="button" className="btn btn-ghost" onClick={() => setOpen(true)}>{openLabel}</button>
   }
-  const sent = resend.data?.sent
+  const sent = invite.data?.sent
   return (
     <form className="stack" onSubmit={handleSubmit}>
       <label className="field">
-        <span>Owner email</span>
-        <input type="email" autoComplete="off" required value={email} onChange={(e) => { setEmail(e.target.value); resend.reset() }} />
+        <span>{emailLabel}</span>
+        <input type="email" autoComplete="off" required value={email} onChange={(e) => { setEmail(e.target.value); invite.reset() }} />
       </label>
-      <button type="submit" className="btn" disabled={resend.isPending}>Send invite</button>
+      <button type="submit" className="btn" disabled={invite.isPending}>{submitLabel}</button>
       {sent && <p role="status">{SENT_MESSAGE[sent]} is on its way to {email}.</p>}
-      {resend.error && <p className="form-error" role="alert">{resend.error.message}</p>}
+      {invite.error && <p className="form-error" role="alert">{invite.error.message}</p>}
     </form>
   )
+}
+
+/** Re-sends the owner a way in: the first invite can be used up, expired or never delivered (T14.5d). */
+function ResendInvite({ venue }: { venue: VenueOverview }) {
+  return <InviteForm venue={venue} invite={useResendOwnerInvite()} openLabel="Resend invite" emailLabel="Owner email" submitLabel="Send invite" />
+}
+
+/** Invites a staff member to set up their own admin account for the venue, whatever its status (T24.2). */
+function InviteStaff({ venue }: { venue: VenueOverview }) {
+  return <InviteForm venue={venue} invite={useInviteVenueStaff()} openLabel="Invite staff" emailLabel="Staff email" submitLabel="Send staff invite" />
 }
 
 const SENT_MESSAGE: Record<OwnerInviteSent, string> = {
@@ -61,7 +74,7 @@ function VenuePanel({ venue, onClose, onDelete }: { venue: VenueOverview; onClos
       <ShowcaseControl venue={venue} />
       <OnlinePaymentsControl venue={venue} />
       <WalkInsControl venue={venue} />
-      <div className="form-actions"><ResendInvite venue={venue} /></div>
+      <div className="form-actions"><ResendInvite venue={venue} /><InviteStaff venue={venue} /></div>
       {venue.status === 'active' && (
         <div className="form-actions">
           <button type="button" className="btn btn-ghost" disabled={suspend.isPending} onClick={() => {

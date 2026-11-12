@@ -43,9 +43,10 @@ async function invokeConsoleFunction<T>(name: string, body: Record<string, unkno
   return data as T | null
 }
 
-function callInviteVenueOwner(input: { venueId: string; email: string }) {
-  return invokeConsoleFunction<{ invited?: unknown; sent?: unknown }>(
-    'invite-venue-owner', { venue_id: input.venueId, email: input.email }, "We couldn't send the invite.")
+function callInviteVenueOwner(input: { venueId: string; email: string; role?: 'staff' }) {
+  const body: Record<string, unknown> = { venue_id: input.venueId, email: input.email }
+  if (input.role) body.role = input.role
+  return invokeConsoleFunction<{ invited?: unknown; sent?: unknown }>('invite-venue-owner', body, "We couldn't send the invite.")
 }
 
 /** Invites the venue's first owner through the `invite-venue-owner` function (platform admins only). */
@@ -61,7 +62,16 @@ export type OwnerInviteSent = 'invite' | 'link' | 'welcome'
 
 /** Re-sends a venue's owner a way in (T14.5d): the first invite can be used up, expired or never delivered. */
 export async function resendOwnerInvite(input: { venueId: string; email: string }): Promise<{ sent: OwnerInviteSent }> {
-  const sent = (await callInviteVenueOwner(input))?.sent
+  return sentOf(await callInviteVenueOwner(input))
+}
+
+/** Invites a venue's staff member (T24.2): `invite-venue-owner` with `role: 'staff'`, which never demotes an owner. */
+export async function inviteVenueStaff(input: { venueId: string; email: string }): Promise<{ sent: OwnerInviteSent }> {
+  return sentOf(await callInviteVenueOwner({ ...input, role: 'staff' }))
+}
+
+function sentOf(data: { sent?: unknown } | null): { sent: OwnerInviteSent } {
+  const sent = data?.sent
   if (sent === 'invite' || sent === 'link' || sent === 'welcome') return { sent }
   throw new ApiError("We couldn't send the invite.")
 }
