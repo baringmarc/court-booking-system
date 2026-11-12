@@ -1,4 +1,6 @@
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useRef, useState } from 'react'
+import { flushSync } from 'react-dom'
 import { PhotoViewer } from '../../components/PhotoViewer'
 import type { Court, CourtPhotoRow } from './api'
 import { CourtPhoto } from './CourtPhoto'
@@ -15,11 +17,14 @@ const photoAlt = (name: string, i: number, total: number) => (total > 1 ? `Photo
 
 /**
  * A court's photos as a swipeable strip (CSS scroll-snap, no library), with previous and next buttons and a
- * "2 of 4" counter for people who don't swipe (T9.7). One photo or none renders as a single image. Tapping a
- * photo opens it full screen (T9.11e).
+ * "2 / 4" counter for people who don't swipe (T9.7). Since T23.1 they sit on the photo, so every court tile is the
+ * photo then its name; an arrow that can't be used is not rendered. One photo or none renders as a single image.
+ * Tapping a photo opens it full screen (T9.11e).
  */
 export function CourtGallery({ court, photos, coverOnly = false }: Props) {
   const strip = useRef<HTMLUListElement>(null)
+  const prevBtn = useRef<HTMLButtonElement>(null)
+  const nextBtn = useRef<HTMLButtonElement>(null)
   const [index, setIndex] = useState(0)
   const [viewing, setViewing] = useState<number | null>(null)
   const total = photos.length
@@ -57,6 +62,13 @@ export function CourtGallery({ court, photos, coverOnly = false }: Props) {
     el.scrollTo?.({ left: next * el.clientWidth, behavior: reduce ? 'auto' : 'smooth' })
   }
 
+  // A button press: the pressed arrow disappears at an end, so hand focus to the other one rather than <body>.
+  function press(next: number) {
+    flushSync(() => show(next))
+    if (next === 0) nextBtn.current?.focus()
+    else if (next === total - 1) prevBtn.current?.focus()
+  }
+
   // Swiping scrolls the strip; keep the counter and buttons in step with it.
   function handleScroll() {
     const el = strip.current
@@ -74,17 +86,20 @@ export function CourtGallery({ court, photos, coverOnly = false }: Props) {
           </li>
         ))}
       </ul>
-      <div className="gallery-controls">
-        <button type="button" className="btn btn-outline icon-btn" aria-label={`Previous photo of ${court.name}`}
-          disabled={current === 0} onClick={() => show(current - 1)}>
-          <span aria-hidden="true">‹</span>
+      {/* On the photo, beside the full-screen buttons and never inside them. */}
+      {current > 0 && (
+        <button ref={prevBtn} type="button" className="gallery-arrow gallery-prev" aria-label={`Previous photo of ${court.name}`}
+          onClick={() => press(current - 1)}>
+          <ChevronLeft aria-hidden="true" />
         </button>
-        <span className="muted small" aria-live="polite">{current + 1} of {total}</span>
-        <button type="button" className="btn btn-outline icon-btn" aria-label={`Next photo of ${court.name}`}
-          disabled={current === total - 1} onClick={() => show(current + 1)}>
-          <span aria-hidden="true">›</span>
+      )}
+      {current < total - 1 && (
+        <button ref={nextBtn} type="button" className="gallery-arrow gallery-next" aria-label={`Next photo of ${court.name}`}
+          onClick={() => press(current + 1)}>
+          <ChevronRight aria-hidden="true" />
         </button>
-      </div>
+      )}
+      <span className="gallery-count" aria-live="polite">{current + 1} / {total}</span>
       {viewer}
     </div>
   )

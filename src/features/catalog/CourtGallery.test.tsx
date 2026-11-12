@@ -26,22 +26,49 @@ describe('CourtGallery', () => {
     ])
   })
 
-  it('moves with the buttons, shows where it is, and disables them at the ends', async () => {
+  it('moves with the buttons, shows where it is, and hides an arrow at its end (no wrap-around)', async () => {
     const scrollTo = vi.spyOn(Element.prototype, 'scrollTo').mockImplementation(() => {})
     render(<CourtGallery court={court} photos={photos} />)
-    const prev = screen.getByRole('button', { name: 'Previous photo of Badminton 1' })
-    const next = screen.getByRole('button', { name: 'Next photo of Badminton 1' })
-    expect(screen.getByText('1 of 3')).toBeInTheDocument()
-    expect(prev).toBeDisabled()
+    const prevName = 'Previous photo of Badminton 1'
+    const nextName = 'Next photo of Badminton 1'
+    expect(screen.getByText('1 / 3')).toBeInTheDocument()
+    expect(screen.getByText('1 / 3')).toHaveAttribute('aria-live', 'polite')
+    expect(screen.queryByRole('button', { name: prevName })).toBeNull()
+    expect(screen.getByRole('button', { name: nextName })).toBeInTheDocument()
 
-    await userEvent.click(next)
-    expect(screen.getByText('2 of 3')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: nextName }))
+    expect(screen.getByText('2 / 3')).toBeInTheDocument()
     expect(scrollTo).toHaveBeenCalled()
-    await userEvent.click(next)
-    expect(screen.getByText('3 of 3')).toBeInTheDocument()
-    expect(next).toBeDisabled()
-    await userEvent.click(prev)
-    expect(screen.getByText('2 of 3')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: prevName })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: nextName }))
+    expect(screen.getByText('3 / 3')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: nextName })).toBeNull()
+    await userEvent.click(screen.getByRole('button', { name: prevName }))
+    expect(screen.getByText('2 / 3')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: nextName })).toBeInTheDocument()
+  })
+
+  it('moves focus to the opposite arrow when the focused arrow disappears at an end', async () => {
+    render(<CourtGallery court={court} photos={photos} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Next photo of Badminton 1' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Next photo of Badminton 1' }))
+    expect(screen.getByText('3 / 3')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Previous photo of Badminton 1' })).toHaveFocus()
+    await userEvent.click(screen.getByRole('button', { name: 'Previous photo of Badminton 1' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Previous photo of Badminton 1' }))
+    expect(screen.getByText('1 / 3')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Next photo of Badminton 1' })).toHaveFocus()
+  })
+
+  it('keeps the arrows outside the full-screen photo buttons and uses chevron icons', () => {
+    render(<CourtGallery court={court} photos={photos} />)
+    for (const open of screen.getAllByRole('button', { name: /^View full screen/ })) {
+      expect(within(open).queryByRole('button')).toBeNull()
+    }
+    const next = screen.getByRole('button', { name: 'Next photo of Badminton 1' })
+    expect(next.closest('button[aria-label^="View full screen"]')).toBeNull()
+    expect(next.querySelector('svg')).not.toBeNull()
+    expect(next).not.toHaveTextContent(/[‹›]/)
   })
 
   it('follows a swipe: the counter updates from the scroll position', () => {
@@ -50,7 +77,7 @@ describe('CourtGallery', () => {
     Object.defineProperty(strip, 'clientWidth', { value: 300, configurable: true })
     Object.defineProperty(strip, 'scrollLeft', { value: 600, configurable: true })
     fireEvent.scroll(strip)
-    expect(screen.getByText('3 of 3')).toBeInTheDocument()
+    expect(screen.getByText('3 / 3')).toBeInTheDocument()
   })
 
   it('shows a single photo, or the sport placeholder, without gallery controls', () => {
@@ -58,6 +85,7 @@ describe('CourtGallery', () => {
     expect(screen.getByRole('img', { name: 'Photo of Badminton 1' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Next photo|Previous photo/ })).not.toBeInTheDocument()
     expect(screen.queryByText('1 of 1')).not.toBeInTheDocument()
+    expect(screen.queryByText('1 / 1')).not.toBeInTheDocument()
     rerender(<CourtGallery court={court} photos={[]} />)
     expect(screen.getByRole('img', { name: 'Badminton court' })).toBeInTheDocument()
     expect(screen.queryByRole('button')).not.toBeInTheDocument() // the placeholder never opens
@@ -84,7 +112,7 @@ describe('CourtGallery', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(second).toHaveFocus()
     // The strip follows the viewer to the photo it closed on.
-    expect(screen.getAllByText('3 of 3')).toHaveLength(1)
+    expect(screen.getAllByText('3 / 3')).toHaveLength(1)
     expect(scrollTo).toHaveBeenCalled()
   })
 
@@ -101,10 +129,10 @@ describe('CourtGallery', () => {
     const { rerender } = render(<CourtGallery court={court} photos={photos} />)
     await userEvent.click(screen.getByRole('button', { name: 'Next photo of Badminton 1' }))
     await userEvent.click(screen.getByRole('button', { name: 'Next photo of Badminton 1' }))
-    expect(screen.getByText('3 of 3')).toBeInTheDocument()
+    expect(screen.getByText('3 / 3')).toBeInTheDocument()
     rerender(<CourtGallery court={court} photos={photos.slice(0, 2)} />)
-    expect(screen.getByText('2 of 2')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Next photo of Badminton 1' })).toBeDisabled()
+    expect(screen.getByText('2 / 2')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Next photo of Badminton 1' })).toBeNull()
   })
 
   it('lets keyboard users focus the scrollable strip', () => {

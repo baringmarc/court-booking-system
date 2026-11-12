@@ -71,9 +71,21 @@ test('an admin builds a court gallery that players see on the home page and /boo
     await expect(page.getByText('About the tennis courts')).toBeVisible()
     const gallery = page.getByRole('group', { name: `Photos of ${name}` })
     await expect(gallery.getByRole('img')).toHaveCount(2)
-    await expect(gallery.getByText('1 of 2')).toBeVisible()
+    await expect(gallery.getByText('1 / 2')).toBeVisible()
+    // T23.1: no arrow at an end, and the arrows never sit inside a photo.
+    await expect(gallery.getByRole('button', { name: `Previous photo of ${name}` })).toHaveCount(0)
     await gallery.getByRole('button', { name: `Next photo of ${name}` }).click()
-    await expect(gallery.getByText('2 of 2')).toBeVisible()
+    await expect(gallery.getByText('2 / 2')).toBeVisible()
+    await expect(gallery.getByRole('button', { name: `Next photo of ${name}` })).toHaveCount(0)
+    await expect(gallery.getByRole('button', { name: `Previous photo of ${name}` })).toBeVisible()
+    // T23.1: the seed's "Tennis Court" and this court share a row; their names line up.
+    const seedName = page.locator('.court-tile-name', { hasText: /^Tennis Court$/ })
+    const ownName = page.locator('.court-tile-name', { hasText: name })
+    await expect(seedName).toBeVisible()
+    await expect(ownName).toBeVisible()
+    const seedBox = await seedName.boundingBox()
+    const ownBox = await ownName.boundingBox()
+    expect(Math.abs(seedBox!.y - ownBox!.y)).toBeLessThanOrEqual(1)
     // The a11y spec never sees a multi-photo gallery (seed courts have one photo at most): check it here.
     const axe = await new AxeBuilder({ page }).include('.gallery').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
     expect(axe.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical').map((v) => v.id)).toEqual([])

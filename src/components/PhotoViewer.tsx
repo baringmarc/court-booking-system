@@ -1,3 +1,4 @@
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useEffect, useRef, useState, type KeyboardEvent, type TouchEvent } from 'react'
 
 export type ViewerPhoto = { src: string; alt: string }
@@ -86,10 +87,10 @@ export function PhotoViewer({ photos, start, label, onClose }: Props) {
       {total > 1 && (
         <div className="viewer-nav">
           <button type="button" className="viewer-btn" aria-label="Previous photo" disabled={current === 0} onClick={() => press(current - 1)}>
-            <span aria-hidden="true">‹</span>
+            <ChevronLeft aria-hidden="true" />
           </button>
           <button type="button" className="viewer-btn" aria-label="Next photo" disabled={current === total - 1} onClick={() => press(current + 1)}>
-            <span aria-hidden="true">›</span>
+            <ChevronRight aria-hidden="true" />
           </button>
         </div>
       )}

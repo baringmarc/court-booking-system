@@ -87,4 +87,13 @@ describe('PhotoViewer', () => {
     fireEvent.error(screen.getByRole('img', { name: 'Photo 1' }))
     expect(screen.getByText("This photo couldn't be loaded.")).toBeInTheDocument()
   })
+
+  it('draws its arrows as chevron icons, not text characters', () => {
+    renderViewer(1)
+    for (const name of ['Previous photo', 'Next photo']) {
+      const b = screen.getByRole('button', { name })
+      expect(b.querySelector('svg')).not.toBeNull()
+      expect(b).not.toHaveTextContent(/[‹›]/)
+    }
+  })
 })

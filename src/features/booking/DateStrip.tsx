@@ -1,4 +1,4 @@
-import { CalendarDays } from 'lucide-react'
+import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useEffect, useId, useRef, useState } from 'react'
 import { CalendarDialog } from '../../components/DatePicker'
 import { addDays } from '../../lib/time'
@@ -17,7 +17,7 @@ type Props = {
 }
 
 /**
- * The /book day picker (T11.4a): a heading with the day, ‹ › one day at a time, "Jump to date" (the calendar), and a
+ * The /book day picker (T11.4a): a heading with the day, previous/next chevrons one day at a time (T23.1), "Jump to date" (the calendar), and a
  * strip of up to 10 days that slides to keep the chosen day in view.
  */
 export function DateStrip({ value, onChange, today, lastDay, closedDays }: Props) {
@@ -46,7 +46,9 @@ export function DateStrip({ value, onChange, today, lastDay, closedDays }: Props
       <span id={labelId} className="sr-only">Date</span>
       <div className="date-strip-head">
         <button type="button" className="btn btn-outline icon-btn" aria-label="Previous day"
-          disabled={value <= today} onClick={() => onChange(addDays(value, -1))}>‹</button>
+          disabled={value <= today} onClick={() => onChange(addDays(value, -1))}>
+          <ChevronLeft aria-hidden="true" className="chevron-icon" />
+        </button>
         <h2 className="date-strip-day" aria-live="polite">
           <span className="date-strip-word">{dayWord(value, today)}</span>{' '}
           <span className="date-strip-full">{fullDate(value)}</span>
@@ -55,7 +57,9 @@ export function DateStrip({ value, onChange, today, lastDay, closedDays }: Props
           <CalendarDays aria-hidden="true" className="social-icon" />Jump to date
         </button>
         <button type="button" className="btn btn-outline icon-btn" aria-label="Next day"
-          disabled={value >= lastDay} onClick={() => onChange(addDays(value, 1))}>›</button>
+          disabled={value >= lastDay} onClick={() => onChange(addDays(value, 1))}>
+          <ChevronRight aria-hidden="true" className="chevron-icon" />
+        </button>
       </div>
       <p className="date-strip-month">{monthLabel(days[0], days[days.length - 1])}</p>
       <div className="date-strip-days" ref={stripRef}>
