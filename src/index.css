@@ -280,6 +280,17 @@ h3 { font-size: 1.05rem; margin: 0; }
 .hero .venue-address { margin: 4px 0 8px; overflow-wrap: anywhere; }
 .quick-facts { list-style: none; padding: 0; margin: 0 0 12px; display: flex; flex-wrap: wrap; gap: 4px 16px; color: var(--muted); }
 .quick-facts li { display: inline-flex; align-items: center; gap: 6px; }
+/* T22.1: a home-page sport card is one link to /book on that sport. The link carries the card's padding, so the whole card is the target. */
+.card.sport-card { padding: 0; transition: border-color .15s, box-shadow .15s; }
+.sport-card-link { display: block; padding: 20px; color: inherit; text-decoration: none; border-radius: inherit; }
+.sport-card-link > .card-head:first-child {
+  margin: -20px -20px 16px; padding: 12px 20px; background: var(--tint-sage); color: var(--text);
+  border-bottom: 1px solid var(--border); border-radius: calc(var(--radius) - 1px) calc(var(--radius) - 1px) 0 0;
+}
+.sport-card-link > :last-child { margin-bottom: 0; }
+.card.sport-card:hover, .card.sport-card:focus-within { border-color: var(--accent); }
+.sport-card-link:hover h3 { text-decoration: underline; }
+.sport-card-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .sport-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
 .card > :last-child { margin-bottom: 0; }
 .court-tiles { list-style: none; padding: 0; margin: 12px 0 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
@@ -297,8 +308,26 @@ h3 { font-size: 1.05rem; margin: 0; }
 .gallery-strip::-webkit-scrollbar { display: none; }
 .gallery-strip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .gallery-item { flex: 0 0 100%; scroll-snap-align: start; }
-.gallery-controls { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 6px; }
-.gallery-controls .icon-btn { width: 36px; height: 36px; }
+/* T23.1: the arrows and counter sit on the photo, so a gallery is as tall as a single photo and names line up.
+   Fixed light-on-dark glass: they sit on images, not the page, so they don't follow the theme. */
+.gallery { position: relative; }
+.gallery-arrow {
+  position: absolute; top: 50%; translate: 0 -50%; display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; padding: 0; border: 0; border-radius: 999px; cursor: pointer;
+  color: #ffffff; background: rgba(20, 18, 16, 0.62); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  transition: transform var(--dur-fast) ease-out, background var(--dur-fast) ease-out;
+}
+.gallery-arrow:hover { background: rgba(20, 18, 16, 0.78); transform: scale(1.06); }
+.gallery-arrow:focus-visible { outline: 2px solid #ffffff; outline-offset: 2px; box-shadow: 0 0 0 4px rgba(20, 18, 16, 0.62); }
+.gallery-arrow svg { width: 20px; height: 20px; }
+.gallery-prev { left: 6px; }
+.gallery-next { right: 6px; }
+.gallery-count {
+  position: absolute; top: 6px; right: 6px; padding: 2px 8px; border-radius: 999px; pointer-events: none;
+  font-size: 0.75rem; font-weight: 700; line-height: 1.4; font-variant-numeric: tabular-nums;
+  color: #ffffff; background: rgba(20, 18, 16, 0.62); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+}
+.icon-btn .chevron-icon { width: 20px; height: 20px; }
 /* Admin gallery editor (T9.7) */
 .photo-list > li { padding: 8px 0; }
 .photo-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
@@ -618,6 +647,7 @@ fieldset.field legend { padding: 0; margin-bottom: 6px; }
 .viewer-btn:disabled { opacity: 0.45; cursor: default; }
 .viewer-btn:focus-visible { outline: 2px solid #f2f4f3; outline-offset: 2px; }
 .viewer-nav .viewer-btn { font-size: 1.5rem; line-height: 1; }
+.viewer-nav .viewer-btn svg { width: 24px; height: 24px; }
 .viewer:focus { outline: none; }
 /* A small spinner inside a button or an alert (T9.11f). */
 .spinner-inline { display: inline-block; width: 1em; height: 1em; border-width: 2px; vertical-align: -0.15em; flex-shrink: 0; } /* .btn's gap spaces it */
@@ -707,9 +737,10 @@ details[open]::details-content { block-size: auto; }
   details::details-content { transition: none !important; }
   .dialog[open], .dialog[open]::backdrop { animation: none; }
   .btn:active:not(:disabled) { transform: none; }
+  .gallery-arrow:hover { transform: none; }
 }
 
-/* /book date strip (T11.4a): the day as a heading, ‹ › and "Jump to date", then up to 10 day tiles. On a phone the
+/* /book date strip (T11.4a): the day as a heading, previous/next chevrons (T23.1) and "Jump to date", then up to 10 day tiles. On a phone the
    tiles scroll sideways inside the strip (snap), never the page. */
 .date-strip { display: flex; flex-direction: column; gap: 12px; margin-bottom: 0; min-width: 0; }
 .date-strip-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }

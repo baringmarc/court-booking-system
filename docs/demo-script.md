@@ -12,7 +12,7 @@ A walkthrough of Claudex Courts, about 4 to 5 minutes. Record it at 1080p, with 
 
 ## 1. The venue (0:00 to 0:30), phone
 
-**On screen:** the home page. Scroll past the hours, the amenity chips and the courts. Tap a court photo to open the full-screen viewer, swipe once, then close it. Point at the address with its pin (it opens Google Maps) and the quick facts under the venue name, and open a "Good to know" panel.
+**On screen:** the home page. Scroll past the hours, the amenity chips and the courts. Point at the address with its pin (it opens Google Maps) and the quick facts under the venue name, and open a "Good to know" panel.
 
 **Narration:** "Claudex Courts is a booking app for a single multi-sport venue. Players see the courts, the amenities, where the venue is and its policies, all set by the staff in the admin area, in the venue's own color preset."
 

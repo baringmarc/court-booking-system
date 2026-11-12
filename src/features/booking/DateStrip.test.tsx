@@ -69,6 +69,15 @@ describe('DateStrip', () => {
     expect(screen.getByText('Wednesday, November 25, 2026')).toBeInTheDocument()
   })
 
+  it('draws its arrows as chevron icons, not text characters', () => {
+    render(<Harness />)
+    for (const name of ['Previous day', 'Next day']) {
+      const b = screen.getByRole('button', { name })
+      expect(b.querySelector('svg')).not.toBeNull()
+      expect(b).not.toHaveTextContent(/[‹›]/)
+    }
+  })
+
   it('slides one day when a step passes the last tile', async () => {
     const user = userEvent.setup()
     render(<Harness start="2026-11-05" />) // the 10th tile from today
