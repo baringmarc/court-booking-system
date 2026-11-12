@@ -3,7 +3,7 @@ import { formatMoney } from '../../lib/format'
 import type { OwnerInviteSent, VenueOverview } from './api'
 import { DeleteVenueDialog } from './DeleteVenueDialog'
 import { useInviteVenueStaff, useReactivateVenue, useResendOwnerInvite, useSuspendVenue, useVenuesPage } from './hooks'
-import { DetailsButton, ListStatus, RecordPanel, SearchField, StatusFilter } from './ListControls'
+import { DetailsButton, ListStatus, PanelSection, RecordPanel, SearchField, StatusBadge, StatusFilter } from './ListControls'
 import { focusDetails, returnFocus, useListParams } from './listParams'
 import { Pager } from './Pager'
 import { OnlinePaymentsControl } from './OnlinePaymentsControl'
@@ -16,8 +16,8 @@ const FILTER_OPTIONS = [['', 'All'], ['active', 'Active'], ['draft', 'Draft'], [
 type InviteMutation = ReturnType<typeof useResendOwnerInvite>
 
 /** An email form that sends someone a way into the venue's admin; the owner and staff forms share it. */
-function InviteForm({ venue, invite, openLabel, emailLabel, submitLabel }: {
-  venue: VenueOverview; invite: InviteMutation; openLabel: string; emailLabel: string; submitLabel: string
+function InviteForm({ venue, invite, title, hint, openLabel, emailLabel, submitLabel }: {
+  venue: VenueOverview; invite: InviteMutation; title: string; hint: string; openLabel: string; emailLabel: string; submitLabel: string
 }) {
   const [open, setOpen] = useState(false)
   const [email, setEmail] = useState('')
@@ -27,31 +27,43 @@ function InviteForm({ venue, invite, openLabel, emailLabel, submitLabel }: {
     invite.mutate({ venueId: venue.venue_id, email })
   }
 
-  if (!open) {
-    return <button type="button" className="btn btn-ghost" onClick={() => setOpen(true)}>{openLabel}</button>
-  }
   const sent = invite.data?.sent
   return (
-    <form className="stack" onSubmit={handleSubmit}>
-      <label className="field">
-        <span>{emailLabel}</span>
-        <input type="email" autoComplete="off" required value={email} onChange={(e) => { setEmail(e.target.value); invite.reset() }} />
-      </label>
-      <button type="submit" className="btn" disabled={invite.isPending}>{submitLabel}</button>
-      {sent && <p role="status">{SENT_MESSAGE[sent]} is on its way to {email}.</p>}
-      {invite.error && <p className="form-error" role="alert">{invite.error.message}</p>}
-    </form>
+    <div className="setting-row">
+      <div className="setting-text">
+        <p className="setting-title">{title}</p>
+        <p className="muted small">{hint}</p>
+      </div>
+      {!open && (
+        <div className="setting-action">
+          <button type="button" className="btn btn-outline btn-small" onClick={() => setOpen(true)}>{openLabel}</button>
+        </div>
+      )}
+      {open && (
+        <form className="invite-form setting-wide" onSubmit={handleSubmit}>
+          <label className="field">
+            <span>{emailLabel}</span>
+            <input type="email" autoComplete="off" required value={email} onChange={(e) => { setEmail(e.target.value); invite.reset() }} />
+          </label>
+          <button type="submit" className="btn btn-small" disabled={invite.isPending}>{submitLabel}</button>
+          {sent && <p className="invite-sent" role="status">{SENT_MESSAGE[sent]} is on its way to {email}.</p>}
+          {invite.error && <p className="form-error" role="alert">{invite.error.message}</p>}
+        </form>
+      )}
+    </div>
   )
 }
 
 /** Re-sends the owner a way in: the first invite can be used up, expired or never delivered (T14.5d). */
 function ResendInvite({ venue }: { venue: VenueOverview }) {
-  return <InviteForm venue={venue} invite={useResendOwnerInvite()} openLabel="Resend invite" emailLabel="Owner email" submitLabel="Send invite" />
+  return <InviteForm venue={venue} invite={useResendOwnerInvite()} title="Owner" hint="Send the owner a fresh way in."
+    openLabel="Resend invite" emailLabel="Owner email" submitLabel="Send invite" />
 }
 
 /** Invites a staff member to set up their own admin account for the venue, whatever its status (T24.2). */
 function InviteStaff({ venue }: { venue: VenueOverview }) {
-  return <InviteForm venue={venue} invite={useInviteVenueStaff()} openLabel="Invite staff" emailLabel="Staff email" submitLabel="Send staff invite" />
+  return <InviteForm venue={venue} invite={useInviteVenueStaff()} title="Staff" hint="Give a staff member their own admin account."
+    openLabel="Invite staff" emailLabel="Staff email" submitLabel="Send staff invite" />
 }
 
 const SENT_MESSAGE: Record<OwnerInviteSent, string> = {
@@ -68,31 +80,37 @@ function VenuePanel({ venue, onClose, onDelete }: { venue: VenueOverview; onClos
   const error = suspend.error ?? reactivate.error
   return (
     <RecordPanel label={`Venue: ${venue.name}`} title={venue.name} onClose={onClose}>
-      <p className="muted">{venue.slug} · {venue.status}</p>
-      <p>{venue.month_transactions} transactions · {formatMoney(venue.month_total)} this month</p>
-      <p className="muted">{venue.open_invoices} open {venue.open_invoices === 1 ? 'invoice' : 'invoices'}</p>
-      <ShowcaseControl venue={venue} />
-      <OnlinePaymentsControl venue={venue} />
-      <WalkInsControl venue={venue} />
-      <div className="form-actions"><ResendInvite venue={venue} /><InviteStaff venue={venue} /></div>
-      {venue.status === 'active' && (
-        <div className="form-actions">
-          <button type="button" className="btn btn-ghost" disabled={suspend.isPending} onClick={() => {
-            if (window.confirm(`Suspend ${venue.name}? Players will no longer be able to book.`)) suspend.mutate(venue.venue_id)
-          }}>
-            Suspend
-          </button>
-        </div>
-      )}
-      {venue.status === 'suspended' && (
-        <div className="form-actions">
-          <button type="button" className="btn" disabled={reactivate.isPending} onClick={() => reactivate.mutate(venue.venue_id)}>Reactivate</button>
-        </div>
-      )}
-      <div className="form-actions">
-        <button type="button" id={DELETE_VENUE_BUTTON} className="btn btn-ghost" onClick={onDelete}>Delete venue</button>
+      <p className="panel-meta"><span className="muted">{venue.slug}</span><StatusBadge status={venue.status} /></p>
+      <div className="stat-tiles">
+        <div className="stat-tile"><span className="stat-label">This month</span><span className="stat-value">{venue.month_transactions} transactions</span></div>
+        <div className="stat-tile"><span className="stat-label">Month total</span><span className="stat-value">{formatMoney(venue.month_total)}</span></div>
+        <div className="stat-tile"><span className="stat-label">Billing</span><span className="stat-value">{venue.open_invoices} open {venue.open_invoices === 1 ? 'invoice' : 'invoices'}</span></div>
       </div>
-      {error && <p className="form-error" role="alert">{error.message}</p>}
+      <PanelSection title="Features">
+        <ShowcaseControl venue={venue} />
+        <OnlinePaymentsControl venue={venue} />
+        <WalkInsControl venue={venue} />
+      </PanelSection>
+      <PanelSection title="Access">
+        <ResendInvite venue={venue} />
+        <InviteStaff venue={venue} />
+      </PanelSection>
+      <PanelSection title="Danger zone" danger>
+        <div className="form-actions">
+          {venue.status === 'active' && (
+            <button type="button" className="btn btn-outline btn-small btn-danger-outline" disabled={suspend.isPending} onClick={() => {
+              if (window.confirm(`Suspend ${venue.name}? Players will no longer be able to book.`)) suspend.mutate(venue.venue_id)
+            }}>
+              Suspend
+            </button>
+          )}
+          {venue.status === 'suspended' && (
+            <button type="button" className="btn btn-small" disabled={reactivate.isPending} onClick={() => reactivate.mutate(venue.venue_id)}>Reactivate</button>
+          )}
+          <button type="button" id={DELETE_VENUE_BUTTON} className="btn btn-outline btn-small btn-danger-outline" onClick={onDelete}>Delete venue</button>
+        </div>
+        {error && <p className="form-error" role="alert">{error.message}</p>}
+      </PanelSection>
     </RecordPanel>
   )
 }
@@ -144,7 +162,7 @@ export function VenuesPage() {
                     <strong>{venue.name}</strong>
                     <span className="muted small">{venue.slug}</span>
                   </div>
-                  <span className="badge">{venue.status}</span>
+                  <StatusBadge status={venue.status} />
                   <DetailsButton id={venue.venue_id} name={venue.name} onOpen={() => setOpen(venue.venue_id)} />
                 </li>
               ))}

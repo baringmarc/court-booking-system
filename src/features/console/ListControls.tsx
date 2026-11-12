@@ -52,8 +52,34 @@ export function RecordPanel({ label, title, onClose, children }: { label: string
     <section className="card stack console-panel" aria-label={label}>
       <div className="page-head">
         <h2 ref={heading} tabIndex={-1}>{title}</h2>
-        <button type="button" className="btn btn-ghost btn-small" onClick={onClose}>Close</button>
+        <button type="button" className="btn btn-outline btn-small" onClick={onClose}>Close</button>
       </div>
+      {children}
+    </section>
+  )
+}
+
+/** How a status reads at a glance: good (live, paid, approved), warn (needs attention), bad (stopped) or neutral. */
+export type StatusTone = 'good' | 'warn' | 'bad' | 'neutral' | 'info'
+
+const STATUS_TONES: Record<string, StatusTone> = {
+  active: 'good', won: 'good', paid: 'good', approved: 'good',
+  draft: 'warn', talking: 'warn', sent: 'warn',
+  suspended: 'bad',
+  new: 'info',
+  closed: 'neutral', lost: 'neutral', hidden: 'neutral',
+}
+
+/** A status pill colored by its tone (T25.1); the text is the status as before. */
+export function StatusBadge({ status, children }: { status: string; children?: ReactNode }) {
+  return <span className={`badge tone-${STATUS_TONES[status.toLowerCase()] ?? 'neutral'}`}>{children ?? status}</span>
+}
+
+/** A titled group inside a record panel (T25.1). `danger` sets the destructive actions apart. */
+export function PanelSection({ title, danger = false, children }: { title: string; danger?: boolean; children: ReactNode }) {
+  return (
+    <section className={`panel-section${danger ? ' panel-section-danger' : ''}`}>
+      <h3 className="panel-section-title">{title}</h3>
       {children}
     </section>
   )

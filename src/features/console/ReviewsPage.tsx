@@ -1,6 +1,6 @@
 import type { Review, ReviewFilter } from './api'
 import { useReviewsPage, useSetReviewApproved } from './hooks'
-import { DetailsButton, ListStatus, RecordPanel, SearchField, StatusFilter } from './ListControls'
+import { DetailsButton, ListStatus, RecordPanel, SearchField, StatusBadge, StatusFilter } from './ListControls'
 import { focusDetails, useListParams } from './listParams'
 import { Pager } from './Pager'
 
@@ -53,7 +53,7 @@ export function ReviewsPage() {
                     <strong>{review.name}</strong>
                     <span className="muted small">{review.rating} of 5</span>
                   </div>
-                  <span className="badge">{review.approved ? 'Approved' : 'Hidden'}</span>
+                  <StatusBadge status={review.approved ? 'approved' : 'hidden'}>{review.approved ? 'Approved' : 'Hidden'}</StatusBadge>
                   <DetailsButton id={review.id} name={review.name} onOpen={() => setOpen(review.id)} />
                 </li>
               ))}
