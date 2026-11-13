@@ -15,7 +15,7 @@ vi.mock('../catalog/hooks', () => ({
   useOperatingHours: () => ({ data: Array.from({ length: 7 }, (_, day_of_week) => ({ day_of_week, open_time: '06:00:00', close_time: '22:00:00', is_closed: day_of_week === dowOf(tomorrow) })), isPending: false }),
   usePublicSchedule: mocks.schedule,
 }))
-vi.mock('./hooks', () => ({ useAvailability: mocks.availability }))
+vi.mock('./hooks', () => ({ useAvailability: mocks.availability, usePlatformFee: () => ({ data: 0 }) }))
 vi.mock('../openPlay/hooks', () => ({ useUpcomingOpenPlay: () => ({ data: [] }) }))
 
 describe('BookPage effective schedules', () => {
