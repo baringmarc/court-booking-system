@@ -194,6 +194,9 @@ export type InvoiceOverview = {
   total: number
   due_at: string | null
   overdue: boolean
+  /** When the invoice-pdf function last emailed it to the owners, and how often (T26.3's `invoice_sends`). */
+  last_emailed_at?: string | null
+  email_count?: number
 }
 
 export type InvoiceLine = {
@@ -274,6 +277,28 @@ export async function fetchInvoicesPage(input: { search: string; status: string;
     p_offset: offsetOf(input.page),
   }
   return asPage<InvoiceOverview>(unwrap(await supabase.rpc('invoices_page', args as Functions['invoices_page']['Args'])))
+}
+
+/** The invoice as a PDF from the `invoice-pdf` function (T26.4); platform admins get any invoice, drafts too. */
+export async function fetchInvoicePdf(invoiceId: string): Promise<Blob> {
+  const data = await invokeConsoleFunction<Blob>('invoice-pdf', { invoice_id: invoiceId, action: 'pdf' }, "We couldn't open the invoice PDF.")
+  if (!(data instanceof Blob)) throw new ApiError("We couldn't open the invoice PDF.")
+  return data
+}
+
+export type InvoiceSendResult = { recipients: string[]; kind: 'send' | 'resend'; status: 'draft' | 'sent' }
+
+/**
+ * Emails the invoice PDF to every owner of its venue (T26.4); a draft becomes sent, a sent invoice is resent.
+ * Refusals carry the function's code in `ApiError.hint` (`billing_details_missing`, `no_recipients`, ...).
+ */
+export async function sendInvoice(invoiceId: string): Promise<InvoiceSendResult> {
+  const data = await invokeConsoleFunction<Partial<InvoiceSendResult>>('invoice-pdf', { invoice_id: invoiceId, action: 'send' }, "We couldn't send the invoice.")
+  return {
+    recipients: Array.isArray(data?.recipients) ? data.recipients : [],
+    kind: data?.kind === 'resend' ? 'resend' : 'send',
+    status: data?.status === 'draft' ? 'draft' : 'sent',
+  }
 }
 
 export type InvoiceDetailPageData = InvoiceDetailData & { line_total: number }

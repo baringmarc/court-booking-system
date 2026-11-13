@@ -2,7 +2,7 @@ import { useRef } from 'react'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   createVenue, deleteLead, deleteUnusedVenue, fetchInvoiceDetailPage, fetchVenueDeletionPreview, retryVenueFileCleanup, fetchInvoicesPage, fetchIsPlatformAdmin, fetchLeadsPage, fetchReviewsPage, fetchVenuesPage,
-  inviteVenueOwner, inviteVenueStaff, markInvoicePaid, markInvoiceSent, resendOwnerInvite, fetchShowcaseApprovals, setVenueShowcaseApproval, fetchOnlinePayments, setOnlinePayments, fetchWalkIns, setWalkIns,
+  inviteVenueOwner, inviteVenueStaff, markInvoicePaid, markInvoiceSent, fetchInvoicePdf, sendInvoice, resendOwnerInvite, fetchShowcaseApprovals, setVenueShowcaseApproval, fetchOnlinePayments, setOnlinePayments, fetchWalkIns, setWalkIns,
   reactivateVenue, setReviewApproved, suspendVenue, updateLead, type Lead, type LeadStatus, type ReviewFilter,
   deletePlatformPaymentAccount, fetchPlatformPaymentAccounts, platformQrUrl, reorderPlatformPaymentAccounts, savePlatformPaymentAccount,
   type PlatformPaymentAccount,
@@ -203,6 +203,25 @@ function useInvoiceMutation<T>(mutationFn: (input: T) => Promise<void>) {
 
 export function useMarkInvoiceSent() {
   return useInvoiceMutation((invoiceId: string) => markInvoiceSent(invoiceId))
+}
+
+/** Emails the invoice to the venue's owners (T26.6); the list and detail re-read, since a draft becomes sent. */
+export function useSendInvoice() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (invoiceId: string) => sendInvoice(invoiceId),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['invoices'] }),
+        queryClient.invalidateQueries({ queryKey: ['venues-overview'] }),
+      ])
+    },
+  })
+}
+
+/** Fetches the invoice PDF for Preview PDF (T26.6). */
+export function usePreviewInvoicePdf() {
+  return useMutation({ mutationFn: (invoiceId: string) => fetchInvoicePdf(invoiceId) })
 }
 
 export function useMarkInvoicePaid() {

@@ -1259,3 +1259,7 @@ details[open]::details-content { block-size: auto; }
   .invoice-items, .invoice-lines { font-size: 0.8rem; }
   .invoice-items th, .invoice-items td, .invoice-lines th, .invoice-lines td { padding: 6px 4px; }
 }
+
+/* T26.6: send and preview actions on the invoice document; their messages take a full row. */
+.invoice-actions > p { flex-basis: 100%; margin: 0; }
+.invoice-head .invoice-emailed { margin-top: 4px; }

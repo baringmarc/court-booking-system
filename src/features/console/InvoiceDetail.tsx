@@ -1,8 +1,11 @@
-import { useState, type FormEvent } from 'react'
+import { useRef, useState, type FormEvent } from 'react'
+import { Link } from 'react-router-dom'
+import { ApiError } from '../../lib/queryClient'
 import { formatMoneyExact } from '../../lib/format'
 import { venueAdminUrl } from '../../lib/venueUrl'
 import { CONSOLE_PAGE_SIZE, type InvoiceDetailData } from './api'
-import { useInvoiceDetailPage, useMarkInvoicePaid, useMarkInvoiceSent } from './hooks'
+import { ConsoleDialog } from './ConsoleDialog'
+import { useInvoiceDetailPage, useMarkInvoicePaid, useMarkInvoiceSent, usePreviewInvoicePdf, useSendInvoice } from './hooks'
 import { invoiceNumber } from './invoiceNumber'
 import { StatusBadge } from './ListControls'
 import { Pager } from './Pager'
@@ -56,15 +59,105 @@ function PaidForm({ invoice }: { invoice: InvoiceDetailData }) {
   )
 }
 
-function DraftActions({ invoice }: { invoice: InvoiceDetailData }) {
+function MarkSentButton({ invoice, disabled }: { invoice: InvoiceDetailData; disabled: boolean }) {
   const markSent = useMarkInvoiceSent()
   return (
     <>
-      <button type="button" className="btn" disabled={markSent.isPending} onClick={() => markSent.mutate(invoice.invoice_id)}>
+      <button type="button" className="btn btn-outline" disabled={disabled || markSent.isPending} onClick={() => markSent.mutate(invoice.invoice_id)}>
         Mark as sent
       </button>
       {markSent.error && <p className="form-error" role="alert">{markSent.error.message}</p>}
     </>
+  )
+}
+
+/** "Emailed to owners on <date>", with the count when it went out more than once (T26.6). */
+function EmailedLine({ invoice }: { invoice: InvoiceDetailData }) {
+  if (!invoice.last_emailed_at || !invoice.email_count) return null
+  const times = invoice.email_count > 1 ? ` (${invoice.email_count} times)` : ''
+  return <p className="muted small invoice-emailed">Emailed to owners on {formatDate(invoice.last_emailed_at)}{times}</p>
+}
+
+/** Opens the PDF in a new tab. The tab opens on the click, before the fetch, so popup blockers allow it. */
+function usePdfPreview(invoiceId: string) {
+  const preview = usePreviewInvoicePdf()
+  function open() {
+    const tab = window.open('', '_blank')
+    preview.mutate(invoiceId, {
+      onSuccess: (blob) => {
+        const url = URL.createObjectURL(blob)
+        if (tab && !tab.closed) tab.location.href = url
+        else window.open(url, '_blank')
+        window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
+      },
+      onError: () => tab?.close(),
+    })
+  }
+  return { open, isPending: preview.isPending, error: preview.error }
+}
+
+/**
+ * Send invoice (draft) and Resend invoice (sent) through the invoice-pdf function (T26.6), after a confirmation naming
+ * the venue's owners; the console can't read their emails, so the result lists the ones the function used.
+ */
+function SendControl({ invoice, onConfirmOpen }: { invoice: InvoiceDetailData; onConfirmOpen: (open: boolean) => void }) {
+  const send = useSendInvoice()
+  const [confirming, setConfirming] = useState(false)
+  const opener = useRef<HTMLButtonElement>(null)
+  const label = invoice.status === 'draft' ? 'Send invoice' : 'Resend invoice'
+  const number = invoiceNumber(invoice)
+  function close() {
+    setConfirming(false)
+    onConfirmOpen(false)
+    opener.current?.focus()
+  }
+  return (
+    <>
+      <button type="button" ref={opener} className="btn" disabled={send.isPending}
+        onClick={() => { send.reset(); setConfirming(true); onConfirmOpen(true) }}>
+        {label}
+      </button>
+      {confirming && (
+        <ConsoleDialog id="invoice-send" title={label} onCancel={() => { if (!send.isPending) close() }}>
+          <p>Email invoice {number} to every owner of {invoice.name}?</p>
+          <p className="muted small">The PDF goes to the owners' sign-in emails.{invoice.status === 'draft' ? ' The invoice is marked sent.' : ''}</p>
+          <div className="form-actions">
+            <button type="button" className="btn" disabled={send.isPending} autoFocus
+              onClick={() => send.mutate(invoice.invoice_id, { onSettled: close })}>
+              {send.isPending ? 'Sending…' : label}
+            </button>
+            <button type="button" className="btn btn-ghost" disabled={send.isPending} onClick={close}>Cancel</button>
+          </div>
+        </ConsoleDialog>
+      )}
+      {send.data && (
+        <p className="invoice-send-result" role="status">
+          Sent to {send.data.recipients.join(', ')}
+        </p>
+      )}
+      {send.error && (
+        <p className="form-error invoice-send-result" role="alert">
+          {send.error.message}
+          {send.error instanceof ApiError && send.error.hint === 'billing_details_missing' && <> <Link to="/billing">Billing</Link></>}
+        </p>
+      )}
+    </>
+  )
+}
+
+function InvoiceActions({ invoice }: { invoice: InvoiceDetailData }) {
+  const pdf = usePdfPreview(invoice.invoice_id)
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  return (
+    <div className="form-actions no-print invoice-actions">
+      {invoice.status !== 'paid' && <SendControl invoice={invoice} onConfirmOpen={setConfirmOpen} />}
+      {invoice.status === 'draft' && <MarkSentButton invoice={invoice} disabled={confirmOpen} />}
+      <button type="button" className="btn btn-outline" disabled={pdf.isPending} onClick={pdf.open}>
+        {pdf.isPending ? 'Preparing PDF…' : 'Preview PDF'}
+      </button>
+      <button type="button" className="btn btn-ghost" onClick={() => window.print()}>Print</button>
+      {pdf.error && <p className="form-error" role="alert">{pdf.error.message}</p>}
+    </div>
   )
 }
 
@@ -95,6 +188,7 @@ export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
           <p className="invoice-brand">Plotline</p>
           <h3>{invoiceNumber(invoice)}</h3>
           <p className="muted">{invoice.name}</p>
+          <EmailedLine invoice={invoice} />
         </div>
         <span className="console-row-badges">
           <StatusBadge status={invoice.status} />
@@ -160,10 +254,7 @@ export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
       </details>
       <p className="muted small">Statement of amounts; not a tax invoice.</p>
       {invoice.status === 'sent' && <PaidForm invoice={invoice} />}
-      <div className="form-actions no-print">
-        {invoice.status === 'draft' && <DraftActions invoice={invoice} />}
-        <button type="button" className="btn btn-ghost" onClick={() => window.print()}>Print</button>
-      </div>
+      <InvoiceActions invoice={invoice} />
     </article>
   )
 }
