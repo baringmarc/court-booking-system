@@ -18,6 +18,7 @@ import {
   fetchSetupStatus,
   fetchStatementCharges,
   fetchStatementInvoices,
+  fetchStatementInvoicePdf,
   fetchStatementSummary,
   publishVenue,
   fetchProofUrl,
@@ -48,6 +49,7 @@ import {
   type Reschedule,
   type BannerInput,
   type WalkInInput,
+  STATEMENT_PAGE_SIZE,
 } from './api'
 import { catalogKeys, updateVenueSettings, type Court, type CourtPhotoRow, type CourtWithPhotos, type Sport, type VenueSettings } from '../catalog/api'
 import { setCourtOrder } from '../catalog/sportOrder'
@@ -526,13 +528,46 @@ export function useStatementCharges(input: { month: string; search: string; page
 }
 
 /** One page of the venue's invoice history, drafts included. */
-export function useStatementInvoices(input: { status?: string; page: number }) {
+export function useStatementInvoices(input: { status?: string; page: number }, options: { enabled?: boolean } = {}) {
   return useQuery({
-    queryKey: [...adminKeys.statement(), 'invoices', input.status ?? '', input.page],
+    queryKey: statementInvoicesKey(input.status ?? '', input.page),
     queryFn: () => fetchStatementInvoices(input),
     placeholderData: keepPreviousData,
     staleTime: 30_000,
+    enabled: options.enabled ?? true,
   })
+}
+
+const statementInvoicesKey = (status: string, page: number) => [...adminKeys.statement(), 'invoices', status, page]
+
+/**
+ * The invoice-history page an invoice is on (T26.7, the emailed VIEW INVOICE link), or null when the venue has no such
+ * invoice. Reads the pages in order through the same cache entries `useStatementInvoices` uses, so the page found is
+ * not fetched twice. An empty id locates nothing.
+ */
+export function useLocateStatementInvoice(invoiceId: string) {
+  const queryClient = useQueryClient()
+  return useQuery({
+    queryKey: [...adminKeys.statement(), 'invoice-page', invoiceId],
+    queryFn: async () => {
+      for (let page = 1; ; page++) {
+        const result = await queryClient.fetchQuery({
+          queryKey: statementInvoicesKey('', page),
+          queryFn: () => fetchStatementInvoices({ page }),
+          staleTime: 30_000,
+        })
+        if (result.rows.some((r) => r.invoice_id === invoiceId)) return { page }
+        if (result.rows.length === 0 || page * STATEMENT_PAGE_SIZE >= result.total) return { page: null }
+      }
+    },
+    enabled: invoiceId !== '',
+    staleTime: 30_000,
+  })
+}
+
+/** Fetches one sent or paid invoice's PDF (T26.7); the caller saves it. */
+export function useDownloadInvoicePdf() {
+  return useMutation({ mutationFn: (invoiceId: string) => fetchStatementInvoicePdf(invoiceId) })
 }
 
 export function useSchedule() {
