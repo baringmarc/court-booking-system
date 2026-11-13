@@ -19,7 +19,7 @@ insert into public.bookings (id, reference_code, court_id, user_id, guest_name, 
 
 -- The Storage API enforces storage.objects policies, so clients can write only where a write policy exists.
 -- The only client write policies allowed are the three admin-only venue-media ones (M6, tested in
--- 17_venue_media) and the two payment-qr ones (T11.10, tested in 34_payment_accounts), listed by exact name so that any other write policy, including a bucket-agnostic one
+-- 17_venue_media) the two payment-qr ones (T11.10, tested in 34_payment_accounts) and the two platform-billing ones (T26.3, tested in 84_platform_billing), listed by exact name so that any other write policy, including a bucket-agnostic one
 -- (e.g. "with check (true)") that would open payment-proofs too, fails this check.
 -- (Direct SQL deletes are blocked by Storage itself, so delete is checked through the policy list.)
 select is_empty(
@@ -29,8 +29,9 @@ select is_empty(
        and policyname not in ('Admins upload venue media', 'Admins update venue media', 'Admins delete venue media',
                               'Admins upload payment QR codes', 'Admins delete payment QR codes',
                               'Venue admins upload media', 'Venue admins update media', 'Venue admins delete media',
-                              'Venue admins upload payment QR', 'Venue admins delete payment QR') $$,
-  'no insert, update, delete or all policy lets clients write to storage, except the venue-media and payment-qr admin policies'
+                              'Venue admins upload payment QR', 'Venue admins delete payment QR',
+                              'Platform admins upload billing QR', 'Platform admins delete billing QR') $$,
+  'no insert, update, delete or all policy lets clients write to storage, except the venue-media, payment-qr and platform-billing admin policies'
 );
 select results_eq(
   $$ select public, file_size_limit, allowed_mime_types from storage.buckets where id = 'payment-proofs' $$,

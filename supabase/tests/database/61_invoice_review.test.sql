@@ -101,7 +101,7 @@ select is((select array_agg((e ->> 'slug') || '|' || (e ->> 'billing_month') ord
   array['e2e-ir-bravo|2026-04-01', 'e2e-ir-alpha|2026-03-01', 'e2e-ir-bravo|2026-03-01', 'e2e-ir-alpha|2026-02-01', 'e2e-ir-alpha|2026-01-01'],
   'newest billing month first, then venue name');
 select is((select string_agg(k, ',' order by k) from jsonb_object_keys((select e from jsonb_array_elements(public.invoices_overview()) e where e ->> 'slug' = 'e2e-ir-alpha' limit 1)) k),
-  'adjustment_total,billing_month,due_at,fee_count,fee_total,invoice_id,name,overdue,paid_at,paid_method,paid_reference,sent_at,slug,status,total,venue_id',
+  'adjustment_total,billing_month,due_at,email_count,fee_count,fee_total,invoice_id,last_emailed_at,name,overdue,paid_at,paid_method,paid_reference,sent_at,slug,status,total,venue_id',
   'each element has exactly the documented keys');
 select is(pg_temp.ov('e2e-ir-alpha', '2026-02-01', 'invoice_id'), 'd0000000-0000-0000-0000-0000000061c2', 'invoice_id is the invoice''s id');
 select is(pg_temp.ov('e2e-ir-alpha', '2026-02-01', 'venue_id') || '|' || pg_temp.ov('e2e-ir-alpha', '2026-02-01', 'name'),
@@ -141,7 +141,7 @@ select is(pg_temp.ov('e2e-ir-alpha', '2026-03-01', 'overdue'), 'false', 'with a 
 
 -- ---------------------------------------------------------------- invoice_detail
 select is((select string_agg(k, ',' order by k) from jsonb_object_keys(public.invoice_detail('d0000000-0000-0000-0000-0000000061c2')) k),
-  'adjustment_total,billing_month,due_at,fee_count,fee_total,invoice_id,lines,name,overdue,paid_at,paid_method,paid_reference,sent_at,slug,status,total,venue_id',
+  'adjustment_total,billing_month,due_at,email_count,fee_count,fee_total,invoice_id,last_emailed_at,lines,name,overdue,paid_at,paid_method,paid_reference,sent_at,slug,status,total,venue_id',
   'the detail has the overview keys plus lines');
 select is((public.invoice_detail('d0000000-0000-0000-0000-0000000061c2') ->> 'total')::numeric || '|' || (public.invoice_detail('d0000000-0000-0000-0000-0000000061c2') ->> 'fee_count')
   || '|' || (public.invoice_detail('d0000000-0000-0000-0000-0000000061c2') ->> 'slug'), '20.50|2|e2e-ir-alpha', 'the detail totals match the overview');

@@ -151,7 +151,7 @@ select is(jsonb_array_length(public.invoices_page('e2e-pg-', null, null, 0, -1) 
 -- ---------------------------------------------------------------- platform admin: invoice_detail_page
 select is(pg_temp.err($$select public.invoice_detail_page('d0000000-0000-0000-0000-0000000077ff')$$), 'P0001|invoice_not_found', 'an unknown invoice is invoice_not_found');
 select is((select string_agg(k, ',' order by k) from jsonb_object_keys(public.invoice_detail_page('d0000000-0000-0000-0000-0000000077c2')) k),
-  'adjustment_total,billing_month,due_at,fee_count,fee_total,invoice_id,line_total,lines,name,overdue,paid_at,paid_method,paid_reference,sent_at,slug,status,total,venue_id',
+  'adjustment_total,billing_month,due_at,email_count,fee_count,fee_total,invoice_id,last_emailed_at,line_total,lines,name,overdue,paid_at,paid_method,paid_reference,sent_at,slug,status,total,venue_id',
   'the detail page has the invoice keys plus lines and line_total');
 select is(public.invoice_detail_page('d0000000-0000-0000-0000-0000000077c2', 2, 0) - 'lines' - 'line_total', public.invoice_detail('d0000000-0000-0000-0000-0000000077c2') - 'lines',
   'the invoice header equals the old invoice_detail header, whatever the page');
