@@ -186,7 +186,12 @@ test('an invoice goes from draft to sent to paid, and the venue sees it on its s
     await expect(detail).toContainText('₱10.00')
     await detail.getByRole('button', { name: 'Mark as sent' }).click()
     await expect(detail).toContainText('sent')
-    await detail.getByLabel('Payment method').fill('GCash')
+    // T26.1: the open document view (items, charges unfolded, payment form) is accessible in both themes and fits the screen.
+    await detail.getByText(/^Charges \(/).click()
+    await expect(detail.getByRole('link', { name: 'CB-BCD222' })).toBeVisible()
+    expect(await page.evaluate<number>('document.documentElement.scrollWidth - document.documentElement.clientWidth'), 'invoice overflow').toBeLessThanOrEqual(0)
+    expect(await axeBothSchemes(page), 'invoice axe').toEqual([])
+    await detail.getByLabel('Payment method').selectOption('GCash')
     await detail.getByLabel('Reference').fill('E2E-REF-1')
     await detail.getByRole('button', { name: 'Mark as paid' }).click()
     await expect(detail).toContainText('paid by GCash (E2E-REF-1)')

@@ -233,10 +233,37 @@ describe('Invoice detail panel (was InvoiceDetail)', () => {
   it('on a sent invoice shows the paid form and no Mark as sent, and submits method and reference', async () => {
     const panel = await open({ status: 'sent', sent_at: '2026-03-31T00:00:00Z' }, { status: 'sent' })
     expect(within(panel).queryByRole('button', { name: 'Mark as sent' })).not.toBeInTheDocument()
-    await userEvent.type(within(panel).getByLabelText(/method/i), 'GCash')
+    await userEvent.selectOptions(within(panel).getByLabelText('Payment method'), 'GCash')
     await userEvent.type(within(panel).getByLabelText(/reference/i), 'TX-123')
     await userEvent.click(within(panel).getByRole('button', { name: 'Mark as paid' }))
     expect(mocks.paid).toHaveBeenCalledWith({ invoiceId: 'i1', method: 'GCash', reference: 'TX-123' })
+  })
+
+  it('offers GCash, Bank transfer and Other, and Other asks for a name that is submitted as the method', async () => {
+    const panel = await open({ status: 'sent', sent_at: '2026-03-31T00:00:00Z' }, { status: 'sent' })
+    const method = within(panel).getByLabelText('Payment method')
+    expect(within(method).getAllByRole('option').map((o) => o.textContent)).toEqual(['GCash', 'Bank transfer', 'Other'])
+    expect(within(panel).queryByLabelText('Other method name')).not.toBeInTheDocument()
+    await userEvent.selectOptions(method, 'Other')
+    await userEvent.type(within(panel).getByLabelText('Other method name'), 'Cash')
+    await userEvent.click(within(panel).getByRole('button', { name: 'Mark as paid' }))
+    expect(mocks.paid).toHaveBeenCalledWith({ invoiceId: 'i1', method: 'Cash', reference: '' })
+  })
+
+  it('lays the items out as a table: fees as quantity x rate, the cancellation credit, then the total', async () => {
+    const panel = await open()
+    const items = within(panel).getByRole('table', { name: 'Invoice items' })
+    const rows = within(items).getAllByRole('row').map((row) => Array.from(row.children).map((c) => c.textContent))
+    expect(rows[0]).toEqual(['Item', 'Qty', 'Rate', 'Amount'])
+    expect(rows[1]).toEqual([expect.stringMatching(/^Booking fees.*2 booking fees/), '2', expect.stringMatching(/₱\s?12\.75/), expect.stringMatching(/₱\s?25\.50/)])
+    expect(rows[2]).toEqual([expect.stringMatching(/^Venue cancellations/), '', '', expect.stringMatching(/5\.00/)])
+    expect(rows[3]).toEqual(['Total', expect.stringMatching(/₱\s?20\.50/)])
+  })
+
+  it('folds the charges into a "Charges (n)" disclosure and omits the credit row when there is none', async () => {
+    const panel = await open({ adjustment_total: 0, line_total: 3 })
+    expect(within(panel).getByText('Charges (3)').closest('details')).not.toHaveAttribute('open')
+    expect(within(panel).queryByText(/^Venue cancellations/)).not.toBeInTheDocument()
   })
 
   it('shows neither action on a paid invoice', async () => {

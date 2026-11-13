@@ -1232,3 +1232,30 @@ details[open]::details-content { block-size: auto; }
 .closure-summary h4 { margin: 4px 0 0; }
 .closure-summary p { margin: 0; }
 .closure-summary a { overflow-wrap: anywhere; }
+
+/* T26.1: the invoice as a document, like the PDF it will become. */
+.invoice-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.invoice-head h3, .invoice-head p { margin: 0; }
+.invoice-brand { font-size: 0.75rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.invoice-dates { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: 8px 16px; margin: 0; padding: 12px 0; border-block: 1px solid var(--border); }
+.invoice-dates dt { font-size: 0.75rem; color: var(--muted); }
+.invoice-dates dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+.invoice-items, .invoice-lines { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.invoice-items th, .invoice-items td, .invoice-lines th, .invoice-lines td { padding: 8px 6px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--border); }
+.invoice-items thead th, .invoice-lines thead th { font-size: 0.75rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.invoice-items .num, .invoice-lines .num { text-align: right; white-space: nowrap; }
+.invoice-items tfoot th { text-align: right; }
+.invoice-item-note { display: block; }
+.invoice-charges > summary { cursor: pointer; font-weight: 600; padding: 6px 0; }
+.invoice-charges .invoice-lines { margin-top: 6px; }
+.invoice-payment { display: flex; flex-direction: column; gap: 12px; padding: 12px 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--bg); }
+.invoice-section-title { margin: 0; font-family: var(--sans); font-size: 0.75rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.invoice-payment-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: 12px; }
+.invoice-payment-fields .field { margin: 0; min-width: 0; }
+/* Wrap only between words: dates and booking references stay whole; at phone width the tables tighten. */
+.invoice-items td, .invoice-lines td { overflow-wrap: normal; word-break: normal; }
+.invoice-lines td:nth-child(2) { white-space: nowrap; }
+@media (max-width: 480px) {
+  .invoice-items, .invoice-lines { font-size: 0.8rem; }
+  .invoice-items th, .invoice-items td, .invoice-lines th, .invoice-lines td { padding: 6px 4px; }
+}
