@@ -16,6 +16,7 @@ import { useBooking, useCancelBooking, useStartPaymongoCheckout, useSubmitPaymen
 import { PaymongoReturnNotice, PayOnline, type PayOnlineState } from './PayOnline'
 import { paymongoReturnState, readPaidParam, readReturnState, recallCheckoutStart, returnPollMs, tokenToRestore } from './paymongoReturn'
 import { ProofForm } from './ProofForm'
+import { ACCOUNT_PREFIX } from './proofInput'
 import { useNow } from './useNow'
 import { errorMessage } from '../../lib/errors'
 
@@ -31,6 +32,8 @@ export function BookingPage() {
   const restoredToken = tokenToRestore(ref, token, paidInUrl)
   const [returnedAt] = useState(() => Date.now())
   const [checkoutStartedAt] = useState(() => recallCheckoutStart(ref))
+  // "Paid with", shared by the payment account cards and the proof form (T27.4); '' until the player picks one.
+  const [paidWith, setPaidWith] = useState('')
   const { user, isAdmin, loading: authLoading } = useAuth()
   const settings = useVenueSettings()
   // Without a token, only a logged-in owner (or admin) can read the booking.
@@ -93,10 +96,16 @@ export function BookingPage() {
               || (isAdmin && token === null && booking.data.user_id !== user?.id)
               ? undefined
               : <PayOnlineButton reference={booking.data.reference_code} token={token} />}
-            paymentAccounts={<PaymentAccountList />}
+            paymentAccounts={
+              <PaymentAccountList
+                selectedId={paidWith.startsWith(ACCOUNT_PREFIX) ? paidWith.slice(ACCOUNT_PREFIX.length) : null}
+                onSelect={(id) => setPaidWith(`${ACCOUNT_PREFIX}${id}`)}
+              />
+            }
             proofForm={
               // A new attempt round (after a rejection) remounts this, clearing any earlier upload error.
-              <ProofUpload key={booking.data.payments.length} booking={booking.data} token={token} currency={settings.data.currency} />
+              <ProofUpload key={booking.data.payments.length} booking={booking.data} token={token} currency={settings.data.currency}
+                method={paidWith} onMethodChange={setPaidWith} />
             }
             saveLink={token !== null ? <SaveLinkCard url={window.location.origin + location.pathname + location.hash} /> : undefined}
             venueLocation={<VenueLocation address={settings.data.address} mapsUrl={settings.data.maps_url} />}
@@ -111,7 +120,9 @@ export function BookingPage() {
   )
 }
 
-function ProofUpload({ booking, token, currency }: { booking: BookingDetail; token: string | null; currency: string }) {
+function ProofUpload({ booking, token, currency, method, onMethodChange }: {
+  booking: BookingDetail; token: string | null; currency: string; method: string; onMethodChange: (method: string) => void
+}) {
   const submitProof = useSubmitPaymentProof(booking.reference_code, token)
   return (
     <ProofForm
@@ -120,6 +131,8 @@ function ProofUpload({ booking, token, currency }: { booking: BookingDetail; tok
       pending={submitProof.isPending}
       error={submitProof.isError ? submitProof.error : null}
       onSubmit={(values) => submitProof.mutate(values)}
+      method={method}
+      onMethodChange={onMethodChange}
     />
   )
 }

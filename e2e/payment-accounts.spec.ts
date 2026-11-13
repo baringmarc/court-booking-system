@@ -48,6 +48,9 @@ test('an admin adds a payment account with a QR code, and a guest sees it while 
   await pay.getByRole('button', { name: 'Reserve and continue to payment' }).click()
   const section = pay.getByRole('region', { name: /Pay within/ })
   const account = section.getByRole('article', { name: LABEL })
+  // T27.4: the venue has no other account (the local seed has none), so this one is chosen from the start. With 2+
+  // accounts the details would wait for "Pay with <label>".
+  await expect(account.getByRole('button', { pressed: true })).toHaveText('Selected')
   await expect(account.getByText('0917 000 1111')).toBeVisible()
   const qr = account.getByRole('img', { name: `QR code for ${LABEL}` })
   await expect(qr).toBeVisible()
