@@ -459,3 +459,9 @@ verify_jwt = false
 # Called by the platform console with the admin's session; the delete runs as the caller (delete_unused_venue checks
 # platform admin itself) and the file cleanup with the service role.
 verify_jwt = true
+
+[functions.invoice-pdf]
+# Called by the platform console (send, preview) and the venue's Reports page (download) with the caller's session;
+# the function checks platform_admins and venue_members itself. The fonts and logo for the PDF are static files.
+verify_jwt = true
+static_files = ["./functions/invoice-pdf/assets/*"]

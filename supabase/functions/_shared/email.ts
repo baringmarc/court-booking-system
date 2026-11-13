@@ -72,10 +72,15 @@ export function fromFor(venueName: string | null | undefined, address: string | 
 }
 
 export type EmailAttachment = { filename: string; contentBase64: string; contentType: string }
-/** `replyTo` and `attachments` are optional (owner emails, T17.25); without them the request bodies are unchanged. */
-export type OutgoingEmail = { to: string; subject: string; html: string; text: string; replyTo?: string; attachments?: EmailAttachment[] }
+/**
+ * `replyTo` and `attachments` are optional (owner emails, T17.25); without them the request bodies are unchanged. `to`
+ * may list several addresses for one message (the invoice email to every owner, T26.4).
+ */
+export type OutgoingEmail = { to: string | string[]; subject: string; html: string; text: string; replyTo?: string; attachments?: EmailAttachment[] }
 export type SendResult = { ok: true; note?: string } | { ok: false; error: string }
 type FetchLike = (url: string, init: { method: string; headers: Record<string, string>; body: string }) => Promise<{ ok: boolean; status: number; text(): Promise<string> }>
+
+const recipients = (to: string | string[]) => (Array.isArray(to) ? to : [to])
 
 /**
  * Sends one email. The idempotency key is the outbox row id: a retry after a lost response can't send twice through
@@ -100,7 +105,7 @@ export async function sendEmail(
         },
         body: JSON.stringify({
           from: from.name ? `${from.name} <${from.email}>` : from.email,
-          to: [email.to],
+          to: recipients(email.to),
           subject: email.subject,
           html: email.html,
           text: email.text,
@@ -121,7 +126,7 @@ export async function sendEmail(
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         From: { Email: from.email, Name: from.name },
-        To: [{ Email: email.to }],
+        To: recipients(email.to).map((Email) => ({ Email })),
         Subject: email.subject,
         HTML: email.html,
         Text: email.text,
