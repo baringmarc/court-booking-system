@@ -9,10 +9,12 @@ type Props = {
   pending: boolean
   /** The venue's waiver (T11.20); blank (the default) means none to accept. */
   waiverText?: string
+  /** The venue's `cancel_cutoff_hours` (0–168, T27.2); omitted means no disclosure. */
+  cancelCutoffHours?: number
   onSubmit: (contact: Contact, waiverAccepted: boolean) => void
 }
 
-export function CheckoutForm({ initial, isGuest, pending, waiverText = '', onSubmit }: Props) {
+export function CheckoutForm({ initial, isGuest, pending, waiverText = '', cancelCutoffHours, onSubmit }: Props) {
   const [contact, setContact] = useState<Contact>(initial)
   const [errors, setErrors] = useState<ContactErrors>({})
   const hasWaiver = waiverText.trim() !== ''
@@ -81,9 +83,19 @@ export function CheckoutForm({ initial, isGuest, pending, waiverText = '', onSub
           {waiverError && <p id="checkout-waiver-error" className="form-error">Tick the box to accept the waiver.</p>}
         </section>
       )}
+      {cancelCutoffHours !== undefined && (
+        <p className="muted small">
+          {cancellationDisclosure(cancelCutoffHours)} Refunds for paid bookings are arranged with the venue.
+        </p>
+      )}
       <button type="submit" className="btn btn-block" disabled={pending}>
-        {pending ? 'Reserving…' : 'Confirm booking'}
+        {pending ? 'Reserving…' : 'Reserve and continue to payment'}
       </button>
     </form>
   )
+}
+
+function cancellationDisclosure(hours: number) {
+  if (hours <= 0) return 'Free online cancellation until your start time.'
+  return `Free online cancellation until ${hours} ${hours === 1 ? 'hour' : 'hours'} before your start time.`
 }

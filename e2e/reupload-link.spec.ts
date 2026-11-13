@@ -15,7 +15,7 @@ test('a guest re-uploads a proof through the link in the rejection email', async
   await page.getByLabel('Name').fill(`${E2E_PREFIX} Reupload Guest`)
   const guestEmail = `e2e-reupload-${Date.now()}@example.com`
   await page.getByLabel('Email').fill(guestEmail)
-  await page.getByRole('button', { name: 'Confirm booking' }).click()
+  await page.getByRole('button', { name: 'Reserve and continue to payment' }).click()
   await expect(page.getByRole('heading', { name: 'Booking reserved' })).toBeVisible()
   const reference = new URL(page.url()).pathname.split('/').pop()!
   await uploadProof(page)

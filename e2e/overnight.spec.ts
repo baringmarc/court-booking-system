@@ -64,7 +64,7 @@ test('an admin opens a day until 2 AM and a guest books an after-midnight slot',
   await guest.getByLabel('Email').fill(`e2e-night-${Date.now()}@example.com`)
   await guest.getByLabel('Mobile number (optional)').fill('0917 000 2468')
   await guest.getByLabel('I have read and accept the waiver').check()
-  await guest.getByRole('button', { name: 'Confirm booking' }).click()
+  await guest.getByRole('button', { name: 'Reserve and continue to payment' }).click()
   await expect(guest.getByRole('heading', { name: 'Booking reserved' })).toBeVisible()
 
   // Booked under that day: the 1 AM slot now shows as booked when browsing that date.

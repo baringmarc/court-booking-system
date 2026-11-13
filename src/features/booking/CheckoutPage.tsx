@@ -125,7 +125,7 @@ function Checkout({ choice, settings, court, hours }: { choice: CheckoutParams; 
           <div><dt>Total</dt><dd>{formatMoney(courtPrice + fee, settings.currency)}</dd></div>
         </dl>
         <p className="muted small">
-          After you confirm, we hold these times for {settings.payment_hold_minutes} minutes while you pay by GCash, Maya or bank transfer.
+          After you reserve, we hold these times for {settings.payment_hold_minutes} minutes while you pay by GCash, Maya or bank transfer.
         </p>
         <Link to={gridLink} className="small">Change time</Link>
       </section>
@@ -146,7 +146,7 @@ function Checkout({ choice, settings, court, hours }: { choice: CheckoutParams; 
           </p>
         )}
         <CheckoutForm key={user?.id ?? 'guest'} initial={initial} isGuest={isGuest} pending={create.isPending}
-          waiverText={settings.waiver_text} onSubmit={handleSubmit} />
+          waiverText={settings.waiver_text} cancelCutoffHours={settings.cancel_cutoff_hours} onSubmit={handleSubmit} />
         <CancellationPolicyLink />
       </section>
     </div>

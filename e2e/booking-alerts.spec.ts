@@ -21,7 +21,7 @@ test('the admin sees a new booking arrive without reloading', async ({ page, bro
   const guestName = `${E2E_PREFIX} Alert Guest`
   await guest.getByLabel('Name').fill(guestName)
   await guest.getByLabel('Email').fill(`e2e-alert-${Date.now()}@example.com`)
-  await guest.getByRole('button', { name: 'Confirm booking' }).click()
+  await guest.getByRole('button', { name: 'Reserve and continue to payment' }).click()
   await expect(guest.getByRole('heading', { name: 'Booking reserved' })).toBeVisible()
   const reference = new URL(guest.url()).pathname.split('/').pop()!
   await uploadProof(guest)

@@ -46,7 +46,7 @@ if (!LINKS_ONLY) {
     await page.getByLabel('Email').fill(`delivered+smoke-${Date.now()}@resend.dev`)
     // "Phone" until T11.18 is on production, then "Mobile number (optional)".
     await page.getByLabel(/^(Phone|Mobile number)/).fill('0917 000 0000')
-    await page.getByRole('button', { name: 'Confirm booking' }).click()
+    await page.getByRole('button', { name: 'Reserve and continue to payment' }).click()
     await page.getByRole('heading', { name: 'Booking reserved' }).waitFor({ timeout: 20_000 })
     check(/\/booking\/CB-[A-Z0-9]{6}#token=/.test(page.url()), `guest booked ${slotName} on ${date}`)
     const link = page.url()

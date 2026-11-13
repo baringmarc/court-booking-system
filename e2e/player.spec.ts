@@ -23,7 +23,9 @@ test('a signed-in player books with prefilled details and sees it without a toke
   await expect(page.getByLabel('Name')).toHaveValue(`${E2E_PREFIX} Player`)
   await expect(page.getByLabel('Email')).toHaveValue(email)
   await expect(page.getByLabel('Email')).toHaveAttribute('readonly', '')
-  await page.getByRole('button', { name: 'Confirm booking' }).click()
+  await expect(page.getByText('Free online cancellation until 1 hour before your start time')).toBeVisible()
+  await expect(page.getByText('Refunds for paid bookings are arranged with the venue.')).toBeVisible()
+  await page.getByRole('button', { name: 'Reserve and continue to payment' }).click()
 
   await expect(page.getByRole('heading', { name: 'Booking reserved' })).toBeVisible()
   await expect(page).toHaveURL(/\/booking\/CB-[A-Z0-9]{6}$/)

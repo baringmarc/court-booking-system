@@ -82,7 +82,7 @@ async function fillAndConfirm(tick: boolean) {
   await userEvent.type(await screen.findByLabelText('Name'), 'Gina Guest')
   await userEvent.type(screen.getByLabelText('Email'), 'gina@example.com')
   if (tick) await userEvent.click(screen.getByRole('checkbox', { name: 'I have read and accept the waiver' }))
-  await userEvent.click(screen.getByRole('button', { name: 'Confirm booking' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Reserve and continue to payment' }))
 }
 
 describe('CheckoutPage waiver (T11.20)', () => {
@@ -111,5 +111,11 @@ describe('CheckoutPage waiver (T11.20)', () => {
     await fillAndConfirm(false)
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
     expect(createBooking).toHaveBeenCalledWith(expect.objectContaining({ waiverAccepted: false }))
+  })
+
+  it("passes the venue's cancel_cutoff_hours to the checkout disclosure (T27.2)", async () => {
+    vi.mocked(fetchVenueSettings).mockResolvedValue({ ...settings, cancel_cutoff_hours: 24 } as VenueSettings)
+    renderCheckout(NIGHT[0].slot_start, 2)
+    expect(await screen.findByText(/Free online cancellation until 24 hours before your start time/)).toBeInTheDocument()
   })
 })

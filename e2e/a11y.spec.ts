@@ -53,8 +53,9 @@ test('public and player pages have no serious accessibility violations', async (
   await page.getByRole('button', { name: 'Continue' }).click()
   await expect(page.getByRole('heading', { name: 'Checkout' })).toBeVisible()
   await page.getByLabel('Name').fill(`${E2E_PREFIX} A11y`)
+  await expect(page.getByText('Free online cancellation until 1 hour before your start time')).toBeVisible()
   await checkPage(page, 'checkout')
-  await page.getByRole('button', { name: 'Confirm booking' }).click()
+  await page.getByRole('button', { name: 'Reserve and continue to payment' }).click()
 
   await expect(page.getByRole('heading', { name: 'Booking reserved' })).toBeVisible()
   await checkPage(page, 'booking')
@@ -69,8 +70,9 @@ test('the guest booking page (with its private link) has no serious accessibilit
   await page.getByLabel('Name').fill(`${E2E_PREFIX} A11y Guest`)
   await page.getByLabel('Email').fill(`e2e-a11y-${Date.now()}@example.com`)
   await page.getByLabel('Mobile number (optional)').fill('0917 000 4321')
+  await expect(page.getByText('Free online cancellation until 1 hour before your start time')).toBeVisible()
   await checkPage(page, 'guest checkout')
-  await page.getByRole('button', { name: 'Confirm booking' }).click()
+  await page.getByRole('button', { name: 'Reserve and continue to payment' }).click()
   await expect(page.getByRole('heading', { name: 'Save this link' })).toBeVisible()
   await checkPage(page, 'guest booking')
 

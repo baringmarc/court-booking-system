@@ -20,7 +20,7 @@ test.describe.serial('online payments off', () => {
     await pickFirstFreeSlot(page, { date: venueDate(10), sport: 'tennis', court: 'Tennis Court' })
     await page.getByLabel('Name').fill(`${E2E_PREFIX} Manual Payer`)
     await page.getByLabel('Email').fill(`e2e-manual-${Date.now()}@example.com`)
-    await page.getByRole('button', { name: 'Confirm booking' }).click()
+    await page.getByRole('button', { name: 'Reserve and continue to payment' }).click()
     await expect(page.getByRole('heading', { name: 'Booking reserved' })).toBeVisible()
 
     await expect(page.getByRole('button', { name: 'Pay online with PayMongo' })).toHaveCount(0)

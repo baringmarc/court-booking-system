@@ -86,7 +86,7 @@ test('a promo set by an admin shows on the slot, at checkout and on the booking;
   await guest.getByLabel('Email').fill(`e2e-promo-${Date.now()}@example.com`)
   await guest.getByLabel('Mobile number (optional)').fill('0917 000 1357')
   await guest.getByLabel('I have read and accept the waiver').check()
-  await guest.getByRole('button', { name: 'Confirm booking' }).click()
+  await guest.getByRole('button', { name: 'Reserve and continue to payment' }).click()
   await expect(guest.getByRole('heading', { name: 'Booking reserved' })).toBeVisible()
   await expect(guest.getByRole('term').filter({ hasText: 'Court price' }).locator('..')).toContainText('₱500')
 

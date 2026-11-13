@@ -23,7 +23,7 @@ test('a guest pays with a payment account and the admin sees its label in the re
   await pickFirstFreeSlot(page, { date: venueDate(12), sport: 'pickleball', court: 'Pickleball 2' })
   await page.getByLabel('Name').fill(`${E2E_PREFIX} Paid With Guest`)
   await page.getByLabel('Email').fill(`e2e-paidwith-${Date.now()}@example.com`)
-  await page.getByRole('button', { name: 'Confirm booking' }).click()
+  await page.getByRole('button', { name: 'Reserve and continue to payment' }).click()
   await expect(page.getByRole('heading', { name: 'Booking reserved' })).toBeVisible()
   const reference = new URL(page.url()).pathname.split('/').pop()!
 

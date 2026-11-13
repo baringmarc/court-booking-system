@@ -55,7 +55,7 @@ test.describe.serial('guest booking and admin review', () => {
     const guestEmail = `e2e-guest-${Date.now()}@example.com`
     await page.getByLabel('Email').fill(guestEmail)
     await page.getByLabel('Mobile number (optional)').fill('+63 917 123 4567')
-    await page.getByRole('button', { name: 'Confirm booking' }).click()
+    await page.getByRole('button', { name: 'Reserve and continue to payment' }).click()
 
     await expect(page.getByRole('heading', { name: 'Booking reserved' })).toBeVisible()
     // The private token travels in the fragment, which browsers never send to a server.
@@ -145,7 +145,7 @@ test.describe.serial('guest booking and admin review', () => {
     await pickFirstFreeSlot(page, { date: venueDate(9), sport: 'pickleball', court: 'Pickleball 1' })
     await page.getByLabel('Name').fill(`${E2E_PREFIX} No Phone`)
     await page.getByLabel('Email').fill(`e2e-nophone-${Date.now()}@example.com`)
-    await page.getByRole('button', { name: 'Confirm booking' }).click()
+    await page.getByRole('button', { name: 'Reserve and continue to payment' }).click()
     await expect(page.getByRole('heading', { name: 'Booking reserved' })).toBeVisible()
     const ref = new URL(page.url()).pathname.split('/').pop()!
     const { data } = await serviceClient().from('bookings').select('guest_phone').eq('reference_code', ref).single().throwOnError()
