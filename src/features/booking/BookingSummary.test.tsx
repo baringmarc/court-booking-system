@@ -52,7 +52,7 @@ describe('BookingSummary', () => {
 
   it('shows confirmed bookings without payment instructions', () => {
     renderAt('2030-01-07T02:30:00.000Z', { status: 'confirmed', expires_at: null })
-    expect(screen.getByText('Confirmed')).toBeInTheDocument()
+    expect(screen.getByText('Confirmed', { selector: '.badge' })).toBeInTheDocument()
     expect(screen.queryByText('GCash')).not.toBeInTheDocument()
   })
 
@@ -105,7 +105,7 @@ describe('BookingSummary', () => {
         timeZone="Asia/Manila" currency="PHP" now={new Date('2030-01-07T02:30:00.000Z')}
         proofForm={<form aria-label="Upload proof of payment" />} />,
     )
-    expect(screen.getByText(/We're checking your payment/)).toBeInTheDocument()
+    expect(screen.getByText(/The venue checks payments by hand/)).toBeInTheDocument()
     expect(screen.queryByRole('form', { name: 'Upload proof of payment' })).not.toBeInTheDocument()
   })
 

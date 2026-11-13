@@ -543,6 +543,14 @@ button.day:focus-visible, .slot:focus-visible { outline: 2px solid var(--accent)
 
 /* Booking detail */
 .card-highlight { border-color: var(--accent); }
+/* T27.3: Reserved → Payment sent → Confirmed on /booking/:ref. The current step is bold and says so to screen readers. */
+.booking-steps { display: flex; flex-wrap: wrap; gap: 0.25rem 0.5rem; margin: 0; padding: 0; list-style: none; font-size: 0.875rem; color: var(--muted); }
+.booking-steps li { display: flex; align-items: center; gap: 0.5rem; }
+.booking-steps li + li::before { content: '→' / ''; color: var(--muted); }
+.booking-steps li.done { color: var(--text); }
+.booking-steps li.current { color: var(--text); font-weight: 700; text-decoration: underline; text-underline-offset: 0.25em; }
+.save-link { gap: 0.5rem; }
+
 .copy-row { display: flex; gap: 8px; }
 .copy-row input {
   flex: 1; min-width: 0; font: inherit; font-size: 0.85rem; padding: 6px 10px; border-radius: 8px;

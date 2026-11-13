@@ -79,7 +79,6 @@ export function BookingPage() {
         )
       ) : booking.data ? (
         <div className="stack">
-          {token !== null && <SaveLinkCard prominent={justBooked} />}
           <BookingSummary
             booking={booking.data}
             paymentInstructions={settings.data.payment_instructions}
@@ -99,12 +98,13 @@ export function BookingPage() {
               // A new attempt round (after a rejection) remounts this, clearing any earlier upload error.
               <ProofUpload key={booking.data.payments.length} booking={booking.data} token={token} currency={settings.data.currency} />
             }
+            saveLink={token !== null ? <SaveLinkCard url={window.location.origin + location.pathname + location.hash} /> : undefined}
+            venueLocation={<VenueLocation address={settings.data.address} mapsUrl={settings.data.maps_url} />}
             cancelSection={
               <CancelSection booking={booking.data} token={token} timeZone={settings.data.timezone}
                 cutoffHours={settings.data.cancel_cutoff_hours} now={now} />
             }
           />
-          <VenueLocation address={settings.data.address} mapsUrl={settings.data.maps_url} />
         </div>
       ) : null}
     </section>
@@ -164,9 +164,8 @@ function CancelSection({ booking, token, timeZone, cutoffHours, now }: {
 }
 
 /** Guests have no account: this private link is the only way back to the booking. */
-function SaveLinkCard({ prominent }: { prominent: boolean }) {
+function SaveLinkCard({ url }: { url: string }) {
   const [copied, setCopied] = useState(false)
-  const url = window.location.href
 
   async function copy() {
     try {
@@ -178,8 +177,8 @@ function SaveLinkCard({ prominent }: { prominent: boolean }) {
   }
 
   return (
-    <section className={`card stack${prominent ? ' card-highlight' : ''}`}>
-      <h2 className={`card-head${prominent ? ' rose' : ''}`}>Save this link</h2>
+    <section className="card stack save-link">
+      <h2 className="card-head">Save this link</h2>
       <p className="small">It's the only way to view and pay for this booking without an account. Bookmark it or copy it somewhere safe.</p>
       <div className="copy-row">
         <input readOnly value={url} aria-label="Private booking link" onFocus={(e) => e.target.select()} />

@@ -58,7 +58,7 @@ if (!LINKS_ONLY) {
       buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64'),
     })
     await page.getByRole('button', { name: 'Submit proof of payment' }).click()
-    await page.getByText(/We're checking your payment/).waitFor({ timeout: 20_000 })
+    await page.getByText(/The venue checks payments by hand/).waitFor({ timeout: 20_000 })
     check(true, 'proof of payment uploaded (Edge Function + Storage)')
     console.log(`\nReference: ${new URL(link).pathname.split('/').pop()}\nPrivate link: ${link}`)
   } catch (error) {

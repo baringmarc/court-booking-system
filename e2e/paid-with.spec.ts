@@ -36,7 +36,7 @@ test('a guest pays with a payment account and the admin sees its label in the re
   expect(await page.evaluate<boolean>('document.documentElement.scrollWidth <= window.innerWidth')).toBe(true)
   expect(await axeBothSchemes(page, 'form[aria-label="Upload proof of payment"]')).toEqual([])
   await page.getByRole('button', { name: 'Submit proof of payment' }).click()
-  await expect(page.getByText(/We're checking your payment/)).toBeVisible()
+  await expect(page.getByText(/The venue checks payments by hand/)).toBeVisible()
   // The guest's payment history names the account too.
   await expect(page.getByText(new RegExp(`${LABEL} · `))).toBeVisible()
 
