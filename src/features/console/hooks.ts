@@ -4,7 +4,10 @@ import {
   createVenue, deleteLead, deleteUnusedVenue, fetchInvoiceDetailPage, fetchVenueDeletionPreview, retryVenueFileCleanup, fetchInvoicesPage, fetchIsPlatformAdmin, fetchLeadsPage, fetchReviewsPage, fetchVenuesPage,
   inviteVenueOwner, inviteVenueStaff, markInvoicePaid, markInvoiceSent, resendOwnerInvite, fetchShowcaseApprovals, setVenueShowcaseApproval, fetchOnlinePayments, setOnlinePayments, fetchWalkIns, setWalkIns,
   reactivateVenue, setReviewApproved, suspendVenue, updateLead, type Lead, type LeadStatus, type ReviewFilter,
+  deletePlatformPaymentAccount, fetchPlatformPaymentAccounts, platformQrUrl, reorderPlatformPaymentAccounts, savePlatformPaymentAccount,
+  type PlatformPaymentAccount,
 } from './api'
+import type { PaymentAccountInput, QrChange } from '../admin/api'
 
 export function useIsPlatformAdmin(userId: string | undefined) {
   const query = useQuery({
@@ -211,5 +214,67 @@ export function useSetReviewApproved() {
   return useMutation({
     mutationFn: ({ id, approved }: { id: string; approved: boolean }) => setReviewApproved(id, approved),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['reviews'] }),
+  })
+}
+
+// Plotline's payment accounts (T26.5).
+const platformAccountsKey = ['platform-payment-accounts'] as const
+
+export function usePlatformPaymentAccounts() {
+  return useQuery({ queryKey: platformAccountsKey, queryFn: fetchPlatformPaymentAccounts })
+}
+
+export function useSavePlatformPaymentAccount() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ existing, input, qr }: { existing: PlatformPaymentAccount | null; input: PaymentAccountInput; qr: QrChange }) =>
+      savePlatformPaymentAccount(existing, input, qr),
+    onSettled: () => qc.invalidateQueries({ queryKey: platformAccountsKey }),
+  })
+}
+
+export function useDeletePlatformPaymentAccount() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (account: PlatformPaymentAccount) => deletePlatformPaymentAccount(account),
+    onSettled: () => qc.invalidateQueries({ queryKey: platformAccountsKey }),
+  })
+}
+
+const REORDER_PLATFORM_ACCOUNTS_KEY = ['reorder-platform-payment-accounts'] as const
+
+/** As the venue's useReorderPaymentAccounts: shown at once, saved one at a time; only the last pending save refreshes or rolls back. */
+export function useReorderPlatformPaymentAccounts() {
+  const qc = useQueryClient()
+  const isLast = () => qc.isMutating({ mutationKey: REORDER_PLATFORM_ACCOUNTS_KEY }) <= 1
+  return useMutation({
+    mutationKey: REORDER_PLATFORM_ACCOUNTS_KEY,
+    scope: { id: 'reorder-platform-payment-accounts' },
+    mutationFn: (ids: string[]) => reorderPlatformPaymentAccounts(ids),
+    onMutate: (ids) => {
+      const previous = qc.getQueryData<PlatformPaymentAccount[]>(platformAccountsKey)
+      if (previous) {
+        const byId = new Map(previous.map((a) => [a.id, a]))
+        qc.setQueryData(platformAccountsKey, ids.flatMap((id, i) => (byId.has(id) ? [{ ...byId.get(id)!, position: i }] : [])))
+      }
+      void qc.cancelQueries({ queryKey: platformAccountsKey }, { revert: false })
+      return { previous }
+    },
+    onError: (_error, _ids, context) => {
+      if (isLast() && context?.previous) qc.setQueryData(platformAccountsKey, context.previous)
+    },
+    onSettled: () => {
+      if (isLast()) return qc.invalidateQueries({ queryKey: platformAccountsKey })
+    },
+  })
+}
+
+/** A signed URL for a private billing QR; refreshed well before its hour runs out. */
+export function usePlatformQrUrl(path: string | null) {
+  return useQuery({
+    queryKey: ['platform-qr-url', path],
+    queryFn: () => platformQrUrl(path!),
+    enabled: path !== null,
+    staleTime: 30 * 60 * 1000,
   })
 }

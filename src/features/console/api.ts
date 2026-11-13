@@ -2,6 +2,9 @@ import { FunctionsHttpError } from '@supabase/supabase-js'
 import type { Database, Tables } from '../../lib/database.types'
 import { ApiError, unwrap } from '../../lib/queryClient'
 import { supabase } from '../../lib/supabase'
+import type { PaymentAccountInput, QrChange } from '../admin/api'
+import { clearStoredMedia, replaceStoredMedia } from '../admin/mediaReplace'
+import { qrStorageMessage } from '../admin/qrImage'
 
 /** Whether the user is a platform admin (RLS lets them read only their own `platform_admins` row). */
 export async function fetchIsPlatformAdmin(userId: string): Promise<boolean> {
@@ -316,4 +319,72 @@ export async function fetchReviews(): Promise<Review[]> {
 /** Approving shows a review on the marketing site; hiding takes it down. Platform admins only (column grant). */
 export async function setReviewApproved(id: string, approved: boolean): Promise<void> {
   unwrap(await supabase.from('reviews').update({ approved }).eq('id', id))
+}
+
+// --- Plotline's payment accounts (T26.5): shown on every invoice PDF; the QR images live in the private
+// platform-billing bucket at a top-level `<uuid>.png` (T26.3's storage policy). Platform admins only (RLS).
+
+export type PlatformPaymentAccount = Pick<Tables<'platform_payment_accounts'>, 'id' | 'label' | 'account_name' | 'account_number' | 'qr_path' | 'position'>
+export const PLATFORM_BILLING_BUCKET = 'platform-billing'
+
+export async function fetchPlatformPaymentAccounts(): Promise<PlatformPaymentAccount[]> {
+  return unwrap(await supabase.from('platform_payment_accounts')
+    .select('id, label, account_name, account_number, qr_path, position').order('position'))
+}
+
+async function uploadPlatformQr(image: Blob) {
+  const path = `${crypto.randomUUID()}.png`
+  const { error } = await supabase.storage
+    .from(PLATFORM_BILLING_BUCKET)
+    .upload(path, image, { contentType: 'image/png', upsert: false })
+  if (error) throw new ApiError(qrStorageMessage(error))
+  return path
+}
+
+async function removePlatformQr(path: string) {
+  const { data, error } = await supabase.storage.from(PLATFORM_BILLING_BUCKET).remove([path])
+  if (error) throw new ApiError(qrStorageMessage(error))
+  if (!data?.length) throw new ApiError(`The file ${path} was not deleted.`)
+}
+
+/** As the venue's savePaymentAccount: a new QR is uploaded before the row is saved, an old one removed after. `position` is never sent. */
+export async function savePlatformPaymentAccount(
+  existing: { id: string; qr_path: string | null } | null, input: PaymentAccountInput, qr: QrChange,
+) {
+  const insert = async (qr_path: string | null) =>
+    unwrap(await supabase.from('platform_payment_accounts').insert({ ...input, qr_path }).select('id').single())
+  const update = async (patch: { qr_path?: string | null }) =>
+    unwrap(await supabase.from('platform_payment_accounts').update({ ...input, ...patch }).eq('id', existing!.id).select('id').single())
+
+  if (!existing) {
+    if (qr.kind !== 'set') return insert(null)
+    return replaceStoredMedia({ oldPath: null, upload: () => uploadPlatformQr(qr.image), save: insert, remove: removePlatformQr })
+  }
+  if (qr.kind === 'set') {
+    return replaceStoredMedia({
+      oldPath: existing.qr_path, upload: () => uploadPlatformQr(qr.image), save: (qr_path) => update({ qr_path }), remove: removePlatformQr,
+    })
+  }
+  if (qr.kind === 'clear' && existing.qr_path) {
+    return clearStoredMedia({ oldPath: existing.qr_path, save: () => update({ qr_path: null }), remove: removePlatformQr })
+  }
+  return update({})
+}
+
+/** Deletes the account, then its QR image (best effort). */
+export async function deletePlatformPaymentAccount(account: { id: string; qr_path: string | null }) {
+  unwrap(await supabase.from('platform_payment_accounts').delete().eq('id', account.id))
+  if (account.qr_path) await removePlatformQr(account.qr_path).catch(() => {})
+}
+
+/** Stores every account in this order (reorder_platform_payment_accounts, T26.3). */
+export async function reorderPlatformPaymentAccounts(ids: string[]) {
+  unwrap(await supabase.rpc('reorder_platform_payment_accounts', { p_ids: ids }))
+}
+
+/** A one-hour signed URL for a QR image (the bucket is private). */
+export async function platformQrUrl(path: string): Promise<string> {
+  const { data, error } = await supabase.storage.from(PLATFORM_BILLING_BUCKET).createSignedUrl(path, 3600)
+  if (error || !data) throw new ApiError("The QR image couldn't be loaded.")
+  return data.signedUrl
 }

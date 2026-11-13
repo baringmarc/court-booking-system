@@ -33,7 +33,7 @@ function renderApp(auth: AuthState = authState('admin'), path = '/leads') {
   )
 }
 
-const SECTIONS = ['Leads', 'Venues', 'Invoices', 'Reviews']
+const SECTIONS = ['Leads', 'Venues', 'Invoices', 'Billing', 'Reviews']
 
 beforeEach(() => {
   for (const m of [mocks.admin, mocks.leads, mocks.venues, mocks.invoices, mocks.reviews]) m.mockReset()
@@ -42,7 +42,7 @@ beforeEach(() => {
 })
 
 describe('Console sidebar', () => {
-  it('links to exactly Leads, Venues, Invoices and Reviews, with the active one marked aria-current', async () => {
+  it('links to exactly Leads, Venues, Invoices, Billing and Reviews, with the active one marked aria-current', async () => {
     renderApp(authState('admin'), '/invoices')
     await screen.findByRole('heading', { level: 1, name: 'Invoices' })
     const nav = screen.getByRole('navigation', { name: 'Console' })
@@ -50,9 +50,10 @@ describe('Console sidebar', () => {
     expect(within(nav).getByRole('link', { name: 'Leads' })).toHaveAttribute('href', '/leads')
     expect(within(nav).getByRole('link', { name: 'Venues' })).toHaveAttribute('href', '/venues')
     expect(within(nav).getByRole('link', { name: 'Invoices' })).toHaveAttribute('href', '/invoices')
+    expect(within(nav).getByRole('link', { name: 'Billing' })).toHaveAttribute('href', '/billing')
     expect(within(nav).getByRole('link', { name: 'Reviews' })).toHaveAttribute('href', '/reviews')
     expect(within(nav).getByRole('link', { name: 'Invoices' })).toHaveAttribute('aria-current', 'page')
-    for (const other of ['Leads', 'Venues', 'Reviews']) {
+    for (const other of ['Leads', 'Venues', 'Billing', 'Reviews']) {
       expect(within(nav).getByRole('link', { name: other })).not.toHaveAttribute('aria-current')
     }
   })

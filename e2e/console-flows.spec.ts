@@ -4,7 +4,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import { guardLeaks } from './support/leaks.ts'
 import {
-  E2E_PREFIX, PASSWORD, axeBothSchemes, createPlatformAdmin, createPlayer, createVenue, addVenueStaff, deleteVenue, serviceClient,
+  E2E_PREFIX, PASSWORD, axeBothSchemes, createPlatformAdmin, createPlayer, createVenue, addVenueStaff, deleteVenue, receiptPng, serviceClient,
 } from './support/helpers.ts'
 import { localSupabase } from './support/local.ts'
 import { createClient } from '@supabase/supabase-js'
@@ -224,6 +224,39 @@ test('an invoice goes from draft to sent to paid, and the venue sees it on its s
     await service.from('bookings').delete().eq('venue_id', venue.id)
     await service.from('invoices').delete().eq('venue_id', venue.id)
     await deleteVenue(venue.id)
+  }
+})
+
+test('a platform admin adds a Plotline payment account with a QR code on the Billing page', async ({ page }) => {
+  const tag = Date.now().toString(36)
+  const label = `${E2E_PREFIX} Billing ${tag}`
+  const service = serviceClient()
+  const { count } = await service.from('platform_payment_accounts').select('id', { count: 'exact', head: true })
+  test.skip((count ?? 0) >= 5, 'Plotline already lists 5 payment accounts locally')
+  try {
+    await signInConsole(page, 'billing')
+    await expect(page.getByRole('heading', { level: 1, name: 'Billing' })).toBeVisible()
+    const form = page.getByRole('form', { name: 'New payment account' })
+    await form.getByLabel(/^Label/).fill(label)
+    await form.getByLabel('Account name').fill('Plotline Inc.')
+    await form.getByLabel('Account or mobile number').fill('0917 000 3333')
+    await form.getByLabel(/^QR code/).setInputFiles(receiptPng())
+    await expect(form.getByRole('img', { name: `QR code for ${label}` })).toBeVisible()
+    await form.getByRole('button', { name: 'Add account' }).click()
+    const list = page.getByRole('list', { name: 'Payment accounts in order' })
+    const row = list.getByRole('listitem').filter({ hasText: label })
+    await expect(row.getByText(label, { exact: true })).toBeVisible()
+    await expect(row.getByText('QR', { exact: true })).toBeVisible()
+
+    // Stored as a top-level <uuid>.png in the private platform-billing bucket.
+    const { data: saved } = await service.from('platform_payment_accounts').select('qr_path').eq('label', label).single().throwOnError()
+    expect(saved!.qr_path).toMatch(/^[0-9a-f-]{36}\.png$/)
+    expect(await axeBothSchemes(page, 'main')).toEqual([])
+  } finally {
+    const { data } = await service.from('platform_payment_accounts').select('qr_path').like('label', `${E2E_PREFIX} Billing ${tag}`)
+    const paths = (data ?? []).flatMap((a) => (a.qr_path ? [a.qr_path] : []))
+    if (paths.length) await service.storage.from('platform-billing').remove(paths)
+    await service.from('platform_payment_accounts').delete().like('label', `${E2E_PREFIX} Billing ${tag}`)
   }
 })
 

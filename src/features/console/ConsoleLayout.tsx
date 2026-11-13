@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Building2, FileText, Inbox, Menu, MessageSquareQuote, X } from 'lucide-react'
+import { Building2, FileText, Landmark, Inbox, Menu, MessageSquareQuote, X } from 'lucide-react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { PlotlineLogo } from '../../components/PlotlineLogo'
 import { useMainFocus } from '../../components/useMainFocus'
@@ -9,6 +9,7 @@ const SECTIONS = [
   { to: '/leads', label: 'Leads', icon: Inbox },
   { to: '/venues', label: 'Venues', icon: Building2 },
   { to: '/invoices', label: 'Invoices', icon: FileText },
+  { to: '/billing', label: 'Billing', icon: Landmark },
   { to: '/reviews', label: 'Reviews', icon: MessageSquareQuote },
 ]
 
