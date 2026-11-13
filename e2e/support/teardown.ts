@@ -78,6 +78,17 @@ export default async function teardown() {
   const { error: accountsError } = await service.from('venue_payment_accounts').delete().like('label', `${E2E_PREFIX}%`)
   if (accountsError) throw accountsError
 
+  // Tagged Plotline payment accounts (T26.5): global rows, not venue-scoped; their QR files sit in platform-billing.
+  const { data: platformAccounts, error: platformReadError } = await service.from('platform_payment_accounts').select('qr_path').like('label', `${E2E_PREFIX}%`)
+  if (platformReadError) throw platformReadError
+  const platformQrPaths = (platformAccounts ?? []).flatMap((a) => (a.qr_path ? [a.qr_path] : []))
+  if (platformQrPaths.length) {
+    const { error: platformRemoveError } = await service.storage.from('platform-billing').remove(platformQrPaths)
+    if (platformRemoveError) throw platformRemoveError
+  }
+  const { error: platformAccountsError } = await service.from('platform_payment_accounts').delete().like('label', `${E2E_PREFIX}%`)
+  if (platformAccountsError) throw platformAccountsError
+
   // Tagged venues (T13.9). Their members cascade; the users go below.
   // Hours and settings don't cascade from `venues`; courts were removed above (tagged E2E) and bookings before that.
   const { data: e2eVenues, error: venuesError } = await service.from('venues').select('id').like('slug', 'e2e-%')

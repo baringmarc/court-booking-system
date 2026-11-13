@@ -2,6 +2,9 @@ import { FunctionsHttpError } from '@supabase/supabase-js'
 import type { Database, Tables } from '../../lib/database.types'
 import { ApiError, unwrap } from '../../lib/queryClient'
 import { supabase } from '../../lib/supabase'
+import type { PaymentAccountInput, QrChange } from '../admin/api'
+import { clearStoredMedia, replaceStoredMedia } from '../admin/mediaReplace'
+import { qrStorageMessage } from '../admin/qrImage'
 
 /** Whether the user is a platform admin (RLS lets them read only their own `platform_admins` row). */
 export async function fetchIsPlatformAdmin(userId: string): Promise<boolean> {
@@ -43,9 +46,10 @@ async function invokeConsoleFunction<T>(name: string, body: Record<string, unkno
   return data as T | null
 }
 
-function callInviteVenueOwner(input: { venueId: string; email: string }) {
-  return invokeConsoleFunction<{ invited?: unknown; sent?: unknown }>(
-    'invite-venue-owner', { venue_id: input.venueId, email: input.email }, "We couldn't send the invite.")
+function callInviteVenueOwner(input: { venueId: string; email: string; role?: 'staff' }) {
+  const body: Record<string, unknown> = { venue_id: input.venueId, email: input.email }
+  if (input.role) body.role = input.role
+  return invokeConsoleFunction<{ invited?: unknown; sent?: unknown }>('invite-venue-owner', body, "We couldn't send the invite.")
 }
 
 /** Invites the venue's first owner through the `invite-venue-owner` function (platform admins only). */
@@ -61,7 +65,16 @@ export type OwnerInviteSent = 'invite' | 'link' | 'welcome'
 
 /** Re-sends a venue's owner a way in (T14.5d): the first invite can be used up, expired or never delivered. */
 export async function resendOwnerInvite(input: { venueId: string; email: string }): Promise<{ sent: OwnerInviteSent }> {
-  const sent = (await callInviteVenueOwner(input))?.sent
+  return sentOf(await callInviteVenueOwner(input))
+}
+
+/** Invites a venue's staff member (T24.2): `invite-venue-owner` with `role: 'staff'`, which never demotes an owner. */
+export async function inviteVenueStaff(input: { venueId: string; email: string }): Promise<{ sent: OwnerInviteSent }> {
+  return sentOf(await callInviteVenueOwner({ ...input, role: 'staff' }))
+}
+
+function sentOf(data: { sent?: unknown } | null): { sent: OwnerInviteSent } {
+  const sent = data?.sent
   if (sent === 'invite' || sent === 'link' || sent === 'welcome') return { sent }
   throw new ApiError("We couldn't send the invite.")
 }
@@ -181,6 +194,9 @@ export type InvoiceOverview = {
   total: number
   due_at: string | null
   overdue: boolean
+  /** When the invoice-pdf function last emailed it to the owners, and how often (T26.3's `invoice_sends`). */
+  last_emailed_at?: string | null
+  email_count?: number
 }
 
 export type InvoiceLine = {
@@ -263,6 +279,28 @@ export async function fetchInvoicesPage(input: { search: string; status: string;
   return asPage<InvoiceOverview>(unwrap(await supabase.rpc('invoices_page', args as Functions['invoices_page']['Args'])))
 }
 
+/** The invoice as a PDF from the `invoice-pdf` function (T26.4); platform admins get any invoice, drafts too. */
+export async function fetchInvoicePdf(invoiceId: string): Promise<Blob> {
+  const data = await invokeConsoleFunction<Blob>('invoice-pdf', { invoice_id: invoiceId, action: 'pdf' }, "We couldn't open the invoice PDF.")
+  if (!(data instanceof Blob)) throw new ApiError("We couldn't open the invoice PDF.")
+  return data
+}
+
+export type InvoiceSendResult = { recipients: string[]; kind: 'send' | 'resend'; status: 'draft' | 'sent' }
+
+/**
+ * Emails the invoice PDF to every owner of its venue (T26.4); a draft becomes sent, a sent invoice is resent.
+ * Refusals carry the function's code in `ApiError.hint` (`billing_details_missing`, `no_recipients`, ...).
+ */
+export async function sendInvoice(invoiceId: string): Promise<InvoiceSendResult> {
+  const data = await invokeConsoleFunction<Partial<InvoiceSendResult>>('invoice-pdf', { invoice_id: invoiceId, action: 'send' }, "We couldn't send the invoice.")
+  return {
+    recipients: Array.isArray(data?.recipients) ? data.recipients : [],
+    kind: data?.kind === 'resend' ? 'resend' : 'send',
+    status: data?.status === 'draft' ? 'draft' : 'sent',
+  }
+}
+
 export type InvoiceDetailPageData = InvoiceDetailData & { line_total: number }
 
 /** One invoice with one page of its lines; `line_total` counts every line. */
@@ -306,4 +344,72 @@ export async function fetchReviews(): Promise<Review[]> {
 /** Approving shows a review on the marketing site; hiding takes it down. Platform admins only (column grant). */
 export async function setReviewApproved(id: string, approved: boolean): Promise<void> {
   unwrap(await supabase.from('reviews').update({ approved }).eq('id', id))
+}
+
+// --- Plotline's payment accounts (T26.5): shown on every invoice PDF; the QR images live in the private
+// platform-billing bucket at a top-level `<uuid>.png` (T26.3's storage policy). Platform admins only (RLS).
+
+export type PlatformPaymentAccount = Pick<Tables<'platform_payment_accounts'>, 'id' | 'label' | 'account_name' | 'account_number' | 'qr_path' | 'position'>
+export const PLATFORM_BILLING_BUCKET = 'platform-billing'
+
+export async function fetchPlatformPaymentAccounts(): Promise<PlatformPaymentAccount[]> {
+  return unwrap(await supabase.from('platform_payment_accounts')
+    .select('id, label, account_name, account_number, qr_path, position').order('position'))
+}
+
+async function uploadPlatformQr(image: Blob) {
+  const path = `${crypto.randomUUID()}.png`
+  const { error } = await supabase.storage
+    .from(PLATFORM_BILLING_BUCKET)
+    .upload(path, image, { contentType: 'image/png', upsert: false })
+  if (error) throw new ApiError(qrStorageMessage(error))
+  return path
+}
+
+async function removePlatformQr(path: string) {
+  const { data, error } = await supabase.storage.from(PLATFORM_BILLING_BUCKET).remove([path])
+  if (error) throw new ApiError(qrStorageMessage(error))
+  if (!data?.length) throw new ApiError(`The file ${path} was not deleted.`)
+}
+
+/** As the venue's savePaymentAccount: a new QR is uploaded before the row is saved, an old one removed after. `position` is never sent. */
+export async function savePlatformPaymentAccount(
+  existing: { id: string; qr_path: string | null } | null, input: PaymentAccountInput, qr: QrChange,
+) {
+  const insert = async (qr_path: string | null) =>
+    unwrap(await supabase.from('platform_payment_accounts').insert({ ...input, qr_path }).select('id').single())
+  const update = async (patch: { qr_path?: string | null }) =>
+    unwrap(await supabase.from('platform_payment_accounts').update({ ...input, ...patch }).eq('id', existing!.id).select('id').single())
+
+  if (!existing) {
+    if (qr.kind !== 'set') return insert(null)
+    return replaceStoredMedia({ oldPath: null, upload: () => uploadPlatformQr(qr.image), save: insert, remove: removePlatformQr })
+  }
+  if (qr.kind === 'set') {
+    return replaceStoredMedia({
+      oldPath: existing.qr_path, upload: () => uploadPlatformQr(qr.image), save: (qr_path) => update({ qr_path }), remove: removePlatformQr,
+    })
+  }
+  if (qr.kind === 'clear' && existing.qr_path) {
+    return clearStoredMedia({ oldPath: existing.qr_path, save: () => update({ qr_path: null }), remove: removePlatformQr })
+  }
+  return update({})
+}
+
+/** Deletes the account, then its QR image (best effort). */
+export async function deletePlatformPaymentAccount(account: { id: string; qr_path: string | null }) {
+  unwrap(await supabase.from('platform_payment_accounts').delete().eq('id', account.id))
+  if (account.qr_path) await removePlatformQr(account.qr_path).catch(() => {})
+}
+
+/** Stores every account in this order (reorder_platform_payment_accounts, T26.3). */
+export async function reorderPlatformPaymentAccounts(ids: string[]) {
+  unwrap(await supabase.rpc('reorder_platform_payment_accounts', { p_ids: ids }))
+}
+
+/** A one-hour signed URL for a QR image (the bucket is private). */
+export async function platformQrUrl(path: string): Promise<string> {
+  const { data, error } = await supabase.storage.from(PLATFORM_BILLING_BUCKET).createSignedUrl(path, 3600)
+  if (error || !data) throw new ApiError("The QR image couldn't be loaded.")
+  return data.signedUrl
 }

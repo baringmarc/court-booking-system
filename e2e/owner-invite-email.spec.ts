@@ -103,7 +103,7 @@ test('a new account gets the invite email, whose link signs in to the set-passwo
   try {
     const res = await callAs(await sessionToken(admin.email, admin.password), { venue_id: venue.id, email })
     expect(res.status).toBe(200)
-    expect(res.json).toEqual({ ok: true, invited: true, sent: 'invite' })
+    expect(res.json).toEqual({ ok: true, invited: true, sent: 'invite', role: 'owner' })
     expect(res.text).not.toMatch(/token|access_token|verify\?/i)
     const mail = await nextMail(email)
     expectCommonContent(mail, venue.name)
@@ -132,7 +132,7 @@ test('an invited account without a password gets a fresh access link email', asy
     const invited = await serviceClient().auth.admin.inviteUserByEmail(email)
     if (invited.error) throw invited.error
     const res = await callAs(await sessionToken(admin.email, admin.password), { venue_id: venue.id, email })
-    expect(res.json).toEqual({ ok: true, invited: false, sent: 'link' })
+    expect(res.json).toEqual({ ok: true, invited: false, sent: 'link', role: 'owner' })
     const mail = await mailAbout(email, venue.name)
     expectCommonContent(mail, venue.name)
     expect(mail.Text).toMatch(/https?:\/\/\S+\/auth\/v1\/verify\?\S+/)
@@ -148,7 +148,7 @@ test('an existing account gets a welcome email with the sign-in link, no token a
   const owner = await createPlayer('owner-existing')
   try {
     const res = await callAs(await sessionToken(admin.email, admin.password), { venue_id: venue.id, email: owner.email })
-    expect(res.json).toEqual({ ok: true, invited: false, sent: 'welcome' })
+    expect(res.json).toEqual({ ok: true, invited: false, sent: 'welcome', role: 'owner' })
     const mail = await nextMail(owner.email)
     expectCommonContent(mail, venue.name)
     expect(mail.Text).toContain(`${venue.slug}`)

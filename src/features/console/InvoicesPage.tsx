@@ -2,7 +2,7 @@ import { formatMoneyExact } from '../../lib/format'
 import { useInvoicesPage } from './hooks'
 import { InvoiceDetail } from './InvoiceDetail'
 import { invoiceNumber } from './invoiceNumber'
-import { DetailsButton, ListStatus, RecordPanel, SearchField, StatusFilter } from './ListControls'
+import { DetailsButton, ListStatus, RecordPanel, SearchField, StatusBadge, StatusFilter } from './ListControls'
 import { focusDetails, useListParams } from './listParams'
 import { Pager } from './Pager'
 
@@ -42,7 +42,7 @@ export function InvoicesPage() {
                     <span className="muted small">{invoiceNumber(invoice)} · <span>{formatMoneyExact(invoice.total)}</span></span>
                   </div>
                   <span className="console-row-badges">
-                    <span className="badge">{invoice.status}</span>
+                    <StatusBadge status={invoice.status} />
                     {invoice.overdue && <strong className="form-error">Overdue</strong>}
                   </span>
                   <DetailsButton id={invoice.invoice_id} name={`${invoiceNumber(invoice)} ${invoice.name}`} onOpen={() => setOpen(invoice.invoice_id)} />

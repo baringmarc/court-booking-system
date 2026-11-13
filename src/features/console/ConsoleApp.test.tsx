@@ -9,12 +9,12 @@ import { AuthContext, type AuthState } from '../auth/AuthContext'
 
 const mocks = vi.hoisted(() => ({
   admin: vi.fn<() => Promise<boolean>>(),
-  leads: vi.fn(), venues: vi.fn(), invoices: vi.fn(), reviews: vi.fn(),
+  leads: vi.fn(), venues: vi.fn(), invoices: vi.fn(), reviews: vi.fn(), accounts: vi.fn(),
 }))
 vi.mock('./api', async (original) => ({
   ...(await original<typeof import('./api')>()),
   fetchIsPlatformAdmin: mocks.admin, fetchLeadsPage: mocks.leads, fetchVenuesPage: mocks.venues,
-  fetchInvoicesPage: mocks.invoices, fetchReviewsPage: mocks.reviews,
+  fetchInvoicesPage: mocks.invoices, fetchReviewsPage: mocks.reviews, fetchPlatformPaymentAccounts: mocks.accounts,
 }))
 vi.mock('../auth/api', () => ({ signInWithPassword: vi.fn() }))
 
@@ -38,6 +38,7 @@ function renderApp(auth: AuthState, path = '/') {
 beforeEach(() => {
   for (const m of [mocks.admin, mocks.leads, mocks.venues, mocks.invoices, mocks.reviews]) m.mockReset()
   for (const m of [mocks.leads, mocks.venues, mocks.invoices, mocks.reviews]) m.mockResolvedValue({ rows: [], total: 0 })
+  mocks.accounts.mockReset().mockResolvedValue([])
 })
 
 describe('ConsoleApp', () => {
@@ -67,7 +68,7 @@ describe('ConsoleApp', () => {
     expect(screen.getByTestId('location')).toHaveTextContent(/^\/leads$/)
   })
 
-  it.each([['/venues', 'Venues'], ['/invoices', 'Invoices'], ['/reviews', 'Reviews'], ['/leads', 'Leads']])(
+  it.each([['/venues', 'Venues'], ['/invoices', 'Invoices'], ['/billing', 'Billing'], ['/reviews', 'Reviews'], ['/leads', 'Leads']])(
     'opens %s directly with the section name as its h1',
     async (path, name) => {
       mocks.admin.mockResolvedValue(true)

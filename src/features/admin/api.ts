@@ -1,6 +1,6 @@
 // Admin data access for bookings and payments. Admins read their venue's rows through RLS (private.is_venue_admin);
 // writes go through RPCs (venue media: storage plus the admin RLS on courts and venue_settings). Only imported by lazy admin routes.
-import type { PostgrestSingleResponse } from '@supabase/supabase-js'
+import { FunctionsHttpError, type PostgrestSingleResponse } from '@supabase/supabase-js'
 import { supabase } from '../../lib/supabase'
 import { ApiError, unwrap } from '../../lib/queryClient'
 import { parseTstzRange } from '../../lib/time'
@@ -727,6 +727,25 @@ export async function fetchStatementInvoices(input: { status?: string | null; pa
   return unwrap(
     await supabase.rpc('statement_invoices_page', args as Functions['statement_invoices_page']['Args']),
   ) as unknown as StatementPage<StatementInvoice>
+}
+
+/**
+ * One sent or paid invoice's PDF from the invoice-pdf function (T26.4's `pdf` action as the venue admin; drafts are
+ * refused with `forbidden`). A refusal becomes ApiError(message, status, code) from the function's JSON body.
+ */
+export async function fetchStatementInvoicePdf(invoiceId: string): Promise<Blob> {
+  const fallback = "We couldn't open the invoice PDF."
+  const { data, error } = await supabase.functions.invoke('invoice-pdf', { body: { invoice_id: invoiceId, action: 'pdf' } })
+  if (error) {
+    if (error instanceof FunctionsHttpError) {
+      const response = error.context as Response
+      const parsed = (await response.json().catch(() => null)) as { code?: string; message?: string } | null
+      throw new ApiError(parsed?.message ?? fallback, String(response.status), parsed?.code)
+    }
+    throw new ApiError('Could not reach the server. Please check your connection and try again.')
+  }
+  if (!(data instanceof Blob)) throw new ApiError(fallback)
+  return data
 }
 
 // --- weekly hours and rates (T17.15) -------------------------------------------

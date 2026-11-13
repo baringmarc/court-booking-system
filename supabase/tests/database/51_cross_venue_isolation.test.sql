@@ -521,6 +521,8 @@ select is_empty(
          'get_guest_booking', 'claim_guest_bookings',
          -- platform admins only: it makes a new venue and takes no venue id to cross (56_create_venue)
          'create_venue',
+         -- platform admins only: Plotline's own payment accounts, no venue id to cross (84_platform_billing)
+         'reorder_platform_payment_accounts',
          -- venue admins and platform admins only: take a venue id and refuse anyone who doesn't run it (58_publish_venue)
          'venue_setup_status', 'publish_venue',
          -- venue admins only: names a venue id and refuses anyone who doesn't run it (62_venue_statement)

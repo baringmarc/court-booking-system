@@ -3,7 +3,7 @@ import type { Lead, LeadStatus } from './api'
 import { CreateVenueForm } from './CreateVenueForm'
 import { DeleteLeadDialog } from './DeleteLeadDialog'
 import { useLeadsPage, useUpdateLead } from './hooks'
-import { DetailsButton, ListStatus, RecordPanel, SearchField, StatusFilter } from './ListControls'
+import { DetailsButton, ListStatus, RecordPanel, SearchField, StatusBadge, StatusFilter } from './ListControls'
 import { focusDetails, returnFocus, useListParams } from './listParams'
 import { Pager } from './Pager'
 
@@ -106,7 +106,7 @@ export function LeadsPage() {
                     <strong>{lead.venue_name}</strong>
                     <span className="muted small">{lead.first_name} {lead.last_name} · {lead.location}</span>
                   </div>
-                  <span className="badge">{STATUS_LABEL[lead.status as LeadStatus] ?? lead.status}</span>
+                  <StatusBadge status={lead.status}>{STATUS_LABEL[lead.status as LeadStatus] ?? lead.status}</StatusBadge>
                   <DetailsButton id={lead.id} name={lead.venue_name} onOpen={() => setOpen(lead.id)} />
                 </li>
               ))}

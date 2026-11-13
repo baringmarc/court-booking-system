@@ -18,13 +18,23 @@ export function inviteRedirectTo(input: VenueSiteInput): string | null {
   return base ? `${base}/admin` : null
 }
 
-export type InviteBody = { ok: true; venueId: string; email: string } | { ok: false; error: 'invalid_input' }
+/** A venue membership role (`venue_members.role`). Staff have the same admin rights as owners for now (T24.1). */
+export type MemberRole = 'owner' | 'staff'
 
+export type InviteBody = { ok: true; venueId: string; email: string; role: MemberRole } | { ok: false; error: 'invalid_input' }
+
+/** `role` is optional and defaults to `owner`, so callers from before T24.1 are unchanged. */
 export function parseInviteBody(body: unknown): InviteBody {
-  const input = (body ?? {}) as { venue_id?: unknown; email?: unknown }
+  const input = (body ?? {}) as { venue_id?: unknown; email?: unknown; role?: unknown }
   const email = normalizeInviteEmail(input.email)
   if (typeof input.venue_id !== 'string' || !UUID.test(input.venue_id) || !email) return { ok: false, error: 'invalid_input' }
-  return { ok: true, venueId: input.venue_id, email }
+  if (input.role !== undefined && input.role !== 'owner' && input.role !== 'staff') return { ok: false, error: 'invalid_input' }
+  return { ok: true, venueId: input.venue_id, email, role: input.role ?? 'owner' }
+}
+
+/** The role a (re)invite leaves a member with: owner wins, so a staff invite never demotes an owner (T24.1). */
+export function mergeMemberRole(existing: MemberRole | null, requested: MemberRole): MemberRole {
+  return existing === 'owner' || requested === 'owner' ? 'owner' : 'staff'
 }
 
 /** An email that already has an account gets the membership only, no invite email. */
@@ -77,6 +87,8 @@ type OwnerEmailInput = {
   guideUrl: string
   venueAddress?: string
   venueStatus?: string
+  /** Who the email is for; defaults to `owner` (T24.1). */
+  role?: MemberRole
 }
 
 const COPY: Record<OwnerEmailKind, { subject: (venue: string) => string; intro: (venue: string) => string; button: string; does: string }> = {
@@ -100,8 +112,33 @@ const COPY: Record<OwnerEmailKind, { subject: (venue: string) => string; intro: 
   },
 }
 
+const ONE_USE = 'Click the button to sign in and choose your password. This link can only be used once and will expire. If it no longer works, reply to this email and we’ll send you a new one.'
+
+// Staff emails (T24.1): no setup checklist or publish steps, and the owner manual is linked, not attached.
+const STAFF_COPY: typeof COPY = {
+  invite: {
+    subject: (venue) => `Set up your Plotline staff account for ${venue}`,
+    intro: (venue) => `Welcome to Plotline! You've been added as staff at ${venue}, where you'll help manage the venue’s bookings and payments.`,
+    button: 'Set up your account',
+    does: ONE_USE,
+  },
+  link: {
+    subject: (venue) => `Your fresh Plotline staff access link for ${venue}`,
+    intro: (venue) => `Here is a fresh access link to ${venue} on Plotline, where you've been added as staff.`,
+    button: 'Sign in and set your password',
+    does: ONE_USE,
+  },
+  welcome: {
+    subject: (venue) => `You've been added as staff at ${venue} on Plotline`,
+    intro: (venue) => `You've been added as staff at ${venue} on Plotline, where you can help manage the venue’s bookings and payments.`,
+    button: 'Sign in to your venue',
+    does: COPY.welcome.does,
+  },
+}
+
 /** The branded email an owner gets for each account state (T17.25): the button first, then what happens next (T16.6). */
 export function ownerEmail(input: OwnerEmailInput): { subject: string; html: string; text: string } {
+  if (input.role === 'staff') return staffEmail(input)
   const venue = input.venueName.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim() || 'your venue'
   const copy = COPY[input.kind]
   const target = input.kind === 'welcome' ? input.venueUrl : (input.link ?? '')
@@ -140,6 +177,53 @@ export function ownerEmail(input: OwnerEmailInput): { subject: string; html: str
     '<p><strong>What happens next</strong></p>',
     `<ol>${steps(siteLink).map((step) => `<li>${step}</li>`).join('')}</ol>`,
     `<p>Your <strong>venue owner guide</strong> is attached to help you get started, from setting up your venue to managing day-to-day operations. You can also ${a(input.guideUrl, 'download the guide here')}.</p>`,
+    `<p>Need a hand? Reply to this email or contact us at ${a(`mailto:${OWNER_SUPPORT_EMAIL}`, OWNER_SUPPORT_EMAIL)}. We’re also available on ${a(OWNER_FACEBOOK_URL, 'Facebook')} and ${a(OWNER_MESSENGER_URL, 'Messenger')}.</p>`,
+    `<p>${escapeHtml(walkthrough)}</p>`,
+    '<p>See you on court,<br><strong>The Plotline team</strong></p>',
+  ].join('')
+  return { subject: copy.subject(venue), html, text }
+}
+
+/** The email a venue's staff member gets for each account state (T24.1). */
+function staffEmail(input: OwnerEmailInput): { subject: string; html: string; text: string } {
+  const venue = input.venueName.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim() || 'your venue'
+  const copy = STAFF_COPY[input.kind]
+  const target = input.kind === 'welcome' ? input.venueUrl : (input.link ?? '')
+  const live = input.venueStatus === 'active'
+  const address = input.venueAddress?.replace(/\s+/g, '').trim()
+  const a = (href: string, label: string, style?: string) =>
+    `<a href="${escapeHtml(href)}"${style ? ` style="${style}"` : ''}>${escapeHtml(label)}</a>`
+
+  // Only an active venue's address is a link: anon sees "Venue not found" for any other (T16.6).
+  const steps = (where: (address: string) => string) => [
+    input.kind === 'welcome' ? 'Sign in with the button above.' : 'Set up your account with the button above.',
+    'Manage bookings and payments in the venue admin.',
+    ...(address
+      ? [live ? `The venue’s booking page is at ${where(address)}.` : `The venue’s booking page will be at ${where(address)} once it goes live.`]
+      : []),
+  ]
+  const siteLink = (label: string) => (live ? a(new URL('/', input.venueUrl).href, label) : escapeHtml(label))
+
+  const guide = `The venue owner guide explains how the venue admin works. You can download it here: ${input.guideUrl}`
+  const help = `Need a hand? Reply to this email or contact us at ${OWNER_SUPPORT_EMAIL}. We’re also available on Facebook (${OWNER_FACEBOOK_URL}) and Messenger (${OWNER_MESSENGER_URL}).`
+  const walkthrough = 'If you’d prefer a guided walkthrough, let us know and we’ll arrange a call.'
+  const text = [
+    copy.intro(venue),
+    `${copy.button}: ${target}`,
+    copy.does,
+    ['What happens next:', ...steps((x) => x).map((step, i) => `${i + 1}. ${step}`)].join('\n'),
+    guide,
+    help,
+    walkthrough,
+    'See you on court,\nThe Plotline team',
+  ].join('\n\n')
+  const html = [
+    `<p>${copy.intro(`<strong>${escapeHtml(venue)}</strong>`)}</p>`,
+    `<p>${a(target, copy.button, BUTTON_STYLE)}</p>`,
+    `<p>${escapeHtml(copy.does)}</p>`,
+    '<p><strong>What happens next</strong></p>',
+    `<ol>${steps(siteLink).map((step) => `<li>${step}</li>`).join('')}</ol>`,
+    `<p>The <strong>venue owner guide</strong> explains how the venue admin works. You can ${a(input.guideUrl, 'download the guide here')}.</p>`,
     `<p>Need a hand? Reply to this email or contact us at ${a(`mailto:${OWNER_SUPPORT_EMAIL}`, OWNER_SUPPORT_EMAIL)}. We’re also available on ${a(OWNER_FACEBOOK_URL, 'Facebook')} and ${a(OWNER_MESSENGER_URL, 'Messenger')}.</p>`,
     `<p>${escapeHtml(walkthrough)}</p>`,
     '<p>See you on court,<br><strong>The Plotline team</strong></p>',

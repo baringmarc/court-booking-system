@@ -4,7 +4,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import { guardLeaks } from './support/leaks.ts'
 import {
-  E2E_PREFIX, PASSWORD, axeBothSchemes, createPlatformAdmin, createPlayer, createVenue, addVenueStaff, deleteVenue, serviceClient,
+  E2E_PREFIX, PASSWORD, axeBothSchemes, createPlatformAdmin, createPlayer, createVenue, addVenueStaff, deleteVenue, receiptPng, serviceClient,
 } from './support/helpers.ts'
 import { localSupabase } from './support/local.ts'
 import { createClient } from '@supabase/supabase-js'
@@ -186,7 +186,12 @@ test('an invoice goes from draft to sent to paid, and the venue sees it on its s
     await expect(detail).toContainText('₱10.00')
     await detail.getByRole('button', { name: 'Mark as sent' }).click()
     await expect(detail).toContainText('sent')
-    await detail.getByLabel('Payment method').fill('GCash')
+    // T26.1: the open document view (items, charges unfolded, payment form) is accessible in both themes and fits the screen.
+    await detail.getByText(/^Charges \(/).click()
+    await expect(detail.getByRole('link', { name: 'CB-BCD222' })).toBeVisible()
+    expect(await page.evaluate<number>('document.documentElement.scrollWidth - document.documentElement.clientWidth'), 'invoice overflow').toBeLessThanOrEqual(0)
+    expect(await axeBothSchemes(page), 'invoice axe').toEqual([])
+    await detail.getByLabel('Payment method').selectOption('GCash')
     await detail.getByLabel('Reference').fill('E2E-REF-1')
     await detail.getByRole('button', { name: 'Mark as paid' }).click()
     await expect(detail).toContainText('paid by GCash (E2E-REF-1)')
@@ -219,6 +224,138 @@ test('an invoice goes from draft to sent to paid, and the venue sees it on its s
     await service.from('bookings').delete().eq('venue_id', venue.id)
     await service.from('invoices').delete().eq('venue_id', venue.id)
     await deleteVenue(venue.id)
+  }
+})
+
+/** Waits for the invoice email to `to` in the local Mailpit and returns its subject and attachment file names. */
+async function invoiceEmail(to: string, subject: string) {
+  const { mailpitUrl } = localSupabase()
+  let id: string | undefined
+  await expect.poll(async () => {
+    const res = await fetch(`${mailpitUrl}/api/v1/search?query=${encodeURIComponent(`to:${to}`)}`)
+    const body = (await res.json()) as { messages: { ID: string; Subject: string }[] }
+    id = body.messages.find((m) => m.Subject === subject)?.ID
+    return id
+  }, { message: `email "${subject}" to ${to}` }).toBeTruthy()
+  const message = (await (await fetch(`${mailpitUrl}/api/v1/message/${id}`)).json()) as {
+    Subject: string; Attachments: { FileName: string; ContentType: string }[]
+  }
+  return { subject: message.Subject, attachments: message.Attachments ?? [] }
+}
+
+// T26.6. The invoice-pdf function is served by `npx supabase start` (config.toml [functions.invoice-pdf]) with
+// supabase/functions/.env (EMAIL_TRANSPORT and MAILPIT_URL for Mailpit, PUBLIC_SITE_URL for the link); the same setup
+// `npm run smoke:invoice` uses. Needs at least one platform_payment_accounts row, so the test adds its own tagged one.
+test('a platform admin sends a draft invoice to the venue owner; it becomes sent and Mailpit has the PDF', async ({ page }) => {
+  const venue = await createVenue('invsend')
+  const service = serviceClient()
+  const tag = Date.now().toString(36)
+  const accountLabel = `${E2E_PREFIX} Send ${tag}`
+  const { count } = await service.from('platform_payment_accounts').select('id', { count: 'exact', head: true })
+  test.skip((count ?? 0) >= 5, 'Plotline already lists 5 payment accounts locally')
+  const owner = await createPlayer('invoice-owner')
+  let invoiceId: string | undefined
+  try {
+    await service.from('venue_members').insert({ venue_id: venue.id, user_id: owner.id, role: 'owner' }).throwOnError()
+    await service.from('platform_payment_accounts').insert({ label: accountLabel, account_name: 'Plotline Inc.', account_number: '0917 000 4444' }).throwOnError()
+    const { data: court } = await service.from('courts').select('id').eq('venue_id', venue.id).single().throwOnError()
+    const month = '2026-01-01'
+    const number = `${venue.slug.toUpperCase()}-202601`
+    const { data: invoice } = await service.from('invoices').insert({ venue_id: venue.id, billing_month: month }).select('id').single().throwOnError()
+    invoiceId = invoice!.id
+    const { data: booking } = await service.from('bookings').insert({
+      venue_id: venue.id, reference_code: 'CB-BCD234', court_id: court!.id, guest_name: `${E2E_PREFIX} Invoice send guest`,
+      source: 'walk_in', status: 'confirmed', total_amount: 700, booking_fee: 10,
+      during: '[2026-01-10T02:00:00+08:00,2026-01-10T03:00:00+08:00)',
+    }).select('id').single().throwOnError()
+    await service.from('billing_charges').insert({
+      venue_id: venue.id, booking_id: booking!.id, invoice_id: invoiceId, billing_month: month, kind: 'booking_fee', amount: 10,
+    }).throwOnError()
+
+    await signInConsole(page, `invoices?q=${encodeURIComponent(venue.slug)}`)
+    const card = page.getByRole('main').getByRole('listitem').filter({ hasText: venue.name })
+    await expect(card).toContainText('draft')
+    await card.getByRole('button', { name: /details/i }).click()
+    const panelName = new RegExp(`${venue.name}|${venue.slug}`, 'i')
+    const detail = page.getByRole('dialog', { name: panelName }).or(page.getByRole('region', { name: panelName }))
+    await expect(detail.getByRole('button', { name: 'Preview PDF' })).toBeVisible()
+    await expect(detail.getByRole('button', { name: 'Resend invoice', exact: true })).toHaveCount(0)
+    await expect(detail.getByText(/Emailed to owners/)).toHaveCount(0)
+
+    // Asks first (naming the venue), and Cancel sends nothing.
+    await detail.getByRole('button', { name: 'Send invoice', exact: true }).click()
+    const confirm = page.getByRole('dialog').filter({ hasText: /to every owner of/ }).last()
+    await expect(confirm).toContainText(`Email invoice ${number} to every owner of ${venue.name}?`)
+    await confirm.getByRole('button', { name: 'Cancel' }).click()
+    await expect(confirm).toBeHidden()
+    expect((await service.from('invoice_sends').select('id').eq('invoice_id', invoiceId).throwOnError()).data).toEqual([])
+
+    await detail.getByRole('button', { name: 'Send invoice', exact: true }).click()
+    await confirm.getByRole('button').filter({ hasNotText: 'Cancel' }).first().click()
+    await expect(page.getByRole('status').filter({ hasText: `Sent to ${owner.email}` })).toBeVisible()
+    await expect(detail.getByRole('button', { name: 'Resend invoice', exact: true })).toBeVisible()
+    await expect(detail.getByRole('button', { name: 'Send invoice', exact: true })).toHaveCount(0)
+    await expect(detail).toContainText('sent')
+    await expect(detail.getByText(/Emailed to owners on \w{3} \d{1,2}, \d{4}/)).toBeVisible()
+
+    // The database agrees: sent, one log row for the owner.
+    const { data: row } = await service.from('invoices').select('status').eq('id', invoiceId).single().throwOnError()
+    expect(row!.status).toBe('sent')
+    const { data: sends } = await service.from('invoice_sends').select('kind, recipients').eq('invoice_id', invoiceId).throwOnError()
+    expect(sends).toEqual([{ kind: 'send', recipients: [owner.email.toLowerCase()] }])
+
+    // Mailpit has the email with the PDF named after the invoice.
+    const mail = await invoiceEmail(owner.email, `Invoice ${number} from Plotline`)
+    expect(mail.attachments.map((a) => a.FileName)).toContain(`${number}.pdf`)
+
+    expect(await page.evaluate<number>('document.documentElement.scrollWidth - document.documentElement.clientWidth'), 'invoice overflow').toBeLessThanOrEqual(0)
+    expect(await axeBothSchemes(page), 'invoice send axe').toEqual([])
+  } finally {
+    // Foreign-key order: the invoice (its invoice_sends cascade) and the booking (its charges cascade) go before the
+    // venue and the users (invoice_sends.sent_by references the admin user; teardown deletes users last).
+    await service.from('bookings').delete().eq('venue_id', venue.id)
+    await service.from('invoices').delete().eq('venue_id', venue.id)
+    await service.from('platform_payment_accounts').delete().eq('label', accountLabel)
+    if (invoiceId) {
+      expect((await service.from('invoice_sends').select('id').eq('invoice_id', invoiceId).throwOnError()).data, 'invoice_sends removed').toEqual([])
+      expect((await service.from('invoices').select('id').eq('id', invoiceId).throwOnError()).data, 'invoice removed').toEqual([])
+    }
+    expect((await service.from('platform_payment_accounts').select('id').eq('label', accountLabel).throwOnError()).data, 'account removed').toEqual([])
+    await deleteVenue(venue.id)
+    expect((await service.from('venues').select('id').eq('id', venue.id).throwOnError()).data, 'venue removed').toEqual([])
+  }
+})
+
+test('a platform admin adds a Plotline payment account with a QR code on the Billing page', async ({ page }) => {
+  const tag = Date.now().toString(36)
+  const label = `${E2E_PREFIX} Billing ${tag}`
+  const service = serviceClient()
+  const { count } = await service.from('platform_payment_accounts').select('id', { count: 'exact', head: true })
+  test.skip((count ?? 0) >= 5, 'Plotline already lists 5 payment accounts locally')
+  try {
+    await signInConsole(page, 'billing')
+    await expect(page.getByRole('heading', { level: 1, name: 'Billing' })).toBeVisible()
+    const form = page.getByRole('form', { name: 'New payment account' })
+    await form.getByLabel(/^Label/).fill(label)
+    await form.getByLabel('Account name').fill('Plotline Inc.')
+    await form.getByLabel('Account or mobile number').fill('0917 000 3333')
+    await form.getByLabel(/^QR code/).setInputFiles(receiptPng())
+    await expect(form.getByRole('img', { name: `QR code for ${label}` })).toBeVisible()
+    await form.getByRole('button', { name: 'Add account' }).click()
+    const list = page.getByRole('list', { name: 'Payment accounts in order' })
+    const row = list.getByRole('listitem').filter({ hasText: label })
+    await expect(row.getByText(label, { exact: true })).toBeVisible()
+    await expect(row.getByText('QR', { exact: true })).toBeVisible()
+
+    // Stored as a top-level <uuid>.png in the private platform-billing bucket.
+    const { data: saved } = await service.from('platform_payment_accounts').select('qr_path').eq('label', label).single().throwOnError()
+    expect(saved!.qr_path).toMatch(/^[0-9a-f-]{36}\.png$/)
+    expect(await axeBothSchemes(page, 'main')).toEqual([])
+  } finally {
+    const { data } = await service.from('platform_payment_accounts').select('qr_path').like('label', `${E2E_PREFIX} Billing ${tag}`)
+    const paths = (data ?? []).flatMap((a) => (a.qr_path ? [a.qr_path] : []))
+    if (paths.length) await service.storage.from('platform-billing').remove(paths)
+    await service.from('platform_payment_accounts').delete().like('label', `${E2E_PREFIX} Billing ${tag}`)
   }
 })
 

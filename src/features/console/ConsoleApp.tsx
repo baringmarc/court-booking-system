@@ -1,4 +1,5 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
+import { BillingPage } from './BillingPage'
 import { ConsoleGuard } from './ConsoleGuard'
 import { ConsoleLayout } from './ConsoleLayout'
 import { InvoicesPage } from './InvoicesPage'
@@ -15,6 +16,7 @@ export function ConsoleApp() {
           <Route path="leads" element={<LeadsPage />} />
           <Route path="venues" element={<VenuesPage />} />
           <Route path="invoices" element={<InvoicesPage />} />
+          <Route path="billing" element={<BillingPage />} />
           <Route path="reviews" element={<ReviewsPage />} />
           <Route path="*" element={<Navigate to="/leads" replace />} />
         </Route>

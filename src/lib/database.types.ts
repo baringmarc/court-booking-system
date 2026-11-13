@@ -409,6 +409,26 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"invoice_sends": {
+                  Row: {
+                    "created_at": string,"id": string,"invoice_id": string,"kind": string,"provider_id": string | null,"recipients": (string)[],"sent_by": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"id"?: string,"invoice_id": string,"kind": string,"provider_id"?: string | null,"recipients": (string)[],"sent_by": string
+                  }
+                  Update: {
+                    "created_at"?: string,"id"?: string,"invoice_id"?: string,"kind"?: string,"provider_id"?: string | null,"recipients"?: (string)[],"sent_by"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "invoice_sends_invoice_id_fkey"
+      columns: ["invoice_id"]
+isOneToOne: false
+      referencedRelation: "invoices"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"invoices": {
                   Row: {
                     "billing_month": string,"created_at": string,"id": string,"paid_at": string | null,"paid_method": string | null,"paid_reference": string | null,"sent_at": string | null,"status": string,"venue_id": string
@@ -601,6 +621,20 @@ isOneToOne: false
                   }
                   Update: {
                     "user_id"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"platform_payment_accounts": {
+                  Row: {
+                    "account_name": string,"account_number": string,"created_at": string,"id": string,"label": string,"position": number,"qr_path": string | null,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "account_name"?: string,"account_number"?: string,"created_at"?: string,"id"?: string,"label": string,"position"?: number,"qr_path"?: string | null,"updated_at"?: string
+                  }
+                  Update: {
+                    "account_name"?: string,"account_number"?: string,"created_at"?: string,"id"?: string,"label"?: string,"position"?: number,"qr_path"?: string | null,"updated_at"?: string
                   }
                   Relationships: [
                     
@@ -983,6 +1017,9 @@ isOneToOne: false
                            },
 "reorder_payment_accounts":
 { Args: { "p_ids": (string)[],"p_venue_id"?: string }; Returns: undefined
+                           },
+"reorder_platform_payment_accounts":
+{ Args: { "p_ids": (string)[] }; Returns: undefined
                            },
 "reschedule_booking":
 { Args: { "p_booking_id": string,"p_from_start": string,"p_new_court_id": string,"p_new_start": string,"p_reason": string }; Returns: {

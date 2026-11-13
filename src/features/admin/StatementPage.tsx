@@ -1,4 +1,4 @@
-import { useId, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { ErrorMessage } from '../../components/ErrorMessage'
 import { PageLoader } from '../../components/PageLoader'
@@ -8,7 +8,7 @@ import { formatInZone, todayInZone } from '../../lib/time'
 import { METHOD_LABELS } from '../booking/proofInput'
 import { useVenueSettings } from '../catalog/hooks'
 import { STATEMENT_PAGE_SIZE, type StatementCharge, type StatementInvoice, type StatementSummary } from './api'
-import { useStatementCharges, useStatementInvoices, useStatementSummary } from './hooks'
+import { useDownloadInvoicePdf, useLocateStatementInvoice, useStatementCharges, useStatementInvoices, useStatementSummary } from './hooks'
 
 /** How many months back the month picker offers, counting the current one. */
 const MONTHS_OFFERED = 12
@@ -37,7 +37,8 @@ function recentMonths(timeZone: string, count: number): string[] {
 /**
  * The venue admin's statement (SAAS-PLAN §5, T17.22): what is due now (sent invoices), this month's fees so far, one
  * month's totals and paged charges, and the invoice history. View state lives in the URL: `month`, `q` (booking
- * reference), `page` (charges) and `ipage` (invoices); page 1 and blank values stay out of it.
+ * reference), `page` (charges) and `ipage` (invoices); page 1 and blank values stay out of it. `invoice` (the emailed
+ * VIEW INVOICE link, T26.7) opens that invoice in the history, on the page it is on unless `ipage` names one.
  */
 export function StatementPage() {
   const settings = useVenueSettings()
@@ -62,12 +63,16 @@ function Statement({ currency, timeZone }: { currency: string; timeZone: string 
   const month = /^\d{4}-\d{2}-01$/.test(urlMonth) && urlMonth !== months[0] ? urlMonth : ''
   const search = params.get('q') ?? ''
   const page = pageOf(params.get('page'))
-  const invoicePage = pageOf(params.get('ipage'))
+  const linkedInvoice = params.get('invoice') ?? ''
+  // Find the linked invoice's page only when the URL doesn't name one; an unknown id leaves the history on page 1.
+  const locate = useLocateStatementInvoice(params.has('ipage') ? '' : linkedInvoice)
+  const locating = linkedInvoice !== '' && !params.has('ipage')
+  const invoicePage = locating ? (locate.data?.page ?? 1) : pageOf(params.get('ipage'))
   const options = month !== '' && !months.includes(month) ? [...months, month].sort().reverse() : months
 
   const summary = useStatementSummary(month)
   const charges = useStatementCharges({ month, search, page })
-  const invoices = useStatementInvoices({ page: invoicePage })
+  const invoices = useStatementInvoices({ page: invoicePage }, { enabled: !locating || locate.isSuccess })
 
   /** Sets or clears URL values; a month or search change also starts the charges again at page 1. */
   function update(changes: Record<string, string | number | null>, replace = false) {
@@ -134,7 +139,9 @@ function Statement({ currency, timeZone }: { currency: string; timeZone: string 
       {/* Named as a region once its rows are in, so assistive tech doesn't announce an empty history. */}
       <section aria-labelledby={invoices.isSuccess ? 'statement-invoices' : undefined} aria-busy={invoices.isPending}>
         <h2 id="statement-invoices">Invoice history</h2>
-        {invoices.isPending ? (
+        {locating && locate.isError ? (
+          <ErrorMessage error={locate.error} onRetry={() => locate.refetch()} />
+        ) : invoices.isPending ? (
           <PageLoader />
         ) : invoices.isError ? (
           <ErrorMessage error={invoices.error} onRetry={() => invoices.refetch()} />
@@ -143,10 +150,11 @@ function Statement({ currency, timeZone }: { currency: string; timeZone: string 
         ) : (
           <>
             <ul className="list card flush">
-              {invoices.data.rows.map((i) => <InvoiceRow key={i.invoice_id} invoice={i} currency={currency} timeZone={timeZone} />)}
+              {invoices.data.rows.map((i) => <InvoiceRow key={i.invoice_id} invoice={i} currency={currency} timeZone={timeZone}
+                linked={i.invoice_id === linkedInvoice} />)}
             </ul>
             <Pager label="Invoice pages" page={invoicePage} total={invoices.data.total} pageSize={STATEMENT_PAGE_SIZE}
-              onPage={(p) => update({ ipage: p })} />
+              onPage={(p) => update({ ipage: p, invoice: null })} />
           </>
         )}
       </section>
@@ -250,11 +258,16 @@ function ChargeRow({ charge, currency, timeZone }: { charge: StatementCharge; cu
   )
 }
 
-function InvoiceRow({ invoice: i, currency, timeZone }: { invoice: StatementInvoice; currency: string; timeZone: string }) {
-  const [open, setOpen] = useState(false)
+/** An invoice in the history; the linked one (`?invoice=`) starts open and is scrolled into view. */
+function InvoiceRow({ invoice: i, currency, timeZone, linked }: { invoice: StatementInvoice; currency: string; timeZone: string; linked: boolean }) {
+  const [open, setOpen] = useState(linked)
   const detailsId = useId()
+  const rowRef = useRef<HTMLLIElement>(null)
+  useEffect(() => {
+    if (linked) rowRef.current?.scrollIntoView({ block: 'start' })
+  }, [linked])
   return (
-    <li className="statement-invoice">
+    <li className="statement-invoice" ref={rowRef}>
       <div className="list-row">
         <span>
           <strong>{monthLabel(i.billing_month)}</strong> · {STATUS_LABELS[i.status] ?? i.status}
@@ -272,6 +285,7 @@ function InvoiceRow({ invoice: i, currency, timeZone }: { invoice: StatementInvo
             onClick={() => setOpen((o) => !o)}>
             Details
           </button>
+          {(i.status === 'sent' || i.status === 'paid') && <DownloadPdf invoice={i} />}
         </span>
       </div>
       {open && (
@@ -291,5 +305,30 @@ function InvoiceRow({ invoice: i, currency, timeZone }: { invoice: StatementInvo
         </dl>
       )}
     </li>
+  )
+}
+
+/** Saves a sent or paid invoice's PDF (T26.7) through a temporary download link; errors stay in the row. */
+function DownloadPdf({ invoice }: { invoice: StatementInvoice }) {
+  const download = useDownloadInvoicePdf()
+  function save() {
+    download.mutate(invoice.invoice_id, {
+      onSuccess: (blob) => {
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.download = `plotline-invoice-${invoice.billing_month.slice(0, 7)}.pdf`
+        link.click()
+        window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
+      },
+    })
+  }
+  return (
+    <>
+      <button type="button" className="btn btn-ghost btn-small" disabled={download.isPending} onClick={save}>
+        Download PDF
+      </button>
+      {download.isError && <span className="form-error block" role="alert">{download.error.message}</span>}
+    </>
   )
 }
