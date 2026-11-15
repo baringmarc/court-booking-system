@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it } from 'vitest'
 import type { BookingDetail } from './api'
 import { BookingSummary } from './BookingSummary'
@@ -30,8 +31,10 @@ const booking: BookingDetail = {
 
 const renderAt = (now: string, overrides: Partial<BookingDetail> = {}) =>
   render(
-    <BookingSummary booking={{ ...booking, ...overrides }} paymentInstructions={'**GCash**: 0917 000 0000'}
-      timeZone="Asia/Manila" currency="PHP" now={new Date(now)} />,
+    <MemoryRouter>
+      <BookingSummary booking={{ ...booking, ...overrides }} paymentInstructions={'**GCash**: 0917 000 0000'}
+        timeZone="Asia/Manila" currency="PHP" now={new Date(now)} />
+    </MemoryRouter>,
   )
 
 describe('BookingSummary', () => {

@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react'
+import { Link } from 'react-router-dom'
 import { SimpleMarkdown } from '../../components/SimpleMarkdown'
 import { formatHour, formatMoney } from '../../lib/format'
 import { formatDateLabel, formatDateTimeInZone, hourInZone, todayInZone } from '../../lib/time'
@@ -9,6 +10,7 @@ import { MoveHistory } from './MoveHistory'
 import { PaymentHistory } from './PaymentHistory'
 import { displayStatus, STATUS_LABELS, type DisplayStatus } from './status'
 import { isReplacedByOnlinePayment } from './paymentLabels'
+import { toCheckoutSearch } from './checkoutParams'
 
 type Props = {
   booking: BookingDetail
@@ -52,6 +54,14 @@ function BookingSteps({ status }: { status: DisplayStatus }) {
       ))}
     </ol>
   )
+}
+
+/** After an expired or rejected hold (T27.5): back to checkout for the same court and time while it's still ahead;
+ * checkout sends the player back to the grid if someone else has taken it meanwhile. */
+function RetryLink({ booking, hours, now }: { booking: BookingDetail; hours: number; now: Date }) {
+  if (Date.parse(booking.slot_start) <= now.getTime()) return <p><Link to="/book" className="btn btn-small">Book a court</Link></p>
+  const search = toCheckoutSearch({ courtId: booking.court_id, start: booking.slot_start, slots: hours })
+  return <p><Link to={`/book/checkout?${search}`} className="btn btn-small">Try this time again</Link></p>
 }
 
 export function BookingSummary({ booking, paymentInstructions, timeZone, currency, now, proofForm, paymentAccounts, payOnline, paymentNotice, cancelSection, saveLink, venueLocation }: Props) {
@@ -138,12 +148,14 @@ export function BookingSummary({ booking, paymentInstructions, timeZone, currenc
       {status === 'rejected' && (
         <div className="alert alert-error" role="status">
           <p>We couldn't verify your payment{lastRejection?.review_note ? ` (${lastRejection.review_note})` : ''}, so this booking was cancelled and the times were released.</p>
+          <RetryLink booking={booking} hours={hours} now={now} />
         </div>
       )}
 
       {status === 'expired' && (
         <div className="alert alert-error" role="status">
           <p>This hold expired before payment was received, so the times were released. You can book again.</p>
+          <RetryLink booking={booking} hours={hours} now={now} />
         </div>
       )}
       {status === 'cancelled' && (
