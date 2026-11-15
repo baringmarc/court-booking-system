@@ -63,7 +63,8 @@ export function SlotGrid({ courts, times, slotsByCourt, selection, onToggle, onO
           </li>
         )}
       </ul>
-      <div className="table-scroll">
+      {/* Keyboard-reachable even when every slot is past or taken (axe scrollable-region-focusable, T27.6), like DayView. */}
+      <div className="table-scroll" tabIndex={0} role="region" aria-label="Court times">
         <table className="slot-grid">
           <thead>
             <tr>

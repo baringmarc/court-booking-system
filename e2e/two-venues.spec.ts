@@ -29,11 +29,15 @@ test.afterAll(async () => {
 test('player view: each venue host lists only its own courts; an unknown subdomain is "Venue not found"', async ({ page }) => {
   const other = await newVenue('court')
 
+  // The court tiles are in "About the … courts", collapsed by default since T27.6.
+  const openCourtInfo = () => page.locator('details.court-info > summary').click()
   await page.goto('/book')
+  await openCourtInfo()
   await expect(page.getByText('Badminton 1').first()).toBeVisible()
   await expect(page.getByText(other.court)).toHaveCount(0)
 
   await page.goto(`${other.url}/book`)
+  await openCourtInfo()
   await expect(page.getByText(other.court).first()).toBeVisible()
   await expect(page.getByText('Badminton 1')).toHaveCount(0)
   await expect(page.getByText('Pickleball 1')).toHaveCount(0)

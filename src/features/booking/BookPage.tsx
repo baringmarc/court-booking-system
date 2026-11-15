@@ -117,8 +117,8 @@ function BookingBoard({ settings, courts, hours }: { settings: VenueSettings; co
         )}
       </div>
 
-      {/* Open by default (T9.11f); players can still collapse it. */}
-      <details className="court-info" open>
+      {/* Collapsed by default so the slot grid shows sooner on a phone (T27.6, replacing T9.11f's open); one tap opens it. */}
+      <details className="court-info">
         <summary>About the {SPORT_LABELS[sport].toLowerCase()} courts</summary>
         <CourtTiles courts={sportCourts} detailed />
       </details>
