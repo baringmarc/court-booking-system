@@ -18,12 +18,18 @@ test('the Dashboard downloads the complete PDF available at the public guide and
   expect(downloaded.subarray(-32).toString('ascii').trimEnd()).toMatch(/%%EOF$/)
 
   // The email download link must also work before an invited owner signs in.
-  for (const url of [stableUrl, '/guides/venue-owner-manual-v1.0.pdf']) {
+  // The current edition (1.1, T27.11) is the stable file byte for byte.
+  for (const url of [stableUrl, '/guides/venue-owner-manual-v1.1.pdf']) {
     const response = await request.get(url)
     expect(response.status()).toBe(200)
     expect(response.headers()['content-type']).toMatch(/^application\/pdf\b/i)
     expect(downloaded.equals(await response.body())).toBe(true)
   }
+  // Released editions stay available (docs/owner-manual/README.md): emails already sent link to v1.0.
+  const older = await request.get('/guides/venue-owner-manual-v1.0.pdf')
+  expect(older.status()).toBe(200)
+  expect(older.headers()['content-type']).toMatch(/^application\/pdf\b/i)
+  expect((await older.body()).subarray(0, 5).toString('ascii')).toBe('%PDF-')
 })
 
 // H14: keep last, after this file's own cleanup hooks.

@@ -194,7 +194,8 @@ try {
   const guest = await browser.newContext({ viewport: { width: 390, height: 1400 }, deviceScaleFactor: 2, colorScheme: 'light', timezoneId: 'Asia/Manila' })
   const player = await guest.newPage()
   await player.goto(`${base}/book`)
-  await expect(player.getByText('Garden Court 1').first()).toBeVisible()
+  // The court details start collapsed (T27.6), so wait for the grid's slots instead of a court tile.
+  await expect(player.getByRole('button', { name: /^Garden Court 1, / }).first()).toBeVisible()
   // Show next Monday: every hour still ahead, the lunch break and the ₱500 evening rate.
   const dow = new Date(venueDate(0) + 'T12:00:00Z').getUTCDay()
   for (let i = 0; i < ((8 - dow) % 7 || 7); i++) await player.getByRole('button', { name: 'Next day' }).click()
