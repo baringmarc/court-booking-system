@@ -33,6 +33,7 @@ npm run test:db   # pgTAP tests in supabase/tests against the LOCAL db (auto-sta
 npm run verify    # typecheck + lint + test + test:db + build: the gate for "done"
 npm run test:e2e  # Playwright flows against the LOCAL stack (needs `npx supabase start`); not in verify; the full gate runs it when UI files changed
 npm run smoke:proof  # Edge Function smoke test against the local stack
+npm run preflight:release -- --project-ref <ref>   # before a production release: fails if a migration or Edge Function at HEAD is missing on <ref> (read-only)
 npm run db:start / db:stop / db:reset:local   # local Supabase Postgres (Docker Desktop must be running)
 npm run db:push   # apply supabase/migrations to the linked project
 npm run db:types  # regenerate src/lib/database.types.ts from the linked project
