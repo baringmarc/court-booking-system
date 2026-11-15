@@ -12,7 +12,7 @@ function renderForm(waiverText: string, onSubmit = vi.fn()) {
   render(<CheckoutForm initial={contact} isGuest pending={false} waiverText={waiverText} onSubmit={onSubmit} />)
   return onSubmit
 }
-const confirm = () => userEvent.click(screen.getByRole('button', { name: 'Confirm booking' }))
+const confirm = () => userEvent.click(screen.getByRole('button', { name: 'Reserve and continue to payment' }))
 
 describe('CheckoutForm waiver', () => {
   it('shows the text under a Waiver heading with an unticked checkbox', () => {

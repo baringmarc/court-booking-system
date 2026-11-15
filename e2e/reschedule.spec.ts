@@ -52,7 +52,7 @@ test('staff move a confirmed booking before it starts: the guest sees it and get
   await page.getByLabel('Name').fill(`${E2E_PREFIX} Mover`)
   await page.getByLabel('Email').fill(email)
   await page.getByLabel('Mobile number (optional)').fill('0917 000 7777')
-  await page.getByRole('button', { name: 'Confirm booking' }).click()
+  await page.getByRole('button', { name: 'Reserve and continue to payment' }).click()
   await expect(page.getByRole('heading', { name: 'Booking reserved' })).toBeVisible()
   const url = page.url()
   const reference = new URL(url).pathname.split('/').pop()!

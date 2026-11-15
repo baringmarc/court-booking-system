@@ -86,13 +86,14 @@ describe('BookPage court details', () => {
     vi.mocked(fetchAvailability).mockResolvedValue([])
   })
 
-  it('starts with "About the … courts" open, and players can collapse it', async () => {
+  // T27.6 replaced T9.11f's open default: collapsed, and players can open it.
+  it('starts with "About the … courts" collapsed, and players can open it', async () => {
     renderPage()
     const summary = await screen.findByText('About the badminton courts')
     const details = summary.closest('details')!
+    expect(details).not.toHaveAttribute('open')
+    await userEvent.click(summary)
     expect(details).toHaveAttribute('open')
     expect(screen.getByText('Wooden floor, good lights.')).toBeVisible()
-    await userEvent.click(summary)
-    expect(details).not.toHaveAttribute('open')
   })
 })

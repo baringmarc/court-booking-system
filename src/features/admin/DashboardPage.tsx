@@ -13,6 +13,7 @@ import { useCourts, useOperatingHours, useStaffSchedule, useVenueSettings } from
 import { isAfterMidnight, operatingDayRange, operatingToday } from '../catalog/hours'
 import { nextBooking, operatingDayBookings, todayHoursLabel } from './dashboard'
 import { useAdminBookings, useProofQueueCount } from './hooks'
+import { DEFAULT_FILTERS, filtersToParams } from './bookingFilters'
 import { DayView } from './DayView'
 import { EarningsSection } from './EarningsSection'
 import { SetupChecklist } from './SetupChecklist'
@@ -85,6 +86,9 @@ function Dashboard({ settings, courts, hours }: { settings: VenueSettings; court
     [schedule.data?.bookings ?? [], pastMidnight ? (scheduleNext.data?.bookings ?? []).filter((b) => Date.parse(b.slot_start) < overnightEnd) : []], null,
   ).filter((b) => ACTIVE.has(displayStatus(b, now)))
   const next = nextBooking(todays, now)
+  // T27.7: each card opens the bookings it counts.
+  const todayLink = `/admin/bookings?${filtersToParams({ ...DEFAULT_FILTERS, status: 'all', date: today })}`
+  const nextLink = next ? `/admin/bookings?${filtersToParams({ ...DEFAULT_FILTERS, q: next.reference_code })}` : '/admin/bookings'
 
   return (
     <div className="stack">
@@ -107,7 +111,7 @@ function Dashboard({ settings, courts, hours }: { settings: VenueSettings; court
           ) : (
             <>
               <p className="big-number">{todays.length}</p>
-              <Link to="/admin/bookings">Open bookings</Link>
+              <Link to={todayLink}>Open bookings</Link>
             </>
           )}
         </section>
@@ -121,7 +125,7 @@ function Dashboard({ settings, courts, hours }: { settings: VenueSettings; court
                 <strong>{formatHour(hourInZone(next.slot_start, tz))}–{formatHour(hourInZone(next.slot_end, tz))}</strong> · {next.court_name}
                 <span className="muted small block">{next.guest_name}</span>
               </p>
-              <Link to="/admin/bookings">Open bookings</Link>
+              <Link to={nextLink}>Open bookings</Link>
             </>
           ) : (
             <>
@@ -137,8 +141,6 @@ function Dashboard({ settings, courts, hours }: { settings: VenueSettings; court
           <WalkInSection today={today} courts={courts} now={now} timeZone={tz} currency={currency} periods={staffHours.data ?? []} />
         </Suspense>
       )}
-
-      <EarningsSection today={today} timeZone={tz} currency={currency} />
 
       <section className="card stack" aria-labelledby="day-view-heading">
         <h2 id="day-view-heading">Today's courts</h2>
@@ -180,6 +182,8 @@ function Dashboard({ settings, courts, hours }: { settings: VenueSettings; court
           </ul>
         )}
       </section>
+
+      <EarningsSection today={today} timeZone={tz} currency={currency} />
     </div>
   )
 }

@@ -4,34 +4,72 @@ import { PhotoViewer } from '../../components/PhotoViewer'
 import { qrDownloadUrl, qrImageUrl, type PaymentAccount } from '../venue/api'
 import { usePaymentAccounts } from '../venue/hooks'
 
-/** The venue's payment accounts while a player pays (T11.11): one card each, with the QR code when there is one. */
-export function PaymentAccountList() {
+type ListProps = {
+  /** The account chosen for this payment (shared with the proof form's "Paid with", T27.4). */
+  selectedId?: string | null
+  /** When given, each card gets "Pay with this" and only the chosen card shows its details. */
+  onSelect?: (id: string) => void
+}
+
+/**
+ * The venue's payment accounts while a player pays (T11.11): one card each, with the QR code when there is one.
+ * With `onSelect` (T27.4), the player picks one: only that card shows its details, and a lone account is picked from the start.
+ */
+export function PaymentAccountList({ selectedId = null, onSelect }: ListProps = {}) {
   const accounts = usePaymentAccounts()
   if (accounts.isPending) return <p className="muted small" role="status">Loading payment options…</p>
   if (accounts.isError) return <ErrorMessage error={accounts.error} onRetry={() => accounts.refetch()} />
   if (accounts.data.length === 0) return null
+  const chosen = selectedId ?? (accounts.data.length === 1 ? accounts.data[0].id : null)
   return (
     <ul className="payment-accounts" aria-label="Payment accounts">
-      {accounts.data.map((a) => <li key={a.id}><AccountCard account={a} /></li>)}
+      {accounts.data.map((a) => (
+        <li key={a.id}>
+          <AccountCard account={a} choice={onSelect ? { selected: a.id === chosen, onSelect: () => onSelect(a.id) } : undefined} />
+        </li>
+      ))}
     </ul>
   )
 }
 
-function AccountCard({ account }: { account: PaymentAccount }) {
+type Choice = { selected: boolean; onSelect: () => void }
+
+function AccountCard({ account, choice }: { account: PaymentAccount; choice?: Choice }) {
   const [viewing, setViewing] = useState(false)
   const [qrFailed, setQrFailed] = useState<string | null>(null)
   const qr = account.qr_path && qrFailed !== account.qr_path ? account.qr_path : null
   const alt = `QR code for ${account.label}`
+  const showDetails = !choice || choice.selected
 
   return (
     <article className="payment-account" aria-labelledby={`account-${account.id}`}>
       <p className="account-label" id={`account-${account.id}`}><strong>{account.label}</strong></p>
+      {choice && (
+        <button type="button" className={`btn btn-small tap-44${choice.selected ? '' : ' btn-outline'}`}
+          aria-pressed={choice.selected} aria-label={choice.selected ? undefined : `Pay with ${account.label}`}
+          onClick={choice.onSelect}>
+          {choice.selected ? 'Selected' : 'Pay with this'}
+        </button>
+      )}
+      {showDetails && <AccountDetails account={account} qr={qr} alt={alt} onOpenQr={() => setViewing(true)} onQrError={setQrFailed} />}
+      {viewing && qr && (
+        <PhotoViewer photos={[{ src: qrImageUrl(qr), alt }]} start={0} label={`${account.label} QR code`} onClose={() => setViewing(false)} />
+      )}
+    </article>
+  )
+}
+
+function AccountDetails({ account, qr, alt, onOpenQr, onQrError }: {
+  account: PaymentAccount; qr: string | null; alt: string; onOpenQr: () => void; onQrError: (path: string) => void
+}) {
+  return (
+    <>
       {account.account_name && <p className="account-name">{account.account_name}</p>}
       {account.account_number && <CopyNumber label={account.label} number={account.account_number} />}
       {qr && (
         <>
-          <button type="button" className="qr-open" aria-label={`Show the ${account.label} QR code full size`} onClick={() => setViewing(true)}>
-            <img src={qrImageUrl(qr)} alt={alt} width={220} height={220} loading="lazy" onError={() => setQrFailed(qr)} />
+          <button type="button" className="qr-open" aria-label={`Show the ${account.label} QR code full size`} onClick={onOpenQr}>
+            <img src={qrImageUrl(qr)} alt={alt} width={220} height={220} loading="lazy" onError={() => onQrError(qr)} />
           </button>
           <div className="qr-actions">
             <a className="btn btn-small btn-outline tap-44" href={qrDownloadUrl(qr, account.label)}>Download QR</a>
@@ -39,10 +77,7 @@ function AccountCard({ account }: { account: PaymentAccount }) {
           </div>
         </>
       )}
-      {viewing && qr && (
-        <PhotoViewer photos={[{ src: qrImageUrl(qr), alt }]} start={0} label={`${account.label} QR code`} onClose={() => setViewing(false)} />
-      )}
-    </article>
+    </>
   )
 }
 

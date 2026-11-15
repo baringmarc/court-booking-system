@@ -12,7 +12,7 @@ export default mergeConfig(
       setupFiles: ['./src/test/setup.ts'],
       // index.css is read as source text by theme.test.ts (`?raw`). Vitest otherwise stubs CSS as empty.
       css: { include: [/src\/index\.css/] },
-      include: ['src/**/*.test.{ts,tsx}', 'supabase/functions/_shared/**/*.test.ts'],
+      include: ['src/**/*.test.{ts,tsx}', 'supabase/functions/_shared/**/*.test.ts', 'scripts/lib/**/*.test.ts'],
       // Dummy values so modules importing lib/supabase.ts load. Tests must mock network calls.
       env: {
         VITE_SUPABASE_URL: 'http://localhost:54321',

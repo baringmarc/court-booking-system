@@ -210,7 +210,7 @@ export async function uploadProof(page: Page) {
   else await paidWith.selectOption({ index: 1 })
   await page.getByLabel(/Receipt screenshot/).setInputFiles(receiptPng())
   await page.getByRole('button', { name: 'Submit proof of payment' }).click()
-  await expect(page.getByText(/We're checking your payment/)).toBeVisible()
+  await expect(page.getByText(/The venue checks payments by hand/)).toBeVisible()
 }
 
 /**

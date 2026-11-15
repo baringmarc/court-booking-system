@@ -67,8 +67,8 @@ test('an admin builds a court gallery that players see on the home page and /boo
     await expect(page.locator('a[href="/book?sport=tennis"]').filter({ has: cover })).toHaveCount(1)
 
     await page.goto('/book?sport=tennis')
-    // Open by default (T9.11f).
-    await expect(page.getByText('About the tennis courts')).toBeVisible()
+    // Collapsed by default (T27.6): open it to see the gallery.
+    await page.getByText('About the tennis courts').click()
     const gallery = page.getByRole('group', { name: `Photos of ${name}` })
     await expect(gallery.getByRole('img')).toHaveCount(2)
     await expect(gallery.getByText('1 / 2')).toBeVisible()

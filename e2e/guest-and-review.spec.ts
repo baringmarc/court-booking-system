@@ -1,6 +1,7 @@
 // Guest books, pays and uploads a proof; an admin rejects it (the guest re-uploads), then approves it.
 // T11.13: with Plotline's booking fee at ₱10, checkout, the booking page, the proof amount, the booking email and the
 // review panel all show the court price, the fee and the total (amount due).
+import { AxeBuilder } from '@axe-core/playwright'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { guardLeaks } from './support/leaks.ts'
 import { createAdmin, E2E_PREFIX, emailText, logInAdmin, pickFirstFreeSlot, serviceClient, uploadProof, venueDate } from './support/helpers.ts'
@@ -55,7 +56,7 @@ test.describe.serial('guest booking and admin review', () => {
     const guestEmail = `e2e-guest-${Date.now()}@example.com`
     await page.getByLabel('Email').fill(guestEmail)
     await page.getByLabel('Mobile number (optional)').fill('+63 917 123 4567')
-    await page.getByRole('button', { name: 'Confirm booking' }).click()
+    await page.getByRole('button', { name: 'Reserve and continue to payment' }).click()
 
     await expect(page.getByRole('heading', { name: 'Booking reserved' })).toBeVisible()
     // The private token travels in the fragment, which browsers never send to a server.
@@ -64,6 +65,16 @@ test.describe.serial('guest booking and admin review', () => {
     await expect(page.getByLabel('Private booking link')).toHaveValue(/#token=/)
     await expect(page.getByText('Waiting for payment')).toBeVisible()
     await expect(page.getByRole('timer')).toBeVisible()
+
+    // T27.3: the progress line starts at "Reserved", marked in text and with aria-current, and the page is axe clean.
+    const progress = page.getByRole('list', { name: 'Booking progress' })
+    await expect(progress.getByRole('listitem')).toHaveText([/Reserved/, /Payment sent/, /Confirmed/])
+    const current = progress.locator('[aria-current="step"]')
+    await expect(current).toHaveCount(1)
+    await expect(current).toContainText('Reserved')
+    await expect(current).toContainText(/current/i)
+    const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
+    expect(results.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical').map((v) => v.id)).toEqual([])
 
     bookingUrl = page.url()
     reference = new URL(bookingUrl).pathname.split('/').pop()!
@@ -145,7 +156,7 @@ test.describe.serial('guest booking and admin review', () => {
     await pickFirstFreeSlot(page, { date: venueDate(9), sport: 'pickleball', court: 'Pickleball 1' })
     await page.getByLabel('Name').fill(`${E2E_PREFIX} No Phone`)
     await page.getByLabel('Email').fill(`e2e-nophone-${Date.now()}@example.com`)
-    await page.getByRole('button', { name: 'Confirm booking' }).click()
+    await page.getByRole('button', { name: 'Reserve and continue to payment' }).click()
     await expect(page.getByRole('heading', { name: 'Booking reserved' })).toBeVisible()
     const ref = new URL(page.url()).pathname.split('/').pop()!
     const { data } = await serviceClient().from('bookings').select('guest_phone').eq('reference_code', ref).single().throwOnError()

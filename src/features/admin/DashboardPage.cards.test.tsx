@@ -62,7 +62,7 @@ describe('DashboardPage cards (T17.30)', () => {
     await renderDashboard()
     const c = card("Today's bookings")
     expect(c.getByText('3')).toBeInTheDocument()
-    expect(c.getByRole('link', { name: 'Open bookings' })).toHaveAttribute('href', '/admin/bookings')
+    expect(c.getByRole('link', { name: 'Open bookings' })).toHaveAttribute('href', '/admin/bookings?status=all&date=2030-01-07')
   })
 
   it('the Next booking card shows the booking in progress first, with its court and guest', async () => {
@@ -72,7 +72,7 @@ describe('DashboardPage cards (T17.30)', () => {
     expect(c.getByText(/Court A/)).toBeInTheDocument()
     expect(c.getByText(/Current Guest/)).toBeInTheDocument()
     expect(c.queryByText(/Past Guest/)).not.toBeInTheDocument()
-    expect(c.getByRole('link', { name: 'Open bookings' })).toHaveAttribute('href', '/admin/bookings')
+    expect(c.getByRole('link', { name: 'Open bookings' })).toHaveAttribute('href', '/admin/bookings?q=CB-2')
   })
 
   it('the Next booking card skips ended bookings and says when none are left', async () => {

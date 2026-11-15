@@ -29,12 +29,12 @@ test.describe.serial('waiver', () => {
     expect(overflow).toBeLessThanOrEqual(0)
 
     // Unticked: refused with a message, nothing booked.
-    await page.getByRole('button', { name: 'Confirm booking' }).click()
+    await page.getByRole('button', { name: 'Reserve and continue to payment' }).click()
     await expect(page.getByText('Tick the box to accept the waiver.')).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Booking reserved' })).toHaveCount(0)
 
     await page.getByRole('checkbox', { name: 'I have read and accept the waiver' }).check()
-    await page.getByRole('button', { name: 'Confirm booking' }).click()
+    await page.getByRole('button', { name: 'Reserve and continue to payment' }).click()
     await expect(page.getByRole('heading', { name: 'Booking reserved' })).toBeVisible()
 
     await expect(page.getByRole('heading', { name: 'Waiver you accepted' })).toBeVisible()

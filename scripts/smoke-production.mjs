@@ -46,7 +46,7 @@ if (!LINKS_ONLY) {
     await page.getByLabel('Email').fill(`delivered+smoke-${Date.now()}@resend.dev`)
     // "Phone" until T11.18 is on production, then "Mobile number (optional)".
     await page.getByLabel(/^(Phone|Mobile number)/).fill('0917 000 0000')
-    await page.getByRole('button', { name: 'Confirm booking' }).click()
+    await page.getByRole('button', { name: 'Reserve and continue to payment' }).click()
     await page.getByRole('heading', { name: 'Booking reserved' }).waitFor({ timeout: 20_000 })
     check(/\/booking\/CB-[A-Z0-9]{6}#token=/.test(page.url()), `guest booked ${slotName} on ${date}`)
     const link = page.url()
@@ -58,7 +58,7 @@ if (!LINKS_ONLY) {
       buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64'),
     })
     await page.getByRole('button', { name: 'Submit proof of payment' }).click()
-    await page.getByText(/We're checking your payment/).waitFor({ timeout: 20_000 })
+    await page.getByText(/The venue checks payments by hand/).waitFor({ timeout: 20_000 })
     check(true, 'proof of payment uploaded (Edge Function + Storage)')
     console.log(`\nReference: ${new URL(link).pathname.split('/').pop()}\nPrivate link: ${link}`)
   } catch (error) {

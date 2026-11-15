@@ -24,12 +24,23 @@ type Props = {
   pending: boolean
   error: unknown
   onSubmit: (values: ProofValues) => void
+  /** "Paid with", when the page shares it with the payment account cards (T27.4). '' is Choose…. */
+  method?: string
+  onMethodChange?: (method: string) => void
 }
 
-export function ProofForm({ total, currency, pending, error, onSubmit }: Props) {
-  const [input, setInput] = useState<ProofInput>({ method: '', amount: String(total), referenceNumber: '', file: null })
+export function ProofForm({ total, currency, pending, error, onSubmit, method: methodProp, onMethodChange }: Props) {
+  const [fields, setInput] = useState<ProofInput>({ method: '', amount: String(total), referenceNumber: '', file: null })
   const [errors, setErrors] = useState<ProofErrors>({})
   const accounts = usePaymentAccounts()
+  // A lone payment account is the one paid with unless the player picks something else (T27.4).
+  const chosenMethod = methodProp ?? fields.method
+  const onlyAccount = accounts.data?.length === 1 ? `${ACCOUNT_PREFIX}${accounts.data[0].id}` : ''
+  const input: ProofInput = { ...fields, method: chosenMethod || onlyAccount }
+  function setMethod(value: string) {
+    if (methodProp === undefined) setInput((i) => ({ ...i, method: value }))
+    onMethodChange?.(value)
+  }
 
   // Object URLs must be released; the effect only cleans up, it doesn't sync state.
   const previewUrl = useMemo(
@@ -67,7 +78,7 @@ export function ProofForm({ total, currency, pending, error, onSubmit }: Props) 
       <div className="field">
         <label htmlFor="proof-method">Paid with</label>
         <select id="proof-method" value={input.method} aria-invalid={errors.method ? true : undefined}
-          aria-describedby={describedBy('method')} onChange={(e) => setInput((i) => ({ ...i, method: e.target.value }))}>
+          aria-describedby={describedBy('method')} onChange={(e) => setMethod(e.target.value)}>
           <option value="">Choose…</option>
           {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>

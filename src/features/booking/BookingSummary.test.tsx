@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it } from 'vitest'
 import type { BookingDetail } from './api'
 import { BookingSummary } from './BookingSummary'
@@ -30,8 +31,10 @@ const booking: BookingDetail = {
 
 const renderAt = (now: string, overrides: Partial<BookingDetail> = {}) =>
   render(
-    <BookingSummary booking={{ ...booking, ...overrides }} paymentInstructions={'**GCash**: 0917 000 0000'}
-      timeZone="Asia/Manila" currency="PHP" now={new Date(now)} />,
+    <MemoryRouter>
+      <BookingSummary booking={{ ...booking, ...overrides }} paymentInstructions={'**GCash**: 0917 000 0000'}
+        timeZone="Asia/Manila" currency="PHP" now={new Date(now)} />
+    </MemoryRouter>,
   )
 
 describe('BookingSummary', () => {
@@ -52,7 +55,7 @@ describe('BookingSummary', () => {
 
   it('shows confirmed bookings without payment instructions', () => {
     renderAt('2030-01-07T02:30:00.000Z', { status: 'confirmed', expires_at: null })
-    expect(screen.getByText('Confirmed')).toBeInTheDocument()
+    expect(screen.getByText('Confirmed', { selector: '.badge' })).toBeInTheDocument()
     expect(screen.queryByText('GCash')).not.toBeInTheDocument()
   })
 
@@ -105,7 +108,7 @@ describe('BookingSummary', () => {
         timeZone="Asia/Manila" currency="PHP" now={new Date('2030-01-07T02:30:00.000Z')}
         proofForm={<form aria-label="Upload proof of payment" />} />,
     )
-    expect(screen.getByText(/We're checking your payment/)).toBeInTheDocument()
+    expect(screen.getByText(/The venue checks payments by hand/)).toBeInTheDocument()
     expect(screen.queryByRole('form', { name: 'Upload proof of payment' })).not.toBeInTheDocument()
   })
 

@@ -10,7 +10,7 @@ import { useUpcomingOpenPlay } from '../openPlay/hooks'
 import { OpenPlayDialog } from '../openPlay/OpenPlayDialog'
 import { CourtTiles } from '../catalog/CourtTiles'
 import { toCheckoutSearch } from './checkoutParams'
-import { useAvailability } from './hooks'
+import { useAvailability, usePlatformFee } from './hooks'
 import { reconcileSelection, summarizeSelection, toggleSlot, type Selection, type Slot } from './selection'
 import { SelectionBar } from './SelectionBar'
 import { SlotGrid } from './SlotGrid'
@@ -63,6 +63,7 @@ function BookingBoard({ settings, courts, hours }: { settings: VenueSettings; co
   const sportCourts = courts.filter((c) => c.sport === sport)
 
   const availability = useAvailability(date)
+  const platformFee = usePlatformFee()
   // Session details are only fetched once the day has open play slots.
   const openPlay = useUpcomingOpenPlay({ enabled: !!availability.data?.some((s) => s.status === 'open_play') })
 
@@ -116,8 +117,8 @@ function BookingBoard({ settings, courts, hours }: { settings: VenueSettings; co
         )}
       </div>
 
-      {/* Open by default (T9.11f); players can still collapse it. */}
-      <details className="court-info" open>
+      {/* Collapsed by default so the slot grid shows sooner on a phone (T27.6, replacing T9.11f's open); one tap opens it. */}
+      <details className="court-info">
         <summary>About the {SPORT_LABELS[sport].toLowerCase()} courts</summary>
         <CourtTiles courts={sportCourts} detailed />
       </details>
@@ -169,6 +170,7 @@ function BookingBoard({ settings, courts, hours }: { settings: VenueSettings; co
           date={todayInZone(tz, new Date(summary.start))}
           timeZone={tz}
           currency={settings.currency}
+          fee={platformFee.data ?? null}
           onClear={() => setSelection(null)}
           onContinue={() =>
             navigate(`/book/checkout?${toCheckoutSearch({ courtId: summary.courtId, start: summary.start, slots: summary.slots })}`)

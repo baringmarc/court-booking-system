@@ -1,14 +1,16 @@
 import { useEffect, useRef, type ReactNode } from 'react'
+import { Link } from 'react-router-dom'
 import { SimpleMarkdown } from '../../components/SimpleMarkdown'
 import { formatHour, formatMoney } from '../../lib/format'
-import { formatDateLabel, hourInZone, todayInZone } from '../../lib/time'
+import { formatDateLabel, formatDateTimeInZone, hourInZone, todayInZone } from '../../lib/time'
 import { SPORT_LABELS } from '../catalog/api'
 import type { BookingDetail } from './api'
 import { formatRemaining } from './countdown'
 import { MoveHistory } from './MoveHistory'
 import { PaymentHistory } from './PaymentHistory'
-import { displayStatus, STATUS_LABELS } from './status'
+import { displayStatus, STATUS_LABELS, type DisplayStatus } from './status'
 import { isReplacedByOnlinePayment } from './paymentLabels'
+import { toCheckoutSearch } from './checkoutParams'
 
 type Props = {
   booking: BookingDetail
@@ -26,9 +28,43 @@ type Props = {
   paymentNotice?: ReactNode
   /** The cancel card (the page owns the cancel mutation); it renders nothing once the booking is inactive. */
   cancelSection?: ReactNode
+  /** A guest's "Save this link" notice, shown after the payment section (T27.3). */
+  saveLink?: ReactNode
+  /** The venue's address (VenueLocation), shown before the payment history (T27.3). */
+  venueLocation?: ReactNode
 }
 
-export function BookingSummary({ booking, paymentInstructions, timeZone, currency, now, proofForm, paymentAccounts, payOnline, paymentNotice, cancelSection }: Props) {
+const STEPS = [
+  { label: 'Reserved', statuses: ['pending_payment'] },
+  { label: 'Payment sent', statuses: ['payment_submitted'] },
+  { label: 'Confirmed', statuses: ['confirmed', 'completed'] },
+] as const satisfies readonly { label: string; statuses: readonly DisplayStatus[] }[]
+
+/** Reserved → Payment sent → Confirmed; the current step is marked in text and with aria-current, not by color alone. */
+function BookingSteps({ status }: { status: DisplayStatus }) {
+  const current = STEPS.findIndex((s) => (s.statuses as readonly DisplayStatus[]).includes(status))
+  if (current < 0) return null
+  return (
+    <ol className="booking-steps" aria-label="Booking progress">
+      {STEPS.map((step, i) => (
+        <li key={step.label} className={i < current ? 'done' : i === current ? 'current' : undefined}
+          aria-current={i === current ? 'step' : undefined}>
+          {step.label}{i === current && <span className="sr-only"> (current step)</span>}
+        </li>
+      ))}
+    </ol>
+  )
+}
+
+/** After an expired or rejected hold (T27.5): back to checkout for the same court and time while it's still ahead;
+ * checkout sends the player back to the grid if someone else has taken it meanwhile. */
+function RetryLink({ booking, hours, now }: { booking: BookingDetail; hours: number; now: Date }) {
+  if (Date.parse(booking.slot_start) <= now.getTime()) return <p><Link to="/book" className="btn btn-small">Book a court</Link></p>
+  const search = toCheckoutSearch({ courtId: booking.court_id, start: booking.slot_start, slots: hours })
+  return <p><Link to={`/book/checkout?${search}`} className="btn btn-small">Try this time again</Link></p>
+}
+
+export function BookingSummary({ booking, paymentInstructions, timeZone, currency, now, proofForm, paymentAccounts, payOnline, paymentNotice, cancelSection, saveLink, venueLocation }: Props) {
   const status = displayStatus(booking, now)
   const date = todayInZone(timeZone, new Date(booking.slot_start))
   const hours = Math.round((Date.parse(booking.slot_end) - Date.parse(booking.slot_start)) / 3_600_000)
@@ -36,6 +72,7 @@ export function BookingSummary({ booking, paymentInstructions, timeZone, currenc
   // Only proofs count as rejections: a PayMongo payment that wasn't accepted is a refund case, not a failed proof.
   const lastRejection = [...booking.payments].reverse()
     .find((p) => p.review_status === 'rejected' && p.method !== 'paymongo' && !isReplacedByOnlinePayment(p, booking.payments))
+  const latestProof = booking.payments.at(-1)
   // Waiting for a new proof (e.g. arriving from the rejection email): bring the payment card into view.
   const payHeading = useRef<HTMLHeadingElement>(null)
   const needsNewProof = awaitingPayment && !!booking.expires_at && !!lastRejection
@@ -47,6 +84,7 @@ export function BookingSummary({ booking, paymentInstructions, timeZone, currenc
 
   return (
     <div className="stack">
+      <BookingSteps status={status} />
       <section className="card">
         <div className="page-head card-head">
           <h2>{booking.court_name}</h2>
@@ -99,20 +137,25 @@ export function BookingSummary({ booking, paymentInstructions, timeZone, currenc
         </section>
       )}
 
+      {saveLink}
+
       {status === 'payment_submitted' && (
         <div className="alert alert-info" role="status">
-          <p>Thanks! We're checking your payment. This page updates when staff confirm it.</p>
+          {latestProof && <p>Proof received {formatDateTimeInZone(latestProof.submitted_at, timeZone)}.</p>}
+          <p>The venue checks payments by hand. We'll email you when it's confirmed.</p>
         </div>
       )}
       {status === 'rejected' && (
         <div className="alert alert-error" role="status">
           <p>We couldn't verify your payment{lastRejection?.review_note ? ` (${lastRejection.review_note})` : ''}, so this booking was cancelled and the times were released.</p>
+          <RetryLink booking={booking} hours={hours} now={now} />
         </div>
       )}
 
       {status === 'expired' && (
         <div className="alert alert-error" role="status">
           <p>This hold expired before payment was received, so the times were released. You can book again.</p>
+          <RetryLink booking={booking} hours={hours} now={now} />
         </div>
       )}
       {status === 'cancelled' && (
@@ -125,6 +168,7 @@ export function BookingSummary({ booking, paymentInstructions, timeZone, currenc
           <p>The times were released.{booking.payments.some((p) => p.review_status === 'approved') ? ' Contact the venue about any refund.' : ''}</p>
         </div>
       )}
+      {venueLocation}
       <MoveHistory booking={booking} timeZone={timeZone} />
       {cancelSection}
       <PaymentHistory payments={booking.payments} timeZone={timeZone} currency={currency} />

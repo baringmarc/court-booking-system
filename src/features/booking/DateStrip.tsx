@@ -54,7 +54,7 @@ export function DateStrip({ value, onChange, today, lastDay, closedDays }: Props
           <span className="date-strip-full">{fullDate(value)}</span>
         </h2>
         <button type="button" className="btn btn-outline date-strip-jump" aria-haspopup="dialog" onClick={() => setJumping(true)}>
-          <CalendarDays aria-hidden="true" className="social-icon" />Jump to date
+          <CalendarDays aria-hidden="true" className="social-icon" /><span className="date-strip-jump-label">Jump to date</span>
         </button>
         <button type="button" className="btn btn-outline icon-btn" aria-label="Next day"
           disabled={value >= lastDay} onClick={() => onChange(addDays(value, 1))}>

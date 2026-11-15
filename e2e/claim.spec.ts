@@ -10,7 +10,7 @@ test('a guest booking shows up in My bookings after signing up with the same ema
   await page.getByLabel('Name').fill(`${E2E_PREFIX} Claimer`)
   await page.getByLabel('Email').fill(email)
   await page.getByLabel('Mobile number (optional)').fill('0917 000 4321')
-  await page.getByRole('button', { name: 'Confirm booking' }).click()
+  await page.getByRole('button', { name: 'Reserve and continue to payment' }).click()
   await expect(page.getByRole('heading', { name: 'Booking reserved' })).toBeVisible()
   const reference = new URL(page.url()).pathname.split('/').pop()!
 
