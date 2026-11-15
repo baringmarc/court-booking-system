@@ -17,7 +17,7 @@ describe('ownerLinkAction (T17.25)', () => {
   })
 })
 
-const GUIDE = 'https://plotline.fit/guides/venue-owner-manual-v1.0.pdf'
+const GUIDE = 'https://plotline.fit/guides/venue-owner-manual-v1.1.pdf'
 const SIGN_IN = 'https://forty.plotline.fit/admin'
 const LINK = 'https://x.test/auth/v1/verify?a=1&b="2"'
 const base = { venueName: 'Forty <Degrees>\nCourts', venueUrl: SIGN_IN, guideUrl: GUIDE }

@@ -127,6 +127,8 @@ For a task that isn't risky, state your plan in two or three lines, naming what 
   `node .claude/hooks/log-event.mjs mistake '{"category":"side-effect","summary":"<what went wrong>","cause":"<why>","fix":"<what fixed it>","impact":"<what it broke or wasted>"}'`
   Do this when you notice it, not only at the end. The gate, the guard and the reviewer log their own findings; this is for what only you know. Report them honestly in step 9 too.
 
+- **Order (/retro M27: M26 close-out, T27.7, T27.10):** only after the reviewer's PASS, make the tick, Notes, Handoff and SPEC §9 edits; then re-run the full gate (step 6), because the commit guard checks exactly the current changes; then commit. Don't tick or mark the Handoff done before the review, and don't edit after the last passing run.
+- Anchor TASKS.md edits on the task's own heading (`### [~] T27.10 …`) and edit inside that block. Never match on a line other tasks share word for word, such as an Acceptance line (T27.10's Notes landed under T22.2).
 - Tick the task `[x]` and add a short `Notes:` line under it with the key evidence (test files) and any follow-ups.
 - Update the Handoff section:
   - **Next task**

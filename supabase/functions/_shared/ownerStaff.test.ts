@@ -41,7 +41,7 @@ describe('mergeMemberRole (T24.1)', () => {
   })
 })
 
-const GUIDE = 'https://plotline.fit/guides/venue-owner-manual-v1.0.pdf'
+const GUIDE = 'https://plotline.fit/guides/venue-owner-manual-v1.1.pdf'
 const SIGN_IN = 'https://forty.plotline.fit/admin'
 const LINK = 'https://x.test/auth/v1/verify?a=1&b="2"'
 const ADDRESS = 'forty.plotline.fit'
