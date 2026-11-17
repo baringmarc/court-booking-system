@@ -4,7 +4,11 @@
 const KEY_PATTERN = /^backups\/plotline-(\d{4})-(\d{2})-(\d{2})\.tar\.age$/
 const DAY_MS = 24 * 60 * 60 * 1000
 
-export const PRODUCTION_REF = 'sfssolhsthteonzgzfos'
+// Production since the region move to Singapore on 2026-11-17 (docs/ops/REGION-MOVE.md).
+export const PRODUCTION_REF = 'jmichyttnqygwdcksbpg'
+// The first production project (Ireland). Frozen as the rollback safety net until it is deleted (REGION-MOVE
+// Step 8.3), so restores refuse it too; drop it from the default once the project is gone.
+export const OLD_PRODUCTION_REF = 'sfssolhsthteonzgzfos'
 
 /** Object key for the backup taken on the UTC date of `date`. */
 export function backupKey(date: Date): string {
@@ -36,8 +40,15 @@ export function diffRowCounts(source: Record<string, number>, target: Record<str
   return diffs
 }
 
-/** A restore wipes its target, so refuse the production project (and an empty URL). */
-export function assertRestoreTarget(dbUrl: string, productionRef = PRODUCTION_REF): void {
+/**
+ * A restore wipes its target, so refuse the production projects (and an empty URL). An explicit ref or list
+ * replaces both defaults.
+ */
+export function assertRestoreTarget(
+  dbUrl: string,
+  productionRefs: string | string[] = [PRODUCTION_REF, OLD_PRODUCTION_REF],
+): void {
   if (!dbUrl) throw new Error('Restore target is empty')
-  if (dbUrl.includes(productionRef)) throw new Error('Refusing to restore into the production project')
+  const refs = typeof productionRefs === 'string' ? [productionRefs] : productionRefs
+  if (refs.some((ref) => dbUrl.includes(ref))) throw new Error('Refusing to restore into the production project')
 }

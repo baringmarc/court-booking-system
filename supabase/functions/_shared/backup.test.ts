@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { assertRestoreTarget, backupKey, diffRowCounts, expiredKeys } from './backup.ts'
+import { OLD_PRODUCTION_REF, PRODUCTION_REF, assertRestoreTarget, backupKey, diffRowCounts, expiredKeys } from './backup.ts'
 
-const PROD_REF = 'sfssolhsthteonzgzfos'
+const PROD_REF = 'jmichyttnqygwdcksbpg'
+const OLD_PROD_REF = 'sfssolhsthteonzgzfos'
 
 describe('backupKey', () => {
   it('names the archive by UTC date', () => {
@@ -172,5 +173,46 @@ describe('assertRestoreTarget', () => {
     expect(assertRestoreTarget(url)).toBeUndefined()
     // the default ref is no longer special when a custom one is given
     expect(assertRestoreTarget(`postgresql://db.${PROD_REF}.supabase.co/postgres`, 'customref123')).toBeUndefined()
+  })
+
+  it('exports the new production ref and the old one', () => {
+    expect(PRODUCTION_REF).toBe(PROD_REF)
+    expect(OLD_PRODUCTION_REF).toBe(OLD_PROD_REF)
+  })
+
+  it('refuses the old production ref by default', () => {
+    expect(() => assertRestoreTarget(`postgresql://postgres:pw@db.${OLD_PROD_REF}.supabase.co:5432/postgres`)).toThrow(/production/)
+    expect(() => assertRestoreTarget(`postgresql://postgres.${OLD_PROD_REF}:pw@aws-0-ap.pooler.supabase.com:5432/postgres`)).toThrow(
+      'Refusing to restore into the production project',
+    )
+  })
+
+  it('refuses the new production ref by default with the exact message', () => {
+    expect(() => assertRestoreTarget(`postgresql://db.${PROD_REF}.supabase.co/postgres`)).toThrow('Refusing to restore into the production project')
+  })
+
+  it('keeps the empty-target message', () => {
+    expect(() => assertRestoreTarget('')).toThrow('Restore target is empty')
+  })
+
+  it('honours a list override, refusing every ref in it', () => {
+    const list = ['customref123', 'otherref456']
+    expect(() => assertRestoreTarget('postgresql://db.customref123.supabase.co/postgres', list)).toThrow(/production/)
+    expect(() => assertRestoreTarget('postgresql://db.otherref456.supabase.co/postgres', list)).toThrow(/production/)
+    expect(assertRestoreTarget('postgresql://db.unrelated789.supabase.co/postgres', list)).toBeUndefined()
+  })
+
+  it('a list override replaces both defaults', () => {
+    expect(assertRestoreTarget(`postgresql://db.${PROD_REF}.supabase.co/postgres`, ['customref123'])).toBeUndefined()
+    expect(assertRestoreTarget(`postgresql://db.${OLD_PROD_REF}.supabase.co/postgres`, ['customref123'])).toBeUndefined()
+  })
+
+  it('a single-string override makes neither default special', () => {
+    expect(assertRestoreTarget(`postgresql://db.${PROD_REF}.supabase.co/postgres`, 'customref123')).toBeUndefined()
+    expect(assertRestoreTarget(`postgresql://db.${OLD_PROD_REF}.supabase.co/postgres`, 'customref123')).toBeUndefined()
+  })
+
+  it('still throws on an empty string when a list override is given', () => {
+    expect(() => assertRestoreTarget('', ['customref123'])).toThrow(Error)
   })
 })

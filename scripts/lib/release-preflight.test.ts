@@ -8,7 +8,7 @@ import {
   formatReport,
 } from './release-preflight.mjs'
 
-const REF = 'sfssolhsthteonzgzfos'
+const REF = 'jmichyttnqygwdcksbpg'
 
 const sorted = (xs: string[]) => xs.slice().sort()
 
