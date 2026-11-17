@@ -64,7 +64,7 @@ async function listFiles(bucket, folder = '') {
   }
 }
 let objects = 0
-for (const bucket of ['venue-media', 'payment-qr', 'platform-billing']) {
+for (const bucket of ['venue-media', 'payment-qr', 'platform-billing', 'payment-proofs']) {
   for (const path of await listFiles(bucket)) {
     const { data, error } = await sb.storage.from(bucket).download(path)
     if (error) throw new Error(`${bucket}/${path}: ${error.message}`)

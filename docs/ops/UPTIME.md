@@ -9,8 +9,8 @@ Service: **StatusCake** free plan (the user's choice, 2026-11-08). Reported limi
 3. **Monitor 1, player site:** Uptime → New → HTTP(S)
    - URL `https://claudex-courts.plotline.fit/`
    - Check rate 5 minutes, expected status 200, contact group "Plotline".
-4. **Monitor 2, Supabase API (production, ref `sfssolhsthteonzgzfos`):** Uptime → New → HTTP(S)
-   - URL `https://sfssolhsthteonzgzfos.supabase.co/auth/v1/health`
+4. **Monitor 2, Supabase API (production, ref `jmichyttnqygwdcksbpg` since the 2026-11-17 region move):** Uptime → New → HTTP(S)
+   - URL `https://jmichyttnqygwdcksbpg.supabase.co/auth/v1/health`
    - The endpoint answers 401 without a key. Preferred: add the request header `apikey: <production publishable key>` (the same public key the app ships; never the service-role key) and expect 200. If the free plan has no custom headers, accept 401 as up. That proves the API gateway answers, not the database.
    - Check rate 5 minutes, contact group "Plotline".
 5. Optional: a third monitor on `https://app.plotline.fit/` (the console).
