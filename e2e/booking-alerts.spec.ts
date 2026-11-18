@@ -8,11 +8,32 @@ import { createAdmin, E2E_PREFIX, logInAdmin, pickFirstFreeSlot, uploadProof, ve
 
 test('the admin sees a new booking arrive without reloading', async ({ page, browser }) => {
   const admin = await createAdmin()
+  // H18: the guest must not book before the admin's realtime channel has joined, or the broadcast is missed.
+  // Watch the admin page's websocket for the join reply (`phx_reply`, status ok) on the bookings topic.
+  let joined!: () => void
+  const channelJoined = new Promise<void>((resolve) => (joined = resolve))
+  page.on('websocket', (ws) =>
+    ws.on('framereceived', ({ payload }) => {
+      if (typeof payload !== 'string' || !payload.includes('realtime:admin:bookings:')) return
+      try {
+        // realtime-js speaks protocol 2.0.0: text frames are `[join_ref, ref, topic, event, payload]`.
+        const frame: unknown = JSON.parse(payload)
+        const [event, reply] = Array.isArray(frame)
+          ? [frame[3], frame[4]]
+          : [(frame as { event?: unknown }).event, (frame as { payload?: unknown }).payload]
+        if (event === 'phx_reply' && (reply as { status?: unknown } | null)?.status === 'ok') joined()
+      } catch {
+        // Not a JSON frame: ignore.
+      }
+    }),
+  )
   await logInAdmin(page, admin.email, admin.password, '/admin')
   const openNavigation = page.getByRole('button', { name: 'Open navigation' })
   if (await openNavigation.isVisible()) await openNavigation.click()
   const nav = page.getByRole('navigation', { name: 'Admin' })
   await expect(nav.getByRole('link', { name: 'Bookings', exact: true })).toBeVisible()
+
+  await channelJoined
 
   // A guest, in their own browser context, books and uploads a proof.
   const guestContext = await browser.newContext()
