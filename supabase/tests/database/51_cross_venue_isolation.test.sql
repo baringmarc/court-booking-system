@@ -550,7 +550,7 @@ select is_empty(
   $$ select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
      where n.nspname = 'public' and p.prokind = 'f'
        and p.proname = any (array['claim_email_outbox', 'claim_guest_link_email', 'finish_email', 'issue_guest_link', 'paymongo_checkout_for',
-                                  'proof_target', 'record_payment_proof', 'record_paymongo_checkout', 'record_paymongo_payment'])
+                                  'proof_target', 'create_site_live_stack', 'record_payment_proof', 'record_paymongo_checkout', 'record_paymongo_payment'])
        and (has_function_privilege('authenticated', p.oid, 'execute') or has_function_privilege('anon', p.oid, 'execute')) $$,
   'service-only RPCs (webhook, proof upload, email worker, guest links) are not executable by staff, players or anon');
 

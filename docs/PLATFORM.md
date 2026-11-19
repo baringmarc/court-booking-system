@@ -95,7 +95,7 @@ Reply: `200 { ok: true, message }`.
 
 Players open an organizer's Paddle Stack on their own phones from a link or QR and see it update live. **View-only: no player accounts; only the organizer's device changes anything.** Nothing here changes `public_venues`. Rationale and the user's calls: SPEC §10 2026-11-18; the spike and limits: RESEARCH "Milestone 29". Every name below is final once deployed; changes follow §7.
 
-**`stack-live`** (Edge Function, `POST`, `verify_jwt = false`, CORS from `SITE_ORIGINS` exactly like `site-contact`): an organizer at plotline.fit goes live without signing in. It verifies Turnstile, then creates a stack with no venue.
+**`stack-live`** (Edge Function, `POST`, `verify_jwt = false`, CORS from `SITE_ORIGINS` exactly like `site-contact`): an organizer at plotline.fit goes live without signing in. It checks the body, verifies Turnstile, then creates a stack with no venue (through the service-role-only RPC `create_site_live_stack`, which plotline-site never calls).
 
 | Field | Type | Rule |
 | --- | --- | --- |
@@ -103,7 +103,7 @@ Players open an organizer's Paddle Stack on their own phones from a link or QR a
 | `courts` | integer | 1–12 |
 | `title` | string | optional, ≤ 60 characters (trimmed; empty means no title) |
 
-Replies: `200 { ok: true, code, secret }`; `400 { ok: false, error: 'invalid_input' }`; `403 { ok: false, error: 'bot_check_failed' }`; `409 { ok: false, error: 'busy' }` (300 live stacks already; "try again later"); `503` when a hosted project has no `TURNSTILE_SECRET_KEY` (Go live is unavailable; the organizer can still run the board without sharing it; on a local stack the check is skipped when the secret is unset, as for `site-contact`, so e2e and smoke tests need no Cloudflare); `500 { ok: false, error: 'server_error' }`. Errors carry a stable `error` code, not prose; plotline-site words them. Logs hold no titles, names or snapshots.
+Replies: `200 { ok: true, code, secret }`; `400 { ok: false, error: 'invalid_input' }`; `403 { ok: false, error: 'bot_check_failed' }`; `409 { ok: false, error: 'busy' }` (300 live stacks already; "try again later"); `503 { ok: false, error: 'unavailable' }` when a hosted project has no `TURNSTILE_SECRET_KEY` (Go live is unavailable; the organizer can still run the board without sharing it; on a local stack the check is skipped when the secret is unset, as for `site-contact`, so e2e and smoke tests need no Cloudflare); `500 { ok: false, error: 'server_error' }`. Errors carry a stable `error` code, not prose; plotline-site words them. Logs hold no titles, names or snapshots.
 
 - **`code`** identifies the stack and is public (it is in the link): 128 random bits, URL-safe. Stacks can't be listed or enumerated; only a known code reads.
 - **`secret`** lets one device publish. It is returned once, **only its hash is stored**, and it stays on the organizer's device (`localStorage`). It never goes in a query string or to a server other than `publish_live_stack`.

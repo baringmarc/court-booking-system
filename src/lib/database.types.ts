@@ -1792,6 +1792,10 @@ export type Database = {
         }
         Returns: string
       }
+      create_site_live_stack: {
+        Args: { p_courts: number; p_title: string }
+        Returns: Json
+      }
       create_venue: {
         Args: { p_name: string; p_slug: string; p_timezone: string }
         Returns: string
