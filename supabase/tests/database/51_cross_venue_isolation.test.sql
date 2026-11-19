@@ -260,6 +260,11 @@ insert into public.billing_charges (venue_id, booking_id, kind, amount, billing_
   ('a0000000-0000-0000-0000-00000000000a', 'b1000000-0000-0000-0000-0000000000a1', 'booking_fee', 10, date_trunc('month', now())::date, '1a000000-0000-0000-0000-0000000000a1'),
   ('b0000000-0000-0000-0000-00000000000b', 'b1000000-0000-0000-0000-0000000000b1', 'booking_fee', 10, date_trunc('month', now())::date, '1a000000-0000-0000-0000-0000000000b1');
 
+-- T29.4: live stacks have no client grants at all (reads through get_live_stack by code only)
+insert into public.live_stacks (venue_id, code, secret_hash, title, courts) values
+  ('a0000000-0000-0000-0000-00000000000a', 'e2eisolivestackaaaaaaaa', repeat('a', 64), 'E2E A stack', 2),
+  ('b0000000-0000-0000-0000-00000000000b', 'e2eisolivestackbbbbbbbb', repeat('b', 64), 'E2E B stack', 2);
+
 -- Objects as the storage service would create them (the service role bypasses RLS)
 -- T18.3: walk-ins are off by default; this file records walk-ins, so its venues switch them on (as postgres).
 update public.venue_settings set walk_ins_enabled = true;
@@ -308,7 +313,7 @@ select is_empty(
      where tbl not in (select tbl from pg_temp.tpl where venue_id = 'a0000000-0000-0000-0000-00000000000a')
         or tbl not in (select tbl from pg_temp.tpl where venue_id = 'b0000000-0000-0000-0000-00000000000b') $$,
   'every table with a venue_id has fixture rows in venue A and in venue B (add rows here when a table is added)');
-select is((select count(*)::int from pg_temp.swp), 27, 'the catalog sweep includes the four schedule tables and the two promo tables (T19.1)');
+select is((select count(*)::int from pg_temp.swp), 28, 'the catalog sweep includes the four schedule tables, the two promo tables (T19.1) and live_stacks (T29.4)');
 select is(
   (select count(*)::int from pg_temp.swp where tbl in ('billing_charges', 'invoices', 'venue_members', 'guest_link_tokens', 'bookings', 'payments')),
   6, 'the sweep includes the billing, membership, booking and payment tables');
@@ -320,8 +325,8 @@ select is(
 -- ---------------------------------------------------------------- staff A against venue B
 set local role authenticated;
 select pg_temp.as_user('22222222-2222-2222-2222-222222222222');
-select results_eq($$ select * from pg_temp.blind('a0000000-0000-0000-0000-00000000000a') $$, $$ values ('guest_link_tokens') $$,
-  'staff A sees rows of their own venue in every table but the deny-all guest_link_tokens (so the probes below are not vacuous)');
+select results_eq($$ select * from pg_temp.blind('a0000000-0000-0000-0000-00000000000a') $$, $$ values ('guest_link_tokens'), ('live_stacks') $$,
+  'staff A sees rows of their own venue in every table but the deny-all guest_link_tokens and live_stacks (so the probes below are not vacuous)');
 select is_empty($$ select * from pg_temp.sweep('select', 'b0000000-0000-0000-0000-00000000000b', 'a0000000-0000-0000-0000-00000000000a') $$,
   'staff A reads no private row of venue B in any table (the published catalog of an active venue is public by design)');
 select is_empty($$ select * from pg_temp.sweep('update', 'b0000000-0000-0000-0000-00000000000b', 'a0000000-0000-0000-0000-00000000000a') $$,
@@ -337,8 +342,8 @@ reset role;
 -- ---------------------------------------------------------------- staff B against venue A
 set local role authenticated;
 select pg_temp.as_user('77777777-7777-7777-7777-777777777777');
-select results_eq($$ select * from pg_temp.blind('b0000000-0000-0000-0000-00000000000b') $$, $$ values ('guest_link_tokens') $$,
-  'staff B sees rows of their own venue in every table but the deny-all guest_link_tokens');
+select results_eq($$ select * from pg_temp.blind('b0000000-0000-0000-0000-00000000000b') $$, $$ values ('guest_link_tokens'), ('live_stacks') $$,
+  'staff B sees rows of their own venue in every table but the deny-all guest_link_tokens and live_stacks');
 select is_empty($$ select * from pg_temp.sweep('select', 'a0000000-0000-0000-0000-00000000000a', 'b0000000-0000-0000-0000-00000000000b') $$,
   'staff B reads no private row of venue A in any table');
 select is_empty($$ select * from pg_temp.sweep('update', 'a0000000-0000-0000-0000-00000000000a', 'b0000000-0000-0000-0000-00000000000b') $$,
@@ -519,6 +524,8 @@ select is_empty(
          'create_booking', 'get_availability', 'get_public_schedule',
          -- by secret token or by the caller's own account: no venue id to cross
          'get_guest_booking', 'claim_guest_bookings',
+         -- live stacks by code (and secret): no venue id to cross; create_venue_live_stack refuses staff of another venue (86_live_stacks)
+         'get_live_stack', 'publish_live_stack', 'create_venue_live_stack',
          -- platform admins only: it makes a new venue and takes no venue id to cross (56_create_venue)
          'create_venue',
          -- platform admins only: Plotline's own payment accounts, no venue id to cross (84_platform_billing)

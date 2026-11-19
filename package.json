@@ -18,6 +18,7 @@
     "smoke:contact": "node scripts/smoke-site-contact.mjs",
     "smoke:paymongo": "node scripts/smoke-paymongo.mjs",
     "smoke:emails": "node scripts/smoke-emails.mjs",
+    "smoke:livestack": "node scripts/smoke-live-stack.mjs",
     "test:e2e": "node scripts/with-lock.mjs playwright test",
     "verify": "npm run typecheck && npm run lint && npm run test && npm run test:db && npm run build && npm run check:drift",
     "preview": "vite preview",
