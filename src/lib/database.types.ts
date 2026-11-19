@@ -1518,6 +1518,7 @@ export type Database = {
           cancel_cutoff_hours: number
           city: string
           currency: string
+          logo_path: string | null
           maps_url: string
           max_rejections: number
           name: string
@@ -1542,6 +1543,7 @@ export type Database = {
           cancel_cutoff_hours?: number
           city?: string
           currency?: string
+          logo_path?: string | null
           maps_url?: string
           max_rejections?: number
           name: string
@@ -1566,6 +1568,7 @@ export type Database = {
           cancel_cutoff_hours?: number
           city?: string
           currency?: string
+          logo_path?: string | null
           maps_url?: string
           max_rejections?: number
           name?: string

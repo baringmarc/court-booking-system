@@ -16,7 +16,7 @@ vi.mock('../catalog/api', async (original) => ({ ...(await original<typeof impor
 vi.mock('./api', async (original) => ({ ...(await original<typeof import('./api')>()), fetchSetupStatus: vi.fn(), savePaymentAccount: vi.fn(), deletePaymentAccount: vi.fn(), reorderPaymentAccounts: vi.fn() }))
 
 const INITIAL: VenueSettings = {
-  venue_id: '00000000-0000-4000-8000-0000000000a1', name: 'Setup Venue', address: '', banner_alt: null, banner_path: null,
+  venue_id: '00000000-0000-4000-8000-0000000000a1', name: 'Setup Venue', address: '', banner_alt: null, banner_path: null, logo_path: null,
   booking_window_days: 30, cancel_cutoff_hours: 1, city: '', currency: 'PHP', maps_url: '', max_rejections: 2,
   online_payments_enabled: false, payment_hold_minutes: 60, payment_instructions: '', showcase_opt_in: false,
   slot_minutes: 60, sport_order: ['badminton', 'pickleball', 'tennis'], theme: 'plotline', timezone: 'Asia/Manila',

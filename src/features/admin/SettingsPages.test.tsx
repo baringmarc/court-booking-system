@@ -19,7 +19,7 @@ vi.mock('./api', async (original) => ({ ...(await original<typeof import('./api'
 
 const INITIAL: VenueSettings = {
   venue_id: '00000000-0000-4000-8000-0000000000a1', name: 'E2E Settings Venue', address: '123 Court Street',
-  banner_alt: null, banner_path: null, booking_window_days: 30, cancel_cutoff_hours: 1, city: 'Makati', currency: 'PHP',
+  banner_alt: null, banner_path: null, logo_path: null, booking_window_days: 30, cancel_cutoff_hours: 1, city: 'Makati', currency: 'PHP',
   maps_url: '', max_rejections: 2, online_payments_enabled: false, payment_hold_minutes: 60,
   payment_instructions: 'Pay to the account above.', showcase_opt_in: false, slot_minutes: 60,
   sport_order: ['badminton', 'pickleball', 'tennis'], theme: 'plotline', timezone: 'Asia/Manila',
