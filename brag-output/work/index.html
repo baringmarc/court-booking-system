@@ -1,0 +1,524 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Plotline brag</title>
+<link rel="stylesheet" href="app.css">
+<style>
+  html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; }
+  body { font-family: var(--sans); color: var(--text); background: var(--bg); }
+  .stage { position: absolute; inset: 0; overflow: hidden; }
+  .scene { position: absolute; inset: 0; display: none; }
+  .scene.band { background: var(--band-bg); color: var(--band-text); }
+  .scene.cream { background: var(--bg); }
+
+  /* decorative brand shapes (corners only, never behind text) */
+  .shape { position: absolute; border-radius: 50%; }
+
+  .headline { font-family: var(--serif); font-weight: 700; letter-spacing: -0.02em; line-height: 1.02; margin: 0; }
+  .word { display: inline-block; will-change: transform, opacity; }
+  .hl { color: var(--terracotta); }
+
+  /* Scene 1 */
+  #s1 .copy { position: absolute; left: 140px; top: 330px; width: 820px; }
+  #s1 .headline { font-size: 132px; }
+  #s1 .gridwrap { position: absolute; left: 1010px; top: 150px; width: 780px; transform-origin: 0 0; }
+  #s1 .card { padding: 26px 22px 18px; }
+  #s1 .slot-grid { font-size: 1.35rem; border-spacing: 8px; }
+  #s1 .slot { min-height: 82px; }
+  #s1 .slot-grid tbody th { height: 82px; font-size: 1.2rem; }
+  #s1 .slot-name { font-size: 1rem; max-width: 9em; }
+
+  /* Scene 2 / 6 */
+  .center-col { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+  .logo-row { display: flex; align-items: center; gap: 36px; }
+  .logo-row img { width: 200px; height: 200px; border-radius: 40px; }
+  .wordmark { font-family: var(--serif); font-weight: 700; font-size: 200px; letter-spacing: -0.02em; line-height: 1; color: var(--band-text); }
+  .tagline { font-family: var(--serif); font-weight: 600; font-size: 68px; margin-top: 56px; color: var(--band-text); }
+  .tagline .accent { color: var(--rose); }
+  .kicker { font-size: 26px; letter-spacing: 0.28em; text-transform: uppercase; color: var(--band-accent); font-weight: 700; margin-top: 34px; }
+  .url { font-size: 44px; font-weight: 700; color: var(--band-text); margin-top: 40px; padding: 14px 40px; border: 2px solid var(--band-border); border-radius: 999px; background: var(--band-card); }
+
+  /* Phone scenes */
+  .side { position: absolute; left: 140px; top: 0; bottom: 0; width: 900px; display: flex; flex-direction: column; justify-content: center; }
+  .side .headline { font-size: 104px; }
+  .side .sub { font-size: 38px; color: var(--muted); margin-top: 34px; max-width: 760px; line-height: 1.35; }
+  .chips { display: flex; gap: 18px; margin-top: 44px; flex-wrap: wrap; }
+  .chip { font-size: 32px; font-weight: 700; padding: 14px 30px; border-radius: 999px; border: 2px solid var(--accent); background: var(--surface); color: var(--text); }
+
+  .phone { position: absolute; right: 200px; top: 50%; width: 414px; height: 860px; margin-top: -430px; border-radius: 62px; background: #1d1916; padding: 14px; box-shadow: 0 40px 90px rgba(59,47,42,0.28); transform-origin: 50% 50%; }
+  .screen { position: relative; width: 386px; height: 832px; border-radius: 50px; overflow: hidden; background: var(--bg); }
+  .notch { position: absolute; top: 10px; left: 50%; width: 112px; height: 32px; margin-left: -56px; border-radius: 20px; background: #1d1916; z-index: 20; }
+  .statusbar { height: 52px; display: flex; justify-content: space-between; align-items: center; padding: 6px 30px 0; font-size: 15px; font-weight: 700; background: var(--surface); }
+  .screen .header-inner { min-height: 52px; padding: 0 16px; flex-wrap: nowrap; }
+  .screen .container { padding: 0 14px; }
+  .screen .main { padding-top: 14px; }
+  .screen h1 { font-size: 1.45rem; margin-bottom: 4px; }
+  .screen .slot-grid { font-size: 0.82rem; border-spacing: 4px; }
+  .screen .slot-grid tbody th { font-size: 0.78rem; padding: 0 4px; }
+  .screen .slot { min-height: 46px; }
+  .screen .selection-bar { position: absolute; left: 12px; right: 12px; bottom: 22px; }
+  .screen .facts { gap: 10px 22px; }
+  .tap { position: absolute; width: 64px; height: 64px; margin: -32px 0 0 -32px; border-radius: 50%; background: rgba(59,47,42,0.22); border: 2px solid rgba(59,47,42,0.35); pointer-events: none; z-index: 30; }
+  .date-pill { display: inline-flex; gap: 8px; align-items: center; font-weight: 700; font-size: 0.9rem; padding: 6px 12px; border-radius: 999px; border: 1.5px solid var(--border-strong); background: var(--surface); margin: 2px 0 12px; }
+
+  /* Owner card */
+  .admin-card { position: absolute; right: 150px; top: 50%; width: 700px; transform-origin: 50% 50%; }
+  .admin-card .card { padding: 34px 38px 24px; font-size: 26px; }
+  .admin-card h3 { font-size: 34px; }
+  .admin-card .big-number { font-size: 72px; font-family: var(--serif); }
+  .admin-card .small { font-size: 21px; }
+  .admin-card .list-row { padding: 18px 0; }
+  .admin-card .list > li.split-total { font-size: 32px; padding-inline: 18px; margin: 0 -18px; }
+  .period { position: absolute; right: 38px; top: 38px; font-size: 20px; font-weight: 700; padding: 6px 16px; border-radius: 999px; background: var(--btn); box-shadow: inset 0 0 0 1.5px var(--accent); color: var(--btn-text); }
+  .filebox { display: flex; align-items: center; gap: 10px; padding: 6px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--field); font-weight: 500; }
+  .fb-btn { padding: 4px 10px; border-radius: 6px; background: var(--sand); color: var(--text); font-weight: 700; font-size: 0.8rem; }
+  .review-card { position: absolute; left: 880px; top: 150px; width: 580px; font-size: 20px; transform-origin: 50% 50%; }
+  .review-card .card { padding: 30px 32px; }
+  .review-card h2 { font-size: 34px; }
+  .review-card h3 { font-size: 24px; }
+  .review-card .facts dt { font-size: 16px; }
+  .review-card .small { font-size: 17px; }
+  .review-card .badge { font-size: 16px; padding: 4px 12px; }
+  .receipt { width: 300px; padding: 16px 20px; border-radius: 12px; border: 1px dashed var(--border-strong); background: #fff; font-size: 15px; }
+  .r-top { font-weight: 700; color: var(--accent); }
+  .r-amt { font-family: var(--serif); font-weight: 700; font-size: 34px; margin: 2px 0 8px; }
+  .r-row { display: flex; justify-content: space-between; color: var(--muted); padding: 2px 0; }
+  .r-row span:last-child { color: var(--text); font-weight: 700; }
+  #s4 .side .headline { font-size: 90px; }
+  .phone.mini { right: 60px; transform-origin: 50% 50%; }
+  .outro-cta { font-family: var(--serif); font-weight: 600; font-size: 64px; margin-top: 52px; color: var(--rose); }
+</style>
+</head>
+<body>
+<div class="stage">
+
+  <!-- 1 HOOK -->
+  <section class="scene cream" id="s1">
+    <div class="copy">
+      <h1 class="headline"><span class="word">An</span> <span class="word">empty</span> <span class="word">court</span><br><span class="word">earns</span> <span class="word hl">₱0.</span></h1>
+    </div>
+    <div class="gridwrap">
+      <div class="card">
+        <table class="slot-grid" id="hookgrid">
+          <thead><tr><th></th><th>Pickleball 1</th><th>Pickleball 2</th><th>Pickleball 3</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2 REVEAL -->
+  <section class="scene band" id="s2">
+    <div class="center-col">
+      <div class="logo-row"><img id="s2tile" src="/src/assets/plotline-tile.svg" alt=""><span class="wordmark" id="s2word">plotline</span></div>
+      <div class="tagline" id="s2tag">Plot your day. <span class="accent">Fill your hours.</span></div>
+      <div class="kicker" id="s2kick">Online booking for your courts</div>
+    </div>
+  </section>
+
+  <!-- 3 BOOK -->
+  <section class="scene cream" id="s3">
+    <div class="side">
+      <h2 class="headline" id="s3h"><span class="word">Players</span> <span class="word">book</span> <span class="word">in</span><br><span class="word hl">three</span> <span class="word hl">taps.</span></h2>
+      <p class="sub" id="s3sub">Live slots, real prices, no account needed.</p>
+    </div>
+    <div class="phone" id="phone3">
+      <div class="screen">
+        <div class="notch"></div>
+        <div class="statusbar"><span>9:41</span><span>●●● ▮</span></div>
+        <header class="site-header"><div class="header-inner"><span class="brand venue-name">Claudex Courts</span><span class="auth-area"><span class="btn btn-small">Log in</span></span></div></header>
+        <div class="main"><div class="container">
+          <h1>Book a court</h1>
+          <span class="date-pill">📅 Sat, Nov 28 · Pickleball</span>
+          <ul class="slot-legend">
+            <li><span class="slot-swatch slot-free"></span>Available</li>
+            <li><span class="slot-swatch slot-selected">✓</span>Selected</li>
+            <li><span class="slot-swatch slot-booked"></span>Booked</li>
+          </ul>
+          <table class="slot-grid" id="bookgrid">
+            <thead><tr><th></th><th>Pickleball 1</th><th>Pickleball 2</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div></div>
+        <div class="selection-bar" id="selbar">
+          <div class="selection-text">
+            <strong>Pickleball 1</strong>
+            <span class="muted small">Sat, Nov 28 · 1 PM–3 PM · 2 hours</span>
+            <span class="muted small">Court ₱800 + booking fee ₱10 = ₱810</span>
+          </div>
+          <div class="selection-total"><strong>₱810</strong></div>
+          <div class="selection-actions">
+            <span class="btn btn-small btn-ghost">Clear</span>
+            <span class="btn btn-small" id="continue">Continue</span>
+          </div>
+        </div>
+        <div class="tap" id="tap3"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4 PLAYER PAYS -->
+  <section class="scene cream" id="s4">
+    <div class="side" style="width:960px">
+      <h2 class="headline" id="s4h"><span class="word">Players</span> <span class="word">pay</span> <span class="word">by</span><br><span class="word">GCash,</span> <span class="word">Maya</span> <span class="word">or</span> <span class="word">bank.</span></h2>
+      <div class="chips" id="chips"><span class="chip">GCash</span><span class="chip">Maya</span><span class="chip">InstaPay</span><span class="chip">Bank transfer</span></div>
+      <p class="sub" id="s4sub">Scan the QR, upload the receipt. Done.</p>
+    </div>
+    <div class="phone" id="phone4">
+      <div class="screen">
+        <div class="notch"></div>
+        <div class="statusbar"><span>9:42</span><span>●●● ▮</span></div>
+        <header class="site-header"><div class="header-inner"><span class="brand venue-name">Claudex Courts</span><span class="auth-area"><span class="btn btn-small">Log in</span></span></div></header>
+        <div class="main"><div class="container"><div class="stack">
+          <ol class="booking-steps" id="steps4"><li class="current">Reserved</li><li>Payment sent</li><li>Confirmed</li></ol>
+          <div id="payview" class="stack">
+            <section class="card stack" style="margin:0">
+              <h2 class="card-head rose" style="font-size:1.2rem">Pay within <span class="countdown" id="countdown">14:52</span></h2>
+              <p class="muted small" style="margin:0">Pay ₱810 using one of the options below, with <strong>QK7-24M</strong> as the payment note.</p>
+              <article class="payment-account" style="display:flex;gap:14px;align-items:center">
+                <svg id="qr" width="104" height="104" viewBox="0 0 29 29" style="flex-shrink:0;background:#fff;border-radius:6px"></svg>
+                <div><p class="account-label"><strong>GCash</strong></p><p class="small muted">Claudex Courts</p><p class="small muted">0917 ••• 4821</p></div>
+              </article>
+              <h3 style="font-size:1.05rem;margin:4px 0 0">Upload your proof</h3>
+              <div class="field small"><span>Receipt screenshot or PDF (max 5 MB)</span>
+                <div class="filebox"><span class="fb-btn">Choose file</span><span id="fname" class="muted">No file chosen</span></div></div>
+              <span class="btn btn-block" id="submitproof">Submit proof of payment</span>
+            </section>
+          </div>
+          <div id="reviewview" class="stack">
+            <section class="card" style="margin:0">
+              <div class="page-head card-head" style="margin-bottom:16px"><h2>Pickleball 1</h2><span class="badge status-payment_submitted">Payment under review</span></div>
+              <dl class="facts">
+                <div><dt>Reference</dt><dd>QK7-24M</dd></div>
+                <div><dt>Date</dt><dd>Sat, Nov 28</dd></div>
+                <div><dt>Time</dt><dd>1 PM–3 PM (2 hours)</dd></div>
+                <div><dt>Total</dt><dd>₱810</dd></div>
+              </dl>
+            </section>
+            <section class="card" style="margin:0">
+              <h2 class="card-head">Payments</h2>
+              <ul class="list"><li class="list-row"><div><div>GCash · ₱810</div><div class="muted small">Nov 20, 9:42 AM · Ref 4021 337 9915</div></div><span class="badge">Under review</span></li></ul>
+            </section>
+          </div>
+        </div></div></div>
+        <div class="tap" id="tap4"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4b OWNER APPROVES -->
+  <section class="scene cream" id="s4b">
+    <div class="side" style="width:800px">
+      <h2 class="headline" id="s4bh"><span class="word">You</span> <span class="word">approve</span><br><span class="word">in</span> <span class="word hl">one</span> <span class="word hl">tap.</span></h2>
+      <p class="sub" id="s4bsub">The player sees Confirmed right away.</p>
+    </div>
+    <div class="review-card" id="reviewcard">
+      <section class="card stack" style="margin:0">
+        <div class="page-head" style="margin:0"><h2>QK7-24M</h2><span class="badge" id="rbadge">Payment under review</span></div>
+        <dl class="facts">
+          <div><dt>Court</dt><dd>Pickleball 1</dd></div>
+          <div><dt>When</dt><dd>Sat, Nov 28, 1 PM–3 PM</dd></div>
+          <div><dt>Total</dt><dd>₱810</dd></div>
+          <div><dt>Customer</dt><dd>Ana R.</dd></div>
+        </dl>
+        <div class="stack" id="proofblock">
+          <h3 style="margin:0">Proof waiting for review</h3>
+          <p class="small" style="margin:0">GCash · ₱810 · Ref 4021 337 9915 · Nov 20, 9:42 AM</p>
+          <div class="receipt">
+            <div class="r-top">Payment sent</div>
+            <div class="r-amt">₱810.00</div>
+            <div class="r-row"><span>To</span><span>Claudex Courts</span></div>
+            <div class="r-row"><span>Note</span><span>QK7-24M</span></div>
+            <div class="r-row"><span>Ref no.</span><span>4021 337 9915</span></div>
+          </div>
+          <span class="btn" id="approve">Approve and confirm</span>
+        </div>
+        <p class="muted small" id="noproof" style="margin:0">No proof is waiting for review.</p>
+      </section>
+      <div class="tap" id="tap4b"></div>
+    </div>
+    <div class="phone mini" id="phone4b">
+      <div class="screen">
+        <div class="notch"></div>
+        <div class="statusbar"><span>9:44</span><span>●●● ▮</span></div>
+        <header class="site-header"><div class="header-inner"><span class="brand venue-name">Claudex Courts</span></div></header>
+        <div class="main"><div class="container"><div class="stack">
+          <ol class="booking-steps"><li class="done">Reserved</li><li class="done">Payment sent</li><li class="current">Confirmed</li></ol>
+          <section class="card" style="margin:0">
+            <div class="page-head card-head" style="margin-bottom:16px"><h2>Pickleball 1</h2><span class="badge status-confirmed">Confirmed</span></div>
+            <dl class="facts">
+              <div><dt>Reference</dt><dd>QK7-24M</dd></div>
+              <div><dt>Date</dt><dd>Sat, Nov 28</dd></div>
+              <div><dt>Time</dt><dd>1 PM–3 PM (2 hours)</dd></div>
+              <div><dt>Total</dt><dd>₱810</dd></div>
+              <div><dt>Name</dt><dd>Ana R.</dd></div>
+            </dl>
+          </section>
+          <section class="card" style="margin:0">
+            <h2 class="card-head">Payments</h2>
+            <ul class="list"><li class="list-row"><div><div>GCash · ₱810</div><div class="muted small">Ref 4021 337 9915</div></div><span class="badge review-approved">Accepted</span></li></ul>
+          </section>
+        </div></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 OWNERS -->
+  <section class="scene cream" id="s5">
+    <div class="side">
+      <h2 class="headline" id="s5h"><span class="word">Venues</span> <span class="word">pay</span> <span class="word hl">₱0.</span></h2>
+      <p class="sub" id="s5sub">Players add a ₱10 booking fee.</p>
+    </div>
+    <div class="admin-card" id="admincard">
+      <section class="card" style="position:relative">
+        <span class="period">This month</span>
+        <h3>Collected</h3>
+        <p class="big-number" id="bignum">₱24,600</p>
+                <ul class="list" id="split">
+          <li class="list-row"><span>Total revenue<span class="small muted block">₱3,800 more than last month (+18%).</span></span><span class="split-amount">₱24,600</span></li>
+          <li class="list-row split-fees"><span><span class="split-sign">− </span>Plotline fees<span class="small muted block">₱80 more than last month (+15%).</span></span><span class="split-amount">−₱600</span></li>
+          <li class="list-row split-total"><span><span class="split-sign">= </span>Your earnings<span class="small muted block">₱3,720 more than last month (+18%).</span></span><span class="split-amount">₱24,000</span></li>
+        </ul>
+      </section>
+    </div>
+  </section>
+
+  <!-- 6 OUTRO -->
+  <section class="scene band" id="s6">
+    <div class="center-col">
+      <div class="logo-row"><img id="s6tile" src="/src/assets/plotline-tile.svg" alt=""><span class="wordmark" id="s6word">plotline</span></div>
+      <div class="outro-cta" id="s6tag">Put your venue on Plotline.</div>
+      <div class="url" id="s6url">plotline.fit</div>
+    </div>
+  </section>
+</div>
+
+<script>
+const $ = (s) => document.querySelector(s)
+const $$ = (s) => [...document.querySelectorAll(s)]
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x))
+const p = (t, start, dur) => clamp((t - start) / dur)
+const easeOut = (x) => 1 - Math.pow(1 - x, 3)
+const easeIn = (x) => x * x * x
+const backOut = (x) => { const c = 1.6; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2) }
+const lerp = (a, b, x) => a + (b - a) * x
+
+// ---------- build grids ----------
+const hookTimes = ['4 PM – 5 PM', '5 PM – 6 PM', '6 PM – 7 PM', '7 PM – 8 PM', '8 PM – 9 PM', '9 PM – 10 PM']
+const hookBody = $('#hookgrid tbody')
+hookTimes.forEach((tm, r) => {
+  const tr = document.createElement('tr')
+  tr.innerHTML = `<th scope="row">${tm}</th>` + [0, 1, 2].map((c) => `<td><button class="slot slot-free" data-r="${r}" data-c="${c}">₱400</button></td>`).join('')
+  hookBody.appendChild(tr)
+})
+const names = ['Ben', 'Mia', 'Jo', 'Kai', 'Ana', 'Leo', 'Ria', 'Paolo', 'Bea', 'Nico', 'Gab', 'Tess', 'Lia', 'Sam']
+// flip order: scattered, one per eighth note from 1.5s
+const flipOrder = [[3,0],[2,1],[4,2],[1,0],[3,2],[5,1],[0,2],[2,0],[4,1],[1,2],[3,1],[5,0],[0,0],[2,2]]
+const flipCells = flipOrder.map(([r, c], i) => ({ el: $(`#hookgrid button[data-r="${r}"][data-c="${c}"]`), at: 1.5 + i * 0.125, name: names[i] }))
+
+const bookTimes = ['10 AM – 11 AM', '11 AM – 12 PM', '12 PM – 1 PM', '1 PM – 2 PM', '2 PM – 3 PM', '3 PM – 4 PM', '4 PM – 5 PM', '5 PM – 6 PM', '6 PM – 7 PM']
+const bookedMap = { '0,1': 'Ben', '1,1': 'Ben', '2,0': 'Mia', '5,1': 'Jo', '6,0': 'Kai', '7,0': 'Kai', '8,1': 'Leo' }
+const bookBody = $('#bookgrid tbody')
+bookTimes.forEach((tm, r) => {
+  const tr = document.createElement('tr')
+  tr.innerHTML = `<th scope="row">${tm}</th>` + [0, 1].map((c) => {
+    const n = bookedMap[`${r},${c}`]
+    return n ? `<td><button class="slot slot-booked" disabled>Booked<span class="slot-name">${n}</span></button></td>`
+             : `<td><button class="slot slot-free" data-r="${r}" data-c="${c}">₱400</button></td>`
+  }).join('')
+  bookBody.appendChild(tr)
+})
+const pick1 = $('#bookgrid button[data-r="3"][data-c="0"]')
+const pick2 = $('#bookgrid button[data-r="4"][data-c="0"]')
+
+// ---------- helpers ----------
+function show(id, on) { $(id).style.display = on ? 'block' : 'none' }
+function rise(el, t, at, dist = 40, dur = 0.45) {
+  const x = easeOut(p(t, at, dur))
+  el.style.opacity = x
+  el.style.transform = `translateY(${(1 - x) * dist}px)`
+}
+function exitOut(el, t, at, dur = 0.25, dist = -30) {
+  // fades/slides out ending at `at`
+  const x = easeIn(p(t, at - dur, dur))
+  if (x <= 0) return
+  el.style.opacity = (parseFloat(el.style.opacity || 1)) * (1 - x)
+  el.style.transform = (el.style.transform || '') + ` translateY(${x * dist}px)`
+}
+function words(sel, t, start, step = 0.1, dist = 60) {
+  $$(sel + ' .word').forEach((w, i) => rise(w, t, start + i * step, dist, 0.5))
+}
+function setSlot(el, state, name) {
+  if (state === 'booked') {
+    if (!el.classList.contains('slot-booked')) { el.className = 'slot slot-booked'; el.innerHTML = `Booked<span class="slot-name">${name}</span>` }
+  } else if (state === 'selected') {
+    if (!el.classList.contains('slot-selected')) { el.className = 'slot slot-selected'; el.innerHTML = '<span>✓ </span>₱400' }
+  } else {
+    if (!el.classList.contains('slot-free')) { el.className = 'slot slot-free'; el.innerHTML = '₱400' }
+  }
+}
+function tapAt(tapEl, screen, target, t, at) {
+  const d = t - at
+  if (d < -0.18 || d > 0.45) { tapEl.style.opacity = 0; return }
+  const sr = screen.getBoundingClientRect(), r = target.getBoundingClientRect()
+  const scale = sr.width / screen.offsetWidth
+  tapEl.style.left = ((r.left + r.width / 2 - sr.left) / scale) + 'px'
+  tapEl.style.top = ((r.top + r.height / 2 - sr.top) / scale) + 'px'
+  if (d < 0) { const x = p(d, -0.18, 0.18); tapEl.style.opacity = x * 0.9; tapEl.style.transform = `scale(${lerp(1.3, 0.8, x)})` }
+  else { const x = p(d, 0, 0.45); tapEl.style.opacity = 0.9 * (1 - x); tapEl.style.transform = `scale(${lerp(0.8, 1.6, easeOut(x))})` }
+}
+function resetStyles(root) { root.querySelectorAll('[style]').forEach((e) => { if (e.dataset.keep === undefined) {} }) }
+
+// ---------- fake QR (illustration only) ----------
+;(() => {
+  const svg = $('#qr'); let seed = 7; const r = () => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff)
+  let out = ''
+  const finder = (x, y) => `<rect x="${x}" y="${y}" width="7" height="7" fill="#3b2f2a"/><rect x="${x+1}" y="${y+1}" width="5" height="5" fill="#fff"/><rect x="${x+2}" y="${y+2}" width="3" height="3" fill="#3b2f2a"/>`
+  for (let y = 1; y < 28; y++) for (let x = 1; x < 28; x++) {
+    const inF = (x < 9 && y < 9) || (x > 19 && y < 9) || (x < 9 && y > 19)
+    if (!inF && r() > 0.52) out += `<rect x="${x}" y="${y}" width="1" height="1" fill="#3b2f2a"/>`
+  }
+  svg.innerHTML = out + finder(1, 1) + finder(21, 1) + finder(1, 21)
+})()
+
+// ---------- timeline ----------
+const S = [ ['#s1', 0, 3], ['#s2', 3, 6], ['#s3', 6, 11], ['#s4', 11, 14.5], ['#s4b', 14.5, 18], ['#s5', 18, 21.5], ['#s6', 21.5, 25.01] ]
+
+window.renderAt = function (t) {
+  S.forEach(([id, a, b]) => show(id, t >= a && t < b))
+
+  if (t < 3) {
+    words('#s1', t, 0.05, 0.1, 70)
+    const g = $('#s1 .gridwrap')
+    const gx = easeOut(p(t, 0.0, 0.6))
+    g.style.opacity = gx
+    g.style.transform = `translateX(${(1 - gx) * 80}px) scale(${lerp(0.97, 1, gx)})`
+    flipCells.forEach((f) => {
+      setSlot(f.el, t >= f.at ? 'booked' : 'free', f.name)
+      const k = p(t, f.at, 0.18)
+      f.el.style.transform = t >= f.at ? `scale(${lerp(1.12, 1, easeOut(k))})` : ''
+    })
+    $$('#s1 .word').forEach((w) => exitOut(w, t, 3.0, 0.25, -40))
+    exitOut(g, t, 3.0, 0.25, -30)
+  } else if (t < 6) {
+    const tile = $('#s2tile'), word = $('#s2word'), tag = $('#s2tag'), kick = $('#s2kick')
+    const k = backOut(p(t, 3.0, 0.45))
+    tile.style.opacity = clamp(p(t, 3.0, 0.15))
+    tile.style.transform = `scale(${lerp(0.4, 1, k)}) rotate(${lerp(-12, 0, k)}deg)`
+    const w = easeOut(p(t, 3.5, 0.5))
+    word.style.opacity = w; word.style.transform = `translateX(${(1 - w) * -40}px)`
+    rise(tag, t, 4.0, 40, 0.5)
+    rise(kick, t, 4.5, 20, 0.5)
+    for (const el of [tile, word, tag, kick]) exitOut(el, t, 6.0, 0.25, -30)
+  } else if (t < 11) {
+    words('#s3h', t, 6.1, 0.1, 60)
+    rise($('#s3sub'), t, 6.9, 30, 0.5)
+    const ph = $('#phone3')
+    const pk = easeOut(p(t, 6.0, 0.6))
+    ph.style.opacity = pk
+    ph.style.transform = `translateY(${(1 - pk) * 140}px) scale(1.12)`
+    setSlot(pick1, t >= 7.0 ? 'selected' : 'free')
+    setSlot(pick2, t >= 7.5 ? 'selected' : 'free')
+    pick1.style.transform = t >= 7.0 ? `scale(${lerp(0.92, 1, easeOut(p(t, 7.0, 0.2)))})` : ''
+    pick2.style.transform = t >= 7.5 ? `scale(${lerp(0.92, 1, easeOut(p(t, 7.5, 0.2)))})` : ''
+    const sb = $('#selbar'), sk = easeOut(p(t, 8.0, 0.4))
+    sb.style.opacity = sk; sb.style.transform = `translateY(${(1 - sk) * 160}px)`
+    const cont = $('#continue')
+    cont.style.transform = (t >= 9.5 && t < 9.7) ? 'scale(0.93)' : ''
+    const tap = $('#tap3'), scr = $('#phone3 .screen')
+    if (t < 7.3) tapAt(tap, scr, pick1, t, 7.0)
+    else if (t < 8.5) tapAt(tap, scr, pick2, t, 7.5)
+    else tapAt(tap, scr, cont, t, 9.5)
+    for (const w of $$('#s3h .word')) exitOut(w, t, 11.0, 0.25, -30)
+    exitOut($('#s3sub'), t, 11.0, 0.25, -30)
+    exitOut(ph, t, 11.0, 0.25, 40)
+  } else if (t < 14.5) {
+    words('#s4h', t, 11.1, 0.09, 60)
+    $$('#chips .chip').forEach((c, i) => {
+      const k = backOut(p(t, 11.5 + i * 0.25, 0.35))
+      c.style.opacity = clamp(p(t, 11.5 + i * 0.25, 0.12)); c.style.transform = `scale(${lerp(0.6, 1, k)})`
+    })
+    rise($('#s4sub'), t, 12.5, 30, 0.5)
+    const ph = $('#phone4')
+    const pk = easeOut(p(t, 11.0, 0.5))
+    ph.style.opacity = pk
+    ph.style.transform = `translateY(${(1 - pk) * 120}px) scale(1.12)`
+    const secs = Math.max(0, 892 - Math.floor(t - 11))
+    $('#countdown').textContent = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`
+    const fn = $('#fname'), attached = t >= 12.0
+    fn.textContent = attached ? 'receipt.jpg' : 'No file chosen'
+    fn.className = attached ? '' : 'muted'
+    fn.style.fontWeight = attached ? '700' : ''
+    const fb = $('#phone4 .filebox')
+    fb.style.borderColor = attached ? 'var(--accent)' : ''
+    fb.style.transform = attached ? `scale(${lerp(1.05, 1, easeOut(p(t, 12.0, 0.25)))})` : ''
+    const sub = $('#submitproof')
+    sub.textContent = (t >= 12.5 && t < 13.0) ? 'Uploading…' : 'Submit proof of payment'
+    sub.style.transform = (t >= 12.5 && t < 12.7) ? 'scale(0.96)' : ''
+    const tap = $('#tap4'), scr = $('#phone4 .screen')
+    const reviewing = t >= 13.0
+    $('#payview').style.display = reviewing ? 'none' : 'flex'
+    const rv = $('#reviewview'); rv.style.display = reviewing ? 'flex' : 'none'
+    rise(rv, t, 13.0, 24, 0.35)
+    if (t < 12.3) tapAt(tap, scr, fb, t, 12.0); else if (!reviewing) tapAt(tap, scr, sub, t, 12.5); else tap.style.opacity = 0
+    const st = $$('#steps4 li')
+    st[0].className = reviewing ? 'done' : 'current'
+    st[1].className = reviewing ? 'current' : ''
+    for (const w of $$('#s4h .word')) exitOut(w, t, 14.5, 0.25, -30)
+    exitOut($('#chips'), t, 14.5, 0.25, -30)
+    exitOut($('#s4sub'), t, 14.5, 0.25, -30)
+    exitOut(ph, t, 14.5, 0.25, 40)
+  } else if (t < 18) {
+    words('#s4bh', t, 14.6, 0.1, 60)
+    rise($('#s4bsub'), t, 15.9, 30, 0.5)
+    const rc = $('#reviewcard'), k = easeOut(p(t, 14.5, 0.5))
+    rc.style.opacity = k
+    rc.style.transform = `translateY(${(1 - k) * 100}px)`
+    const approved = t >= 15.5
+    const ap = $('#approve')
+    ap.style.transform = (t >= 15.5 && t < 15.7) ? 'scale(0.95)' : ''
+    const gone = t >= 15.75
+    $('#proofblock').style.display = gone ? 'none' : 'flex'
+    if (!gone) tapAt($('#tap4b'), rc, ap, t, 15.5); else $('#tap4b').style.opacity = 0
+    const np = $('#noproof'); np.style.display = gone ? 'block' : 'none'
+    rise(np, t, 15.75, 10, 0.3)
+    const rb = $('#rbadge')
+    rb.className = 'badge ' + (approved ? 'status-confirmed' : 'status-payment_submitted')
+    rb.textContent = approved ? 'Confirmed' : 'Payment under review'
+    rb.style.transform = approved ? `scale(${lerp(1.35, 1, backOut(p(t, 15.5, 0.35)))})` : ''
+    const mp = $('#phone4b'), mk = easeOut(p(t, 15.9, 0.5))
+    mp.style.opacity = mk
+    mp.style.transform = `translateX(${(1 - mk) * 160}px) scale(0.9)`
+    for (const w of $$('#s4bh .word')) exitOut(w, t, 18.0, 0.25, -30)
+    exitOut($('#s4bsub'), t, 18.0, 0.25, -30)
+    if (t > 17.75) {
+      const x = easeIn(p(t, 17.75, 0.25))
+      rc.style.opacity = 1 - x; rc.style.transform = `translateY(${x * 40}px)`
+      mp.style.opacity = 1 - x; mp.style.transform = `translateY(${x * 40}px) scale(0.9)`
+    }
+  } else if (t < 21.5) {
+    words('#s5h', t, 18.1, 0.12, 60)
+    rise($('#s5sub'), t, 18.7, 30, 0.5)
+    const ac = $('#admincard'), k = easeOut(p(t, 18.0, 0.55))
+    ac.style.opacity = k
+    ac.style.transform = `translateY(calc(-50% + ${(1 - k) * 100}px))`
+    $$('#split li').forEach((li, i) => rise(li, t, 18.6 + i * 0.25, 24, 0.4))
+    for (const w of $$('#s5h .word')) exitOut(w, t, 21.5, 0.25, -30)
+    exitOut($('#s5sub'), t, 21.5, 0.25, -30)
+    if (t > 21.25) { const x = easeIn(p(t, 21.25, 0.25)); ac.style.opacity = 1 - x; ac.style.transform = `translateY(calc(-50% + ${x * 40}px))` }
+  } else {
+    const tile = $('#s6tile'), word = $('#s6word'), tag = $('#s6tag'), url = $('#s6url')
+    const k = backOut(p(t, 21.5, 0.45))
+    tile.style.opacity = clamp(p(t, 21.5, 0.15))
+    tile.style.transform = `scale(${lerp(0.4, 1, k)}) rotate(${lerp(-12, 0, k)}deg)`
+    const w = easeOut(p(t, 21.75, 0.5))
+    word.style.opacity = w; word.style.transform = `translateX(${(1 - w) * -40}px)`
+    rise(tag, t, 22.0, 40, 0.5)
+    rise(url, t, 22.5, 24, 0.5)
+  }
+}
+window.ready = document.fonts.ready.then(() => Promise.all([...document.images].map((i) => i.decode().catch(() => {}))))
+</script>
+</body>
+</html>
