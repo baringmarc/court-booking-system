@@ -91,7 +91,7 @@ Reply: `200 { ok: true, message }`.
 
 **Validation lives in `supabase/functions/_shared/siteForms.ts`** in this repo; the server's check is the one that counts. plotline-site keeps an **identical copy** at `src/lib/siteForms.ts` for instant form feedback. When the rules change, change them here first, then copy the file over unchanged.
 
-### Live stacks (M29, *target*: contract written 2026-11-19, built here in T29.3–T29.7 and in plotline-site (T29.8), not deployed yet)
+### Live stacks (M29: contract written 2026-11-19, built here in T29.3–T29.7 and in plotline-site's Milestone 6 (T29.8); on staging and production since 2026-11-19)
 
 Players open an organizer's Paddle Stack on their own phones from a link or QR and see it update live. **View-only: no player accounts; only the organizer's device changes anything.** Nothing here changes `public_venues`. Rationale and the user's calls: SPEC §10 2026-11-18; the spike and limits: RESEARCH "Milestone 29". Every name below is final once deployed; changes follow §7.
 
@@ -112,7 +112,7 @@ Replies: `200 { ok: true, code, secret }`; `400 { ok: false, error: 'invalid_inp
 
 | RPC | Who | Returns / does |
 | --- | --- | --- |
-| `get_live_stack(p_code text)` | anyone | `{ title, courts, snapshot, version, ended, expires_at, venue }` where `venue` is `{ name, slug, logo_path }` for a venue's stack and `null` for a plotline.fit stack. `snapshot` is `null` until the first publish. Hint `not_found` for an unknown or expired code (viewers show "This stack has ended"). `logo_path` is a path in the public `venue-media` bucket (`<supabase url>/storage/v1/object/public/venue-media/<logo_path>`); null when the venue has none. |
+| `get_live_stack(p_code text)` | anyone | `{ title, courts, snapshot, version, ended, expires_at, venue }` where `venue` is `{ name, slug, logo_path }` for a venue's stack and `null` for a plotline.fit stack. `snapshot` is `null` until the first publish. `title` is `null` for an untitled stack (a blank title is stored as null). Hint `not_found` for an unknown or expired code (viewers show "This stack has ended"). `logo_path` is a path in the public `venue-media` bucket (`<supabase url>/storage/v1/object/public/venue-media/<logo_path>`); null when the venue has none. |
 | `publish_live_stack(p_code text, p_secret text, p_version integer, p_snapshot jsonb, p_end boolean default false)` | anyone holding the secret | Stores the snapshot and broadcasts it. Returns `{ version, expires_at }`. |
 | `create_venue_live_stack(p_open_play_session_id uuid)` | admins of the session's venue (signed in) | Returns `{ code, secret }`. Title and courts come from the session. Running it again for the same session returns the same `code` with a **new** secret: the newest device takes over and the old one's publishes get `forbidden`. Hints `forbidden`, `not_found`, `session_ended`, `busy`. Used only by this repo's `/admin/open-play`, not by plotline-site. |
 
@@ -187,6 +187,10 @@ The backend side is done and live on the linked project (`leads` T14.2, `reviews
 3. **Build it here** with tests, and deploy it to staging, then production. Keep it backward compatible (expand → deploy → contract): the live marketing site must keep working until it's updated.
 4. **Update plotline-site:** copy `siteForms.ts` if the rules changed, regenerate types, adjust the forms.
 5. Remove anything old only after both are live.
+
+**Release notes**
+
+- **2026-11-19, M29 Live stacks:** migrations `20261119044143_t29_3_venue_logo`, `20261119051606_t29_4_live_stacks` and `20261119055437_t29_5_site_live_stack` reached staging, then production (`jmichyttnqygwdcksbpg`); `stack-live` v1 was then deployed to both (same bundle, `verify_jwt` false); both frontends followed the backend: plotline-site's Milestone 6 (Worker `1292fe10`, then `abb3134b`) and this repo's T29.6–T29.7 through `master` (PR #49). Checked at T29.9 (L6): `npm run preflight:release -- --project-ref jmichyttnqygwdcksbpg` passed (100 migrations, 11 functions) and `functions list` there shows `stack-live` v1 active.
 
 For Claude Code: start in one repo and add the other with `claude --add-dir ../plotline-site` (or `../court-booking-system`), or `/add-dir` during a session.
 
