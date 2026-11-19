@@ -53,6 +53,7 @@ import {
   type LogoInput,
   type WalkInInput,
   STATEMENT_PAGE_SIZE,
+  createVenueLiveStack,
 } from './api'
 import { catalogKeys, updateVenueSettings, type Court, type CourtPhotoRow, type CourtWithPhotos, type Sport, type VenueSettings } from '../catalog/api'
 import { setCourtOrder } from '../catalog/sportOrder'
@@ -618,4 +619,10 @@ export function useClosureConflicts(range: { start: string; end: string; courtId
     queryFn: () => fetchClosureConflicts(range!.start, range!.end, range!.courtId),
     enabled: range !== null,
   })
+}
+
+// --- Live stacks (T29.7) ---------------------------------------------------------------
+
+export function useCreateVenueLiveStack() {
+  return useMutation({ mutationFn: (sessionId: string) => createVenueLiveStack(sessionId) })
 }

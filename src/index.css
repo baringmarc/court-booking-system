@@ -349,6 +349,9 @@ h3 { font-size: 1.05rem; margin: 0; }
 .card.flush .list-row { padding: 12px 16px; }
 a.list-row:hover { background: var(--accent-soft); }
 .list-row-end { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+/* Rows with several actions (open play, T29.7): on a phone the actions move under the text. */
+.list-row-wrap { flex-wrap: wrap; }
+.list-row-wrap .list-row-end { flex-wrap: wrap; margin-left: auto; }
 
 /* Setup checklist (T17.34): status icon, label with where to fix it, Fix on the right. Done rows are quieter. */
 .setup-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }

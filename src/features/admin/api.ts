@@ -877,3 +877,13 @@ export async function fetchClosureConflicts(startIso: string, endIso: string, co
     sessions: [...seen.values()].sort((a, b) => a.starts_at.localeCompare(b.starts_at)),
   }
 }
+
+// --- Live stacks (T29.7; PLATFORM.md §4) -------------------------------------------
+
+/** Creates (or takes over) the live stack for an open play session. The secret is returned once and never stored here. */
+export async function createVenueLiveStack(sessionId: string): Promise<{ code: string; secret: string }> {
+  const result = unwrap(await supabase.rpc('create_venue_live_stack', { p_open_play_session_id: sessionId }))
+  const { code, secret } = (result ?? {}) as { code?: unknown; secret?: unknown }
+  if (typeof code !== 'string' || typeof secret !== 'string') throw new Error('The stack could not be started. Try again.')
+  return { code, secret }
+}
