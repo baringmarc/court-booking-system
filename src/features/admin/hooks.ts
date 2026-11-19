@@ -25,10 +25,12 @@ import {
   deleteCourt,
   reorderCourts,
   removeBanner,
+  removeLogo,
   removeCourtPhoto,
   addCourtPhoto,
   reorderCourtPhotos,
   saveBanner,
+  saveLogo,
   saveOpenPlay,
   deleteOpenPlay,
   saveSocialLinks,
@@ -48,6 +50,7 @@ import {
   rescheduleBooking,
   type Reschedule,
   type BannerInput,
+  type LogoInput,
   type WalkInInput,
   STATEMENT_PAGE_SIZE,
 } from './api'
@@ -313,7 +316,7 @@ export function useReorderCourtPhotos(courtId: string) {
   })
 }
 
-function useBannerMutation<V>(run: (vars: V) => Promise<VenueSettings>) {
+function useSettingsMediaMutation<V>(run: (vars: V) => Promise<VenueSettings>) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: run,
@@ -324,11 +327,20 @@ function useBannerMutation<V>(run: (vars: V) => Promise<VenueSettings>) {
 
 /** Image (if any) must already be downscaled (see imageResize.ts). */
 export function useSaveBanner(settings: Pick<VenueSettings, 'banner_path'>) {
-  return useBannerMutation((input: BannerInput) => saveBanner(settings, input))
+  return useSettingsMediaMutation((input: BannerInput) => saveBanner(settings, input))
 }
 
 export function useRemoveBanner(settings: Pick<VenueSettings, 'banner_path'>) {
-  return useBannerMutation<void>(() => removeBanner(settings))
+  return useSettingsMediaMutation<void>(() => removeBanner(settings))
+}
+
+/** Image must already be cropped to a square (cropSquareImage, T29.6). */
+export function useSaveLogo(settings: Pick<VenueSettings, 'logo_path'>) {
+  return useSettingsMediaMutation((input: LogoInput) => saveLogo(settings, input))
+}
+
+export function useRemoveLogo(settings: Pick<VenueSettings, 'logo_path'>) {
+  return useSettingsMediaMutation<void>(() => removeLogo(settings))
 }
 
 /** An open play change moves slots in and out of open play, so availability refetches too (T9.11d). */

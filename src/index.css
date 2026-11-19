@@ -582,6 +582,7 @@ button.day:focus-visible, .slot:focus-visible { outline: 2px solid var(--accent)
 .banner-preview-wide { aspect-ratio: 3 / 1; }
 .banner-preview-narrow { aspect-ratio: 2 / 1; max-width: 360px; }
 @media (min-width: 640px) { .banner-previews { grid-template-columns: 2fr 1fr; align-items: start; } }
+.logo-preview { display: block; width: 128px; height: 128px; object-fit: cover; border-radius: 8px; border: 1px solid var(--border); background: var(--border); }
 .badge.review-pending { background: var(--pending-bg); color: var(--text); }
 .badge.review-approved { background: var(--accent-soft); color: var(--accent); }
 .badge.review-rejected { background: color-mix(in srgb, var(--danger) 12%, transparent); color: var(--danger); }
