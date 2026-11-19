@@ -91,6 +91,45 @@ Reply: `200 { ok: true, message }`.
 
 **Validation lives in `supabase/functions/_shared/siteForms.ts`** in this repo; the server's check is the one that counts. plotline-site keeps an **identical copy** at `src/lib/siteForms.ts` for instant form feedback. When the rules change, change them here first, then copy the file over unchanged.
 
+### Live stacks (M29, *target*: contract written 2026-11-19, built here in T29.3–T29.7 and in plotline-site (T29.8), not deployed yet)
+
+Players open an organizer's Paddle Stack on their own phones from a link or QR and see it update live. **View-only: no player accounts; only the organizer's device changes anything.** Nothing here changes `public_venues`. Rationale and the user's calls: SPEC §10 2026-11-18; the spike and limits: RESEARCH "Milestone 29". Every name below is final once deployed; changes follow §7.
+
+**`stack-live`** (Edge Function, `POST`, `verify_jwt = false`, CORS from `SITE_ORIGINS` exactly like `site-contact`): an organizer at plotline.fit goes live without signing in. It checks the body, verifies Turnstile, then creates a stack with no venue (through the service-role-only RPC `create_site_live_stack`, which plotline-site never calls).
+
+| Field | Type | Rule |
+| --- | --- | --- |
+| `turnstileToken` | string | Cloudflare Turnstile token, a fresh one for every "Go live" (a token is single use and valid for 300 s; reset the widget after use). Required in production. |
+| `courts` | integer | 1–12 |
+| `title` | string | optional, ≤ 60 characters (trimmed; empty means no title) |
+
+Replies: `200 { ok: true, code, secret }`; `400 { ok: false, error: 'invalid_input' }`; `403 { ok: false, error: 'bot_check_failed' }`; `409 { ok: false, error: 'busy' }` (300 live stacks already; "try again later"); `503 { ok: false, error: 'unavailable' }` when a hosted project has no `TURNSTILE_SECRET_KEY` (Go live is unavailable; the organizer can still run the board without sharing it; on a local stack the check is skipped when the secret is unset, as for `site-contact`, so e2e and smoke tests need no Cloudflare); `500 { ok: false, error: 'server_error' }`. Errors carry a stable `error` code, not prose; plotline-site words them. Logs hold no titles, names or snapshots.
+
+- **`code`** identifies the stack and is public (it is in the link): 128 random bits, URL-safe. Stacks can't be listed or enumerated; only a known code reads.
+- **`secret`** lets one device publish. It is returned once, **only its hash is stored**, and it stays on the organizer's device (`localStorage`). It never goes in a query string or to a server other than `publish_live_stack`.
+
+**RPCs** (called with the publishable key through `supabase.rpc`; the table `live_stacks` has no grants, so reads and writes happen only through these):
+
+| RPC | Who | Returns / does |
+| --- | --- | --- |
+| `get_live_stack(p_code text)` | anyone | `{ title, courts, snapshot, version, ended, expires_at, venue }` where `venue` is `{ name, slug, logo_path }` for a venue's stack and `null` for a plotline.fit stack. `snapshot` is `null` until the first publish. Hint `not_found` for an unknown or expired code (viewers show "This stack has ended"). `logo_path` is a path in the public `venue-media` bucket (`<supabase url>/storage/v1/object/public/venue-media/<logo_path>`); null when the venue has none. |
+| `publish_live_stack(p_code text, p_secret text, p_version integer, p_snapshot jsonb, p_end boolean default false)` | anyone holding the secret | Stores the snapshot and broadcasts it. Returns `{ version, expires_at }`. |
+| `create_venue_live_stack(p_open_play_session_id uuid)` | admins of the session's venue (signed in) | Returns `{ code, secret }`. Title and courts come from the session. Running it again for the same session returns the same `code` with a **new** secret: the newest device takes over and the old one's publishes get `forbidden`. Hints `forbidden`, `not_found`, `session_ended`, `busy`. Used only by this repo's `/admin/open-play`, not by plotline-site. |
+
+`publish_live_stack` checks in this order and answers with the first failing **hint** (the error's `hint`, as the booking RPCs do): `not_found`, `forbidden` (wrong secret), `ended`, `stale_version` (`p_version` not above the stored one: re-read with `get_live_stack`, continue from its `version`), `too_fast` (under the minimum gap since the last publish: wait and retry with the latest snapshot), `too_large` (`p_snapshot` over 64 KB as text), `invalid_snapshot` (not a JSON object with an integer `v`), `limit_reached` (5,000 publishes for the stack). With `p_end = true` the stack is marked ended: it stays readable (final standings) and later publishes get `ended`.
+
+**Snapshot.** A JSON object with an integer `v` (the snapshot format version), at most 64 KB. **Its other fields belong to plotline-site**, which documents them in its SPEC; the database checks only size, object-ness and `v`. `p_version` is the publish counter, not `v`: it starts at 1 and must rise on every publish.
+
+**Realtime.** A successful publish broadcasts `{ version, snapshot, ended }` with event name `snapshot` on the **public** channel `live-stack:<code>`, from the database, inside the publishing transaction (a failed publish sends nothing). Viewers subscribe with the publishable key and no sign-in (`supabase.channel('live-stack:' + code)`, default public channel, `.on('broadcast', { event: 'snapshot' }, …)`); the payload arrives with an extra `id` field, which clients ignore. If the broadcast itself fails, the snapshot is still stored and `publish_live_stack` still succeeds.
+- **Organizer:** join your own channel as soon as the stack exists and keep it for the session (it makes today's `realtime.messages` partition exist before the first publish). Publish at most **one snapshot every 2 seconds** (coalesce changes; the server minimum is 1 s) because each delivery to each phone counts toward the plan's 100 events a second.
+- **Viewer fallback:** if the channel status is `CLOSED`, `CHANNEL_ERROR` or `TIMED_OUT` (also when the project is over its Realtime limits), call `get_live_stack` every **15 seconds** until it reconnects; ignore any snapshot whose `version` is not above the one shown. Show the time of the last update.
+
+**Hand-off from a venue's `/admin/open-play`:** the page opens `https://plotline.fit/paddle-stack?live=<code>#key=<secret>` in a new tab. The secret is in the URL **fragment**, which browsers never send to a server; plotline-site reads it, moves it to `localStorage` and removes the fragment from the address bar. The player link is `https://plotline.fit/paddle-stack/live/<code>`.
+
+**Life and limits** (assumed in SPEC §10 2026-11-18; confirmed at T29.4's plan gate): a stack lives until **24 hours after its last publish** (`expires_at`); an hourly job deletes expired stacks. At most 300 live stacks at once, 64 KB a snapshot, 5,000 publishes a stack. **Privacy:** player names in a snapshot are stored on Plotline's servers in Singapore until the stack is deleted, and each broadcast also stays in Supabase Realtime's message table for **up to 3 days**, so plotline-site's Privacy page says "up to 3 days after its last change". A venue stack disappears with its venue; ending the session does not delete it early.
+
+**Environment:** `stack-live` shares the project's `TURNSTILE_SECRET_KEY` and `SITE_ORIGINS` (§4 Environment). Staging and production need the secret before `stack-live` works. plotline-site adds no new variables.
+
 ### Tables and views plotline-site reads
 
 | Object | Access | Columns plotline-site uses |
@@ -98,7 +137,7 @@ Reply: `200 { ok: true, message }`.
 | `public.reviews` | anon `select`; RLS returns approved rows only | `id, name, venue, quote, role, rating, created_at` |
 | `public.public_venues` (T14.13, T17.7) | anon `select`: active venues approved by a platform admin (`venues.showcase_approved`). Existing `venue_settings.showcase_opt_in` values are retained unchanged for review and do not publish a venue; platform admins change approval through `set_venue_showcase_approval`. | `slug, name, city, logo_url` (link: `https://<slug>.plotline.fit`). The columns and types remain unchanged. `logo_url` is a path inside the public `venue-media` bucket (the venue's banner, else its first court photo, else null): prefix it with `<supabase url>/storage/v1/object/public/venue-media/`. `city` may be empty. |
 
-plotline-site never writes to tables directly and never reads `leads`.
+plotline-site never writes to tables directly and never reads `leads` or `live_stacks` (live stacks go through the RPCs above).
 
 M12 (done 2026-10-31) made the schema multi-venue (`venues`, `venue_members`, `platform_admins`, `venue_id` everywhere) and dropped `profiles.role` and `venue_settings.id`. None of that is part of this contract, so plotline-site needed no change; its generated types lose only those columns.
 

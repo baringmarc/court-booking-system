@@ -909,6 +909,72 @@ export type Database = {
         }
         Relationships: []
       }
+      live_stacks: {
+        Row: {
+          code: string
+          courts: number
+          created_at: string
+          ended_at: string | null
+          expires_at: string
+          id: string
+          open_play_session_id: string | null
+          publish_count: number
+          secret_hash: string
+          snapshot: Json | null
+          title: string | null
+          updated_at: string
+          venue_id: string | null
+          version: number
+        }
+        Insert: {
+          code: string
+          courts: number
+          created_at?: string
+          ended_at?: string | null
+          expires_at?: string
+          id?: string
+          open_play_session_id?: string | null
+          publish_count?: number
+          secret_hash: string
+          snapshot?: Json | null
+          title?: string | null
+          updated_at?: string
+          venue_id?: string | null
+          version?: number
+        }
+        Update: {
+          code?: string
+          courts?: number
+          created_at?: string
+          ended_at?: string | null
+          expires_at?: string
+          id?: string
+          open_play_session_id?: string | null
+          publish_count?: number
+          secret_hash?: string
+          snapshot?: Json | null
+          title?: string | null
+          updated_at?: string
+          venue_id?: string | null
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "live_stacks_open_play_session_id_fkey"
+            columns: ["open_play_session_id"]
+            isOneToOne: false
+            referencedRelation: "open_play_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "live_stacks_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       open_play_courts: {
         Row: {
           court_id: string
@@ -1518,6 +1584,7 @@ export type Database = {
           cancel_cutoff_hours: number
           city: string
           currency: string
+          logo_path: string | null
           maps_url: string
           max_rejections: number
           name: string
@@ -1542,6 +1609,7 @@ export type Database = {
           cancel_cutoff_hours?: number
           city?: string
           currency?: string
+          logo_path?: string | null
           maps_url?: string
           max_rejections?: number
           name: string
@@ -1566,6 +1634,7 @@ export type Database = {
           cancel_cutoff_hours?: number
           city?: string
           currency?: string
+          logo_path?: string | null
           maps_url?: string
           max_rejections?: number
           name?: string
@@ -1723,9 +1792,17 @@ export type Database = {
         }
         Returns: string
       }
+      create_site_live_stack: {
+        Args: { p_courts: number; p_title: string }
+        Returns: Json
+      }
       create_venue: {
         Args: { p_name: string; p_slug: string; p_timezone: string }
         Returns: string
+      }
+      create_venue_live_stack: {
+        Args: { p_open_play_session_id: string }
+        Returns: Json
       }
       create_walk_in: {
         Args: {
@@ -1808,6 +1885,7 @@ export type Database = {
           waiver_text: string
         }[]
       }
+      get_live_stack: { Args: { p_code: string }; Returns: Json }
       get_public_schedule: {
         Args: { p_venue_slug: string }
         Returns: {
@@ -1876,6 +1954,16 @@ export type Database = {
           booking_id: string
           total_amount: number
         }[]
+      }
+      publish_live_stack: {
+        Args: {
+          p_code: string
+          p_end?: boolean
+          p_secret: string
+          p_snapshot: Json
+          p_version: number
+        }
+        Returns: Json
       }
       publish_venue: { Args: { p_venue_id: string }; Returns: undefined }
       reactivate_venue: { Args: { p_venue_id: string }; Returns: undefined }

@@ -3,6 +3,7 @@ import { PageLoader } from '../../components/PageLoader'
 import { useVenueSettings } from '../catalog/hooks'
 import { AmenitiesSection } from './AmenitiesSection'
 import { BannerSection } from './BannerSection'
+import { LogoSection } from './LogoSection'
 import { InfoSectionsSection } from './InfoSectionsSection'
 import { SettingsCategoryPage } from './SettingsCategoryPage'
 import { SportOrderSection } from './SportOrderSection'
@@ -14,6 +15,7 @@ export function AppearanceSettingsPage() {
     {settings.isPending ? <PageLoader /> : settings.isError ? <ErrorMessage error={settings.error} onRetry={() => settings.refetch()} /> : <div className="page-sections">
       <ThemePicker settings={settings.data} />
       <BannerSection settings={settings.data} />
+      <LogoSection settings={settings.data} />
       <AmenitiesSection />
       <InfoSectionsSection />
       <SportOrderSection settings={settings.data} />

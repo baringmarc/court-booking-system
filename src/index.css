@@ -349,6 +349,9 @@ h3 { font-size: 1.05rem; margin: 0; }
 .card.flush .list-row { padding: 12px 16px; }
 a.list-row:hover { background: var(--accent-soft); }
 .list-row-end { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+/* Rows with several actions (open play, T29.7): on a phone the actions move under the text. */
+.list-row-wrap { flex-wrap: wrap; }
+.list-row-wrap .list-row-end { flex-wrap: wrap; margin-left: auto; }
 
 /* Setup checklist (T17.34): status icon, label with where to fix it, Fix on the right. Done rows are quieter. */
 .setup-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
@@ -582,6 +585,7 @@ button.day:focus-visible, .slot:focus-visible { outline: 2px solid var(--accent)
 .banner-preview-wide { aspect-ratio: 3 / 1; }
 .banner-preview-narrow { aspect-ratio: 2 / 1; max-width: 360px; }
 @media (min-width: 640px) { .banner-previews { grid-template-columns: 2fr 1fr; align-items: start; } }
+.logo-preview { display: block; width: 128px; height: 128px; object-fit: cover; border-radius: 8px; border: 1px solid var(--border); background: var(--border); }
 .badge.review-pending { background: var(--pending-bg); color: var(--text); }
 .badge.review-approved { background: var(--accent-soft); color: var(--accent); }
 .badge.review-rejected { background: color-mix(in srgb, var(--danger) 12%, transparent); color: var(--danger); }

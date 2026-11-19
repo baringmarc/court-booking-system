@@ -2,11 +2,14 @@ import { useState } from 'react'
 import { ErrorMessage } from '../../components/ErrorMessage'
 import { PageLoader } from '../../components/PageLoader'
 import { errorMessage } from '../../lib/errors'
+import { liveStackHandoffUrl } from '../../lib/marketingUrl'
+import { todayInZone } from '../../lib/time'
 import { useNow } from '../booking/useNow'
 import { useCourts, useOperatingHours, useVenueSettings } from '../catalog/hooks'
 import type { OpenPlaySession } from '../openPlay/api'
 import { useUpcomingOpenPlay } from '../openPlay/hooks'
-import { useDeleteOpenPlay, useSaveOpenPlay } from './hooks'
+import { ConfirmDialog } from './ConfirmDialog'
+import { useCreateVenueLiveStack, useDeleteOpenPlay, useSaveOpenPlay } from './hooks'
 import { sessionTimeLabel } from '../openPlay/session'
 import { OpenPlayForm } from './OpenPlayForm'
 
@@ -19,6 +22,8 @@ export function OpenPlayPage() {
   const hours = useOperatingHours()
   const save = useSaveOpenPlay()
   const remove = useDeleteOpenPlay()
+  const goLive = useCreateVenueLiveStack()
+  const [stackFor, setStackFor] = useState<OpenPlaySession | null>(null)
   const now = useNow(60_000)
   const [editingId, setEditingId] = useState<string | null>(null)
   // Bumped after a save, so the form remounts empty (or leaves edit mode).
@@ -36,6 +41,22 @@ export function OpenPlayPage() {
     if (window.confirm(`Delete "${session.title}"? Its slots become bookable again.`)) {
       remove.mutate(session.id, { onSuccess: () => { if (editingId === session.id) startEdit(null) } })
     }
+  }
+
+  function closeStackDialog() {
+    const id = stackFor?.id
+    goLive.reset()
+    setStackFor(null)
+    if (id) document.getElementById(`run-stack-${id}`)?.focus()
+  }
+
+  function runAsStack(session: OpenPlaySession) {
+    goLive.mutate(session.id, {
+      onSuccess: ({ code, secret }) => {
+        window.open(liveStackHandoffUrl(code, secret), '_blank', 'noopener')
+        closeStackDialog()
+      },
+    })
   }
 
   return (
@@ -92,8 +113,11 @@ export function OpenPlayPage() {
             {sessions.data.map((s) => {
               const started = Date.parse(s.starts_at) <= now.getTime()
               const names = s.court_ids.map(courtName).filter(Boolean)
+              // From the session's calendar day in venue time (T29.7); ended sessions aren't listed.
+              const tz = settings.data.timezone
+              const stackReady = todayInZone(tz, new Date(s.starts_at)) <= todayInZone(tz, now)
               return (
-                <li key={s.id} className="list-row">
+                <li key={s.id} className="list-row list-row-wrap">
                   <span>
                     <strong>{s.title}</strong>
                     {started && <>{' '}<span className="badge">In progress</span></>}
@@ -108,6 +132,12 @@ export function OpenPlayPage() {
                         Edit
                       </button>
                     )}
+                    <button type="button" id={`run-stack-${s.id}`} className="btn btn-small btn-outline"
+                      aria-label={`Run ${s.title} as a stack`} disabled={!stackReady}
+                      title={stackReady ? undefined : 'Available from the day of the session'}
+                      onClick={() => { goLive.reset(); setStackFor(s) }}>
+                      Run this as a stack
+                    </button>
                     <button type="button" className="btn btn-small btn-ghost" aria-label={`Delete ${s.title}`}
                       disabled={remove.isPending} onClick={() => handleDelete(s)}>
                       Delete
@@ -120,6 +150,18 @@ export function OpenPlayPage() {
         )}
         {remove.error && <p className="form-error" role="alert">{errorMessage(remove.error)}</p>}
       </section>
+
+      {stackFor && (
+        <ConfirmDialog
+          id="run-stack" title="Run this as a stack"
+          body={`"${stackFor.title}" opens on Paddle Stack at plotline.fit in a new tab, ready to share with players. If it's already running on another device, the newest device takes over and the other one stops updating.`}
+          stay="Not now" confirm="Open the stack"
+          confirmDisabled={goLive.isPending}
+          error={goLive.error ? errorMessage(goLive.error) : null}
+          onStay={closeStackDialog}
+          onConfirm={() => runAsStack(stackFor)}
+        />
+      )}
     </section>
   )
 }

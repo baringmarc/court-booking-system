@@ -10,6 +10,8 @@ export const MAX_UPLOAD_BYTES = 2 * 1024 * 1024
 export const COURT_PHOTO_MAX_WIDTH = 1600
 /** 2× the 1100 px page container. */
 export const BANNER_MAX_WIDTH = 2200
+/** The venue logo is a square of at most this many pixels a side (live stacks show it small). */
+export const LOGO_SIZE = 512
 
 /** A message for a file that can't be used, or null when it can be downscaled and uploaded. */
 export function checkImageFile(file: File): string | null {

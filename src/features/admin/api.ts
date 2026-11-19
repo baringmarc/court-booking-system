@@ -455,6 +455,29 @@ export async function removeBanner(settings: Pick<VenueSettings, 'banner_path'>)
   return clearStoredMedia({ oldPath: settings.banner_path, save: clear, remove: removeVenueMedia })
 }
 
+async function updateLogo(logo_path: string | null) {
+  return unwrap(await supabase.from('venue_settings').update({ logo_path }).eq('venue_id', currentVenueId()).select().single())
+}
+
+/** The image must already be cropped to a square (cropSquareImage). */
+export type LogoInput = { image: Blob }
+
+/** Sets the venue logo shown on live stacks (T29.6): uploads under `{venue_id}/logo/` and replaces any old logo. */
+export async function saveLogo(settings: Pick<VenueSettings, 'logo_path'>, { image }: LogoInput) {
+  return replaceStoredMedia({
+    oldPath: settings.logo_path,
+    upload: () => uploadVenueMedia('logo', image),
+    save: (path) => updateLogo(path),
+    remove: removeVenueMedia,
+  })
+}
+
+export async function removeLogo(settings: Pick<VenueSettings, 'logo_path'>) {
+  const clear = () => updateLogo(null)
+  if (!settings.logo_path) return clear()
+  return clearStoredMedia({ oldPath: settings.logo_path, save: clear, remove: removeVenueMedia })
+}
+
 // --- Open play sessions (T9.11d; the RPCs check every rule) ---------------------
 
 /** Creates a session (id null) or replaces one that hasn't started. Returns its id. */
@@ -853,4 +876,14 @@ export async function fetchClosureConflicts(startIso: string, endIso: string, co
     }),
     sessions: [...seen.values()].sort((a, b) => a.starts_at.localeCompare(b.starts_at)),
   }
+}
+
+// --- Live stacks (T29.7; PLATFORM.md §4) -------------------------------------------
+
+/** Creates (or takes over) the live stack for an open play session. The secret is returned once and never stored here. */
+export async function createVenueLiveStack(sessionId: string): Promise<{ code: string; secret: string }> {
+  const result = unwrap(await supabase.rpc('create_venue_live_stack', { p_open_play_session_id: sessionId }))
+  const { code, secret } = (result ?? {}) as { code?: unknown; secret?: unknown }
+  if (typeof code !== 'string' || typeof secret !== 'string') throw new Error('The stack could not be started. Try again.')
+  return { code, secret }
 }
