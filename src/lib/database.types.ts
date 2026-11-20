@@ -254,6 +254,7 @@ export type Database = {
           guest_token_hash: string | null
           id: string
           parent_booking_id: string | null
+          rebooked_from: string | null
           reference_code: string
           rejection_count: number
           source: Database["public"]["Enums"]["booking_source"]
@@ -284,6 +285,7 @@ export type Database = {
           guest_token_hash?: string | null
           id?: string
           parent_booking_id?: string | null
+          rebooked_from?: string | null
           reference_code: string
           rejection_count?: number
           source?: Database["public"]["Enums"]["booking_source"]
@@ -314,6 +316,7 @@ export type Database = {
           guest_token_hash?: string | null
           id?: string
           parent_booking_id?: string | null
+          rebooked_from?: string | null
           reference_code?: string
           rejection_count?: number
           source?: Database["public"]["Enums"]["booking_source"]
@@ -353,6 +356,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "bookings"
             referencedColumns: ["venue_id", "id"]
+          },
+          {
+            foreignKeyName: "bookings_rebooked_from_fkey"
+            columns: ["rebooked_from"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "bookings_user_id_fkey"
@@ -1744,6 +1754,7 @@ export type Database = {
         Returns: {
           attempts: number
           booking_id: string
+          booking_starts_at: string
           booking_status: Database["public"]["Enums"]["booking_status"]
           data: Json
           for_guest: boolean
@@ -1771,6 +1782,7 @@ export type Database = {
           p_guest_email?: string
           p_guest_name?: string
           p_guest_phone?: string
+          p_rebook_of_reference?: string
           p_slots: number
           p_start: string
           p_waiver_accepted?: boolean
@@ -2152,6 +2164,7 @@ export type Database = {
         | "proof_rejected"
         | "booking_cancelled"
         | "booking_rescheduled"
+        | "booking_reminder"
       email_status: "pending" | "sending" | "sent" | "skipped" | "failed"
       payment_method:
         | "gcash"
@@ -2315,6 +2328,7 @@ export const Constants = {
         "proof_rejected",
         "booking_cancelled",
         "booking_rescheduled",
+        "booking_reminder",
       ],
       email_status: ["pending", "sending", "sent", "skipped", "failed"],
       payment_method: [

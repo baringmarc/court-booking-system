@@ -76,7 +76,7 @@ Plotline leads on owner reporting and venue branding and trails on everything th
 | AI assistant on Messenger | No | No | Yes | Not stated |
 | Walk-ins in the same calendar | Yes, off by default | Yes | Yes | Not stated |
 | Earnings and reports | Deep | CSV and peak slots | Not stated | Claims analytics |
-| Fee on players | ₱10 per booking | ₱15 per booking | 5% with a minimum | Not published |
+| Fee on players | ₱10 per booking | ₱15 a booking (their fee) | 5% with a minimum | Not published |
 
 Sources are the vendor pages linked in the previous section. For Plotline I checked the code and SPEC: there is no reminder email type (only five booking events), no recurring or waitlist code, and open play stores a title, details and up to three links.
 
