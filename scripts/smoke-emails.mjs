@@ -91,8 +91,16 @@ async function mails(to) {
   const { messages } = await res.json()
   return Promise.all(messages.map(async (m) => {
     const full = await (await fetch(`${MAILPIT}/api/v1/message/${m.ID}`)).json()
-    return { subject: full.Subject, text: full.Text, html: full.HTML }
+    return { id: m.ID, subject: full.Subject, text: full.Text, html: full.HTML, attachments: full.Attachments ?? [] }
   }))
+}
+
+// The message's .ics attachment (T30.3) as { type, body }, or null.
+async function calendarFile(message) {
+  const part = message?.attachments.find((a) => a.FileName?.endsWith('.ics'))
+  if (!part) return null
+  const body = await (await fetch(`${MAILPIT}/api/v1/message/${message.id}/part/${part.PartID}`)).text()
+  return { name: part.FileName, type: part.ContentType, body }
 }
 
 async function outbox(bookingId) {
@@ -157,6 +165,27 @@ inbox = await mails(playerEmail)
 const rejected = inbox.find((m) => m.subject === `Booking ${pRef}: please upload a new proof`)
 check('player inbox: proof_rejected with the reason', !!rejected?.text.includes('Reason: Smoke: blurry screenshot'))
 check('player inbox: payment_confirmed', inbox.some((m) => m.subject === `Booking ${pRef} is confirmed`), inbox.map((m) => m.subject).join(' | '))
+const confirmed = inbox.find((m) => m.subject === `Booking ${pRef} is confirmed`)
+const confirmedIcs = await calendarFile(confirmed)
+check('payment_confirmed: carries the .ics (PUBLISH, UID from the booking id)',
+  confirmedIcs?.name === `booking-${pRef}.ics` && /^text\/calendar/.test(confirmedIcs.type) && confirmedIcs.body.includes('METHOD:PUBLISH\r\n') &&
+  confirmedIcs.body.includes(`UID:booking-${pId}@plotline.fit`) && confirmedIcs.body.includes('SEQUENCE:0'), JSON.stringify(confirmedIcs?.type))
+check('payment_confirmed: has the Same time next week link with the reference',
+  new RegExp(`Same time next week: \\S+/book/checkout\\?court=${ps.court_id}&start=\\S+&slots=1&rebook=${pRef}`).test(confirmed?.text ?? ''))
+
+// --- booking_reminder (T30.3): queued like private.queue_booking_reminders does, from the confirmation's snapshot ---
+const { data: pcRow } = await service.from('email_outbox').select('data').eq('booking_id', pId).eq('kind', 'payment_confirmed').single().throwOnError()
+await service.from('email_outbox').insert({ booking_id: pId, kind: 'booking_reminder', to_email: playerEmail, for_guest: false, data: pcRow.data }).throwOnError()
+r = await runWorker()
+inbox = await mails(playerEmail)
+const reminderMail = inbox.find((m) => m.subject.startsWith('See you tomorrow at '))
+const reminderIcs = await calendarFile(reminderMail)
+check('player inbox: booking_reminder with the booking link and Same time next week',
+  !!reminderMail && reminderMail.text.includes(`/booking/${pRef}`) && reminderMail.text.includes('Same time next week: ') && reminderMail.text.includes('Venue info: '),
+  inbox.map((m) => m.subject).join(' | '))
+check('booking_reminder: carries the same event (.ics, same UID)', reminderIcs?.name === `booking-${pRef}.ics` &&
+  reminderIcs.body.includes(`UID:booking-${pId}@plotline.fit`) && reminderIcs.body.includes('BEGIN:VEVENT'), JSON.stringify(reminderIcs?.type))
+check('outbox: the reminder row is sent', (await outbox(pId)).find((x) => x.kind === 'booking_reminder')?.status === 'sent')
 
 // --- guest: cancellation (no link), fallback booking_created (no link), overtaken booking_created (skipped) -----
 const { error: cancelError } = await g.sb.rpc('cancel_booking', { p_reference_code: g.ref, p_token: g.token, p_reason: 'Smoke: plans changed' })
@@ -165,6 +194,15 @@ await runWorker()
 inbox = await mails(guestEmail)
 const cancelled = inbox.find((m) => m.subject === `Booking ${g.ref} was cancelled`)
 check('guest inbox: booking_cancelled, without the link', !!cancelled && !cancelled.text.includes(g.token) && !cancelled.text.includes('/booking/'))
+check('booking_cancelled: no .ics', !(await calendarFile(cancelled)))
+
+// A reminder for a booking that is no longer confirmed is skipped, not sent (T30.3).
+const { data: gRow } = await service.from('email_outbox').select('data').eq('booking_id', g.id).eq('kind', 'booking_cancelled').single().throwOnError()
+await service.from('email_outbox').insert({ booking_id: g.id, kind: 'booking_reminder', to_email: guestEmail, for_guest: true, data: gRow.data }).throwOnError()
+await runWorker()
+inbox = await mails(guestEmail)
+check('stale reminder: skipped for a cancelled booking, nothing sent',
+  (await outbox(g.id)).find((x) => x.kind === 'booking_reminder')?.status === 'skipped' && !inbox.some((m) => m.subject.startsWith('See you tomorrow')))
 
 const fallbackEmail = `smoke-email-fallback-${stamp}@example.com`
 const f = await guestBooking(fallbackEmail)

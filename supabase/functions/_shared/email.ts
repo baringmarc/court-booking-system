@@ -1,7 +1,7 @@
 // Email transport for the email Edge Functions (SPEC §8, RESEARCH M8). Plain TypeScript with no Deno APIs, so Vitest
 // and tsc check it with the app. Transports: resend (real delivery, needs RESEND_API_KEY), mailpit (local stack only)
 // and disabled (rows are finished as skipped).
-import { shouldSkip, type BookingStatus, type EmailKind } from './emailTemplates.ts'
+import { shouldSkip, type BookingStatus, type EmailKind, type SkipCheck } from './emailTemplates.ts'
 import { constantTimeEqual } from './paymongo.ts'
 
 export const RESEND_API = 'https://api.resend.com/emails'
@@ -35,10 +35,21 @@ export type EmailAction = { action: 'send' } | { action: 'skip'; reason: string 
  * What to do with a claimed email: skip everything while the transport is disabled, skip
  * a booking_created that a later event overtook, otherwise send. Shared by send-emails and email-guest-link.
  */
-export function emailAction(transport: Transport, kind: EmailKind, status: BookingStatus | null | undefined): EmailAction {
+export function emailAction(transport: Transport, kind: EmailKind, status: BookingStatus | null | undefined, check?: SkipCheck): EmailAction {
   if (transport === 'disabled') return { action: 'skip', reason: 'Email is turned off (EMAIL_TRANSPORT=disabled).' }
-  if (shouldSkip(kind, status)) return { action: 'skip', reason: `Overtaken: the booking is ${status}.` }
+  if (shouldSkip(kind, status, check)) {
+    if (kind === 'booking_reminder' && status === 'confirmed') {
+      const started = check?.now && Date.parse(check.snapshotStartsAt ?? '') <= check.now.getTime()
+      return { action: 'skip', reason: started ? 'Overtaken: the booking has started.' : 'Overtaken: the booking moved to another time.' }
+    }
+    return { action: 'skip', reason: `Overtaken: the booking is ${status}.` }
+  }
   return { action: 'send' }
+}
+
+/** The claimed rows in sending order: reminders last (they matter only until play starts; T30.3). Stable, not in place. */
+export function sendOrder<T extends { kind: EmailKind }>(rows: T[]): T[] {
+  return [...rows.filter((r) => r.kind !== 'booking_reminder'), ...rows.filter((r) => r.kind === 'booking_reminder')]
 }
 
 /** The worker secret, or null when it's missing or is the committed local value on the hosted project. */
@@ -77,7 +88,8 @@ export type EmailAttachment = { filename: string; contentBase64: string; content
  * may list several addresses for one message (the invoice email to every owner, T26.4).
  */
 export type OutgoingEmail = { to: string | string[]; subject: string; html: string; text: string; replyTo?: string; attachments?: EmailAttachment[] }
-export type SendResult = { ok: true; note?: string } | { ok: false; error: string }
+/** `quota`: Resend refused because the daily or monthly quota is used up (429; it neither queues nor retries, T30.3). */
+export type SendResult = { ok: true; note?: string } | { ok: false; error: string; quota?: 'daily' | 'monthly' }
 type FetchLike = (url: string, init: { method: string; headers: Record<string, string>; body: string }) => Promise<{ ok: boolean; status: number; text(): Promise<string> }>
 
 const recipients = (to: string | string[]) => (Array.isArray(to) ? to : [to])
@@ -116,9 +128,11 @@ export async function sendEmail(
         }),
       })
       if (res.ok) return { ok: true }
-      const detail = (await res.text().catch(() => '')).slice(0, 300)
+      const body = await res.text().catch(() => '')
+      const detail = body.slice(0, 300)
       if (res.status === 409) return { ok: true, note: `Resend 409 (already sent with this key): ${detail}` }
-      return { ok: false, error: `Resend ${res.status}: ${detail}` }
+      const quota = res.status === 429 ? (body.includes('daily_quota_exceeded') ? 'daily' : body.includes('monthly_quota_exceeded') ? 'monthly' : null) : null
+      return quota ? { ok: false, error: `Resend 429: ${detail}`, quota } : { ok: false, error: `Resend ${res.status}: ${detail}` }
     }
 
     const res = await fetchFn(`${config.mailpitUrl!.replace(/\/+$/, '')}/api/v1/send`, {
