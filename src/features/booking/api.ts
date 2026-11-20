@@ -131,6 +131,8 @@ export type NewBooking = {
   contact?: { name?: string; email?: string; phone?: string }
   /** The player ticked the venue's waiver (T11.19); create_booking refuses without it when the venue has one. */
   waiverAccepted?: boolean
+  /** The reference code a "Same time next week" link carries (T30.4); the server ignores an unknown one. */
+  rebookOfReference?: string
 }
 
 export type CreatedBooking = { id: string; referenceCode: string; guestToken: string | null }
@@ -142,7 +144,7 @@ export async function fetchPlatformFee(): Promise<number> {
 }
 
 /** The price is never sent: the server computes it (SPEC §5.4). */
-export async function createBooking({ courtId, start, slots, contact, waiverAccepted }: NewBooking): Promise<CreatedBooking> {
+export async function createBooking({ courtId, start, slots, contact, waiverAccepted, rebookOfReference }: NewBooking): Promise<CreatedBooking> {
   const rows = unwrap(
     await supabase.rpc('create_booking', {
       p_court_id: courtId,
@@ -152,6 +154,7 @@ export async function createBooking({ courtId, start, slots, contact, waiverAcce
       p_guest_email: contact?.email,
       p_guest_phone: contact?.phone,
       p_waiver_accepted: waiverAccepted ?? false,
+      p_rebook_of_reference: rebookOfReference || undefined,
     }),
   )
   const row = rows[0]

@@ -65,6 +65,8 @@ export type Earnings = {
   courts: ({ courtId: string; name: string; sport: Enums<'sport'> } & HourTotals)[]
   sports: ({ sport: Enums<'sport'> } & HourTotals)[]
   comingUp: { count: number; value: number }
+  /** T30.4: confirmed bookings in the period made from a "Same time next week" link (by play date). */
+  rebooked: { count: number }
   /** T11.12: what came in, what Plotline's booking fees took from it, and what's left for the owner. */
   split: { current: RevenueSplit; previous: RevenueSplit }
 }
@@ -115,6 +117,7 @@ export function parseEarnings(json: Json): Earnings {
     })),
     sports: arr(o.sports).map((s) => ({ sport: str(obj(s).sport) as Enums<'sport'>, ...hours(obj(s)) })),
     comingUp: { count: num(obj(o.coming_up).count), value: num(obj(o.coming_up).value) },
+    rebooked: { count: num(obj(o.rebooked).count) },
     split: { current: revenueSplit(obj(o.split)), previous: revenueSplit(obj(obj(o.split).previous)) },
   }
 }

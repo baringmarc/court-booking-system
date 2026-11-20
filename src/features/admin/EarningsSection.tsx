@@ -123,6 +123,7 @@ function EarningsBody({ earnings, period, days, currency, timeZone }: BodyProps)
           </p>
         </section>
       </div>
+      <p className="small">{`Booked again with Same time next week: ${earnings.rebooked.count}`}</p>
 
       <HoursTable earnings={earnings} />
 

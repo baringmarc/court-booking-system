@@ -61,8 +61,10 @@ describe('BookingSummary', () => {
 
   it('renders the cancel section it is given', () => {
     render(
-      <BookingSummary booking={{ ...booking, status: 'confirmed', expires_at: null }} paymentInstructions="" timeZone="Asia/Manila"
-        currency="PHP" now={new Date('2030-01-07T02:30:00.000Z')} cancelSection={<p>Cancel slot</p>} />,
+      <MemoryRouter>
+        <BookingSummary booking={{ ...booking, status: 'confirmed', expires_at: null }} paymentInstructions="" timeZone="Asia/Manila"
+          currency="PHP" now={new Date('2030-01-07T02:30:00.000Z')} cancelSection={<p>Cancel slot</p>} />
+      </MemoryRouter>,
     )
     expect(screen.getByText('Cancel slot')).toBeInTheDocument()
   })

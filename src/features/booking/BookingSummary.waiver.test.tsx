@@ -1,5 +1,6 @@
 // T11.20: the booking page shows the waiver text the player accepted.
 import { render, screen } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it } from 'vitest'
 import type { BookingDetail } from './api'
 import { BookingSummary } from './BookingSummary'
@@ -16,8 +17,10 @@ const booking: BookingDetail = {
 
 const show = (overrides: Partial<BookingDetail>) =>
   render(
-    <BookingSummary booking={{ ...booking, ...overrides }} paymentInstructions="" timeZone="Asia/Manila" currency="PHP"
-      now={new Date('2030-01-07T02:30:00.000Z')} />,
+    <MemoryRouter>
+      <BookingSummary booking={{ ...booking, ...overrides }} paymentInstructions="" timeZone="Asia/Manila" currency="PHP"
+        now={new Date('2030-01-07T02:30:00.000Z')} />
+    </MemoryRouter>,
   )
 
 describe('BookingSummary waiver', () => {

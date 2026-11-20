@@ -8,7 +8,7 @@ import { SPORT_LABELS, type Court, type PublicSchedulePeriod, type VenueSettings
 import { useCourts, usePublicSchedule, useVenueSettings } from '../catalog/hooks'
 import { CheckoutForm } from './CheckoutForm'
 import { guestBookingPath } from './guestLink'
-import { parseCheckoutSearch, type CheckoutParams } from './checkoutParams'
+import { parseCheckoutSearch, parseRebookReference, type CheckoutParams } from './checkoutParams'
 import type { Contact } from './contact'
 import { bookingErrorMessage, isSlotGone } from './errors'
 import { useAvailability, useCreateBooking, usePlatformFee } from './hooks'
@@ -49,6 +49,9 @@ function CheckoutLoader({ choice }: { choice: CheckoutParams }) {
 function Checkout({ choice, settings, court, hours }: { choice: CheckoutParams; settings: VenueSettings; court: Court | undefined; hours: PublicSchedulePeriod[] }) {
   const navigate = useNavigate()
   const location = useLocation()
+  // From a "Same time next week" link (T30.4): the booking being repeated, recorded on the new one by create_booking.
+  const [params] = useSearchParams()
+  const rebookOfReference = parseRebookReference(params) ?? undefined
   const { user, profile } = useAuth()
   const create = useCreateBooking()
 
@@ -97,6 +100,7 @@ function Checkout({ choice, settings, court, hours }: { choice: CheckoutParams; 
         slots: choice.slots,
         contact: isGuest ? contact : { name: contact.name, phone: contact.phone || undefined },
         waiverAccepted,
+        rebookOfReference,
       },
       {
         onSuccess: ({ referenceCode, guestToken }) => {
