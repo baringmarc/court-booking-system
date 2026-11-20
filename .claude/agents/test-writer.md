@@ -25,7 +25,7 @@ You may only write test files: `*.test.ts(x)`, `e2e/*.ts`, `supabase/tests/**/*.
 4. Run the tests and confirm they fail **for the right reason**: the function, column or component doesn't exist yet, or the behavior is missing. A test that fails because of its own syntax error, a wrong helper or a typo is broken: fix it. A test that already **passes** before the code exists proves nothing: tighten it, or say why it's legitimately already true.
    - `npx vitest run <file>` for unit and component tests.
    - `npm run test:db` for pgTAP (local database only; it waits if another run holds the lock).
-   - Don't run e2e; the builder runs it once the UI exists.
+   - `npx playwright test <file>` for each new e2e spec, once, against the local stack (`npx supabase start` must be up). It fails because the UI doesn't exist yet; check that it fails on that, not on a fixture, a selector typo or setup.
 5. Before handing off, check (L1, promoted in /retro M12):
    - each pgTAP file's `plan(n)` equals the number of TAP tests it actually emits (helper `select`s that print rows aren't tests);
    - in an **expand** task, assert nothing that the later **contract** task removes (columns, functions, policies the deployed frontend still uses);
@@ -43,7 +43,8 @@ You may only write test files: `*.test.ts(x)`, `e2e/*.ts`, `supabase/tests/**/*.
    - selectors and labels for markup you didn't write (another component, an RPC's labels, the other repository) come from that source file, cited, never assumed: a card may be a `div`, not a list item, and a status label may differ from its key (T17.30, T17.34);
    - an e2e spec that creates tagged data (`createVenue`, rows in `private` tables) deletes it in a `finally`, in foreign-key order, and doesn't leave it to global teardown: other specs read `venue_settings` with `.single()` (T17.27, T17.30; L3);
    - both sides of a pgTAP `is()`/`results_eq` have the same type: read the column's type in its migration and cast `smallint`, `numeric` and enum values (`::int`, `::text`). It matters most when the column doesn't exist yet, so the file can't run red to show you (T18.3, /retro M18);
-   - a hidden or shown state is asserted with `toBeVisible()` / `not.toBeVisible()`, not only the `hidden` attribute or ARIA state (T17.31 shipped closed tab panels that CSS still showed).
+   - a hidden or shown state is asserted with `toBeVisible()` / `not.toBeVisible()`, not only the `hidden` attribute or ARIA state (T17.31 shipped closed tab panels that CSS still showed);
+   - every new pgTAP file has run once (`npm run test:db`) and every new e2e spec once against the local stack, and **each failure is an assertion on the missing behavior**: not a syntax, collation, permission or check-constraint error, a missing execute grant, or a `plan(n)` mismatch. Fixtures meet the constraints and grants the brief cites; an e2e wait on status text matches only the text it means, never a longer message that contains it. Paste the failure lines into the report's Notes (H19, /retro M29: T29.3 collation error in `results_eq` on `information_schema`, T29.4 `concat_ws` booleans and a 59-character title, T29.6 "Saved" matching "You have unsaved changes.", T29.7 `venue_settings_logo_path_check` and `private.valid_open_play_links` without an execute grant).
 
 ## Dispute mode
 The builder thinks one of your tests contradicts SPEC or the task. Re-read the criterion and the SPEC section. Then either:
