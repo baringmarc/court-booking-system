@@ -21,6 +21,8 @@ export type BookingFilters = {
   q: string
   /** Null: the default, which depends on the date (see effectiveSort). */
   sort: BookingSort | null
+  /** T30.6: only bookings with a refund owed. Absent: any. Set aside by a search, like the others. */
+  refund?: 'owed'
 }
 
 /** The review queue is the default view. */
@@ -75,13 +77,15 @@ export function filtersFromParams(params: URLSearchParams): BookingFilters {
   const source = params.get('source')
   const date = params.get('date')
   const sort = params.get('sort')
-  return {
+  const filters: BookingFilters = {
     status: status === 'all' || (status && STATUSES.includes(status)) ? (status as BookingFilters['status']) : DEFAULT_FILTERS.status,
     source: source && SOURCES.includes(source) ? (source as BookingSource) : 'all',
     date: date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : null,
     q: (params.get('q') ?? '').trim().slice(0, SEARCH_MAX),
     sort: SORTS.some((s) => s.value === sort) ? (sort as BookingSort) : null,
   }
+  if (params.get('refund') === 'owed') filters.refund = 'owed'
+  return filters
 }
 
 export function filtersToParams(filters: BookingFilters) {
@@ -91,6 +95,7 @@ export function filtersToParams(filters: BookingFilters) {
   if (filters.date) params.set('date', filters.date)
   if (filters.q.trim()) params.set('q', filters.q.trim())
   if (filters.sort) params.set('sort', filters.sort)
+  if (filters.refund === 'owed') params.set('refund', 'owed')
   return params
 }
 

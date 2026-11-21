@@ -6,7 +6,7 @@ import { bookingErrorMessage } from './errors'
 type Props = {
   check: PlayerCancel
   timeZone: string
-  /** A payment was already approved: refunds happen outside the app (SPEC §4). */
+  /** A payment was already approved: cancelling records a refund owed, which the venue settles (SPEC §4, T30.5). */
   paid: boolean
   pending: boolean
   error: unknown

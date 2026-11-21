@@ -22,6 +22,7 @@ vi.mock('../catalog/hooks', () => ({
 vi.mock('./hooks', () => ({
   useAdminBookings: (filters: { date: string }) => query({ bookings: filters.date === '2030-01-07' ? h.bookings : [] }),
   useProofQueueCount: () => query(h.queue),
+  useRefundsOwedCount: () => query(0),
 }))
 vi.mock('../booking/hooks', () => ({ useAvailability: () => query([]) }))
 vi.mock('../openPlay/hooks', () => ({ useUpcomingOpenPlay: () => query([]) }))
@@ -57,7 +58,7 @@ describe('DashboardPage today-first order and links (T27.7)', () => {
     await renderDashboard()
     const order = headings()
     expect(order.map((t) => t.replace(/ · .*/, ''))).toEqual([
-      'Proofs to review', "Today's bookings", 'Next booking', "Today's courts", "Today's schedule", 'Earnings',
+      'Proofs to review', "Today's bookings", 'Next booking', 'Refunds owed', "Today's courts", "Today's schedule", 'Earnings',
     ])
   })
 
@@ -66,7 +67,7 @@ describe('DashboardPage today-first order and links (T27.7)', () => {
     await renderDashboard()
     await screen.findByRole('heading', { name: 'Walk-in booking' })
     expect(headings().map((t) => t.replace(/ · .*/, ''))).toEqual([
-      'Proofs to review', "Today's bookings", 'Next booking', 'Walk-in booking', "Today's courts", "Today's schedule", 'Earnings',
+      'Proofs to review', "Today's bookings", 'Next booking', 'Refunds owed', 'Walk-in booking', "Today's courts", "Today's schedule", 'Earnings',
     ])
   })
 

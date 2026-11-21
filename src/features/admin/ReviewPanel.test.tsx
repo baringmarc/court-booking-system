@@ -16,7 +16,7 @@ const booking: AdminBooking = {
   status: 'payment_submitted', source: 'online', total_amount: 900, booking_fee: 0, amount_due: 900, expires_at: null, rejection_count: 0,
   guest_name: 'Gina Guest', guest_email: 'gina@example.com', guest_phone: '09172222222',
   created_at: '2030-01-07T02:00:00.000Z', payments: [pendingProof],
-  cancelled_at: null, cancel_reason: null, cancelled_by_venue: false, parent_booking_id: null,
+  cancelled_at: null, cancel_reason: null, cancelled_by_venue: false, parent_booking_id: null, refunds: [],
 }
 
 function renderPanel(overrides: Partial<AdminBooking> = {}, proof: ProofLink = { state: 'ready', url: 'https://signed/proof' }, error: unknown = null) {
@@ -94,13 +94,15 @@ describe('ReviewPanel', () => {
     expect(screen.queryByText(/Cancelled after payment/)).not.toBeInTheDocument()
   })
 
-  it('flags a booking cancelled after payment so staff settle the refund', () => {
+  it('no longer tells staff to settle a refund outside the app: the Refund card tracks it (T30.6)', () => {
     renderPanel({
       status: 'cancelled', cancelled_at: '2030-01-07T02:30:00.000Z', cancel_reason: 'Court maintenance', cancelled_by_venue: true,
       payments: [{ ...pendingProof, review_status: 'approved' }],
     })
     expect(screen.getByText(/Cancelled by staff/)).toBeInTheDocument()
-    expect(screen.getByRole('status')).toHaveTextContent('Cancelled after payment: settle any refund outside the app.')
+    expect(screen.queryByText(/Cancelled after payment/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/outside the app/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 
   describe('PayMongo payments', () => {
@@ -121,15 +123,16 @@ describe('ReviewPanel', () => {
       expect(screen.queryByRole('status')).not.toBeInTheDocument()
     })
 
-    it('flags a late online payment for a refund outside the app', () => {
+    it('labels a late online payment Not accepted, with no "refund outside the app" warning (T30.6)', () => {
       renderPanel({
         status: 'cancelled', cancel_reason: 'Changed plans',
         payments: [online({ review_status: 'rejected', review_note: 'Payment received after the booking was cancelled. The venue will arrange a refund.' })],
       })
-      expect(screen.getByText('Refund due')).toBeInTheDocument()
-      expect(screen.getByRole('status')).toHaveTextContent(
-        'Paid online (₱900) but not accepted: Payment received after the booking was cancelled. The venue will arrange a refund. Refund it outside the app.',
-      )
+      expect(screen.getByText('Not accepted')).toHaveClass('badge')
+      expect(screen.queryByText('Refund due')).not.toBeInTheDocument()
+      expect(screen.queryByText(/Paid online \(₱900\) but not accepted/)).not.toBeInTheDocument()
+      expect(screen.queryByText(/outside the app/)).not.toBeInTheDocument()
+      expect(screen.queryByRole('status')).not.toBeInTheDocument()
     })
 
     it('flags a proof that was closed because the customer paid online', () => {

@@ -12,7 +12,7 @@ import type { Court, OperatingHours, VenueSettings } from '../catalog/api'
 import { useCourts, useOperatingHours, useStaffSchedule, useVenueSettings } from '../catalog/hooks'
 import { isAfterMidnight, operatingDayRange, operatingToday } from '../catalog/hours'
 import { nextBooking, operatingDayBookings, todayHoursLabel } from './dashboard'
-import { useAdminBookings, useProofQueueCount } from './hooks'
+import { useAdminBookings, useProofQueueCount, useRefundsOwedCount } from './hooks'
 import { DEFAULT_FILTERS, filtersToParams } from './bookingFilters'
 import { DayView } from './DayView'
 import { EarningsSection } from './EarningsSection'
@@ -75,6 +75,7 @@ function Dashboard({ settings, courts, hours }: { settings: VenueSettings; court
   const availability = useAvailability(today)
   const openPlay = useUpcomingOpenPlay({ enabled: !!availability.data?.some((s) => s.status === 'open_play') })
   const queue = useProofQueueCount()
+  const refundsOwed = useRefundsOwedCount()
 
   const schedulePending = schedule.isPending || staffHours.isPending || yesterday.isPending || current.isPending || (pastMidnight && scheduleNext.isPending)
   const scheduleError = schedule.error ?? staffHours.error ?? yesterday.error ?? current.error ?? (pastMidnight ? scheduleNext.error : null)
@@ -88,6 +89,7 @@ function Dashboard({ settings, courts, hours }: { settings: VenueSettings; court
   const next = nextBooking(todays, now)
   // T27.7: each card opens the bookings it counts.
   const todayLink = `/admin/bookings?${filtersToParams({ ...DEFAULT_FILTERS, status: 'all', date: today })}`
+  const refundsLink = `/admin/bookings?${filtersToParams({ ...DEFAULT_FILTERS, status: 'all', refund: 'owed' })}`
   const nextLink = next ? `/admin/bookings?${filtersToParams({ ...DEFAULT_FILTERS, q: next.reference_code })}` : '/admin/bookings'
 
   return (
@@ -131,6 +133,17 @@ function Dashboard({ settings, courts, hours }: { settings: VenueSettings; court
             <>
               <p className="muted">No more bookings today</p>
               <Link to="/admin/bookings">Open bookings</Link>
+            </>
+          )}
+        </section>
+        <section className="card">
+          <h2>Refunds owed</h2>
+          {refundsOwed.isPending ? <PageLoader /> : refundsOwed.isError ? (
+            <ErrorMessage error={refundsOwed.error} onRetry={() => refundsOwed.refetch()} />
+          ) : (
+            <>
+              <p className="big-number">{refundsOwed.data}</p>
+              <Link to={refundsLink}>Open refunds</Link>
             </>
           )}
         </section>

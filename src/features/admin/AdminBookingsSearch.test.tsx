@@ -22,7 +22,7 @@ const booking = (reference_code: string, guest_name: string): AdminBooking => ({
   slot_start: '2030-01-07T10:00:00.000Z', slot_end: '2030-01-07T11:00:00.000Z', status: 'confirmed', source: 'online',
   total_amount: 350, booking_fee: 0, amount_due: 350, expires_at: null, rejection_count: 0, guest_name, guest_email: 'ana@example.com', guest_phone: null,
   created_at: '2030-01-01T00:00:00.000Z', payments: [], cancelled_at: null, cancel_reason: null, cancelled_by_venue: false,
-  parent_booking_id: null,
+  parent_booking_id: null, refunds: [],
 })
 
 function renderPage(path = '/admin/bookings') {
@@ -43,7 +43,7 @@ describe('AdminBookingsPage search', () => {
     await userEvent.type(await screen.findByRole('searchbox', { name: 'Search' }), 'cb-7kq2xd{Enter}')
     await vi.waitFor(() => expect(fetchAdminBookings).toHaveBeenLastCalledWith(
       expect.objectContaining({ q: 'cb-7kq2xd', status: 'payment_submitted' }), 'Asia/Manila'))
-    expect(screen.getByRole('status')).toHaveTextContent('Searching all bookings for “cb-7kq2xd”. The status, source and date filters are set aside.')
+    expect(screen.getByRole('status')).toHaveTextContent('Searching all bookings for “cb-7kq2xd”. The status, source, date and refund filters are set aside.')
     const row = await within(screen.getByRole('list', { name: 'Bookings' })).findByRole('button', { pressed: true })
     expect(row).toHaveTextContent('CB-7KQ2XD')
   })

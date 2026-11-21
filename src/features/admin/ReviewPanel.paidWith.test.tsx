@@ -15,7 +15,7 @@ const booking: AdminBooking = {
   status: 'payment_submitted', source: 'online', total_amount: 900, booking_fee: 0, amount_due: 900, expires_at: null, rejection_count: 0,
   guest_name: 'Gina Guest', guest_email: 'gina@example.com', guest_phone: '09172222222',
   created_at: '2030-01-07T02:00:00.000Z', payments: [proof],
-  cancelled_at: null, cancel_reason: null, cancelled_by_venue: false, parent_booking_id: null,
+  cancelled_at: null, cancel_reason: null, cancelled_by_venue: false, parent_booking_id: null, refunds: [],
 }
 const renderPanel = (payment: AdminPayment) =>
   render(

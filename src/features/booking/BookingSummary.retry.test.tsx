@@ -30,7 +30,7 @@ const booking: BookingDetail = {
   user_id: null,
   parent_reference_code: null,
   continuations: [],
-  changes: [],
+  changes: [], refund: null,
 }
 
 const BEFORE_START = '2030-01-07T05:00:00.000Z' // hold expired at 03:00, start is 09:00

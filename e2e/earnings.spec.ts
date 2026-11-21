@@ -110,8 +110,8 @@ async function checkEarnings(page: Page, before: number, reference: string) {
   expect(bookings.text).toMatch(new RegExp(`"${reference}","Tennis Court","Tennis","${today} 02:00","${today} 03:00","(Confirmed|Completed)","Walk-in","${E2E_PREFIX} Walk-in cash","1234","0"\r\n`))
   const payments = await download(page, 'Export payments (CSV)')
   expect(payments.name).toBe(`payments_${today}_to_${today}.csv`)
-  expect(payments.text.split('\r\n')[0]).toBe('\uFEFF"booking reference","method","amount_php","reference number","received (Asia/Manila)","status"')
-  expect(payments.text).toMatch(new RegExp(`"${reference}","Cash","1234","","${today} \\d{2}:\\d{2}","Accepted"\r\n`))
+  expect(payments.text.split('\r\n')[0]).toBe('\uFEFF"booking reference","method","amount_php","reference number","received (Asia/Manila)","status","refund status","refund_amount_php","refund method","refunded on","refund reason"')
+  expect(payments.text).toMatch(new RegExp(`"${reference}","Cash","1234","","${today} \\d{2}:\\d{2}","Accepted","","","","",""\r\n`))
 
   // This week: Monday to Sunday, with a labelled bar per day.
   await earnings.getByRole('button', { name: 'This week' }).click()

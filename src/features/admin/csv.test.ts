@@ -83,15 +83,15 @@ describe('bookingsCsv', () => {
 describe('paymentsCsv', () => {
   const payment: ExportPayment = {
     booking_reference: 'CB-ABC234', method: 'gcash', amount: 350, reference_number: '1234 5678',
-    received_at: '2026-10-25T03:15:00.000Z', review_status: 'approved',
+    received_at: '2026-10-25T03:15:00.000Z', review_status: 'approved', refund: null,
   }
 
-  it('lists payments by received time, accepted or refund due', () => {
+  it('lists payments by received time, accepted or not accepted, with empty refund columns when there is no refund (T30.6)', () => {
     const text = paymentsCsv([payment, { ...payment, method: 'paymongo', review_status: 'rejected', reference_number: null }], { timeZone: TZ, currency: 'PHP' })
     expect(lines(text)).toEqual([
-      '"booking reference","method","amount_php","reference number","received (Asia/Manila)","status"',
-      '"CB-ABC234","GCash","350","1234 5678","2026-10-25 11:15","Accepted"',
-      '"CB-ABC234","PayMongo","350","","2026-10-25 11:15","Refund due"',
+      '"booking reference","method","amount_php","reference number","received (Asia/Manila)","status","refund status","refund_amount_php","refund method","refunded on","refund reason"',
+      '"CB-ABC234","GCash","350","1234 5678","2026-10-25 11:15","Accepted","","","","",""',
+      '"CB-ABC234","PayMongo","350","","2026-10-25 11:15","Not accepted","","","","",""',
       '',
     ])
   })

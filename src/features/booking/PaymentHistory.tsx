@@ -5,8 +5,9 @@ import { isReplacedByOnlinePayment } from './paymentLabels'
 import { paymentLabel } from './proofInput'
 
 const REVIEW_LABELS = { pending: 'Under review', approved: 'Accepted', rejected: 'Not accepted' } as const
-// PayMongo payments are never reviewed: they're paid online, or received too late and refunded (SPEC §4).
-const ONLINE_LABELS = { pending: 'Processing', approved: 'Paid online', rejected: 'Refund due' } as const
+// PayMongo payments are never reviewed: they're paid online, or received too late and not accepted, in which case a
+// refund is recorded and the Refund card says what happened to it (SPEC §4, T30.6).
+const ONLINE_LABELS = { pending: 'Processing', approved: 'Paid online', rejected: 'Not accepted' } as const
 
 export function PaymentHistory({ payments, timeZone, currency }: { payments: PaymentAttempt[]; timeZone: string; currency: string }) {
   if (payments.length === 0) return null

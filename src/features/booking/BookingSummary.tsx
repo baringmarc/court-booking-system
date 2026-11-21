@@ -11,6 +11,8 @@ import { PaymentHistory } from './PaymentHistory'
 import { displayStatus, STATUS_LABELS, type DisplayStatus } from './status'
 import { isReplacedByOnlinePayment } from './paymentLabels'
 import { toCheckoutSearch } from './checkoutParams'
+import { nextSameTimeStart } from './rebook'
+import { RefundNotice } from './RefundNotice'
 
 type Props = {
   booking: BookingDetail
@@ -64,6 +66,14 @@ function RetryLink({ booking, hours, now }: { booking: BookingDetail; hours: num
   return <p><Link to={`/book/checkout?${search}`} className="btn btn-small">Try this time again</Link></p>
 }
 
+/** T30.4: checkout for the same court, weekday and time in the first week still ahead, carrying the reference so the
+ * new booking records where it came from. Checkout sends the player back to the grid if that time is taken. */
+function SameTimeNextWeek({ booking, hours, timeZone, now }: { booking: BookingDetail; hours: number; timeZone: string; now: Date }) {
+  const start = nextSameTimeStart(booking.slot_start, timeZone, now)
+  const search = toCheckoutSearch({ courtId: booking.court_id, start, slots: hours, rebook: booking.reference_code })
+  return <p><Link to={`/book/checkout?${search}`} className="btn btn-small">Same time next week</Link></p>
+}
+
 export function BookingSummary({ booking, paymentInstructions, timeZone, currency, now, proofForm, paymentAccounts, payOnline, paymentNotice, cancelSection, saveLink, venueLocation }: Props) {
   const status = displayStatus(booking, now)
   const date = todayInZone(timeZone, new Date(booking.slot_start))
@@ -106,6 +116,9 @@ export function BookingSummary({ booking, paymentInstructions, timeZone, currenc
           <div><dt>Total</dt><dd>{formatMoney(booking.amount_due, currency)}</dd></div>
           <div><dt>Name</dt><dd>{booking.guest_name}</dd></div>
         </dl>
+        {(status === 'confirmed' || status === 'completed') && (
+          <SameTimeNextWeek booking={booking} hours={hours} timeZone={timeZone} now={now} />
+        )}
       </section>
 
       {paymentNotice}
@@ -165,9 +178,11 @@ export function BookingSummary({ booking, paymentInstructions, timeZone, currenc
           ) : (
             <p>This booking was cancelled{booking.cancel_reason ? ` (${booking.cancel_reason})` : ''}.</p>
           )}
-          <p>The times were released.{booking.payments.some((p) => p.review_status === 'approved') ? ' Contact the venue about any refund.' : ''}</p>
+          {/* With a refund record (T30.5) the Refund card below says what happens; older data falls back to this line. */}
+          <p>The times were released.{!booking.refund && booking.payments.some((p) => p.review_status === 'approved') ? ' Contact the venue about any refund.' : ''}</p>
         </div>
       )}
+      <RefundNotice refund={booking.refund} timeZone={timeZone} currency={currency} />
       {venueLocation}
       <MoveHistory booking={booking} timeZone={timeZone} />
       {cancelSection}

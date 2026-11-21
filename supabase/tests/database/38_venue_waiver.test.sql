@@ -105,9 +105,9 @@ select is(pg_temp.sqlstate_of($$ insert into public.bookings (reference_code, co
 -- create_booking: one function, new signature, grants
 -- ---------------------------------------------------------------------------
 select is((select count(*)::int from pg_proc where pronamespace = 'public'::regnamespace and proname = 'create_booking'), 1, 'exactly one create_booking exists');
-select has_function('public', 'create_booking', array['uuid', 'timestamp with time zone', 'integer', 'text', 'text', 'text', 'boolean'], 'create_booking takes p_waiver_accepted as the 7th argument');
-select ok(has_function_privilege('anon', 'public.create_booking(uuid, timestamptz, integer, text, text, text, boolean)', 'execute')
-      and has_function_privilege('authenticated', 'public.create_booking(uuid, timestamptz, integer, text, text, text, boolean)', 'execute'),
+select has_function('public', 'create_booking', array['uuid', 'timestamp with time zone', 'integer', 'text', 'text', 'text', 'boolean', 'text'], 'create_booking takes p_waiver_accepted as the 7th argument (T30.2 added p_rebook_of_reference as the 8th)');
+select ok(has_function_privilege('anon', 'public.create_booking(uuid, timestamptz, integer, text, text, text, boolean, text)', 'execute')
+      and has_function_privilege('authenticated', 'public.create_booking(uuid, timestamptz, integer, text, text, text, boolean, text)', 'execute'),
   'anon and authenticated can execute create_booking');
 
 -- ---------------------------------------------------------------------------

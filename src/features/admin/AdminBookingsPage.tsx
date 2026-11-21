@@ -4,6 +4,7 @@ import { ErrorMessage } from '../../components/ErrorMessage'
 import { PageLoader } from '../../components/PageLoader'
 import { formatHour, formatMoney } from '../../lib/format'
 import { formatDateLabel, hourInZone, todayInZone } from '../../lib/time'
+import { useNow } from '../booking/useNow'
 import { useVenueSettings } from '../catalog/hooks'
 import { displayStatus, STATUS_LABELS, type BookingStatus } from '../booking/status'
 import { adminCanCancel } from '../booking/cancellation'
@@ -12,7 +13,9 @@ import { hasPaidOnline, paymentFlags } from './paymentFlags'
 import { AdminCancelForm } from './AdminCancelForm'
 import { filtersFromParams, filtersToParams, parseSearch, type BookingFilters } from './bookingFilters'
 import { BookingFiltersBar, BookingSearchForm } from './BookingFiltersBar'
-import { useActiveMovedParts, useAdminBookings, useAdminCancelBooking, useProofUrl, useReviewPayment } from './hooks'
+import { useActiveMovedParts, useAdminBookings, useAdminCancelBooking, useProofUrl, useReviewPayment, useUpdateRefund } from './hooks'
+import { hasOwedRefund, REFUND_STATUS_LABELS } from './refunds'
+import { RefundCard } from './RefundCard'
 import { RescheduleSection } from './RescheduleSection'
 import { ReviewPanel, type ProofLink } from './ReviewPanel'
 
@@ -25,6 +28,8 @@ export function AdminBookingsPage() {
   const [selectedId, setSelectedId] = useState<string | null>(() => params.get('booking'))
   const [lastReview, setLastReview] = useState<{ ref: string; status: BookingStatus } | null>(null)
   const [lastMove, setLastMove] = useState<string | null>(null)
+  // A saved refund (T30.6): under the "Refund owed" filter the booking then leaves the list, so say what was saved.
+  const [lastRefund, setLastRefund] = useState<string | null>(null)
 
   const tz = settings.data?.timezone ?? 'Asia/Manila'
   const currency = settings.data?.currency ?? 'PHP'
@@ -40,6 +45,7 @@ export function AdminBookingsPage() {
     setSelectedId(null)
     setLastReview(null)
     setLastMove(null)
+    setLastRefund(null)
   }
 
   return (
@@ -48,7 +54,7 @@ export function AdminBookingsPage() {
       <BookingSearchForm key={filters.q} value={filters.q} onSearch={(q) => changeFilters({ ...filters, q })} />
       {searching ? (
         <div className="alert alert-info search-note" role="status">
-          <p>Searching all bookings for “{filters.q}”. The status, source and date filters are set aside.</p>
+          <p>Searching all bookings for “{filters.q}”. The status, source, date and refund filters are set aside.</p>
           <button type="button" className="btn btn-small btn-outline" onClick={() => changeFilters({ ...filters, q: '' })}>Clear search</button>
         </div>
       ) : null}
@@ -57,6 +63,7 @@ export function AdminBookingsPage() {
         <div className="alert alert-info" role="status"><p>{reviewOutcome(lastReview.ref, lastReview.status)}</p></div>
       )}
       {lastMove && <div className="alert alert-info" role="status"><p>{lastMove}</p></div>}
+      {lastRefund && <div className="alert alert-info" role="status"><p>{lastRefund}</p></div>}
       {settings.isError ? (
         <ErrorMessage error={settings.error} onRetry={() => settings.refetch()} />
       ) : bookings.isPending ? (
@@ -65,7 +72,11 @@ export function AdminBookingsPage() {
         <ErrorMessage error={bookings.error} onRetry={() => bookings.refetch()} />
       ) : bookings.data.bookings.length === 0 ? (
         <p className="muted">
-          {searching ? `No bookings match “${filters.q}”.` : filters.status === 'payment_submitted' ? 'No proofs are waiting for review.' : 'No bookings match these filters.'}
+          {searching
+            ? `No bookings match “${filters.q}”.`
+            : filters.refund === 'owed'
+              ? 'No bookings with a refund owed match these filters.'
+              : filters.status === 'payment_submitted' ? 'No proofs are waiting for review.' : 'No bookings match these filters.'}
         </p>
       ) : (
         <div className="admin-split">
@@ -88,8 +99,9 @@ export function AdminBookingsPage() {
             // On phones the panel sits below the list: bring it into view when a booking is picked.
             <div ref={(el) => el?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' })}>
               <ReviewContainer key={selected.id} booking={selected} timeZone={tz} currency={currency}
-                onReviewed={(status) => { setLastMove(null); setLastReview({ ref: selected.reference_code, status }) }}
-                onMoved={(message) => { setLastReview(null); setLastMove(message) }} />
+                onReviewed={(status) => { setLastMove(null); setLastRefund(null); setLastReview({ ref: selected.reference_code, status }) }}
+                onMoved={(message) => { setLastReview(null); setLastRefund(null); setLastMove(message) }}
+                onRefunded={(message) => { setLastReview(null); setLastMove(null); setLastRefund(message) }} />
             </div>
           )}
         </div>
@@ -115,7 +127,7 @@ export function BookingRow({ booking, timeZone, currency }: { booking: AdminBook
         <span>{formatMoney(booking.amount_due, currency)}</span>
         <span className={`badge status-${status}`}>{STATUS_LABELS[status]}</span>
         {hasPaidOnline(booking) && <span className="badge review-approved">Paid online</span>}
-        {flags.refundDue.length > 0 && <span className="badge review-rejected">Refund due</span>}
+        {hasOwedRefund(booking) && <span className="badge review-rejected">Refund owed</span>}
         {flags.supersededProofs.length > 0 && <span className="badge review-pending">Check duplicate</span>}
       </span>
     </>
@@ -136,13 +148,17 @@ type ReviewContainerProps = {
   currency: string
   onReviewed: (status: BookingStatus) => void
   onMoved: (message: string) => void
+  onRefunded: (message: string) => void
 }
 
-function ReviewContainer({ booking, timeZone, currency, onReviewed, onMoved }: ReviewContainerProps) {
+function ReviewContainer({ booking, timeZone, currency, onReviewed, onMoved, onRefunded }: ReviewContainerProps) {
   const path = pendingPayment(booking)?.storage_path ?? null
   const proofUrl = useProofUrl(path)
   const review = useReviewPayment()
   const cancel = useAdminCancelBooking()
+  const refund = useUpdateRefund()
+  // The venue's date: the default refund date and the latest one allowed (update_refund checks it too).
+  const today = todayInZone(timeZone, useNow(60_000))
   const canCancel = adminCanCancel(booking, new Date())
   // A moved part isn't cancelled with its booking (T10.1): the cancel form says which ones stay.
   const movedParts = useActiveMovedParts(booking.id, canCancel && booking.source !== 'moved')
@@ -166,6 +182,10 @@ function ReviewContainer({ booking, timeZone, currency, onReviewed, onMoved }: R
         onApprove={() => review.mutate({ bookingId: booking.id, approve: true, note: null }, { onSuccess: (s) => s && onReviewed(s) })}
         onReject={(note) => review.mutate({ bookingId: booking.id, approve: false, note }, { onSuccess: (s) => s && onReviewed(s) })}
       />
+      <RefundCard refunds={booking.refunds} payments={booking.payments} timeZone={timeZone} currency={currency} today={today}
+        pending={refund.isPending} error={refund.isError ? refund.error : null} onUpdate={(input) => refund.mutate(input, {
+          onSuccess: () => onRefunded(`Refund for ${booking.reference_code} saved: ${REFUND_STATUS_LABELS[input.status]}.`),
+        })} />
       <RescheduleSection booking={booking} onMoved={onMoved} />
       {canCancel && (
         <AdminCancelForm paid={hasApprovedPayment(booking)} movedParts={movedParts.data} pending={cancel.isPending} error={cancel.isError ? cancel.error : null}

@@ -6,6 +6,7 @@ import { currentVenue } from '../../lib/currentVenue'
 import type { Enums } from '../../lib/database.types'
 import type { Slot, SlotStatus } from './selection'
 import type { BookingStatus } from './status'
+import { parsePlayerRefund, type PlayerRefund } from './refund'
 
 export type { Slot } from './selection'
 
@@ -131,6 +132,8 @@ export type NewBooking = {
   contact?: { name?: string; email?: string; phone?: string }
   /** The player ticked the venue's waiver (T11.19); create_booking refuses without it when the venue has one. */
   waiverAccepted?: boolean
+  /** The reference code a "Same time next week" link carries (T30.4); the server ignores an unknown one. */
+  rebookOfReference?: string
 }
 
 export type CreatedBooking = { id: string; referenceCode: string; guestToken: string | null }
@@ -142,7 +145,7 @@ export async function fetchPlatformFee(): Promise<number> {
 }
 
 /** The price is never sent: the server computes it (SPEC §5.4). */
-export async function createBooking({ courtId, start, slots, contact, waiverAccepted }: NewBooking): Promise<CreatedBooking> {
+export async function createBooking({ courtId, start, slots, contact, waiverAccepted, rebookOfReference }: NewBooking): Promise<CreatedBooking> {
   const rows = unwrap(
     await supabase.rpc('create_booking', {
       p_court_id: courtId,
@@ -152,6 +155,7 @@ export async function createBooking({ courtId, start, slots, contact, waiverAcce
       p_guest_email: contact?.email,
       p_guest_phone: contact?.phone,
       p_waiver_accepted: waiverAccepted ?? false,
+      p_rebook_of_reference: rebookOfReference || undefined,
     }),
   )
   const row = rows[0]
@@ -197,6 +201,8 @@ export type BookingDetail = {
   continuations: BookingContinuation[]
   /** Every reschedule of this booking, its continuations included, oldest first. */
   changes: BookingChange[]
+  /** The booking's latest refund record (T30.5), player fields only; null when there is none. */
+  refund: PlayerRefund | null
 }
 
 const notFound = () =>
@@ -233,6 +239,7 @@ export async function fetchGuestBooking(referenceCode: string, token: string): P
     parent_reference_code: row.parent_reference_code || null,
     continuations: toContinuations(row.continuations),
     changes: toChanges(row.changes),
+    refund: parsePlayerRefund(row.refund),
   }
 }
 
@@ -247,7 +254,10 @@ export async function fetchOwnBooking(referenceCode: string): Promise<BookingDet
   )
   if (!row) throw notFound()
   const { start, end } = parseTstzRange(row.during)
-  const { parentReference, continuations, changes } = await fetchOwnMoves(row.id, row.parent_booking_id)
+  const [{ parentReference, continuations, changes }, refund] = await Promise.all([
+    fetchOwnMoves(row.id, row.parent_booking_id),
+    supabase.rpc('get_own_booking_refund', { p_booking_id: row.id }).then((res) => parsePlayerRefund(unwrap(res))),
+  ])
   return {
     id: row.id,
     reference_code: row.reference_code,
@@ -276,6 +286,7 @@ export async function fetchOwnBooking(referenceCode: string): Promise<BookingDet
     parent_reference_code: parentReference,
     continuations,
     changes,
+    refund,
   }
 }
 

@@ -54,6 +54,9 @@ import {
   type WalkInInput,
   STATEMENT_PAGE_SIZE,
   createVenueLiveStack,
+  fetchRefundsOwedCount,
+  updateRefund,
+  type UpdateRefundInput,
 } from './api'
 import { catalogKeys, updateVenueSettings, type Court, type CourtPhotoRow, type CourtWithPhotos, type Sport, type VenueSettings } from '../catalog/api'
 import { setCourtOrder } from '../catalog/sportOrder'
@@ -103,8 +106,11 @@ export function useAdminCancelBooking() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ bookingId, reason }: { bookingId: string; reason: string }) => adminCancelBooking(bookingId, reason),
+    // Cancelling a paid booking records a refund owed (T30.5), so the owed count and earnings change too.
     onSettled: () => Promise.all([
       qc.invalidateQueries({ queryKey: adminKeys.allBookings() }),
+      qc.invalidateQueries({ queryKey: adminKeys.refundsOwed() }),
+      qc.invalidateQueries({ queryKey: adminKeys.allEarnings() }),
       qc.invalidateQueries({ queryKey: adminKeys.proofQueue() }),
       qc.invalidateQueries({ queryKey: adminKeys.allMovedParts() }),
       qc.invalidateQueries({ queryKey: bookingKeys.allAvailability() }),
@@ -135,6 +141,24 @@ export function useActiveMovedParts(bookingId: string, enabled: boolean) {
     queryFn: () => fetchActiveMovedParts(bookingId),
     enabled,
     staleTime: 15_000,
+  })
+}
+
+export function useRefundsOwedCount() {
+  return useQuery({ queryKey: adminKeys.refundsOwed(), queryFn: fetchRefundsOwedCount, refetchInterval: 60_000 })
+}
+
+/** Staff record a refund's outcome: the bookings lists, the owed count, earnings and the player's page refresh. */
+export function useUpdateRefund() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: UpdateRefundInput) => updateRefund(input),
+    onSettled: () => Promise.all([
+      qc.invalidateQueries({ queryKey: adminKeys.allBookings() }),
+      qc.invalidateQueries({ queryKey: adminKeys.refundsOwed() }),
+      qc.invalidateQueries({ queryKey: adminKeys.allEarnings() }),
+      qc.invalidateQueries({ queryKey: bookingKeys.allDetails }),
+    ]),
   })
 }
 

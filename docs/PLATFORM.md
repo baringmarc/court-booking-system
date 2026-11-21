@@ -26,14 +26,15 @@ Locally both repos sit side by side: `~/Documents/Projects/court-booking-system`
 - **DNS and TLS:** one Cloudflare zone for `plotline.fit`. The apex points at plotline-site; a proxied wildcard record `*.plotline.fit` routes to court-booking-system. Cloudflare's free certificate covers the apex and `*.plotline.fit`.
 - **Email:** `mail.plotline.fit` is in use (since 2026-10-30, T11.26): the verified Resend sending domain (SPF, DKIM and the bounce MX in the Cloudflare zone). Booking emails go from `bookings@mail.plotline.fit` with the venue's name, Supabase Auth emails from `no-reply@mail.plotline.fit` (T11.26).
 - **Hosting:** Cloudflare (Workers static assets, free plan, commercial use allowed). Both repos deploy automatically on every push to `master` through Cloudflare Workers Builds (each Worker → Settings → Builds is connected to its GitHub repo; build `npm run build`, deploy `npx wrangler deploy`). Workers Builds doesn't run `npm run verify`, so it must pass before merging. The old Vercel URL (`court-booking-system-ashen.vercel.app`) only redirects (step 5 below), and staging still deploys to Vercel.
-- **Deploying court-booking-system to Cloudflare (T13.8):** `wrangler.jsonc` serves `dist/` as static assets with SPA fallback (no Worker script) on the route `*.plotline.fit/*`.
+- **Deploying court-booking-system to Cloudflare (T13.8):** `wrangler.jsonc` serves `dist/` as static assets with SPA fallback on the route `*.plotline.fit/*`. Since T30.7 a Worker script (`worker/index.ts`, link previews per venue) runs in front of the assets **only for `/` and `/book`** (`assets.run_worker_first`); everything else, `/assets/*` included, is served without it. It reads production's Supabase with the publishable key from `vars` in `wrangler.jsonc` and fails open (the page unchanged) on any error. `public/_headers` marks `/booking/*` and `/admin*` `noindex`.
+- **Worker budget (free plan, RESEARCH "Milestone 30"):** 100,000 Worker requests a day (reset at midnight UTC), 10 ms CPU each. Only Worker runs count, so roughly one per visit to `/` or `/book` (T30.8 adds `/manifest.webmanifest`). Past the cap a Worker-first path stops serving for the rest of the UTC day (Error 1027 or a 429; no fail-open is documented), so keep `run_worker_first` narrow, and move the account to Workers Paid before traffic nears it. Paths left out keep working.
   1. Once: `npx wrangler login`; in the Cloudflare dashboard add a **proxied** DNS record `*` (type `AAAA`, `100::`) in the `plotline.fit` zone. The apex and `www` keep pointing at plotline-site.
   2. Build with the production `.env` values (`npm run build`), then `npm run cf:deploy`. The Worker is named `court-booking-system` (it already held the route); the route is created from `wrangler.jsonc`.
   3. Check `https://claudex-courts.plotline.fit/` and a deep link (`/book`, `/admin/login`).
   4. Then set the secret `PUBLIC_ROOT_DOMAIN=plotline.fit` (`npx supabase secrets set`) and deploy the three functions (T13.6).
   5. Last, the old Vercel URL redirects to `claudex-courts.plotline.fit` (`vercel.json`, temporary 307, path kept, `assets/` excluded so already-open or cached old pages still load their scripts instead of failing on CORS; browsers keep `#token=` fragments). It takes effect when `develop` is merged into `master`, so do steps 3–4 first: until `PUBLIC_ROOT_DOMAIN` is set, emails and PayMongo returns still point at the Vercel URL.
   - Previews: `npm run cf:preview` uploads a version with its own preview URL. It has no venue subdomain, so open it with `?venue=<slug>`, and build it against staging.
-  - Local check: `npm run build && npm run cf:dev` serves deep links on http://localhost:8788.
+  - Local check: `npm run build && npm run cf:dev` serves deep links on http://localhost:8788. `wrangler dev` hands the Worker the route's zone (`plotline.fit`) as the host, so it passes pages through; to see a venue's card against the local stack add `-- --local-upstream claudex-courts.plotline.fit --var SUPABASE_URL:http://127.0.0.1:54321 --var SUPABASE_PUBLISHABLE_KEY:<local publishable key>` (T30.7).
 
 ## 3. Supabase projects
 
@@ -91,7 +92,7 @@ Reply: `200 { ok: true, message }`.
 
 **Validation lives in `supabase/functions/_shared/siteForms.ts`** in this repo; the server's check is the one that counts. plotline-site keeps an **identical copy** at `src/lib/siteForms.ts` for instant form feedback. When the rules change, change them here first, then copy the file over unchanged.
 
-### Live stacks (M29, *target*: contract written 2026-11-19, built here in T29.3–T29.7 and in plotline-site (T29.8), not deployed yet)
+### Live stacks (M29: contract written 2026-11-19, built here in T29.3–T29.7 and in plotline-site's Milestone 6 (T29.8); on staging and production since 2026-11-19)
 
 Players open an organizer's Paddle Stack on their own phones from a link or QR and see it update live. **View-only: no player accounts; only the organizer's device changes anything.** Nothing here changes `public_venues`. Rationale and the user's calls: SPEC §10 2026-11-18; the spike and limits: RESEARCH "Milestone 29". Every name below is final once deployed; changes follow §7.
 
@@ -112,7 +113,7 @@ Replies: `200 { ok: true, code, secret }`; `400 { ok: false, error: 'invalid_inp
 
 | RPC | Who | Returns / does |
 | --- | --- | --- |
-| `get_live_stack(p_code text)` | anyone | `{ title, courts, snapshot, version, ended, expires_at, venue }` where `venue` is `{ name, slug, logo_path }` for a venue's stack and `null` for a plotline.fit stack. `snapshot` is `null` until the first publish. Hint `not_found` for an unknown or expired code (viewers show "This stack has ended"). `logo_path` is a path in the public `venue-media` bucket (`<supabase url>/storage/v1/object/public/venue-media/<logo_path>`); null when the venue has none. |
+| `get_live_stack(p_code text)` | anyone | `{ title, courts, snapshot, version, ended, expires_at, venue }` where `venue` is `{ name, slug, logo_path }` for a venue's stack and `null` for a plotline.fit stack. `snapshot` is `null` until the first publish. `title` is `null` for an untitled stack (a blank title is stored as null). Hint `not_found` for an unknown or expired code (viewers show "This stack has ended"). `logo_path` is a path in the public `venue-media` bucket (`<supabase url>/storage/v1/object/public/venue-media/<logo_path>`); null when the venue has none. |
 | `publish_live_stack(p_code text, p_secret text, p_version integer, p_snapshot jsonb, p_end boolean default false)` | anyone holding the secret | Stores the snapshot and broadcasts it. Returns `{ version, expires_at }`. |
 | `create_venue_live_stack(p_open_play_session_id uuid)` | admins of the session's venue (signed in) | Returns `{ code, secret }`. Title and courts come from the session. Running it again for the same session returns the same `code` with a **new** secret: the newest device takes over and the old one's publishes get `forbidden`. Hints `forbidden`, `not_found`, `session_ended`, `busy`. Used only by this repo's `/admin/open-play`, not by plotline-site. |
 
@@ -187,6 +188,10 @@ The backend side is done and live on the linked project (`leads` T14.2, `reviews
 3. **Build it here** with tests, and deploy it to staging, then production. Keep it backward compatible (expand → deploy → contract): the live marketing site must keep working until it's updated.
 4. **Update plotline-site:** copy `siteForms.ts` if the rules changed, regenerate types, adjust the forms.
 5. Remove anything old only after both are live.
+
+**Release notes**
+
+- **2026-11-19, M29 Live stacks:** migrations `20261119044143_t29_3_venue_logo`, `20261119051606_t29_4_live_stacks` and `20261119055437_t29_5_site_live_stack` reached staging, then production (`jmichyttnqygwdcksbpg`); `stack-live` v1 was then deployed to both (same bundle, `verify_jwt` false); both frontends followed the backend: plotline-site's Milestone 6 (Worker `1292fe10`, then `abb3134b`) and this repo's T29.6–T29.7 through `master` (PR #49). Checked at T29.9 (L6): `npm run preflight:release -- --project-ref jmichyttnqygwdcksbpg` passed (100 migrations, 11 functions) and `functions list` there shows `stack-live` v1 active.
 
 For Claude Code: start in one repo and add the other with `claude --add-dir ../plotline-site` (or `../court-booking-system`), or `/add-dir` during a session.
 

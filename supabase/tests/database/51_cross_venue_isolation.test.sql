@@ -11,7 +11,7 @@
 -- Fixture: venue A and venue B (both active), each with staff, courts, bookings, payments, charges and an invoice.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(84);
+select plan(85);
 
 -- ---------------------------------------------------------------- helpers
 create function pg_temp.as_user(p_user uuid) returns void language sql as $$
@@ -260,6 +260,14 @@ insert into public.billing_charges (venue_id, booking_id, kind, amount, billing_
   ('a0000000-0000-0000-0000-00000000000a', 'b1000000-0000-0000-0000-0000000000a1', 'booking_fee', 10, date_trunc('month', now())::date, '1a000000-0000-0000-0000-0000000000a1'),
   ('b0000000-0000-0000-0000-00000000000b', 'b1000000-0000-0000-0000-0000000000b1', 'booking_fee', 10, date_trunc('month', now())::date, '1a000000-0000-0000-0000-0000000000b1');
 
+-- T30.5: refunds (staff read them; writes only through update_refund)
+insert into public.refunds (id, venue_id, booking_id, payment_id, amount)
+select x.id, x.venue, x.booking, (select p.id from public.payments p where p.booking_id = x.booking), x.amt
+from (values
+  ('f5000000-0000-0000-0000-0000000000a1'::uuid, 'a0000000-0000-0000-0000-00000000000a'::uuid, 'b1000000-0000-0000-0000-0000000000a1'::uuid, 500),
+  ('f5000000-0000-0000-0000-0000000000b1'::uuid, 'b0000000-0000-0000-0000-00000000000b'::uuid, 'b1000000-0000-0000-0000-0000000000b1'::uuid, 600)
+) x(id, venue, booking, amt);
+
 -- T29.4: live stacks have no client grants at all (reads through get_live_stack by code only)
 insert into public.live_stacks (venue_id, code, secret_hash, title, courts) values
   ('a0000000-0000-0000-0000-00000000000a', 'e2eisolivestackaaaaaaaa', repeat('a', 64), 'E2E A stack', 2),
@@ -313,7 +321,7 @@ select is_empty(
      where tbl not in (select tbl from pg_temp.tpl where venue_id = 'a0000000-0000-0000-0000-00000000000a')
         or tbl not in (select tbl from pg_temp.tpl where venue_id = 'b0000000-0000-0000-0000-00000000000b') $$,
   'every table with a venue_id has fixture rows in venue A and in venue B (add rows here when a table is added)');
-select is((select count(*)::int from pg_temp.swp), 28, 'the catalog sweep includes the four schedule tables, the two promo tables (T19.1) and live_stacks (T29.4)');
+select is((select count(*)::int from pg_temp.swp), 29, 'the catalog sweep includes the four schedule tables, the two promo tables (T19.1), live_stacks (T29.4) and refunds (T30.5)');
 select is(
   (select count(*)::int from pg_temp.swp where tbl in ('billing_charges', 'invoices', 'venue_members', 'guest_link_tokens', 'bookings', 'payments')),
   6, 'the sweep includes the billing, membership, booking and payment tables');
@@ -504,6 +512,8 @@ select is(pg_temp.hint_of($$ select public.save_court_promo('e3000000-0000-0000-
   'save_court_promo: staff A cannot move a promo of venue B onto their own court');
 select is(pg_temp.hint_of($$ select public.delete_court_promo('e3000000-0000-0000-0000-00000000b001') $$), 'not_found',
   'delete_court_promo: staff A cannot delete a promo of venue B');
+select is(pg_temp.hint_of($$ select public.update_refund('f5000000-0000-0000-0000-0000000000b1', 'not_refunded', p_reason => 'E2E hijack') $$), 'forbidden',
+  'update_refund: staff A cannot change a refund of venue B (T30.5)');
 reset role;
 select is(pg_temp.vstate('b0000000-0000-0000-0000-00000000000b'), (select v from snap where k = 'b'),
   'after all those calls venue B''s rows in every table are byte for byte unchanged');
@@ -519,11 +529,11 @@ select is_empty(
          -- probed above with a cross-venue call
          'cancel_booking', 'review_payment', 'create_walk_in', 'reschedule_booking', 'delete_court', 'reorder_court_photos',
          'reorder_courts', 'reorder_info_sections', 'reorder_payment_accounts', 'set_operating_hours', 'get_earnings',
-         'create_open_play', 'update_open_play', 'delete_open_play', 'save_court_promo', 'delete_court_promo',
+         'create_open_play', 'update_open_play', 'delete_open_play', 'save_court_promo', 'delete_court_promo', 'update_refund',
          -- public by design: they take a court or a slug and only ever act on that venue's own published data
          'create_booking', 'get_availability', 'get_public_schedule',
          -- by secret token or by the caller's own account: no venue id to cross
-         'get_guest_booking', 'claim_guest_bookings',
+         'get_guest_booking', 'claim_guest_bookings', 'get_own_booking_refund',
          -- live stacks by code (and secret): no venue id to cross; create_venue_live_stack refuses staff of another venue (86_live_stacks)
          'get_live_stack', 'publish_live_stack', 'create_venue_live_stack',
          -- platform admins only: it makes a new venue and takes no venue id to cross (56_create_venue)

@@ -2,7 +2,15 @@
 // check it with the app. The data is the email_outbox snapshot; the guest token is a separate argument that only the
 // booking_created email accepts, so no other email can ever carry the private link.
 
-export type EmailKind = 'booking_created' | 'payment_confirmed' | 'proof_rejected' | 'booking_cancelled' | 'booking_rescheduled'
+import { rebookLink } from './rebookLink.ts'
+
+export type EmailKind =
+  | 'booking_created'
+  | 'payment_confirmed'
+  | 'proof_rejected'
+  | 'booking_cancelled'
+  | 'booking_rescheduled'
+  | 'booking_reminder'
 export type BookingStatus = 'pending_payment' | 'payment_submitted' | 'confirmed' | 'expired' | 'rejected' | 'cancelled'
 
 /** The email_outbox.data snapshot (see private.booking_email_data and the trigger). */
@@ -37,6 +45,13 @@ export type EmailData = {
   new_ends_at?: string
   /** The booking created for the moved hours after a split; absent when the whole booking moved. */
   continuation_reference?: string | null
+  // Since T30.2 (private.booking_email_data); emails queued earlier lack them. booking_rescheduled has the new court
+  // and range's court_id and slots.
+  court_id?: string
+  slots?: number
+  address?: string | null
+  /** '' when unset, else a Google Maps link (venue_settings_maps_url_link). */
+  maps_url?: string | null
 }
 
 export type RenderInput = {
@@ -54,14 +69,33 @@ export type RenderInput = {
 
 export type RenderedEmail = { subject: string; html: string; text: string }
 
-/** A booking_created email that a later event has made pointless is dropped instead of sent. */
-export function shouldSkip(kind: EmailKind, currentStatus: BookingStatus | null | undefined): boolean {
-  return kind === 'booking_created' && (currentStatus === 'cancelled' || currentStatus === 'expired' || currentStatus === 'rejected')
+/** What send-emails knows about a booking_reminder's booking now (claim_email_outbox.booking_starts_at, T30.3). */
+export type SkipCheck = { snapshotStartsAt?: string; bookingStartsAt?: string | null; now?: Date }
+
+/**
+ * An email that a later event has made pointless is dropped instead of sent: a booking_created after the booking
+ * ended, and a booking_reminder whose booking is no longer confirmed, no longer starts at the snapshot's time (it was
+ * moved; the reschedule email gave the new time) or has already started.
+ */
+export function shouldSkip(kind: EmailKind, currentStatus: BookingStatus | null | undefined, check?: SkipCheck): boolean {
+  if (kind === 'booking_created') return currentStatus === 'cancelled' || currentStatus === 'expired' || currentStatus === 'rejected'
+  if (kind !== 'booking_reminder') return false
+  if (currentStatus !== 'confirmed') return true
+  const snapshot = Date.parse(check?.snapshotStartsAt ?? '')
+  if (Number.isNaN(snapshot)) return false
+  if (check?.bookingStartsAt) {
+    const now = Date.parse(check.bookingStartsAt)
+    if (!Number.isNaN(now) && now !== snapshot) return true
+  }
+  return check?.now !== undefined && check.now.getTime() >= snapshot
 }
 
 /** The Plotline pill button (T11.4, docs/BRAND.md), shared with the owner emails (T16.6). */
 export const BUTTON_STYLE =
   'display:inline-block;background:#b7c4a8;color:#3b2f2a;border:1.5px solid #4c6b3c;padding:10px 20px;border-radius:999px;font-weight:700;text-decoration:none'
+
+/** The smaller links under the button: ink-green, underlined (docs/BRAND.md). */
+const LINK_STYLE = 'color:#4c6b3c;font-weight:700;text-decoration:underline'
 
 export function escapeHtml(value: string): string {
   return value
@@ -98,7 +132,21 @@ export function bookingLink(site: string, reference: string, guestToken?: string
   return guestToken ? `${base}#token=${encodeURIComponent(guestToken)}` : base
 }
 
-type Block = { paragraphs: string[]; facts: [string, string][]; link?: { href: string; label: string }; footer: string[] }
+type Link = { href: string; label: string }
+/** `link` is the main button; `links` are the smaller links under it (Maps, venue info, Same time next week). */
+type Block = { paragraphs: string[]; facts: [string, string][]; link?: Link; links?: Link[]; footer: string[] }
+
+function mapsLink(data: EmailData): string | null {
+  const maps = data.maps_url?.trim()
+  if (maps) return maps
+  const address = data.address?.trim()
+  return address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}` : null
+}
+
+function nextWeekLinks(input: RenderInput): Link[] {
+  const href = rebookLink({ site: input.site, data: input.data })
+  return href ? [{ href, label: 'Same time next week' }] : []
+}
 
 function content(input: RenderInput): { subject: string; block: Block } {
   const { kind, data, forGuest } = input
@@ -164,8 +212,42 @@ function content(input: RenderInput): { subject: string; block: Block } {
     case 'payment_confirmed':
       return {
         subject: `Booking ${ref} is confirmed`,
-        block: { paragraphs: [`Your payment is in and your booking at ${data.venue_name} is confirmed. See you on the court!`], facts, link, footer },
+        block: {
+          paragraphs: [`Your payment is in and your booking at ${data.venue_name} is confirmed. See you on the court!`],
+          facts,
+          link,
+          links: nextWeekLinks(input),
+          footer,
+        },
       }
+    case 'booking_reminder': {
+      // T30.3: queued at 6 pm venue time the day before play (private.queue_booking_reminders). Like every worker
+      // email, a guest's carries no private link (canLink is false without a token, and only booking_created and a
+      // re-upload take one).
+      const address = data.address?.trim()
+      const maps = mapsLink(data)
+      const sport = data.sport?.trim()
+      return {
+        subject: `See you tomorrow at ${data.venue_name}`,
+        block: {
+          paragraphs: [`See you tomorrow at ${data.venue_name}! Here are your booking details.`],
+          facts: [
+            ['Reference', ref],
+            ['Court', data.court_name],
+            ...(sport ? [['Sport', `${sport.charAt(0).toUpperCase()}${sport.slice(1)}`] as [string, string]] : []),
+            ['When', when],
+            ...(address ? [['Address', address] as [string, string]] : []),
+          ],
+          link,
+          links: [
+            ...(maps ? [{ href: maps, label: 'Open in Maps' }] : []),
+            { href: `${input.site.replace(/\/+$/, '')}/`, label: 'Venue info' },
+            ...nextWeekLinks(input),
+          ],
+          footer,
+        },
+      }
+    }
     case 'proof_rejected': {
       const reason = data.note?.trim() ? [`Reason: ${data.note.trim()}`] : []
       if (data.final) {
@@ -245,6 +327,7 @@ export function renderEmail(input: RenderInput): RenderedEmail {
     ...block.facts.map(([k, v]) => `${k}: ${v}`),
     '',
     ...(block.link ? [`${block.link.label}: ${block.link.href}`, ''] : []),
+    ...(block.links?.length ? [...block.links.map((l) => `${l.label}: ${l.href}`), ''] : []),
     ...block.footer.flatMap((p) => [p, '']),
     `— ${venue}`,
   ].join('\n')
@@ -264,6 +347,7 @@ ${block.paragraphs.map((p) => `<p style="margin:0 0 16px">${e(p)}</p>`).join('\n
     .map(([k, v]) => `<tr><td style="padding:4px 16px 4px 12px;color:#5a4a42">${e(k)}</td><td style="padding:4px 12px 4px 0;font-weight:700">${e(v)}</td></tr>`)
     .join('')}</table>
 ${block.link ? `<p style="margin:0 0 16px"><a href="${e(block.link.href)}" style="${BUTTON_STYLE}">${e(block.link.label)}</a></p>` : ''}
+${block.links?.length ? `<p style="margin:0 0 16px">${block.links.map((l) => `<a href="${e(l.href)}" style="${LINK_STYLE}">${e(l.label)}</a>`).join(' &middot; ')}</p>` : ''}
 ${block.footer.map((p) => `<p style="margin:0 0 16px;color:#5a4a42;font-size:14px">${e(p)}</p>`).join('\n')}
 <p style="margin:0;color:#5a4a42">— ${e(venue)}</p>
 </div>
