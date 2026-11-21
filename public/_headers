@@ -1,0 +1,7 @@
+# Booking and admin pages are never indexed (T30.7). The Worker does not run on them, so the static assets set it.
+/booking/*
+  X-Robots-Tag: noindex
+/admin
+  X-Robots-Tag: noindex
+/admin/*
+  X-Robots-Tag: noindex
