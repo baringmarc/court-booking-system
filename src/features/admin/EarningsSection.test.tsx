@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { MemoryRouter } from 'react-router-dom'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Json } from '../../lib/database.types'
 import { fetchBookingsForExport, fetchEarnings, fetchPaymentsForExport, type ExportBooking } from './api'
@@ -49,10 +50,14 @@ const ZERO_SPLIT = { total_revenue: 0, plotline_fees: 0, owner_earnings: 0, prev
 /** The rows of the revenue split, in order (T11.14). */
 const splitRows = async () => within(await screen.findByRole('list', { name: 'Revenue split' })).getAllByRole('listitem')
 
-/** Elements with this text outside the revenue split (the Collected line repeats the total revenue's change). */
+/**
+ * Elements with this text in the Collected card outside the revenue split (the Collected line repeats the total
+ * revenue's change). Scoped to the card since T30.6: the Refunded and Net cards have change lines of their own.
+ */
 function outsideSplit(text: string) {
+  const collected = screen.getByRole('heading', { name: 'Collected' }).closest('section')!
   const split = screen.queryByRole('list', { name: 'Revenue split' })
-  return screen.getAllByText(text).filter((el) => !split?.contains(el))
+  return within(collected).getAllByText(text).filter((el) => !split?.contains(el))
 }
 
 /** A split row: its label, its amount for the period (its own text) and, when given, its change line. */
@@ -70,7 +75,7 @@ beforeAll(async () => {
 
 function renderSection() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  render(<QueryClientProvider client={client}><EarningsSection today={TODAY} timeZone="Asia/Manila" currency="PHP" /></QueryClientProvider>)
+  render(<QueryClientProvider client={client}><MemoryRouter><EarningsSection today={TODAY} timeZone="Asia/Manila" currency="PHP" /></MemoryRouter></QueryClientProvider>)
 }
 
 describe('EarningsSection', () => {
@@ -158,7 +163,7 @@ describe('EarningsSection', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('The end date is before the start date.')
   })
 
-  it('says when nothing came in, and shows refunds due apart', async () => {
+  it('says when nothing came in, and shows the refunds owed apart', async () => {
     vi.mocked(fetchEarnings).mockResolvedValue(result({
       collected: { total: 0, count: 0, by_method: [] },
       previous: { from: '2026-10-24', to: '2026-10-24', total: 0, count: 0, by_method: [] },
@@ -174,7 +179,8 @@ describe('EarningsSection', () => {
     expectRow(rows[0], 'Total revenue', '₱0', 'The same as yesterday.')
     expectRow(rows[1], 'Plotline fees', /^-?₱0$/, 'The same as yesterday.')
     expectRow(rows[2], 'Your earnings', '₱0', 'The same as yesterday.')
-    expect(screen.getByRole('status')).toHaveTextContent('Also received online but not accepted: ₱300 (1 payment)')
+    expect(screen.getByRole('status')).toHaveTextContent('Refunds owed: ₱300 (1 refund). Settle them')
+    expect(screen.queryByText(/received online but not accepted/)).not.toBeInTheDocument()
     expect(screen.getByText('confirmed booking not played yet, worth ₱300.')).toBeInTheDocument()
   })
 

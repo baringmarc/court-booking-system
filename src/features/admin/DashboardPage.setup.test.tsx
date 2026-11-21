@@ -16,6 +16,7 @@ vi.mock('../catalog/hooks', () => ({
 vi.mock('./hooks', () => ({
   useAdminBookings: () => query({ bookings: [] }),
   useProofQueueCount: () => query(0),
+  useRefundsOwedCount: () => query(0),
   useSetupStatus: () => query({ items: [], ready: false }),
   usePublishVenue: () => ({ mutate: vi.fn(), mutateAsync: vi.fn(), isPending: false, isError: false, error: null }),
 }))

@@ -25,6 +25,7 @@ vi.mock('./hooks', () => ({
     ? { data: undefined, isPending: false, isError: true, error: h.bookingsError, refetch: h.refetch }
     : query({ bookings: filters.date === '2030-01-07' ? h.bookings : [] }),
   useProofQueueCount: () => query(0),
+  useRefundsOwedCount: () => query(0),
 }))
 vi.mock('../booking/hooks', () => ({ useAvailability: () => query([]) }))
 vi.mock('../openPlay/hooks', () => ({ useUpcomingOpenPlay: () => query([]) }))

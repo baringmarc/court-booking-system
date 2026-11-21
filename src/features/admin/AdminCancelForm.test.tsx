@@ -18,9 +18,15 @@ describe('AdminCancelForm', () => {
     expect(onCancel).toHaveBeenCalledWith('Court maintenance')
   })
 
-  it('reminds staff that a paid booking is not refunded by cancelling', () => {
+  it('tells staff that cancelling a paid booking records a refund for them to settle afterwards (T30.6)', () => {
     render(<AdminCancelForm paid pending={false} error={null} onCancel={vi.fn()} />)
-    expect(screen.getByText(/settle any refund outside the app/)).toBeInTheDocument()
+    expect(screen.getByText(/A payment was already approved: a refund will be recorded for you to settle afterwards\./)).toBeInTheDocument()
+    expect(screen.queryByText(/outside the app/)).not.toBeInTheDocument()
+  })
+
+  it('has no refund hint for a booking nobody paid', () => {
+    render(<AdminCancelForm paid={false} pending={false} error={null} onCancel={vi.fn()} />)
+    expect(screen.queryByText(/refund/)).not.toBeInTheDocument()
   })
 
   it('warns that moved parts stay booked, naming them', () => {

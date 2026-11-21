@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { AdminPayment } from './api'
+import * as paymentFlagsModule from './paymentFlags'
 import { hasPaidOnline, onlinePayments, paymentFlags, sourceLabel } from './paymentFlags'
 
 const payment = (overrides: Partial<AdminPayment>): AdminPayment => ({
@@ -11,9 +12,11 @@ const online = (review_status: AdminPayment['review_status']) =>
   payment({ id: `pm-${review_status}`, method: 'paymongo', review_status, provider_payment_id: 'pay_1', provider_source: 'gcash' })
 
 describe('paymentFlags', () => {
-  it('flags a PayMongo payment that was received but not accepted', () => {
+  it("no longer flags a PayMongo payment that was not accepted: the refund record tracks it now (T30.6)", () => {
     const late = online('rejected')
-    expect(paymentFlags({ payments: [late] })).toEqual({ refundDue: [late], supersededProofs: [] })
+    expect(paymentFlags({ payments: [late] })).toEqual({ supersededProofs: [] })
+    expect('refundDue' in paymentFlags({ payments: [late] })).toBe(false)
+    expect('isRefundDue' in paymentFlagsModule).toBe(false)
   })
 
   it('flags a proof the webhook closed because the customer paid online', () => {
@@ -32,7 +35,7 @@ describe('paymentFlags', () => {
       online('approved'),
       payment({ id: 'pending' }),
     ] })
-    expect(flags).toEqual({ refundDue: [], supersededProofs: [] })
+    expect(flags).toEqual({ supersededProofs: [] })
   })
 })
 

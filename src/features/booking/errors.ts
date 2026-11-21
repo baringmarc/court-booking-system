@@ -23,6 +23,8 @@ const CODES = [
   'walk_ins_off',
   // M19 (T19.1): save_court_promo / delete_court_promo.
   'promo_overlap', 'court_not_found',
+  // M30 (T30.5): update_refund.
+  'invalid_amount', 'missing_method', 'missing_reason',
 ] as const
 
 export type BookingErrorCode = (typeof CODES)[number]

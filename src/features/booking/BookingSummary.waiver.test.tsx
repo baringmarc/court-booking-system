@@ -11,7 +11,7 @@ const booking: BookingDetail = {
   total_amount: 900, booking_fee: 0, amount_due: 900, expires_at: null, rejection_count: 0,
   guest_name: 'Gina Guest', guest_email: 'gina@example.com', created_at: '2030-01-07T02:00:00.000Z',
   payments: [], cancelled_at: null, cancel_reason: null, cancelled_by_venue: false, user_id: null,
-  parent_reference_code: null, continuations: [], changes: [],
+  parent_reference_code: null, continuations: [], changes: [], refund: null,
   waiver_text: null, waiver_accepted_at: null,
 }
 

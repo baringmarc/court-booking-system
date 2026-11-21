@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { bookingErrorMessage } from '../booking/errors'
 
 type Props = {
-  /** A payment was approved: cancelling doesn't refund it (SPEC §4). */
+  /** A payment was approved: cancelling records a refund owed, for staff to settle (SPEC §4, T30.5). */
   paid: boolean
   /** References of this booking's moved parts that are still booked: cancelling doesn't cancel them (T10.1). */
   movedParts?: string[]
@@ -31,7 +31,7 @@ export function AdminCancelForm({ paid, movedParts = [], pending, error, onCance
       <h3>Cancel booking</h3>
       <p className="small muted">
         The times are released straight away and the player sees your reason.
-        {paid && ' A payment was already approved: settle any refund outside the app.'}
+        {paid && ' A payment was already approved: a refund will be recorded for you to settle afterwards.'}
       </p>
       {movedParts.length > 0 && (
         <p className="form-warning" role="status">

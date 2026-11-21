@@ -39,6 +39,22 @@ export type AdminPayment = {
   provider_source: string | null
 }
 
+/** A refund record (T30.5): one per payment, created as owed by the database; staff close it (T30.6). */
+export type AdminRefund = {
+  id: string
+  payment_id: string
+  amount: number
+  status: Enums<'refund_status'>
+  method: Enums<'payment_method'> | null
+  /** The venue calendar date it was refunded (settled only). */
+  settled_on: string | null
+  /** Why there was no refund (not_refunded only); the player sees it. */
+  reason: string | null
+  /** Staff only. */
+  note: string | null
+  updated_at: string
+}
+
 export type AdminBooking = {
   id: string
   reference_code: string
@@ -61,6 +77,7 @@ export type AdminBooking = {
   guest_phone: string | null
   created_at: string
   payments: AdminPayment[]
+  refunds: AdminRefund[]
   cancelled_at: string | null
   cancel_reason: string | null
   cancelled_by_venue: boolean
@@ -73,6 +90,7 @@ export const adminKeys = {
   allBookings: () => [currentVenueId(), 'admin-bookings'] as const,
   proofUrl: (path: string) => ['proof-url', path] as const,
   proofQueue: () => [currentVenueId(), 'admin-proof-queue'] as const,
+  refundsOwed: () => [currentVenueId(), 'admin-refunds-owed'] as const,
   earnings: (from: string, to: string) => [currentVenueId(), 'admin-earnings', from, to] as const,
   allEarnings: () => [currentVenueId(), 'admin-earnings'] as const,
   allMovedParts: () => [currentVenueId(), 'admin-moved-parts'] as const,
@@ -83,8 +101,9 @@ export const adminKeys = {
   closureConflicts: (start: string, end: string, courtId: string | null) => [currentVenueId(), 'admin-closure-conflicts', start, end, courtId] as const,
 }
 
-// One literal: supabase-js infers the row type from this string.
-const SELECT = 'id, reference_code, court_id, during, status, source, total_amount, booking_fee, amount_due, expires_at, rejection_count, guest_name, guest_email, guest_phone, created_at, cancelled_at, cancel_reason, cancelled_by_venue, parent_booking_id, courts(name, sport), payments(id, method, paid_with, amount, reference_number, storage_path, submitted_at, review_status, review_note, reviewed_at, reviewed_by, provider_payment_id, provider_source)' as const
+// One literal: supabase-js infers the row type from this string. `owed` is the same refunds read again, only for the
+// "Refund owed" filter (T30.6): filtered to owed rows and required to be non-empty, it keeps the bookings that owe one.
+const SELECT = 'id, reference_code, court_id, during, status, source, total_amount, booking_fee, amount_due, expires_at, rejection_count, guest_name, guest_email, guest_phone, created_at, cancelled_at, cancel_reason, cancelled_by_venue, parent_booking_id, courts(name, sport), payments(id, method, paid_with, amount, reference_number, storage_path, submitted_at, review_status, review_note, reviewed_at, reviewed_by, provider_payment_id, provider_source), refunds(id, payment_id, amount, status, method, settled_on, reason, note, updated_at), owed:refunds(id)' as const
 
 export const ADMIN_LIST_LIMIT = 200
 
@@ -112,6 +131,7 @@ export async function fetchAdminBookings(
     if (filters.status !== 'all') query = query.eq('status', filters.status)
     if (filters.source !== 'all') query = query.eq('source', filters.source)
     if (filters.date) query = query.overlaps('during', dayRangeLiteral(filters.date, timeZone))
+    if (filters.refund === 'owed') query = query.eq('owed.status', 'owed').not('owed', 'is', null)
   }
   const all = unwrap(await query)
   const rows = all.slice(0, ADMIN_LIST_LIMIT)
@@ -143,6 +163,9 @@ export async function fetchAdminBookings(
       payments: [...row.payments]
         .map((p) => ({ ...p, amount: Number(p.amount) }))
         .sort((a, b) => a.submitted_at.localeCompare(b.submitted_at)),
+      refunds: [...(row.refunds ?? [])]
+        .map((r) => ({ ...r, amount: Number(r.amount) }))
+        .sort((a, b) => a.id.localeCompare(b.id)),
     }
   })
   return { bookings, truncated: all.length > ADMIN_LIST_LIMIT }
@@ -212,7 +235,7 @@ export async function fetchActiveMovedParts(bookingId: string): Promise<string[]
   return rows.map((r) => r.reference_code)
 }
 
-/** A payment was approved: if the booking is cancelled, staff settle any refund outside the app (SPEC §4). */
+/** A payment was approved: if the booking is cancelled, the database records a refund owed for it (SPEC §4, T30.5). */
 export function hasApprovedPayment(booking: Pick<AdminBooking, 'payments'>) {
   return booking.payments.some((p) => p.review_status === 'approved')
 }
@@ -220,6 +243,43 @@ export function hasApprovedPayment(booking: Pick<AdminBooking, 'payments'>) {
 /** The attempt waiting for review, if any (there is at most one: payments_one_pending_per_booking). */
 export function pendingPayment(booking: Pick<AdminBooking, 'payments'>) {
   return booking.payments.find((p) => p.review_status === 'pending') ?? null
+}
+
+export type UpdateRefundInput = {
+  refundId: string
+  status: Enums<'refund_status'>
+  amount?: number
+  method?: Enums<'payment_method'>
+  settledOn?: string
+  reason?: string
+  /** Left out keeps the note; an empty string clears it. */
+  note?: string
+}
+
+/** update_refund (T30.5): staff record what happened to a refund. No money moves; the server re-checks every rule. */
+export async function updateRefund(input: UpdateRefundInput): Promise<void> {
+  unwrap(
+    await supabase.rpc('update_refund', {
+      p_refund_id: input.refundId,
+      p_status: input.status,
+      p_amount: input.amount,
+      p_method: input.method,
+      p_settled_on: input.settledOn,
+      p_reason: input.reason,
+      p_note: input.note,
+    }),
+  )
+}
+
+/** Refunds the venue owes now, of every kind (the dashboard card, T30.6). */
+export async function fetchRefundsOwedCount() {
+  const { count, error } = await supabase
+    .from('refunds')
+    .select('id', { count: 'exact', head: true })
+    .eq('venue_id', currentVenueId())
+    .eq('status', 'owed')
+  if (error) throw new ApiError(error.message, error.code)
+  return count ?? 0
 }
 
 export async function fetchProofQueueCount() {
@@ -306,13 +366,24 @@ export type ExportPayment = {
   reference_number: string | null
   received_at: string | null
   review_status: Enums<'payment_review_status'>
+  /** The payment's refund record, if it has one (one per payment, T30.5). */
+  refund: ExportRefund | null
 }
 
-/** Money that came in during [startIso, endIso): accepted payments, and PayMongo payments to refund (T10.8). */
+export type ExportRefund = {
+  status: Enums<'refund_status'>
+  amount: number
+  method: Enums<'payment_method'> | null
+  settled_on: string | null
+  reason: string | null
+}
+
+/** Money that came in during [startIso, endIso): accepted payments, and PayMongo payments not accepted (T10.8), each with
+ * its refund record (T30.6). */
 export async function fetchPaymentsForExport(startIso: string, endIso: string): Promise<ExportPayment[]> {
   const rows = await allPages((from, to) => supabase
     .from('payments')
-    .select('method, paid_with, amount, reference_number, reviewed_at, review_status, bookings(reference_code)')
+    .select('method, paid_with, amount, reference_number, reviewed_at, review_status, bookings(reference_code), refunds(status, amount, method, settled_on, reason)')
     .eq('venue_id', currentVenueId())
     .or('review_status.eq.approved,and(method.eq.paymongo,review_status.eq.rejected)')
     .gte('reviewed_at', startIso)
@@ -328,6 +399,7 @@ export async function fetchPaymentsForExport(startIso: string, endIso: string): 
     reference_number: row.reference_number,
     received_at: row.reviewed_at,
     review_status: row.review_status,
+    refund: row.refunds?.[0] ? { ...row.refunds[0], amount: Number(row.refunds[0].amount) } : null,
   }))
 }
 

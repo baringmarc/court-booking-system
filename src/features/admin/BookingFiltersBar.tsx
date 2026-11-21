@@ -32,6 +32,18 @@ export function BookingFiltersBar({ filters, onChange }: { filters: BookingFilte
           onChange={(e) => onChange({ ...filters, date: e.target.value || null })} />
       </div>
       <div className="field">
+        <label htmlFor="filter-refund">Refunds</label>
+        <select id="filter-refund" value={filters.refund ?? ''}
+          onChange={(e) => {
+            const rest = { ...filters }
+            delete rest.refund
+            onChange(e.target.value === 'owed' ? { ...rest, refund: 'owed' } : rest)
+          }}>
+          <option value="">All bookings</option>
+          <option value="owed">Refund owed</option>
+        </select>
+      </div>
+      <div className="field">
         <label htmlFor="filter-sort">Sort by</label>
         {/* Picking the default for the current view clears the choice, so the URL stays short. */}
         <select id="filter-sort" value={effectiveSort(filters)}

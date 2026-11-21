@@ -38,7 +38,7 @@ const booking = (overrides: Partial<AdminBooking> = {}): AdminBooking => ({
   slot_start: manila(TOMORROW, 14), slot_end: manila(TOMORROW, 16), status: 'confirmed', source: 'online', total_amount: 900, booking_fee: 0, amount_due: 900,
   expires_at: null, rejection_count: 0, guest_name: 'Gina Guest', guest_email: 'gina@example.com', guest_phone: null,
   created_at: '2030-01-01T00:00:00.000Z', payments: [], cancelled_at: null, cancel_reason: null, cancelled_by_venue: false,
-  parent_booking_id: null, ...overrides,
+  parent_booking_id: null, refunds: [], ...overrides,
 })
 
 function renderSection(b: AdminBooking, onMoved = vi.fn()) {

@@ -15,6 +15,7 @@ vi.mock('../catalog/hooks', () => ({
 vi.mock('./hooks', () => ({
   useAdminBookings: () => query({ bookings: [] }),
   useProofQueueCount: () => query(0),
+  useRefundsOwedCount: () => query(0),
 }))
 vi.mock('../booking/hooks', () => ({ useAvailability: () => query([]) }))
 vi.mock('../openPlay/hooks', () => ({ useUpcomingOpenPlay: () => query([]) }))

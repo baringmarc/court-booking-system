@@ -40,7 +40,7 @@ const booking: BookingDetail = {
   expires_at: new Date(Date.now() + 30 * 60_000).toISOString(),
   rejection_count: 0, guest_name: 'Gina Guest', guest_email: 'gina@example.com', created_at: new Date().toISOString(),
   payments: [], cancelled_at: null, cancel_reason: null, cancelled_by_venue: false, user_id: null,
-  parent_reference_code: null, continuations: [], changes: [],
+  parent_reference_code: null, continuations: [], changes: [], refund: null,
 }
 
 function renderPage() {

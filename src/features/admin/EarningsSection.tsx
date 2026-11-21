@@ -1,4 +1,5 @@
 import { useId, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { DatePicker } from '../../components/DatePicker'
 import { ErrorMessage } from '../../components/ErrorMessage'
 import { PageLoader } from '../../components/PageLoader'
@@ -12,6 +13,7 @@ import {
   rangeProblem, type DateRange, type Earnings, type HourTotals, type Period,
 } from './earnings'
 import { bookingsCsv, downloadCsv, paymentsCsv } from './csv'
+import { DEFAULT_FILTERS, filtersToParams } from './bookingFilters'
 import { useEarnings, useExportRows } from './hooks'
 import { usePlatformFee } from '../booking/hooks'
 
@@ -81,10 +83,13 @@ export function EarningsSection({ today, timeZone, currency }: Props) {
   )
 }
 
+/** The bookings that owe a refund (T30.6), as on the dashboard card. */
+const REFUNDS_OWED_LINK = `/admin/bookings?${filtersToParams({ ...DEFAULT_FILTERS, status: 'all', refund: 'owed' })}`
+
 type BodyProps = { earnings: Earnings; period: Period; days: number; currency: string; timeZone: string }
 
 function EarningsBody({ earnings, period, days, currency, timeZone }: BodyProps) {
-  const { collected, previous, refundsDue, comingUp } = earnings
+  const { collected, previous, refundsDue, refunded, net, comingUp } = earnings
   const before = previousLabel(period, days)
   const money = (n: number) => formatMoney(n, currency)
 
@@ -109,11 +114,34 @@ function EarningsBody({ earnings, period, days, currency, timeZone }: BodyProps)
           )}
           {refundsDue.count > 0 && (
             <p className="form-warning" role="status">
-              Also received online but not accepted: {money(refundsDue.total)} ({refundsDue.count}{' '}
-              {refundsDue.count === 1 ? 'payment' : 'payments'}). Not in the total; refund outside the app.
+              Refunds owed: {money(refundsDue.total)} ({refundsDue.count} {refundsDue.count === 1 ? 'refund' : 'refunds'}).{' '}
+              <Link to={REFUNDS_OWED_LINK}>Settle them</Link>
             </p>
           )}
           <RevenueSplitList split={earnings.split} before={before} money={money} />
+        </section>
+        <section>
+          <h3>Refunded</h3>
+          <p className="big-number">{money(refunded.total)}</p>
+          <p className="small muted">{changeText(refunded.total, refunded.previous.total, before, money)}</p>
+          {refunded.byMethod.length > 0 ? (
+            <ul className="list" aria-label="Refunded by method">
+              {refunded.byMethod.map((m) => (
+                <li key={m.method} className="list-row">
+                  <span>{METHOD_LABELS[m.method] ?? m.method} <span className="muted small">({m.count})</span></span>
+                  <span>{money(m.amount)}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="muted">Nothing refunded in this period.</p>
+          )}
+        </section>
+        <section>
+          <h3>Net</h3>
+          <p className="big-number">{money(net.total)}</p>
+          <p className="small muted">{changeText(net.total, net.previous.total, before, money)}</p>
+          <p className="small muted">Collected minus refunded.</p>
         </section>
         <section>
           <h3>Coming up</h3>

@@ -11,7 +11,7 @@ const base: BookingDetail = {
   slot_start: '2030-01-07T07:00:00.000Z', slot_end: '2030-01-07T08:00:00.000Z', status: 'confirmed', total_amount: 900, booking_fee: 0, amount_due: 900, waiver_text: null, waiver_accepted_at: null,
   expires_at: null, rejection_count: 0, guest_name: 'Gina Guest', guest_email: 'gina@example.com',
   created_at: '2030-01-05T02:00:00.000Z', payments: [], cancelled_at: null, cancel_reason: null, cancelled_by_venue: false,
-  user_id: null, parent_reference_code: null, continuations: [], changes: [],
+  user_id: null, parent_reference_code: null, continuations: [], changes: [], refund: null,
 }
 // 3 PM–5 PM Mon Jan 7 on Badminton 1 → 4 PM–6 PM Tue Jan 8 on Badminton 2 (Manila is UTC+8).
 const change: BookingChange = {

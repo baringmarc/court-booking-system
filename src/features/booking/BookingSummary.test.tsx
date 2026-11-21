@@ -27,6 +27,7 @@ const booking: BookingDetail = {
   parent_reference_code: null,
   continuations: [],
   changes: [],
+  refund: null,
 }
 
 const renderAt = (now: string, overrides: Partial<BookingDetail> = {}) =>
@@ -145,7 +146,8 @@ describe('BookingSummary', () => {
     expect(screen.queryByText(/proof was not accepted/)).not.toBeInTheDocument()
     expect(screen.queryByText(/Reason:/)).not.toBeInTheDocument()
     expect(screen.getByText(/^PayMongo · ₱900/)).toBeInTheDocument()
-    expect(screen.getByText('Refund due')).toBeInTheDocument()
+    expect(screen.getByText('Not accepted')).toBeInTheDocument()
+    expect(screen.queryByText('Refund due')).not.toBeInTheDocument()
     expect(screen.getByText('Payment received after the booking was cancelled. The venue will arrange a refund.')).toBeInTheDocument()
   })
 

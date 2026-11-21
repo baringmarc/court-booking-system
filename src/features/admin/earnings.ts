@@ -60,7 +60,12 @@ export type Earnings = {
   to: string
   collected: Money
   previous: Money & DateRange
+  /** Every refund the venue owes now, of every kind (T30.5); not tied to the period. */
   refundsDue: { count: number; total: number }
+  /** T30.5: settled refunds by the venue date they were made, per method, and the period before. */
+  refunded: Money & { previous: Money & DateRange }
+  /** T30.5: collected minus refunded, for the period and the one before. */
+  net: { total: number; previous: { total: number } }
   daily: { date: string; collected: number; soldHours: number }[]
   courts: ({ courtId: string; name: string; sport: Enums<'sport'> } & HourTotals)[]
   sports: ({ sport: Enums<'sport'> } & HourTotals)[]
@@ -111,6 +116,11 @@ export function parseEarnings(json: Json): Earnings {
     collected: money(o.collected),
     previous: { ...money(previous), from: str(previous.from), to: str(previous.to) },
     refundsDue: { count: num(obj(o.refunds_due).count), total: num(obj(o.refunds_due).total) },
+    refunded: {
+      ...money(o.refunded),
+      previous: { ...money(obj(o.refunded).previous), from: str(obj(obj(o.refunded).previous).from), to: str(obj(obj(o.refunded).previous).to) },
+    },
+    net: { total: num(obj(o.net).total), previous: { total: num(obj(obj(o.net).previous).total) } },
     daily: arr(o.daily).map((d) => ({ date: str(obj(d).date), collected: num(obj(d).collected), soldHours: num(obj(d).sold_hours) })),
     courts: arr(o.courts).map((c) => ({
       courtId: str(obj(c).court_id), name: str(obj(c).name), sport: str(obj(c).sport) as Enums<'sport'>, ...hours(obj(c)),

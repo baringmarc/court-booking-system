@@ -1,5 +1,5 @@
-// What staff need to follow up on after PayMongo (SPEC §4): payments the webhook couldn't accept (refund outside
-// the app), and proofs it closed because the customer also paid online (check for a duplicate payment).
+// What staff need to follow up on after PayMongo (SPEC §4): proofs the webhook closed because the customer also paid
+// online (check for a duplicate payment). Payments it couldn't accept get a refund record instead (T30.5, refunds.ts).
 import { SUPERSEDED_PROOF_NOTE } from '../booking/paymentLabels'
 import type { AdminBooking, AdminPayment } from './api'
 
@@ -15,11 +15,6 @@ export function onlinePayments(booking: Pick<AdminBooking, 'payments'>) {
   return booking.payments.filter((p) => p.method === 'paymongo')
 }
 
-/** Received online but not accepted for this booking (late, or the wrong amount): staff refund it outside the app. */
-export function isRefundDue(p: AdminPayment) {
-  return p.method === 'paymongo' && p.review_status === 'rejected'
-}
-
 /**
  * A proof closed automatically because the customer paid online. Only the webhook RPC rejects without a reviewer, and
  * it always writes the same note; both are required, since deleting an admin's profile also nulls `reviewed_by`.
@@ -28,11 +23,10 @@ export function isSupersededProof(p: AdminPayment) {
   return p.method !== 'paymongo' && p.review_status === 'rejected' && p.reviewed_by === null && p.review_note === SUPERSEDED_PROOF_NOTE
 }
 
-export type PaymentFlags = { refundDue: AdminPayment[]; supersededProofs: AdminPayment[] }
+export type PaymentFlags = { supersededProofs: AdminPayment[] }
 
 export function paymentFlags(booking: Pick<AdminBooking, 'payments'>): PaymentFlags {
   return {
-    refundDue: booking.payments.filter(isRefundDue),
     supersededProofs: booking.payments.filter(isSupersededProof),
   }
 }

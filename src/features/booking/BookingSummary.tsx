@@ -12,6 +12,7 @@ import { displayStatus, STATUS_LABELS, type DisplayStatus } from './status'
 import { isReplacedByOnlinePayment } from './paymentLabels'
 import { toCheckoutSearch } from './checkoutParams'
 import { nextSameTimeStart } from './rebook'
+import { RefundNotice } from './RefundNotice'
 
 type Props = {
   booking: BookingDetail
@@ -177,9 +178,11 @@ export function BookingSummary({ booking, paymentInstructions, timeZone, currenc
           ) : (
             <p>This booking was cancelled{booking.cancel_reason ? ` (${booking.cancel_reason})` : ''}.</p>
           )}
-          <p>The times were released.{booking.payments.some((p) => p.review_status === 'approved') ? ' Contact the venue about any refund.' : ''}</p>
+          {/* With a refund record (T30.5) the Refund card below says what happens; older data falls back to this line. */}
+          <p>The times were released.{!booking.refund && booking.payments.some((p) => p.review_status === 'approved') ? ' Contact the venue about any refund.' : ''}</p>
         </div>
       )}
+      <RefundNotice refund={booking.refund} timeZone={timeZone} currency={currency} />
       {venueLocation}
       <MoveHistory booking={booking} timeZone={timeZone} />
       {cancelSection}

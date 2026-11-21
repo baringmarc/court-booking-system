@@ -4,6 +4,8 @@ import { isoToZonedLocal } from '../../lib/time'
 import { paymentLabel } from '../booking/proofInput'
 import { displayStatus, STATUS_LABELS } from '../booking/status'
 import { SPORT_LABELS } from '../catalog/api'
+import { METHOD_LABELS } from '../booking/proofInput'
+import { REFUND_STATUS_LABELS } from './refunds'
 import type { ExportBooking, ExportPayment } from './api'
 
 export type Cell = string | number | null
@@ -49,13 +51,25 @@ export function bookingsCsv(bookings: ExportBooking[], { timeZone, currency, now
   return toCsv(headers, rows)
 }
 
-/** Payments by the date the money came in: accepted ones, and PayMongo payments to refund. */
+/** Payments by the date the money came in: accepted ones, and PayMongo payments not accepted, each with its refund
+ * record (T30.6: one per payment; the method and date only once refunded, the reason only when not refunded). */
 export function paymentsCsv(payments: ExportPayment[], { timeZone, currency }: Options) {
-  const headers = ['booking reference', 'method', `amount_${currency.toLowerCase()}`, 'reference number', `received (${timeZone})`, 'status']
-  const rows = payments.map((p): Cell[] => [
-    p.booking_reference, paymentLabel(p), p.amount, p.reference_number, csvTime(p.received_at, timeZone),
-    p.review_status === 'approved' ? 'Accepted' : 'Refund due',
-  ])
+  const headers = [
+    'booking reference', 'method', `amount_${currency.toLowerCase()}`, 'reference number', `received (${timeZone})`, 'status',
+    'refund status', `refund_amount_${currency.toLowerCase()}`, 'refund method', 'refunded on', 'refund reason',
+  ]
+  const rows = payments.map((p): Cell[] => {
+    const r = p.refund
+    return [
+      p.booking_reference, paymentLabel(p), p.amount, p.reference_number, csvTime(p.received_at, timeZone),
+      p.review_status === 'approved' ? 'Accepted' : 'Not accepted',
+      r ? REFUND_STATUS_LABELS[r.status] : null,
+      r ? r.amount : null,
+      r?.status === 'settled' && r.method ? METHOD_LABELS[r.method] : null,
+      r?.status === 'settled' ? r.settled_on : null,
+      r?.status === 'not_refunded' ? r.reason : null,
+    ]
+  })
   return toCsv(headers, rows)
 }
 

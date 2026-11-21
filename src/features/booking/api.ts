@@ -6,6 +6,7 @@ import { currentVenue } from '../../lib/currentVenue'
 import type { Enums } from '../../lib/database.types'
 import type { Slot, SlotStatus } from './selection'
 import type { BookingStatus } from './status'
+import { parsePlayerRefund, type PlayerRefund } from './refund'
 
 export type { Slot } from './selection'
 
@@ -200,6 +201,8 @@ export type BookingDetail = {
   continuations: BookingContinuation[]
   /** Every reschedule of this booking, its continuations included, oldest first. */
   changes: BookingChange[]
+  /** The booking's latest refund record (T30.5), player fields only; null when there is none. */
+  refund: PlayerRefund | null
 }
 
 const notFound = () =>
@@ -236,6 +239,7 @@ export async function fetchGuestBooking(referenceCode: string, token: string): P
     parent_reference_code: row.parent_reference_code || null,
     continuations: toContinuations(row.continuations),
     changes: toChanges(row.changes),
+    refund: parsePlayerRefund(row.refund),
   }
 }
 
@@ -250,7 +254,10 @@ export async function fetchOwnBooking(referenceCode: string): Promise<BookingDet
   )
   if (!row) throw notFound()
   const { start, end } = parseTstzRange(row.during)
-  const { parentReference, continuations, changes } = await fetchOwnMoves(row.id, row.parent_booking_id)
+  const [{ parentReference, continuations, changes }, refund] = await Promise.all([
+    fetchOwnMoves(row.id, row.parent_booking_id),
+    supabase.rpc('get_own_booking_refund', { p_booking_id: row.id }).then((res) => parsePlayerRefund(unwrap(res))),
+  ])
   return {
     id: row.id,
     reference_code: row.reference_code,
@@ -279,6 +286,7 @@ export async function fetchOwnBooking(referenceCode: string): Promise<BookingDet
     parent_reference_code: parentReference,
     continuations,
     changes,
+    refund,
   }
 }
 
