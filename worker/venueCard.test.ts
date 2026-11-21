@@ -26,6 +26,7 @@ const venue: VenueCardData = {
   logoPath: LOGO,
   sportOrder: ['pickleball', 'badminton', 'tennis'],
   updatedAt: UPDATED_AT,
+  theme: 'plotline',
 }
 
 const ctx = { origin: ORIGIN, path: '/', supabaseUrl: SUPABASE_URL }

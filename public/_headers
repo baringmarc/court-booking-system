@@ -5,3 +5,6 @@
   X-Robots-Tag: noindex
 /admin/*
   X-Robots-Tag: noindex
+# The web manifest (T30.8): the static Plotline one, served when the Worker falls back to the assets.
+/manifest.webmanifest
+  Content-Type: application/manifest+json
