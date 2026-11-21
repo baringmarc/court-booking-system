@@ -1345,6 +1345,83 @@ export type Database = {
         }
         Relationships: []
       }
+      refunds: {
+        Row: {
+          amount: number
+          booking_id: string
+          created_at: string
+          id: string
+          method: Database["public"]["Enums"]["payment_method"] | null
+          note: string | null
+          payment_id: string
+          reason: string | null
+          recorded_by: string | null
+          settled_on: string | null
+          status: Database["public"]["Enums"]["refund_status"]
+          updated_at: string
+          venue_id: string
+        }
+        Insert: {
+          amount: number
+          booking_id: string
+          created_at?: string
+          id?: string
+          method?: Database["public"]["Enums"]["payment_method"] | null
+          note?: string | null
+          payment_id: string
+          reason?: string | null
+          recorded_by?: string | null
+          settled_on?: string | null
+          status?: Database["public"]["Enums"]["refund_status"]
+          updated_at?: string
+          venue_id: string
+        }
+        Update: {
+          amount?: number
+          booking_id?: string
+          created_at?: string
+          id?: string
+          method?: Database["public"]["Enums"]["payment_method"] | null
+          note?: string | null
+          payment_id?: string
+          reason?: string | null
+          recorded_by?: string | null
+          settled_on?: string | null
+          status?: Database["public"]["Enums"]["refund_status"]
+          updated_at?: string
+          venue_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "refunds_booking_fkey"
+            columns: ["venue_id", "booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["venue_id", "id"]
+          },
+          {
+            foreignKeyName: "refunds_payment_fkey"
+            columns: ["venue_id", "payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["venue_id", "id"]
+          },
+          {
+            foreignKeyName: "refunds_recorded_by_fkey"
+            columns: ["recorded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "refunds_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reviews: {
         Row: {
           approved: boolean
@@ -1887,6 +1964,7 @@ export type Database = {
           payment_instructions: string
           payments: Json
           reference_code: string
+          refund: Json
           rejection_count: number
           slot_end: string
           slot_start: string
@@ -1898,6 +1976,7 @@ export type Database = {
         }[]
       }
       get_live_stack: { Args: { p_code: string }; Returns: Json }
+      get_own_booking_refund: { Args: { p_booking_id: string }; Returns: Json }
       get_public_schedule: {
         Args: { p_venue_slug: string }
         Returns: {
@@ -2134,6 +2213,18 @@ export type Database = {
         }
         Returns: string
       }
+      update_refund: {
+        Args: {
+          p_amount?: number
+          p_method?: Database["public"]["Enums"]["payment_method"]
+          p_note?: string
+          p_reason?: string
+          p_refund_id: string
+          p_settled_on?: string
+          p_status: Database["public"]["Enums"]["refund_status"]
+        }
+        Returns: undefined
+      }
       user_id_by_email: { Args: { p_email: string }; Returns: string }
       venue_deletion_preview: { Args: { p_venue_id: string }; Returns: Json }
       venue_setup_status: { Args: { p_venue_id: string }; Returns: Json }
@@ -2174,6 +2265,7 @@ export type Database = {
         | "paymongo"
         | "account"
       payment_review_status: "pending" | "approved" | "rejected"
+      refund_status: "owed" | "settled" | "not_refunded"
       sport: "badminton" | "pickleball" | "basketball" | "tennis"
       venue_social_platform:
         | "facebook"
@@ -2340,6 +2432,7 @@ export const Constants = {
         "account",
       ],
       payment_review_status: ["pending", "approved", "rejected"],
+      refund_status: ["owed", "settled", "not_refunded"],
       sport: ["badminton", "pickleball", "basketball", "tennis"],
       venue_social_platform: [
         "facebook",
