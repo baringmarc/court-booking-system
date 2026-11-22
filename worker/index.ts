@@ -1,7 +1,9 @@
-// Link previews per venue (T30.7, SPEC §10 2026-11-21). Runs only for the paths in wrangler.jsonc's
-// `assets.run_worker_first` ("/" and "/book"); every other request is served as a static asset without it.
-// It rewrites <head> with the venue's name, city, sports and banner so a pasted link shows the venue. It fails open:
-// an unknown host, a failed or slow read, or a rewrite error returns the page exactly as the assets serve it.
+// Link previews per venue (T30.7, SPEC §10 2026-11-21) and the web manifest per venue (T30.8). Runs only for the
+// paths in wrangler.jsonc's `assets.run_worker_first` ("/", "/book", "/manifest.webmanifest"); every other request is
+// served as a static asset without it. On the pages it rewrites <head> with the venue's name, city, sports and banner
+// so a pasted link shows the venue, and points the apple-touch-icon at the venue logo. It fails open: an unknown host,
+// a failed or slow read, or a rewrite error returns the page (or the static Plotline manifest) as the assets serve it.
+import { buildVenueManifest, logoUrl } from './manifest'
 import { buildVenueCard, renderHeadTags, venueSlugFromHost, type VenueCardData } from './venueCard'
 
 export type Env = {
@@ -14,7 +16,10 @@ type Ctx = { waitUntil(promise: Promise<unknown>): void }
 
 const READ_TIMEOUT_MS = 2_000
 const CACHE_SECONDS = 300
-const SETTINGS_COLUMNS = 'name,city,banner_path,banner_alt,logo_path,sport_order,updated_at'
+const SETTINGS_COLUMNS = 'name,city,banner_path,banner_alt,logo_path,sport_order,updated_at,theme'
+const MANIFEST_PATH = '/manifest.webmanifest'
+const MANIFEST_TYPE = 'application/manifest+json'
+const MANIFEST_CACHE_SECONDS = 3_600
 
 type SettingsRow = {
   name: string
@@ -24,6 +29,7 @@ type SettingsRow = {
   logo_path: string | null
   sport_order: string[] | null
   updated_at: string
+  theme?: unknown
 }
 
 /** caches.default, or null where there is none (tests, a runtime without the Cache API). */
@@ -53,6 +59,8 @@ function toCardData(body: unknown): VenueCardData | null {
     logoPath: s.logo_path ?? null,
     sportOrder: Array.isArray(s.sport_order) ? s.sport_order : [],
     updatedAt: typeof s.updated_at === 'string' ? s.updated_at : '',
+    // Edge-cache entries from before T30.8 and an odd row both fall back to the Plotline colors.
+    theme: typeof s.theme === 'string' ? s.theme : 'plotline',
   }
 }
 
@@ -106,10 +114,40 @@ function safely(step: () => void) {
   }
 }
 
+/** The static asset with the manifest content type (Plotline's manifest), or the asset as served when not a 200. */
+function staticManifest(asset: Response): Response {
+  if (asset.status !== 200) return asset
+  try {
+    const headers = new Headers(asset.headers)
+    headers.set('content-type', MANIFEST_TYPE)
+    return new Response(asset.body, { status: asset.status, statusText: asset.statusText, headers })
+  } catch {
+    return asset
+  }
+}
+
+/** /manifest.webmanifest: the venue's manifest on a venue host, else the static Plotline one. Never throws. */
+async function handleManifest(asset: Response, hostname: string, env: Env, ctx: Ctx): Promise<Response> {
+  const slug = venueSlugFromHost(hostname)
+  if (!slug || asset.status !== 200) return staticManifest(asset)
+  try {
+    const venue = await venueFor(slug, env, ctx)
+    if (!venue) return staticManifest(asset)
+    const manifest = buildVenueManifest(venue, { supabaseUrl: env.SUPABASE_URL })
+    return new Response(JSON.stringify(manifest), {
+      status: 200,
+      headers: { 'content-type': MANIFEST_TYPE, 'cache-control': `public, max-age=${MANIFEST_CACHE_SECONDS}` },
+    })
+  } catch {
+    return staticManifest(asset)
+  }
+}
+
 async function handle(request: Request, env: Env, ctx: Ctx): Promise<Response> {
   const asset = await env.ASSETS.fetch(request)
   if (request.method !== 'GET' && request.method !== 'HEAD') return asset
   const { hostname, origin, pathname } = new URL(request.url)
+  if (pathname === MANIFEST_PATH) return handleManifest(asset, hostname, env, ctx)
   const slug = venueSlugFromHost(hostname)
   if (!slug) return asset
   if (asset.status !== 200 || !(asset.headers.get('content-type') ?? '').includes('text/html')) return asset
@@ -125,11 +163,14 @@ async function handle(request: Request, env: Env, ctx: Ctx): Promise<Response> {
   try {
     const card = buildVenueCard(venue, { origin, path: pathname, supabaseUrl: env.SUPABASE_URL })
     const tags = renderHeadTags(card)
+    const logo = logoUrl(venue, env.SUPABASE_URL)
     // Rewrite a copy, so the untouched asset is still there to return if the rewrite throws.
-    return new HTMLRewriter()
+    const rewriter = new HTMLRewriter()
       .on('title', { element: (el) => safely(() => el.setInnerContent(card.title)) })
       .on('head', { element: (el) => safely(() => el.append(tags, { html: true })) })
-      .transform(asset.clone())
+    // iOS uses the apple-touch-icon over the manifest's icons (RESEARCH "Milestone 30"), so it follows the logo too.
+    if (logo) rewriter.on('link[rel="apple-touch-icon"]', { element: (el) => safely(() => el.setAttribute('href', logo)) })
+    return rewriter.transform(asset.clone())
   } catch {
     return asset
   }

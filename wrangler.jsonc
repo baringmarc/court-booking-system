@@ -2,17 +2,18 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "court-booking-system",
   "compatibility_date": "2026-10-30",
-  // Link previews per venue (T30.7): worker/index.ts rewrites <head> with the venue's card, failing open.
+  // Link previews per venue (T30.7) and the web manifest per venue (T30.8): worker/index.ts, failing open.
   "main": "worker/index.ts",
   // Static assets with SPA fallback: unknown paths get /index.html with a 200, so deep links work.
   // Asset requests are free and unlimited; only the paths in run_worker_first invoke the Worker, and each invocation
   // counts against the free plan's 100,000 a day (a Worker-first path stops serving past it: RESEARCH "Milestone 30").
-  // Keep the list to the pages people share: "/" and "/book". /booking/*, /admin/*, /assets/* never run it.
+  // Keep the list to the pages people share and install: "/", "/book" and the manifest (T30.8; browsers re-read it at
+  // most hourly, max-age=3600). /booking/*, /admin/*, /assets/*, /icons/* never run it.
   "assets": {
     "directory": "./dist/",
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/", "/book"]
+    "run_worker_first": ["/", "/book", "/manifest.webmanifest"]
   },
   // Production's Supabase project (jmichyttnqygwdcksbpg). Both values are public: the publishable key already ships in
   // the frontend bundle, and anon only reads active venues. Never put a secret or service-role key here.

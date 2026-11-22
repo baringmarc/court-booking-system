@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import worker from './index'
+import { PLOTLINE_ICONS } from './manifest'
 
 const SUPABASE_URL = 'https://abcdefghijklmnop.supabase.co'
 const KEY = 'sb_publishable_test_key'
@@ -8,6 +9,10 @@ const HTML = '<!doctype html><html><head><title>Plotline</title></head><body><di
 const VENUE_URL = 'https://claudex-courts.plotline.fit/'
 const BANNER = '11111111-1111-4111-8111-111111111111/banner/a.jpg'
 const UPDATED_AT = '2026-11-20T10:15:30.123+00:00'
+const LOGO = '11111111-1111-4111-8111-111111111111/logo/22222222-2222-4222-8222-222222222222.webp'
+const MANIFEST_URL = 'https://claudex-courts.plotline.fit/manifest.webmanifest'
+const STATIC_MANIFEST = JSON.stringify({ name: 'Plotline', short_name: 'Plotline', start_url: '/', scope: '/' })
+const TOUCH_ICON = 'link[rel="apple-touch-icon"]'
 
 type TestEnv = {
   ASSETS: { fetch: ReturnType<typeof vi.fn> }
@@ -25,6 +30,7 @@ const settings = {
   logo_path: null,
   sport_order: ['pickleball', 'badminton'],
   updated_at: UPDATED_AT,
+  theme: 'plotline',
 }
 const venueRows = [{ slug: 'claudex-courts', venue_settings: settings }]
 
@@ -81,6 +87,10 @@ class FakeRewriter {
 
 function fakeElement() {
   return { setInnerContent: vi.fn(), append: vi.fn() }
+}
+
+function fakeLink() {
+  return { setAttribute: vi.fn() }
 }
 
 function urlOf(input: unknown) {
@@ -143,7 +153,7 @@ describe('venue page navigation', () => {
     expect(url.searchParams.get('slug')).toBe('eq.claudex-courts')
     expect(url.searchParams.get('status')).toBe('eq.active')
     expect(url.searchParams.get('select')).toBe(
-      'slug,venue_settings(name,city,banner_path,banner_alt,logo_path,sport_order,updated_at)',
+      'slug,venue_settings(name,city,banner_path,banner_alt,logo_path,sport_order,updated_at,theme)',
     )
     const headers = new Headers(init.headers)
     expect(headers.get('apikey')).toBe(KEY)
@@ -409,6 +419,9 @@ describe('fails open: the page is returned as it was', () => {
             append: () => {
               throw new Error('handler boom')
             },
+            setAttribute: () => {
+              throw new Error('handler boom')
+            },
           }
           for (const handler of this.handlers) handler.element(broken)
           return new Response(response.body, response)
@@ -521,5 +534,389 @@ describe('edge cache', () => {
     })
     const result = await run(new Request(VENUE_URL), makeEnv())
     expect(await result.text()).toBe(REWRITTEN)
+  })
+})
+
+// --- the web manifest (T30.8) ---------------------------------------------------------------------------------
+
+function manifestAsset(init: ResponseInit = {}) {
+  return new Response(STATIC_MANIFEST, {
+    status: 200,
+    headers: { 'content-type': 'application/octet-stream', etag: '"static-manifest"' },
+    ...init,
+  })
+}
+
+function withVenueSettings(extra: Record<string, unknown>) {
+  return [{ slug: 'claudex-courts', venue_settings: { ...settings, ...extra } }]
+}
+
+async function expectStaticManifest(result: Response) {
+  expect(result.status).toBe(200)
+  expect(result.headers.get('content-type')).toBe('application/manifest+json')
+  expect(await result.text()).toBe(STATIC_MANIFEST)
+}
+
+async function venueManifest(rows: unknown, url = MANIFEST_URL) {
+  installCache() // a fresh edge cache, so each call reads its own rows
+  fetchMock.mockImplementation(async () => jsonResponse(rows))
+  const result = await run(new Request(url), makeEnv(() => manifestAsset()))
+  expect(result.status).toBe(200)
+  return JSON.parse(await result.text()) as Record<string, unknown>
+}
+
+describe('manifest: a venue host gets the venue manifest', () => {
+  it('asks ASSETS first, then returns a new 200 response with the manifest content type and a one-hour cache', async () => {
+    const env = makeEnv(() => manifestAsset())
+    const request = new Request(MANIFEST_URL)
+    const result = await run(request, env)
+    expect(env.ASSETS.fetch).toHaveBeenCalledTimes(1)
+    expect(env.ASSETS.fetch).toHaveBeenCalledWith(request)
+    expect(result.status).toBe(200)
+    expect(result.headers.get('content-type')).toBe('application/manifest+json')
+    expect(result.headers.get('cache-control')).toBe('public, max-age=3600')
+    expect(await result.text()).not.toBe(STATIC_MANIFEST)
+  })
+
+  it('builds the manifest from the venue read: name, short name, start url, scope, display, colors, Plotline icons', async () => {
+    const manifest = await venueManifest(venueRows)
+    expect(manifest).toEqual({
+      name: 'Claudex Courts',
+      short_name: 'Claudex',
+      start_url: '/book',
+      scope: '/',
+      display: 'standalone',
+      theme_color: '#f5efe6',
+      background_color: '#f5efe6',
+      icons: PLOTLINE_ICONS,
+    })
+  })
+
+  it('reads the same venue row the pages read, with the theme column in the select', async () => {
+    await venueManifest(venueRows)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    const [input, init] = fetchMock.mock.calls[0] as [unknown, RequestInit]
+    const url = new URL(urlOf(input))
+    expect(url.origin).toBe(SUPABASE_URL)
+    expect(url.pathname).toBe('/rest/v1/venues')
+    expect(url.searchParams.get('slug')).toBe('eq.claudex-courts')
+    expect(url.searchParams.get('status')).toBe('eq.active')
+    expect(url.searchParams.get('select')).toBe(
+      'slug,venue_settings(name,city,banner_path,banner_alt,logo_path,sport_order,updated_at,theme)',
+    )
+    expect(init.signal).toBeInstanceOf(AbortSignal)
+  })
+
+  it('uses the venue theme for both colors', async () => {
+    expect(await venueManifest(withVenueSettings({ theme: 'ocean' }))).toMatchObject({
+      theme_color: '#eef3f6',
+      background_color: '#eef3f6',
+    })
+    expect(await venueManifest(withVenueSettings({ theme: 'midnight' }))).toMatchObject({
+      theme_color: '#14151f',
+      background_color: '#14151f',
+    })
+  })
+
+  it('uses the Plotline colors when the row has no theme, a theme that is not a string, or an unknown one', async () => {
+    const { theme: _theme, ...withoutTheme } = settings
+    void _theme
+    for (const venue_settings of [withoutTheme, { ...settings, theme: 123 }, { ...settings, theme: null }, { ...settings, theme: 'neon' }]) {
+      const manifest = await venueManifest([{ slug: 'claudex-courts', venue_settings }])
+      expect(manifest).toMatchObject({ theme_color: '#f5efe6', background_color: '#f5efe6' })
+    }
+  })
+
+  it('uses the logo for the icons, 192 and 512, never maskable, with no Plotline icon', async () => {
+    const manifest = await venueManifest(withVenueSettings({ logo_path: LOGO }))
+    const src = `${SUPABASE_URL}/storage/v1/object/public/venue-media/${LOGO}?v=${encodeURIComponent(UPDATED_AT)}`
+    expect(manifest.icons).toEqual([
+      { src, sizes: '192x192', type: 'image/webp', purpose: 'any' },
+      { src, sizes: '512x512', type: 'image/webp', purpose: 'any' },
+    ])
+  })
+
+  it('does not touch HTMLRewriter', async () => {
+    await venueManifest(withVenueSettings({ logo_path: LOGO }))
+    expect(rewriters).toHaveLength(0)
+    expect(transformed).toHaveLength(0)
+  })
+
+  it('writes the name as JSON, not HTML', async () => {
+    const name = `Tom's "Best" <Courts> & Co`
+    const manifest = await venueManifest(withVenueSettings({ name }))
+    expect(manifest.name).toBe(name)
+  })
+
+  it('answers a HEAD request with the manifest headers', async () => {
+    const result = await run(new Request(MANIFEST_URL, { method: 'HEAD' }), makeEnv(() => manifestAsset()))
+    expect(result.status).toBe(200)
+    expect(result.headers.get('content-type')).toBe('application/manifest+json')
+    expect(result.headers.get('cache-control')).toBe('public, max-age=3600')
+  })
+
+  it('ignores a query string on the path', async () => {
+    const manifest = await venueManifest(venueRows, `${MANIFEST_URL}?v=1`)
+    expect(manifest.start_url).toBe('/book')
+  })
+
+  it('sets no cookie and no noindex header', async () => {
+    const result = await run(new Request(MANIFEST_URL), makeEnv(() => manifestAsset()))
+    expect(result.headers.get('set-cookie')).toBeNull()
+    expect(result.headers.get('x-robots-tag')).toBeNull()
+  })
+
+  it('shares the venue edge cache with the pages: one read serves a page and then the manifest', async () => {
+    installCache()
+    const ctx = makeCtx()
+    await run(new Request(VENUE_URL), makeEnv(), ctx)
+    await Promise.all(ctx.waitUntil.mock.calls.map(([p]) => p as Promise<unknown>))
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    const result = await run(new Request(MANIFEST_URL), makeEnv(() => manifestAsset()), makeCtx())
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect((JSON.parse(await result.text()) as { name: string }).name).toBe('Claudex Courts')
+  })
+
+  it('stores the read under https://cache.plotline.fit/venue/<slug> with max-age=300', async () => {
+    const cache = installCache()
+    await run(new Request(MANIFEST_URL), makeEnv(() => manifestAsset()), makeCtx())
+    expect(urlOf(cache.match.mock.calls[0][0])).toBe('https://cache.plotline.fit/venue/claudex-courts')
+    expect(cache.put).toHaveBeenCalledTimes(1)
+    const [, response] = cache.put.mock.calls[0] as [unknown, Response]
+    expect(response.headers.get('cache-control')).toBe('public, max-age=300')
+  })
+
+  it('reads an old edge-cache entry without a theme as the Plotline colors', async () => {
+    // Cached before T30.8: the venue JSON has no `theme` key.
+    const old = {
+      slug: 'claudex-courts',
+      name: 'Claudex Courts',
+      city: 'Cebu City',
+      bannerPath: null,
+      bannerAlt: null,
+      logoPath: null,
+      sportOrder: ['pickleball'],
+      updatedAt: UPDATED_AT,
+    }
+    installCache(
+      new Map([['https://cache.plotline.fit/venue/claudex-courts', new Response(JSON.stringify(old))]]),
+    )
+    const result = await run(new Request(MANIFEST_URL), makeEnv(() => manifestAsset()))
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(result.status).toBe(200)
+    expect(JSON.parse(await result.text())).toMatchObject({
+      name: 'Claudex Courts',
+      theme_color: '#f5efe6',
+      background_color: '#f5efe6',
+    })
+  })
+})
+
+describe('manifest: everything else gets the static manifest as the assets serve it', () => {
+  async function expectStatic(url: string) {
+    const env = makeEnv(() => manifestAsset())
+    const result = await run(new Request(url), env)
+    expect(env.ASSETS.fetch).toHaveBeenCalledTimes(1)
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(rewriters).toHaveLength(0)
+    await expectStaticManifest(result)
+    return result
+  }
+
+  it('for the console host app.plotline.fit', async () => {
+    await expectStatic('https://app.plotline.fit/manifest.webmanifest')
+  })
+
+  it('for the bare domain plotline.fit', async () => {
+    await expectStatic('https://plotline.fit/manifest.webmanifest')
+  })
+
+  it('for a reserved subdomain', async () => {
+    await expectStatic('https://www.plotline.fit/manifest.webmanifest')
+  })
+
+  it('for an unknown host', async () => {
+    await expectStatic('https://example.com/manifest.webmanifest')
+  })
+
+  it('keeps the other headers of the asset', async () => {
+    const result = await expectStatic('https://app.plotline.fit/manifest.webmanifest')
+    expect(result.headers.get('etag')).toBe('"static-manifest"')
+  })
+
+  it('for an unknown or inactive venue (empty list)', async () => {
+    fetchMock.mockImplementation(async () => jsonResponse([]))
+    await expectStaticManifest(await run(new Request(MANIFEST_URL), makeEnv(() => manifestAsset())))
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('for a venue without settings', async () => {
+    for (const row of [{ slug: 'claudex-courts', venue_settings: null }, { slug: 'claudex-courts', venue_settings: [] }]) {
+      fetchMock.mockImplementation(async () => jsonResponse([row]))
+      await expectStaticManifest(await run(new Request(MANIFEST_URL), makeEnv(() => manifestAsset())))
+    }
+  })
+
+  it('when the Supabase read rejects', async () => {
+    fetchMock.mockImplementation(async () => {
+      throw new TypeError('network down')
+    })
+    await expectStaticManifest(await run(new Request(MANIFEST_URL), makeEnv(() => manifestAsset())))
+  })
+
+  it('when the Supabase read takes longer than the timeout', { timeout: 10_000 }, async () => {
+    fetchMock.mockImplementation(
+      (_input: unknown, init?: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener('abort', () => reject(new DOMException('The operation was aborted', 'AbortError')))
+        }),
+    )
+    const started = Date.now()
+    const result = await run(new Request(MANIFEST_URL), makeEnv(() => manifestAsset()))
+    expect(Date.now() - started).toBeLessThan(5_000)
+    await expectStaticManifest(result)
+  })
+
+  it('when the Supabase read answers a non-OK status', async () => {
+    fetchMock.mockImplementation(async () => new Response('{"message":"boom"}', { status: 500 }))
+    await expectStaticManifest(await run(new Request(MANIFEST_URL), makeEnv(() => manifestAsset())))
+  })
+
+  it('when the Supabase read answers invalid JSON', async () => {
+    fetchMock.mockImplementation(async () => new Response('<html>not json', { status: 200 }))
+    await expectStaticManifest(await run(new Request(MANIFEST_URL), makeEnv(() => manifestAsset())))
+  })
+
+  it('when the Supabase read answers JSON of an unexpected shape', async () => {
+    fetchMock.mockImplementation(async () => jsonResponse({ message: 'not a list' }))
+    await expectStaticManifest(await run(new Request(MANIFEST_URL), makeEnv(() => manifestAsset())))
+  })
+
+  it('never throws, whatever fails', async () => {
+    fetchMock.mockImplementation(async () => {
+      throw new Error('x')
+    })
+    vi.stubGlobal('caches', {
+      default: {
+        match: vi.fn(async () => {
+          throw new Error('cache down')
+        }),
+        put: vi.fn(async () => {
+          throw new Error('cache down')
+        }),
+      },
+    })
+    await expect(run(new Request(MANIFEST_URL), makeEnv(() => manifestAsset()))).resolves.toBeInstanceOf(Response)
+  })
+
+  it('stores nothing in the cache after a failed read', async () => {
+    const cache = installCache()
+    fetchMock.mockImplementation(async () => new Response('nope', { status: 503 }))
+    await run(new Request(MANIFEST_URL), makeEnv(() => manifestAsset()), makeCtx())
+    expect(cache.put).not.toHaveBeenCalled()
+  })
+
+  it('keeps the status and body of an asset that is not 200 (no forced content type)', async () => {
+    const asset = new Response('missing', { status: 404, headers: { 'content-type': 'text/html' } })
+    const result = await run(new Request(MANIFEST_URL), makeEnv(() => asset))
+    expect(result.status).toBe(404)
+    expect(await result.text()).toBe('missing')
+    expect(result.headers.get('content-type')).toBe('text/html')
+  })
+
+  it('keeps a redirect of the asset as it was', async () => {
+    const asset = new Response(null, { status: 301, headers: { location: '/other' } })
+    const result = await run(new Request(MANIFEST_URL), makeEnv(() => asset))
+    expect(result.status).toBe(301)
+    expect(result.headers.get('location')).toBe('/other')
+  })
+})
+
+describe('manifest: other methods get the asset unchanged', () => {
+  it('for a POST, a PUT and a DELETE', async () => {
+    for (const init of [{ method: 'POST', body: 'x' }, { method: 'PUT', body: 'x' }, { method: 'DELETE' }]) {
+      const asset = manifestAsset()
+      const env = makeEnv(() => asset)
+      const result = await run(new Request(MANIFEST_URL, init), env)
+      expect(env.ASSETS.fetch).toHaveBeenCalledTimes(1)
+      expect(result, init.method).toBe(asset)
+      expect(fetchMock).not.toHaveBeenCalled()
+    }
+  })
+})
+
+// --- apple-touch-icon (T30.8) ---------------------------------------------------------------------------------
+
+describe('apple-touch-icon on the page paths', () => {
+  const LOGO_SRC = `${SUPABASE_URL}/storage/v1/object/public/venue-media/${LOGO}?v=${encodeURIComponent(UPDATED_AT)}`
+
+  it('registers a handler for link[rel="apple-touch-icon"] that points href at the logo', async () => {
+    fetchMock.mockImplementation(async () => jsonResponse(withVenueSettings({ logo_path: LOGO })))
+    await run(new Request(VENUE_URL), makeEnv())
+    const link = fakeLink()
+    rewriters[0].handler(TOUCH_ICON).element(link)
+    expect(link.setAttribute).toHaveBeenCalledTimes(1)
+    expect(link.setAttribute).toHaveBeenCalledWith('href', LOGO_SRC)
+  })
+
+  it('does the same on /book', async () => {
+    fetchMock.mockImplementation(async () => jsonResponse(withVenueSettings({ logo_path: LOGO })))
+    await run(new Request('https://claudex-courts.plotline.fit/book'), makeEnv())
+    const link = fakeLink()
+    rewriters[0].handler(TOUCH_ICON).element(link)
+    expect(link.setAttribute).toHaveBeenCalledWith('href', LOGO_SRC)
+  })
+
+  it('keeps the title and head handlers beside it', async () => {
+    fetchMock.mockImplementation(async () => jsonResponse(withVenueSettings({ logo_path: LOGO })))
+    await run(new Request(VENUE_URL), makeEnv())
+    const title = fakeElement()
+    const head = fakeElement()
+    rewriters[0].handler('title').element(title)
+    rewriters[0].handler('head').element(head)
+    expect(title.setInnerContent).toHaveBeenCalledWith('Claudex Courts · Book a court')
+    expect(head.append).toHaveBeenCalledTimes(1)
+    expect(rewriters).toHaveLength(1)
+    expect(transformed).toHaveLength(1)
+  })
+
+  it('registers no apple-touch-icon handler for a venue without a logo (the static icon stays)', async () => {
+    await run(new Request(VENUE_URL), makeEnv())
+    expect(rewriters).toHaveLength(1)
+    expect(rewriters[0].handlers.map(([selector]) => selector)).not.toContain(TOUCH_ICON)
+    expect(() => rewriters[0].handler(TOUCH_ICON)).toThrow(/no handler registered/)
+    expect(() => rewriters[0].handler('title')).not.toThrow()
+    expect(() => rewriters[0].handler('head')).not.toThrow()
+  })
+
+  it('serves the original page when setAttribute throws', async () => {
+    fetchMock.mockImplementation(async () => jsonResponse(withVenueSettings({ logo_path: LOGO })))
+    const seen: string[] = []
+    vi.stubGlobal(
+      'HTMLRewriter',
+      class {
+        handlers: Array<[string, Handler]> = []
+        on(selector: string, handler: Handler) {
+          this.handlers.push([selector, handler])
+          return this
+        }
+        transform(response: Response) {
+          const broken = {
+            setInnerContent: () => undefined,
+            append: () => undefined,
+            setAttribute: () => {
+              throw new Error('setAttribute boom')
+            },
+          }
+          for (const [selector, handler] of this.handlers) {
+            seen.push(selector)
+            handler.element(broken)
+          }
+          return new Response(response.body, response)
+        }
+      },
+    )
+    await expectOriginalPage(await run(new Request(VENUE_URL), makeEnv()))
+    expect(seen).toContain(TOUCH_ICON)
   })
 })

@@ -4,6 +4,7 @@
 interface HTMLRewriterElement {
   setInnerContent(content: string, options?: { html?: boolean }): HTMLRewriterElement
   append(content: string, options?: { html?: boolean }): HTMLRewriterElement
+  setAttribute(name: string, value: string): HTMLRewriterElement
 }
 
 interface HTMLRewriterElementHandlers {

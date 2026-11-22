@@ -29,6 +29,8 @@ export type VenueCardData = {
   logoPath: string | null
   sportOrder: string[]
   updatedAt: string
+  /** venue_settings.theme, a preset key (T30.8 manifest colors). */
+  theme: string
 }
 
 export type VenueCard = {
