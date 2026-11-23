@@ -4,7 +4,7 @@ import baseUserEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { zonedLocalToISO } from '../../lib/time'
 import { ApiError } from '../../lib/queryClient'
-import { fetchCourts, fetchOperatingHours, fetchVenueSettings, fetchStaffSchedule, type CourtWithPhotos, type OperatingHours, type VenueSettings } from '../catalog/api'
+import { fetchCourts, fetchVenueSettings, fetchStaffSchedule, type CourtWithPhotos, type VenueSettings } from '../catalog/api'
 import { fetchUpcomingOpenPlay, type OpenPlaySession } from '../openPlay/api'
 import { deleteOpenPlay, saveOpenPlay } from './api'
 import { OpenPlayPage } from './OpenPlayPage'
@@ -15,7 +15,6 @@ const userEvent = baseUserEvent.setup({ delay: null })
 vi.mock('../catalog/api', async (importOriginal) => ({
   ...(await importOriginal<object>()),
   fetchCourts: vi.fn(),
-  fetchOperatingHours: vi.fn(),
   fetchVenueSettings: vi.fn(),
   fetchStaffSchedule: vi.fn(),
 }))
@@ -45,7 +44,6 @@ const running: OpenPlaySession = {
   ...upcoming, id: 'S0', title: 'Morning drills', links: [],
   starts_at: '2030-01-04T01:00:00.000Z', ends_at: '2030-01-04T03:00:00.000Z',
 }
-const sixToTen = [0, 1, 2, 3, 4, 5, 6].map((d) => ({ day_of_week: d, open_time: '06:00:00', close_time: '22:00:00', is_closed: false })) as OperatingHours[]
 
 function renderPage() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
@@ -67,7 +65,6 @@ describe('OpenPlayPage', () => {
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(NOW)
     vi.mocked(fetchStaffSchedule).mockReset().mockImplementation(async (date) => ['A', 'B'].map((court_id) => ({ court_id, operating_date: date, period_start: zonedLocalToISO(`${date}T06:00`, 'Asia/Manila'), period_end: zonedLocalToISO(`${date}T22:00`, 'Asia/Manila') })))
-    vi.mocked(fetchOperatingHours).mockReset().mockResolvedValue(sixToTen)
     vi.mocked(fetchCourts).mockReset().mockResolvedValue([court('A', 'Pickleball 1'), court('B', 'Pickleball 2')])
     vi.mocked(fetchVenueSettings).mockReset().mockResolvedValue({ timezone: 'Asia/Manila' } as VenueSettings)
     vi.mocked(fetchUpcomingOpenPlay).mockReset().mockResolvedValue([])

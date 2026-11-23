@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
-  fetchCourt, fetchCourtRates, fetchCourts, fetchOperatingHours, fetchVenueSettings, saveCourt,
+  fetchCourt, fetchCourtRates, fetchCourts, fetchVenueSettings, saveCourt,
   type Court, type CourtWithPhotos, type VenueSettings,
 } from '../catalog/api'
 import { CourtEditPage } from './CourtEditPage'
@@ -13,7 +13,6 @@ vi.mock('../catalog/api', async (importOriginal) => ({
   fetchCourt: vi.fn(),
   fetchCourts: vi.fn(),
   fetchCourtRates: vi.fn(),
-  fetchOperatingHours: vi.fn(),
   fetchVenueSettings: vi.fn(),
   saveCourt: vi.fn(),
 }))
@@ -38,7 +37,6 @@ describe('CourtEditPage after the schedule cutover (T17.17)', () => {
     vi.mocked(fetchCourts).mockReset().mockResolvedValue([court])
     vi.mocked(fetchCourt).mockReset().mockResolvedValue(court)
     vi.mocked(fetchCourtRates).mockReset().mockResolvedValue([])
-    vi.mocked(fetchOperatingHours).mockReset().mockResolvedValue([])
     vi.mocked(fetchVenueSettings).mockReset().mockResolvedValue({ currency: 'PHP' } as VenueSettings)
     vi.mocked(saveCourt).mockReset().mockResolvedValue(court)
   })

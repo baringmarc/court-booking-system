@@ -12,7 +12,7 @@ type Props = {
   /** "YYYY-MM-DD" in the venue's calendar. */
   value: string
   onChange: (date: string) => void
-  /** The venue's today (operatingToday or todayInZone), never the browser's clock. */
+  /** The venue's today (from the staff or public schedule, or todayInZone), never the browser's clock. */
   today: string
   min?: string
   max?: string

@@ -8,9 +8,9 @@ import { useAvailability } from '../booking/hooks'
 import { useUpcomingOpenPlay } from '../openPlay/hooks'
 import { displayStatus, STATUS_LABELS } from '../booking/status'
 import { useNow } from '../booking/useNow'
-import type { Court, OperatingHours, VenueSettings } from '../catalog/api'
-import { useCourts, useOperatingHours, useStaffSchedule, useVenueSettings } from '../catalog/hooks'
-import { isAfterMidnight, operatingDayRange, operatingToday } from '../catalog/hours'
+import type { Court, VenueSettings } from '../catalog/api'
+import { useCourts, useStaffSchedule, useVenueSettings } from '../catalog/hooks'
+import { isAfterMidnight } from '../catalog/hours'
 import { nextBooking, operatingDayBookings, todayHoursLabel } from './dashboard'
 import { useAdminBookings, useProofQueueCount, useRefundsOwedCount } from './hooks'
 import { DEFAULT_FILTERS, filtersToParams } from './bookingFilters'
@@ -27,7 +27,6 @@ export function DashboardPage() {
   const venue = useVenue()
   const settings = useVenueSettings()
   const courts = useCourts()
-  const hours = useOperatingHours()
 
   return (
     <section className="page">
@@ -36,16 +35,14 @@ export function DashboardPage() {
         <a className="btn btn-small btn-outline" href="/guides/venue-owner-manual.pdf" download>Download owner manual (PDF)</a>
       </div>
       {venue.status === 'draft' && <SetupChecklist />}
-      {settings.isPending || courts.isPending || hours.isPending ? (
+      {settings.isPending || courts.isPending ? (
         <PageLoader />
       ) : settings.isError ? (
         <ErrorMessage error={settings.error} onRetry={() => settings.refetch()} />
       ) : courts.isError ? (
         <ErrorMessage error={courts.error} onRetry={() => courts.refetch()} />
-      ) : hours.isError ? (
-        <ErrorMessage error={hours.error} onRetry={() => hours.refetch()} />
       ) : (
-        <Dashboard settings={settings.data} courts={courts.data} hours={hours.data} />
+        <Dashboard settings={settings.data} courts={courts.data} />
       )}
     </section>
   )
@@ -53,21 +50,42 @@ export function DashboardPage() {
 
 const ACTIVE = new Set(['pending_payment', 'payment_submitted', 'confirmed', 'completed'])
 
-function Dashboard({ settings, courts, hours }: { settings: VenueSettings; courts: Court[]; hours: OperatingHours[] }) {
+const DAY_CARDS = ['Proofs to review', "Today's bookings", 'Next booking', 'Refunds owed']
+
+function Dashboard({ settings, courts }: { settings: VenueSettings; courts: Court[] }) {
   const tz = settings.timezone
-  const currency = settings.currency
   const now = useNow(30_000)
-  // "Today" is the operating day running now (T9.10): at 1 AM after a 6 AM–5 AM day, still yesterday's date.
-  // Earnings count money on that calendar date (money is counted by day).
+  // "Today" is the operating day running now (T9.10), read from the effective schedule (get_staff_schedule, T32.2):
+  // at 1 AM after a 6 AM–2 AM day, still yesterday's date. Until both days' periods arrive it isn't known.
   const localDate = todayInZone(tz, now)
   const yesterday = useStaffSchedule(addDays(localDate, -1))
   const current = useStaffSchedule(localDate)
-  const yesterdayRunning = yesterday.data?.some((p) => Date.parse(p.period_start) <= now.getTime() && now.getTime() < Date.parse(p.period_end))
-  const today = yesterday.isPending || current.isPending ? operatingToday(hours, tz, now) : yesterdayRunning ? addDays(localDate, -1) : localDate
+  if (yesterday.isPending || current.isPending || yesterday.isError || current.isError) {
+    const failed = yesterday.isError ? yesterday : current.isError ? current : null
+    const retry = () => { if (yesterday.isError) yesterday.refetch(); if (current.isError) current.refetch() }
+    return (
+      <div className="dash-cards">
+        {DAY_CARDS.map((title) => (
+          <section className="card" key={title}>
+            <h2>{title}</h2>
+            {failed ? <ErrorMessage error={failed.error} onRetry={retry} /> : <PageLoader />}
+          </section>
+        ))}
+      </div>
+    )
+  }
+  const yesterdayRunning = yesterday.data.some((p) => Date.parse(p.period_start) <= now.getTime() && now.getTime() < Date.parse(p.period_end))
+  const today = yesterdayRunning ? addDays(localDate, -1) : localDate
+  return <DashboardDay settings={settings} courts={courts} now={now} today={today} />
+}
+
+function DashboardDay({ settings, courts, now, today }: { settings: VenueSettings; courts: Court[]; now: Date; today: string }) {
+  const tz = settings.timezone
+  const currency = settings.currency
+  // Earnings count money on today's calendar date (money is counted by day).
   const dayEnd = zonedLocalToISO(`${addDays(today, 1)}T00:00`, tz)
-  const open = operatingDayRange(hours, today, tz)
   const staffHours = useStaffSchedule(today)
-  const pastMidnight = (staffHours.data ?? []).some((p) => Date.parse(p.period_end) > Date.parse(dayEnd)) || (!!open && open.end > dayEnd)
+  const pastMidnight = (staffHours.data ?? []).some((p) => Date.parse(p.period_end) > Date.parse(dayEnd))
 
   const schedule = useAdminBookings({ status: 'all', source: 'all', date: today, q: '', sort: null }, tz)
   // An overnight day also has bookings on the next calendar date.
@@ -77,12 +95,11 @@ function Dashboard({ settings, courts, hours }: { settings: VenueSettings; court
   const queue = useProofQueueCount()
   const refundsOwed = useRefundsOwedCount()
 
-  const schedulePending = schedule.isPending || staffHours.isPending || yesterday.isPending || current.isPending || (pastMidnight && scheduleNext.isPending)
-  const scheduleError = schedule.error ?? staffHours.error ?? yesterday.error ?? current.error ?? (pastMidnight ? scheduleNext.error : null)
-  const retrySchedule = () => { schedule.refetch(); staffHours.refetch(); yesterday.refetch(); current.refetch(); if (pastMidnight) scheduleNext.refetch() }
+  const schedulePending = schedule.isPending || staffHours.isPending || (pastMidnight && scheduleNext.isPending)
+  const scheduleError = schedule.error ?? staffHours.error ?? (pastMidnight ? scheduleNext.error : null)
+  const retrySchedule = () => { schedule.refetch(); staffHours.refetch(); if (pastMidnight) scheduleNext.refetch() }
   // The operating day's bookings, each once (one crossing midnight is in both lists), within its open hours.
-  const overnightEnd = Math.max(Date.parse(dayEnd), Date.parse(open?.end ?? dayEnd),
-    ...(staffHours.data ?? []).map((p) => Date.parse(p.period_end)))
+  const overnightEnd = Math.max(Date.parse(dayEnd), ...(staffHours.data ?? []).map((p) => Date.parse(p.period_end)))
   const todays = operatingDayBookings(
     [schedule.data?.bookings ?? [], pastMidnight ? (scheduleNext.data?.bookings ?? []).filter((b) => Date.parse(b.slot_start) < overnightEnd) : []], null,
   ).filter((b) => ACTIVE.has(displayStatus(b, now)))

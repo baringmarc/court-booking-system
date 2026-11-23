@@ -3,11 +3,13 @@ import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { DurationPicker, HourPicker } from './HourPicker'
-import { operatingHourOptions } from './pickerHours'
+import { hourOnDate } from '../features/catalog/hours'
+import { formatHour } from '../lib/format'
+import type { HourOption } from './pickerHours'
 
 const TZ = 'Asia/Manila'
-const overnight = [0, 1, 2, 3, 4, 5, 6].map((d) => ({ day_of_week: d, open_time: '22:00:00', close_time: '02:00:00', is_closed: false }))
-const options = operatingHourOptions(overnight, '2026-10-24', TZ) // 10 PM, 11 PM, 12 AM, 1 AM
+// One overnight operating day, 10 PM to 2 AM: 10 PM, 11 PM, 12 AM, 1 AM.
+const options: HourOption[] = [22, 23, 24, 25].map((hour) => ({ start: hourOnDate('2026-10-24', hour, TZ), label: formatHour(hour), nextDay: hour >= 24 }))
 
 function Harness({ onChange }: { onChange: (v: string) => void }) {
   const [value, setValue] = useState<string | null>(null)

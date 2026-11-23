@@ -23,7 +23,7 @@ vi.mock('../../lib/supabase', () => {
 })
 
 import {
-  catalogKeys, createBlackout, fetchCourts, fetchOperatingHours, fetchUpcomingBlackouts, fetchVenueSettings,
+  catalogKeys, createBlackout, fetchCourts, fetchUpcomingBlackouts, fetchVenueSettings,
   saveCourt, saveCourtRates, updateVenueSettings,
 } from './api'
 import type { TablesInsert } from '../../lib/database.types'
@@ -48,11 +48,6 @@ describe('catalog reads send the venue id (T13.3)', () => {
     await fetchCourts(includeInactive)
     expect(reads('courts')[0].eqs).toContainEqual(['venue_id', VENUE_ID])
     expect(reads('venue_settings')[0].eqs).toContainEqual(['venue_id', VENUE_ID])
-  })
-
-  it('fetchOperatingHours', async () => {
-    await fetchOperatingHours()
-    expect(reads('operating_hours')[0].eqs).toContainEqual(['venue_id', VENUE_ID])
   })
 
   it('fetchUpcomingBlackouts', async () => {

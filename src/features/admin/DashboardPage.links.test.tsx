@@ -14,7 +14,6 @@ vi.mock('../venue/useVenue', () => ({ useVenue: () => ({ id: 'venue-a', slug: 'a
 vi.mock('../catalog/hooks', () => ({
   useVenueSettings: () => query({ timezone: 'Asia/Manila', currency: 'PHP', walk_ins_enabled: h.walkIns }),
   useCourts: () => query([{ id: 'c1', name: 'Court A', sport: 'tennis', is_active: true }]),
-  useOperatingHours: () => query([]),
   useStaffSchedule: (date: string) => query(date === '2030-01-07'
     ? [{ court_id: 'c1', operating_date: '2030-01-07', period_start: new Date(Date.UTC(2030, 0, 6, 22)).toISOString(), period_end: new Date(Date.UTC(2030, 0, 7, 14)).toISOString() }]
     : []),

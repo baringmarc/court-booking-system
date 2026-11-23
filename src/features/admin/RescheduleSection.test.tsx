@@ -6,13 +6,13 @@ import { ApiError } from '../../lib/queryClient'
 import { addDays, todayInZone, zonedLocalToISO } from '../../lib/time'
 import { fetchAvailability } from '../booking/api'
 import type { Slot } from '../booking/selection'
-import { fetchCourts, fetchOperatingHours, fetchVenueSettings, fetchStaffSchedule, type OperatingHours, type VenueSettings } from '../catalog/api'
+import { fetchCourts, fetchVenueSettings, fetchStaffSchedule, type VenueSettings } from '../catalog/api'
 import { rescheduleBooking, type AdminBooking } from './api'
 import { RescheduleSection } from './RescheduleSection'
 
 vi.mock('../booking/api', async (importOriginal) => ({ ...(await importOriginal<object>()), fetchAvailability: vi.fn() }))
 vi.mock('../catalog/api', async (importOriginal) => ({
-  ...(await importOriginal<object>()), fetchCourts: vi.fn(), fetchOperatingHours: vi.fn(), fetchVenueSettings: vi.fn(), fetchStaffSchedule: vi.fn(),
+  ...(await importOriginal<object>()), fetchCourts: vi.fn(), fetchVenueSettings: vi.fn(), fetchStaffSchedule: vi.fn(),
 }))
 vi.mock('./api', async (importOriginal) => ({ ...(await importOriginal<object>()), rescheduleBooking: vi.fn() }))
 
@@ -22,7 +22,6 @@ const manila = (date: string, hour: number) => zonedLocalToISO(`${date}T${String
 const TOMORROW = addDays(todayInZone(TZ), 1)
 
 const venue = { timezone: TZ, currency: 'PHP', booking_window_days: 14 } as VenueSettings
-const hours = [0, 1, 2, 3, 4, 5, 6].map((d) => ({ day_of_week: d, open_time: '06:00:00', close_time: '22:00:00', is_closed: false })) as OperatingHours[]
 const courts = [
   { id: 'A', name: 'Badminton 1', sport: 'badminton', is_active: true, court_photos: [] },
   { id: 'B', name: 'Badminton 2', sport: 'badminton', is_active: true, court_photos: [] },
@@ -50,7 +49,6 @@ function renderSection(b: AdminBooking, onMoved = vi.fn()) {
 beforeEach(() => {
   vi.mocked(fetchVenueSettings).mockReset().mockResolvedValue(venue)
   vi.mocked(fetchCourts).mockReset().mockResolvedValue(courts as never)
-  vi.mocked(fetchOperatingHours).mockReset().mockResolvedValue(hours)
   vi.mocked(fetchStaffSchedule).mockReset().mockImplementation(async (date) => courts.map((c) => ({ court_id: c.id, operating_date: date, period_start: manila(date, 6), period_end: manila(date, 22) })))
   vi.mocked(fetchAvailability).mockReset().mockImplementation(async (d) => slots(d))
   vi.mocked(rescheduleBooking).mockReset()

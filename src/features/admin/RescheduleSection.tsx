@@ -3,7 +3,7 @@ import { ErrorMessage } from '../../components/ErrorMessage'
 import { PageLoader } from '../../components/PageLoader'
 import { rangeLabel } from '../booking/moves'
 import { useNow } from '../booking/useNow'
-import { useCourts, useOperatingHours, useVenueSettings } from '../catalog/hooks'
+import { useCourts, useVenueSettings } from '../catalog/hooks'
 import type { AdminBooking } from './api'
 import { useRescheduleBooking } from './hooks'
 import { RescheduleForm } from './RescheduleForm'
@@ -15,7 +15,7 @@ type Props = {
   onMoved: (message: string) => void
 }
 
-/** "Reschedule" for a confirmed booking that hasn't ended (T10.10). The form loads the courts and hours only once opened. */
+/** "Reschedule" for a confirmed booking that hasn't ended (T10.10). The form loads the courts and schedule only once opened. */
 export function RescheduleSection({ booking, onMoved }: Props) {
   const now = useNow(30_000)
   const [open, setOpen] = useState(false)
@@ -29,18 +29,17 @@ export function RescheduleSection({ booking, onMoved }: Props) {
 function OpenReschedule({ booking, now, onMoved, onClose }: Props & { now: Date; onClose: () => void }) {
   const settings = useVenueSettings()
   const courts = useCourts()
-  const hours = useOperatingHours()
   const reschedule = useRescheduleBooking()
 
-  if (settings.isPending || courts.isPending || hours.isPending) return <PageLoader />
-  const failed = [settings, courts, hours].find((q) => q.isError)
+  if (settings.isPending || courts.isPending) return <PageLoader />
+  const failed = [settings, courts].find((q) => q.isError)
   if (failed) return <ErrorMessage error={failed.error} onRetry={() => failed.refetch()} />
-  if (!settings.data || !courts.data || !hours.data) return null
+  if (!settings.data || !courts.data) return null
 
   const tz = settings.data.timezone
   return (
     <RescheduleForm
-      booking={booking} courts={courts.data} hours={hours.data} settings={settings.data} now={now}
+      booking={booking} courts={courts.data} settings={settings.data} now={now}
       pending={reschedule.isPending} error={reschedule.isError ? reschedule.error : null}
       onClose={() => { reschedule.reset(); onClose() }}
       // mutateAsync, not mutate's callbacks: a move often takes the booking out of the list's date filter, which

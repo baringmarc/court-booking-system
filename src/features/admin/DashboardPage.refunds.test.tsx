@@ -15,7 +15,6 @@ vi.mock('../venue/useVenue', () => ({ useVenue: () => ({ id: 'venue-a', slug: 'a
 vi.mock('../catalog/hooks', () => ({
   useVenueSettings: () => query({ timezone: 'Asia/Manila', currency: 'PHP' }),
   useCourts: () => query([]),
-  useOperatingHours: () => query([]),
   useStaffSchedule: () => query([]),
 }))
 vi.mock('./hooks', () => ({
