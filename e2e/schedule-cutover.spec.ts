@@ -39,6 +39,9 @@ test.beforeEach(async () => {
   const service = serviceClient()
   const { error } = await service.from('venue_schedule_state').update({ schedule_v2_active: true }).eq('venue_id', active.id)
   if (error) throw error
+  // T32.1: new venues start on schedule v2, so venue B is put on the legacy path the way every pre-T32.1 venue started.
+  const { error: legacyError } = await service.from('venue_schedule_state').update({ schedule_v2_active: false }).eq('venue_id', legacy.id)
+  if (legacyError) throw legacyError
   const { data: court } = await service.from('courts').select('id').eq('venue_id', active.id).single().throwOnError()
   const day = nextMonday()
   const reference = `CB-CUT${String(Date.now() % 1000).padStart(3, '0').replace(/[01]/g, '2')}`

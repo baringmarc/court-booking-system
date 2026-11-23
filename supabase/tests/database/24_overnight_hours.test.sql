@@ -20,6 +20,8 @@ insert into auth.users (id, email) values
 update public.profiles set full_name = null where id = '11111111-1111-1111-1111-111111111111';
 insert into public.venue_members (venue_id, user_id, role)
 select id, '22222222-2222-2222-2222-222222222222', 'staff' from public.venues where slug = 'claudex-courts';
+-- T32.1: the demo venue runs on schedule v2 (seed.sql). This file tests the legacy hours, so it puts the venue back on them.
+update public.venue_schedule_state set schedule_v2_active = false where venue_id = private.default_venue_id();
 insert into public.courts (venue_id, id, name, sport, default_hourly_rate) values
   (private.default_venue_id(), 'c0000000-0000-0000-0000-000000000001', 'Night Court', 'tennis', 300);
 

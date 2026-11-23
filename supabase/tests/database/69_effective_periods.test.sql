@@ -30,9 +30,9 @@ select private.local_today(private.default_venue_id()) + 5 as d,
        extract(dow from private.local_today(private.default_venue_id()) + 6)::smallint as next_dow;
 grant select on fx to anon, authenticated;
 
--- Exercise the replacement engine on this fixture only; the venue's server activation remains off by default.
-select is((select schedule_v2_active from public.venue_schedule_state where venue_id = private.default_venue_id()), false,
-  'the replacement engine remains disabled until an explicit activation');
+-- The demo venue runs on schedule v2 since T32.1 (seed.sql); the fixture below still sets it explicitly.
+select is((select schedule_v2_active from public.venue_schedule_state where venue_id = private.default_venue_id()), true,
+  'the demo venue starts on schedule v2 (T32.1 seed)');
 update public.venue_schedule_state set schedule_v2_active = true where venue_id = private.default_venue_id();
 insert into public.court_schedule_modes (venue_id, court_id, schedule_mode)
 values (private.default_venue_id(), 'c0000000-0000-0000-0000-000000001711', 'custom')

@@ -6,6 +6,7 @@ import {
   localFunctionNames,
   comparePreflight,
   formatReport,
+  inactiveScheduleVenues,
 } from './release-preflight.mjs'
 
 const REF = 'jmichyttnqygwdcksbpg'
@@ -140,12 +141,12 @@ describe('comparePreflight', () => {
   }
 
   it('is ok when everything is present', () => {
-    expect(comparePreflight(base)).toEqual({ ok: true, missingMigrations: [], missingFunctions: [] })
+    expect(comparePreflight(base)).toEqual({ ok: true, missingMigrations: [], missingFunctions: [], inactiveVenues: [] })
   })
 
   it('reports one missing migration', () => {
     const r = comparePreflight({ ...base, remoteMigrations: ['20261016154902'] })
-    expect(r).toEqual({ ok: false, missingMigrations: ['20261113045318'], missingFunctions: [] })
+    expect(r).toEqual({ ok: false, missingMigrations: ['20261113045318'], missingFunctions: [], inactiveVenues: [] })
   })
 
   it('sorts several missing migrations ascending', () => {
@@ -160,7 +161,7 @@ describe('comparePreflight', () => {
 
   it('reports one missing function', () => {
     const r = comparePreflight({ ...base, remoteFunctions: ['site-contact'] })
-    expect(r).toEqual({ ok: false, missingMigrations: [], missingFunctions: ['create-paymongo-checkout'] })
+    expect(r).toEqual({ ok: false, missingMigrations: [], missingFunctions: ['create-paymongo-checkout'], inactiveVenues: [] })
   })
 
   it('sorts missing functions ascending', () => {
@@ -190,7 +191,7 @@ describe('comparePreflight', () => {
       remoteMigrations: [...base.remoteMigrations, '20260901000000'],
       remoteFunctions: [...base.remoteFunctions, 'old-function'],
     })
-    expect(r).toEqual({ ok: true, missingMigrations: [], missingFunctions: [] })
+    expect(r).toEqual({ ok: true, missingMigrations: [], missingFunctions: [], inactiveVenues: [] })
   })
 })
 
@@ -220,5 +221,68 @@ describe('formatReport', () => {
     expect(migLine).not.toContain('20261113045318')
     expect(lines.some((l: string) => l.includes('20261113045318'))).toBe(true)
     expect(lines.some((l: string) => l.includes('create-paymongo-checkout'))).toBe(true)
+  })
+})
+
+describe('inactiveScheduleVenues (T32.1)', () => {
+  it('returns the sorted slugs of venues with schedule_v2_active false', () => {
+    expect(
+      inactiveScheduleVenues([
+        { slug: 'zeta', schedule_v2_active: false },
+        { slug: 'claudex-courts', schedule_v2_active: true },
+        { slug: 'alpha', schedule_v2_active: false },
+      ]),
+    ).toEqual(['alpha', 'zeta'])
+  })
+
+  it('returns nothing when every venue is active or there are no rows', () => {
+    expect(inactiveScheduleVenues([{ slug: 'a', schedule_v2_active: true }])).toEqual([])
+    expect(inactiveScheduleVenues([])).toEqual([])
+  })
+})
+
+describe('schedule v2 in the preflight (T32.1)', () => {
+  const ok = {
+    localMigrations: ['20261016154902'],
+    remoteMigrations: ['20261016154902'],
+    localFunctions: ['site-contact'],
+    remoteFunctions: ['site-contact'],
+  }
+
+  it('fails when a venue is not on schedule v2, and carries the slugs', () => {
+    const r = comparePreflight({ ...ok, inactiveVenues: ['alpha', 'zeta'] })
+    expect(r.ok).toBe(false)
+    expect(r.inactiveVenues).toEqual(['alpha', 'zeta'])
+    expect(r.missingMigrations).toEqual([])
+  })
+
+  it('defaults to no inactive venues when the input is omitted', () => {
+    const r = comparePreflight(ok)
+    expect(r.ok).toBe(true)
+    expect(r.inactiveVenues).toEqual([])
+  })
+
+  it('lists each inactive slug under a schedule v2 heading and prints FAILED', () => {
+    const out = formatReport({
+      ref: REF,
+      result: { ok: false, missingMigrations: [], missingFunctions: [], inactiveVenues: ['alpha', 'zeta'] },
+    })
+    const lines = out.split('\n')
+    expect(lines.some((l: string) => /schedule v2/i.test(l))).toBe(true)
+    expect(lines.some((l: string) => l.includes('alpha'))).toBe(true)
+    expect(lines.some((l: string) => l.includes('zeta'))).toBe(true)
+    expect(out).toContain(REF)
+    expect(out).toContain('FAILED')
+    expect(out).not.toContain('PASSED')
+  })
+
+  it('prints PASSED and no schedule v2 heading when all venues are active', () => {
+    const out = formatReport({
+      ref: REF,
+      result: { ok: true, missingMigrations: [], missingFunctions: [], inactiveVenues: [] },
+    })
+    expect(out).toContain('PASSED')
+    expect(out).not.toContain('FAILED')
+    expect(out).not.toMatch(/schedule v2/i)
   })
 })

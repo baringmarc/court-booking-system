@@ -41,6 +41,9 @@ insert into public.venues (id, slug, status) values
   ('a0000000-0000-0000-0000-000000001784', 'e2e-cutover-d', 'active'),
   ('a0000000-0000-0000-0000-000000001785', 'e2e-cutover-e', 'active'),
   ('a0000000-0000-0000-0000-000000001786', 'e2e-cutover-f', 'active');
+-- T32.1: new venues start on schedule v2. This file tests the legacy-hours path, so its venues start on legacy
+-- hours, like every venue made before T32.1.
+update public.venue_schedule_state set schedule_v2_active = false where venue_id in ('a0000000-0000-0000-0000-000000001781', 'a0000000-0000-0000-0000-000000001782', 'a0000000-0000-0000-0000-000000001783', 'a0000000-0000-0000-0000-000000001784', 'a0000000-0000-0000-0000-000000001785', 'a0000000-0000-0000-0000-000000001786');
 insert into public.venue_settings (venue_id, name, timezone)
 select id, 'E2E Cutover ' || slug, 'Asia/Manila' from public.venues where slug like 'e2e-cutover-%';
 insert into public.venue_members (venue_id, user_id, role) values
@@ -102,7 +105,7 @@ reset role;
 
 -- Activation
 select is((select schedule_v2_active from public.venue_schedule_state where venue_id = 'a0000000-0000-0000-0000-000000001781'), false,
-  'a venue starts on the legacy schedule');
+  'the fixture venue starts on the legacy schedule');
 select private.activate_schedule_v2('a0000000-0000-0000-0000-000000001781');
 select is((select schedule_v2_active from public.venue_schedule_state where venue_id = 'a0000000-0000-0000-0000-000000001781'), true,
   'activation switches the venue to schedule v2');

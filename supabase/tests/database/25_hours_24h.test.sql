@@ -7,6 +7,8 @@ select plan(9);
 insert into auth.users (id, email) values ('22222222-2222-2222-2222-222222222222', 'admin@test.local');
 insert into public.venue_members (venue_id, user_id, role)
 select id, '22222222-2222-2222-2222-222222222222', 'staff' from public.venues where slug = 'claudex-courts';
+-- T32.1: the demo venue runs on schedule v2 (seed.sql). This file tests the legacy hours, so it puts the venue back on them.
+update public.venue_schedule_state set schedule_v2_active = false where venue_id = private.default_venue_id();
 
 -- Every day 06:00–22:00, except Wednesday: p_open → p_close, closed when p_closed.
 create function pg_temp.week(p_open text, p_close text, p_closed boolean default false) returns jsonb language sql as $$

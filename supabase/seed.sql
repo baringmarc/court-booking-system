@@ -81,3 +81,10 @@ where b.reference_code like 'CB-DEMQ%'
     where p.booking_id = b.id
       and p.review_status = case b.status when 'confirmed' then 'approved' else 'pending' end::public.payment_review_status
   );
+
+-- T32.1: the demo venue runs on schedule v2, as every hosted venue does since 2026-11-23, so local, e2e and hosted take
+-- the same path. Idempotent: activation only runs while the venue is still on the legacy hours.
+select private.activate_schedule_v2(s.venue_id)
+from public.venue_schedule_state s
+join public.venues v on v.id = s.venue_id
+where v.slug = 'claudex-courts' and not s.schedule_v2_active;

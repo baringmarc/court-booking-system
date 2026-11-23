@@ -1,12 +1,14 @@
 // T27.8 Release preflight: `npm run preflight:release -- --project-ref <ref> [--commit <rev>]`.
 // Fails (exit 1), listing each item, when a migration in supabase/migrations/ or an Edge Function folder in
-// supabase/functions/ (not _shared) at the release commit (default HEAD) is missing on the target project.
-// Read-only: it only runs `supabase migration list` and `supabase functions list` with --project-ref. It never
+// supabase/functions/ (not _shared) at the release commit (default HEAD) is missing on the target project, or (T32.1)
+// when a venue on the target is still on the legacy hours (venue_schedule_state.schedule_v2_active false or missing).
+// Read-only: it only runs `supabase migration list`, `supabase functions list` and one select through
+// `supabase db query` with --project-ref. It never
 // links, pushes or deploys, so the CLI link stays on staging. It prints the ref it checked (CLAUDE.md L6).
 import { execFileSync } from 'node:child_process'
 import { basename } from 'node:path'
 import {
-  comparePreflight, formatReport, localFunctionNames, localMigrationVersions, parseFunctionList, parseMigrationList,
+  comparePreflight, formatReport, inactiveScheduleVenues, localFunctionNames, localMigrationVersions, parseFunctionList, parseMigrationList,
 } from './lib/release-preflight.mjs'
 
 function arg(name) {
@@ -32,10 +34,15 @@ function entriesAt(dir, { dirsOnly = false } = {}) {
 const localMigrations = localMigrationVersions(entriesAt('supabase/migrations'))
 const localFunctions = localFunctionNames(entriesAt('supabase/functions', { dirsOnly: true }))
 
-let remoteMigrationsText, remoteFunctionsText
+// A venue with no state row reads as inactive, as private.venue_schedule_v2_active does.
+const SCHEDULE_SQL = `select v.slug, coalesce(s.schedule_v2_active, false) as schedule_v2_active
+  from public.venues v left join public.venue_schedule_state s on s.venue_id = v.id order by v.slug`
+
+let remoteMigrationsText, remoteFunctionsText, venueScheduleText
 try {
   remoteMigrationsText = run('npx', ['supabase', 'migration', 'list', '--project-ref', ref])
   remoteFunctionsText = run('npx', ['supabase', 'functions', 'list', '--project-ref', ref, '-o', 'json'])
+  venueScheduleText = run('npx', ['supabase', 'db', 'query', '--linked', '--project-ref', ref, '--output-format', 'json', SCHEDULE_SQL])
 } catch (error) {
   console.error(`Could not read project ${ref} with the Supabase CLI:\n${error.stderr || error.message}`)
   process.exit(2)
@@ -48,8 +55,20 @@ if (remoteMigrations.length === 0 || remoteFunctions.length === 0) {
   process.exit(2)
 }
 
-const result = comparePreflight({ localMigrations, remoteMigrations, localFunctions, remoteFunctions })
+let venueRows
+try {
+  venueRows = JSON.parse(venueScheduleText).rows
+} catch {
+  venueRows = undefined
+}
+if (!Array.isArray(venueRows) || venueRows.length === 0) {
+  console.error(`Could not read the venues' schedule state from ${ref}; refusing to judge an empty read.`)
+  process.exit(2)
+}
+
+const inactiveVenues = inactiveScheduleVenues(venueRows)
+const result = comparePreflight({ localMigrations, remoteMigrations, localFunctions, remoteFunctions, inactiveVenues })
 console.log(`Commit ${run('git', ['rev-parse', '--short', commit]).trim()}: ${localMigrations.length} migrations, ${localFunctions.length} functions.`)
-console.log(`Target ${ref}: ${remoteMigrations.length} migrations applied, ${remoteFunctions.length} functions deployed.`)
+console.log(`Target ${ref}: ${remoteMigrations.length} migrations applied, ${remoteFunctions.length} functions deployed, ${venueRows.length - inactiveVenues.length} of ${venueRows.length} venues on schedule v2.`)
 console.log(formatReport({ ref, result }))
 process.exit(result.ok ? 0 : 1)

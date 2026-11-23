@@ -37,6 +37,15 @@ Rates are not affected (`save_schedule` writes `court_rates`, which `slot_price`
 4. Activate one venue (the demo first): `select private.activate_schedule_v2('<venue uuid>');` (SQL editor or service role).
    Smoke: book, walk-in, reschedule, open play, the Schedule page save.
 5. Activate the remaining venues the same way.
+   Done 2026-11-23: every venue on staging and production is active.
+
+## New venues (T32.1)
+From migration `20261123052637_t32_1_new_venues_active` on, a new venue starts active: `venue_schedule_state` defaults
+`schedule_v2_active` to true and the `venues_initialize_schedule` trigger inserts it so. `create_venue` still writes the
+default 06:00–22:00 `operating_hours` (as the definer, so the legacy-write guard lets it through), and they are mirrored
+into `venue_open_periods`. No manual activation step is needed. `npm run preflight:release` fails, naming the venue, when
+any venue on the target is still on the legacy hours. Until that migration is on a project, activate each new venue
+there by hand (step 4).
 
 ## Rollback
 `select private.deactivate_schedule_v2('<venue uuid>');` switches the venue back to the legacy hours **only when the
