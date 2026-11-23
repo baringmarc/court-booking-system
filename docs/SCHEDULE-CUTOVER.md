@@ -3,7 +3,19 @@
 Release and rollback instructions for switching a venue from the legacy `operating_hours` / `court_rates` editors to
 Weekly Hours & Rates (schedule v2). **Status (2026-11-06):** steps 2 and 3 are done on staging and production (the user's approval); preflight was
 partly checked there (no venue active; every venue has periods; the value comparison with `operating_hours` is still to
-do before step 4). **No venue is activated.** Each remaining hosted step needs its own approval.
+do before step 4). **Staging (`avhxinkecylhptysgbjx`), 2026-11-23:** steps 4–5 done (the user's approval). Preflight found
+Claudex Courts' `venue_open_periods` had drifted from `operating_hours` (Tuesday closed, Wed–Fri split) with 3 future
+bookings outside the periods, so its periods were first rewritten from `operating_hours` (what players saw), then both
+venues were activated in one transaction. Checked after: `get_availability` unchanged, and an 11 PM close (rolled back)
+ends the last slot at 23:00. **Production (`jmichyttnqygwdcksbpg`), 2026-11-23:** steps 4–5 done (the user's approval,
+keeping the editor's hours). Preflight: release preflight passed, no custom courts, no future booking outside the
+periods; three venues differed (claudex-courts and prj-pickle-court-sports-center had later closes in the editor,
+eloy-test a split Monday). All 7 venues were activated in one transaction; `get_availability` now ends Claudex Courts'
+Monday at 23:00 and its other late days at midnight. **Every venue on both hosted projects is active.**
+
+Why this matters: the admin editor (Weekly Hours & Rates, `save_schedule`) writes `venue_open_periods`, but until a venue
+is activated every player-facing consumer reads `operating_hours`, so hour changes saved in the editor never reach players.
+Rates are not affected (`save_schedule` writes `court_rates`, which `slot_price` reads either way).
 
 ## What activation does
 - `private.activate_schedule_v2(venue_id)` (postgres / service role only, no client RPC) takes the venue's court locks in
