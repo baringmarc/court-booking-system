@@ -1,11 +1,11 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="version" content="1.1"><meta name="author" content="Plotline">
+<meta name="version" content="1.2"><meta name="author" content="Plotline">
 <title>Plotline venue owner manual</title><link rel="stylesheet" href="manual.css"></head><body>
 
 <article id="contents" class="cover" data-section="Owner manual">
 <h1>Running your venue on Plotline</h1>
-<p class="edition">Venue owner manual · Edition 1.1 · 16 November 2026</p>
+<p class="edition">Venue owner manual · Edition 1.2 · 24 November 2026</p>
 <p class="cover-intro">Your practical guide to getting set up, welcoming players and managing bookings.</p>
 <div class="start">
 <a href="#ready"><strong>New to Plotline?</strong>Set up your courts and publish.</a>
@@ -29,7 +29,10 @@
 <a href="#dashboard"><span>Your day on the Dashboard</span><small></small></a>
 <a href="#proof"><span>Approve or reject a payment</span><small></small></a>
 <a href="#bookings"><span>Find, move or cancel a booking</span><small></small></a>
+<a href="#refunds"><span>Refunds you owe players</span><small></small></a>
 <a href="#open-play"><span>Open play sessions</span><small></small></a>
+<a href="#players"><span>Open slots and stacks</span><small></small></a>
+<a href="#reminders"><span>Reminders and repeat bookings</span><small></small></a>
 <a href="#reports"><span>Your Plotline fees</span><small></small></a>
 <a href="#routine"><span>Daily, weekly and monthly checklist</span><small></small></a>
 <a href="#help"><span>Troubleshooting and support</span><small></small></a>
@@ -52,7 +55,7 @@
 <h3>Who does what</h3>
 <table>
 <tr><th>You (the venue)</th><th>Plotline</th></tr>
-<tr><td>Courts, prices, hours, payment details, approving payments, refunds to players</td><td>Your account, publishing support, online card payments (PayMongo), the monthly fee statement</td></tr>
+<tr><td>Courts, prices, hours, payment details, approving payments, paying refunds back to players and recording them</td><td>Your account, publishing support, online card payments (PayMongo), the monthly fee statement</td></tr>
 </table>
 </article>
 
@@ -87,7 +90,7 @@
 </table>
 <div class="tip"><b>What happens next</b>Check that ₱410 reached your account before approving the proof. The ₱10 fee appears in Reports and is included in the venue’s monthly statement.</div>
 <h3>If a confirmed booking is cancelled</h3>
-<table><tr><th>Who cancels</th><th>Booking fee</th><th>Refund</th></tr><tr><td>Venue</td><td>Credited on your statement</td><td>Arrange with the player outside the app</td></tr><tr><td>Player</td><td>Still owed to Plotline</td><td>Arrange with the player outside the app</td></tr></table>
+<table><tr><th>Who cancels</th><th>Booking fee</th><th>Refund</th></tr><tr><td>Venue</td><td>Credited on your statement</td><td>Recorded as owed; you pay it back, then mark it refunded (page <span data-ref="refunds"></span>)</td></tr><tr><td>Player</td><td>Still owed to Plotline</td><td>Recorded as owed; you decide, then mark it refunded or not refunded (page <span data-ref="refunds"></span>)</td></tr></table>
 <p class="next">Next: <a href="#access">Sign in to your venue →</a></p>
 </article>
 
@@ -230,7 +233,7 @@
 <p>Each section under <b>Settings</b> has its own Save button, so save before you leave a section.</p>
 <ul>
 <li><b>Venue Profile</b>: venue name, city, street address with a Google Maps link, contact and social links. Timezone, currency and slot length are shown here; ask Plotline to change them.</li>
-<li><b>Website Appearance</b>: colour preset, banner photo, amenities, arrival information and the order sports appear in.</li>
+<li><b>Website Appearance</b>: colour preset, banner photo, square <b>Venue logo</b>, amenities, arrival information and the order sports appear in.</li>
 <li><b>Policies &amp; Waivers</b>: the waiver players must accept when booking online. <b>Reset to default</b> loads standard wording to edit. Saving it blank turns the waiver off.</li>
 </ul>
 <p>A listing in Plotline’s venue showcase is separate from publishing; ask Plotline.</p>
@@ -255,8 +258,9 @@
 <p class="lede">Open the Dashboard first each day. It answers three questions: what needs approving, who is playing and what you earned.</p>
 <ol>
 <li><b>Proofs to review</b> shows how many payments are waiting. Select <b>Review proofs</b> to work through them (next page).</li>
-<li><b>Today’s courts</b> lays out each court by hour. Tap a booking reference to open it. <b>Today’s schedule</b> lists the same bookings with their status.</li>
-<li><b>Earnings</b> covers Today, This week, This month or a custom range.</li>
+<li><b>Today’s courts</b> lays out each court by hour. Tap a booking reference to open it. <b>Today’s schedule</b> lists the same bookings with their status. <b>Post open slots</b> turns the free hours into a picture for Facebook (page <span data-ref="players"></span>).</li>
+<li><b>Refunds owed</b> counts refunds you still need to pay back. <b>Open refunds</b> shows them (page <span data-ref="refunds"></span>).</li>
+<li><b>Earnings</b> covers Today, This week, This month or a custom range. <b>Refunded</b> and <b>Net</b> (collected minus refunded) sit beside <b>Collected</b>.</li>
 </ol>
 <div class="pair">
 <figure style="--h:190px"><img src="screens/day-view.jpg" alt="Today's courts grid with a booking for Ana Reyes, reference CB-GARDEN, at 4 PM"><figcaption>Today’s courts</figcaption></figure>
@@ -286,7 +290,7 @@
 </div>
 <h3>If something doesn’t match</h3>
 <p>Write what is wrong in <b>Reason for rejecting</b>, for example “Amount received is ₱400; please send the remaining ₱10”, and select <b>Reject proof</b>. The player sees your reason. Whether they can try again depends on <b>Proof rejections allowed</b> (page <span data-ref="rules"></span>).</p>
-<div class="tip"><b>Card payments</b>A successful online card payment confirms by itself. If you see <b>Refund due</b> or <b>Check duplicate</b>, the money arrived but the booking couldn’t take it. Check it and refund the player outside the app.</div>
+<div class="tip"><b>Card payments</b>A successful online card payment confirms by itself. If you see <b>Refund owed</b> or <b>Check duplicate</b>, the money arrived but the booking couldn’t take it. Check it, refund the player and record it (page <span data-ref="refunds"></span>).</div>
 </article>
 
 <article id="bookings" data-section="Every day">
@@ -304,9 +308,22 @@
 <p>Open the booking before it ends. Under <b>Cancel booking</b>, write a reason and select <b>Cancel booking</b>. The player sees the reason and the time becomes free. Cancel any moved part separately.</p>
 <table>
 <tr><th>Who cancels</th><th>Booking fee</th><th>Refund to player</th></tr>
-<tr><td>You (the venue)</td><td>Credited back to you on your statement</td><td rowspan="2">Arranged by you, outside the app</td></tr>
+<tr><td>You (the venue)</td><td>Credited back to you on your statement</td><td rowspan="2">Recorded as owed; you pay it back and mark it refunded (page <span data-ref="refunds"></span>)</td></tr>
 <tr><td>The player</td><td>Still owed to Plotline</td></tr>
 </table>
+</article>
+
+<article id="refunds" data-section="Every day">
+<h2>Refunds you owe players</h2>
+<p class="lede">When a booking with an approved payment is cancelled, or an online payment arrives that the booking couldn’t take, the app records a refund as <b>owed</b>. No money moves through the app: you pay the player back yourself, then record what happened.</p>
+<ol>
+<li>On the Dashboard, <b>Refunds owed</b> counts them. Select <b>Open refunds</b>, or in <b>Bookings</b> set the <b>Refunds</b> filter to <b>Refund owed</b>. Those bookings also carry a <b>Refund owed</b> badge.</li>
+<li>Open the booking. The refund card shows <b>Paid</b>, <b>Refund</b> and its <b>Status</b>.</li>
+<li>Pay the player back with GCash, Maya, a bank transfer or cash. Then select <b>Mark refunded</b>, check the <b>Amount refunded</b>, choose <b>Refunded by</b> and the <b>Date refunded</b>, and select <b>Save refund</b>.</li>
+<li>If you are not refunding, select <b>Not refunded</b>, write a <b>Reason</b> and select <b>Save as not refunded</b>. The player sees your reason.</li>
+</ol>
+<p>Players see the refund status on their booking page. A <b>Staff note</b> is for your team only. To correct a mistake, select <b>Edit refund</b>, or <b>Reopen as owed</b> to start again. <b>Earnings</b> shows <b>Refunded</b> and <b>Net</b> for the period you pick.</p>
+<div class="tip"><b>Refund the full amount you received</b>The refund starts at what the player paid. It includes the ₱10 booking fee, so change the amount only when you agreed a different one with the player.</div>
 </article>
 
 <article id="open-play" data-section="Every day">
@@ -319,7 +336,31 @@
 <li>Add a <b>Title</b>. Use <b>Details</b> for skill level, price and what to bring. To link an RSVP form or group chat, fill in a link label and an address starting with https://.</li>
 <li>Select <b>Add session</b> and check it under <b>Upcoming sessions</b>.</li>
 </ol>
-<p>To change a future session, select <b>Edit</b>, update it and select <b>Save changes</b>. <b>Delete</b> removes it and frees the courts. Plotline doesn’t take payment for open play; collect any fee your own way.</p>
+<p>To change a future session, select <b>Edit</b>, update it and select <b>Save changes</b>. <b>Delete</b> removes it and frees the courts. Plotline doesn’t take payment for open play; collect any fee your own way.</p></article>
+
+<article id="players" data-section="Every day">
+<h2>Open slots and stacks</h2>
+<p class="lede">Show players what is free today or tomorrow, and run an open play session live.</p>
+<h3>Post your open slots</h3>
+<p>On the Dashboard, select <b>Post open slots</b> on <b>Today’s courts</b>. Choose <b>Today</b> or <b>Tomorrow</b>. Plotline draws a picture of every court’s free times and writes a caption with your booking link.</p>
+<ol>
+<li>Select <b>Download picture</b>. On a phone, press and hold the picture to save it to Photos.</li>
+<li>Select <b>Copy caption</b>.</li>
+<li>Post both together on your Facebook page or send them in Messenger.</li>
+</ol>
+<h3>Run an open play session as a stack</h3>
+<p>On <b>Open Play</b>, from the session’s day, select <b>Run this as a stack</b> beside it, then <b>Open the stack</b>. The session opens on Paddle Stack at plotline.fit in a new tab, ready to share with players. If it is already running on another device, the newest device takes over and the other one stops updating.</p>
+</article>
+
+<article id="reminders" data-section="Every day">
+<h2>Reminders and repeat bookings</h2>
+<p class="lede">Players hear from you without you lifting a finger, and a button brings them back.</p>
+<h3>Reminders players receive</h3>
+<p>Players get a confirmation email with a calendar file, and a reminder email at 6 PM the evening before they play. If you move a booking, they get an updated calendar file. You do nothing to switch this on.</p>
+<h3>Your venue on a phone’s home screen</h3>
+<p>Players can add your booking page to their phone’s home screen with <b>Add to Home Screen</b>. It appears under your venue’s name and logo, so upload a <b>Venue logo</b> in Settings → Website Appearance. Without one, only the name shows.</p>
+<h3>Same time next week</h3>
+<p>Players see a <b>Same time next week</b> button on their booking page and in their emails. It opens checkout for the same weekday and hour in the next week that is still ahead, and they pay as usual. <b>Earnings</b> counts how many bookings came from it: <b>Booked again with Same time next week</b>.</p>
 </article>
 
 <article id="reports" data-section="Every day">
@@ -341,13 +382,13 @@
 <h3>Every day</h3>
 <ul class="check">
 <li>Dashboard: clear <b>Proofs to review</b>, checking each transfer in your own account before approving.</li>
-<li>Look at <b>Today’s courts</b> before opening, and again in the afternoon for late bookings.</li>
+<li>Look at <b>Today’s courts</b> before opening, and again in the afternoon for late bookings. Tap <b>Post open slots</b> to share what is free.</li>
 <li>Bookings: check <b>Needs review</b> again before closing so no player waits overnight.</li>
 </ul>
 <h3>Every week</h3>
 <ul class="check">
 <li>Schedule → Closures: add holidays, repairs and private events for the next weeks.</li>
-<li>Open Play: post next week’s sessions.</li>
+<li>Open Play: post next week’s sessions. Dashboard: record refunds you have paid back.</li>
 <li>Earnings → This week: compare <b>Collected</b> with your GCash, Maya and bank history.</li>
 <li>View public site: check prices and hours for the coming days.</li>
 </ul>

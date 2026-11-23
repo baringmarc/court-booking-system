@@ -61,7 +61,7 @@ export function ownerLinkAction(user: OwnerAccount | null): OwnerEmailKind {
 export const OWNER_SUPPORT_EMAIL = 'plotline.admin1@gmail.com'
 export const OWNER_FACEBOOK_URL = 'https://www.facebook.com/profile.php?id=61595759948011'
 export const OWNER_MESSENGER_URL = 'https://m.me/61595759948011'
-export const OWNER_GUIDE_FILE = 'venue-owner-manual-v1.1.pdf'
+export const OWNER_GUIDE_FILE = 'venue-owner-manual-v1.2.pdf'
 
 /** The owner PDF's download link on the venue site (T17.24). */
 export function ownerGuideUrl(siteBase: string): string {

@@ -8,7 +8,7 @@ import { axeBothSchemes, createPlatformAdmin, createPlayer, createVenue, deleteV
 import { localSupabase } from './support/local.ts'
 
 const SUPPORT = 'plotline.admin1@gmail.com'
-const PDF = 'venue-owner-manual-v1.1.pdf'
+const PDF = 'venue-owner-manual-v1.2.pdf'
 
 type Mail = {
   ID: string

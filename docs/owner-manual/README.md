@@ -8,7 +8,7 @@ From the repository root, with dependencies and Chromium installed (`npm ci`, th
 node docs/owner-manual/build.mjs
 ```
 
-The local Dashboard downloads `/guides/venue-owner-manual.pdf`. The intended stable public address on release is `https://app.plotline.fit/guides/venue-owner-manual.pdf`. `invite-venue-owner` (T17.25) fetches the current edition's versioned asset, `/guides/venue-owner-manual-v1.1.pdf` since T27.11 (`OWNER_GUIDE_FILE`), for the attachment. Both files in `public/guides/` must be byte-identical for the current edition. The generator enforces a 2,000,000-byte budget before copying the edition to the stable name. Keep older released editions available. For a new edition, change the version metadata and visible date/edition in the source, and update the attachment URL and its download test together.
+The local Dashboard downloads `/guides/venue-owner-manual.pdf`. The intended stable public address on release is `https://app.plotline.fit/guides/venue-owner-manual.pdf`. `invite-venue-owner` (T17.25) fetches the current edition's versioned asset, `/guides/venue-owner-manual-v1.2.pdf` since T31.3 (`OWNER_GUIDE_FILE`), for the attachment. Both files in `public/guides/` must be byte-identical for the current edition. The generator enforces a 2,000,000-byte budget before copying the edition to the stable name. Keep older released editions available. For a new edition, change the version metadata and visible date/edition in the source, and update the attachment URL and its download test together.
 
 ## Refresh demo screenshots
 

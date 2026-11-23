@@ -90,7 +90,7 @@ try {
     clip.width = Math.min(vp.width - clip.x, box.width + pad * 2)
     clip.height = Math.min(vp.height - clip.y, box.height + pad * 2)
     // JPEG at roughly 2x the size printed keeps the PDF small enough to email.
-    await target.screenshot({ path: dir + name + '.jpg', type: 'jpeg', quality: 82, clip, animations: 'disabled', scale: clip.width > 900 ? 'css' : 'device' })
+    await target.screenshot({ path: dir + name + '.jpg', type: 'jpeg', quality: 74, clip, animations: 'disabled', scale: clip.width > 900 ? 'css' : 'device' })
     if (callouts.length) await unmark()
     console.log('Captured', name)
   }
@@ -202,7 +202,7 @@ try {
   await expect(player.getByText(/₱500/).first()).toBeVisible()
   await player.waitForTimeout(800)
   const grid = await player.getByText(/Tap a time to select it/).boundingBox()
-  const jpeg = { type: 'jpeg', quality: 82, animations: 'disabled' }
+  const jpeg = { type: 'jpeg', quality: 74, animations: 'disabled' }
   await player.screenshot({ ...jpeg, path: dir + 'public-top.jpg', clip: { x: 0, y: 0, width: 390, height: grid.y - 8 } })
   await player.screenshot({ ...jpeg, path: dir + 'public-grid.jpg', clip: { x: 0, y: grid.y - 8, width: 390, height: Math.min(940, 1400 - grid.y) } })
   console.log('Captured public-top, public-grid')
