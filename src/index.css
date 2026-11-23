@@ -1296,3 +1296,6 @@ details[open]::details-content { block-size: auto; }
 /* T26.6: send and preview actions on the invoice document; their messages take a full row. */
 .invoice-actions > p { flex-basis: 100%; margin: 0; }
 .invoice-head .invoice-emailed { margin-top: 4px; }
+
+/* Slots image control on the dashboard's Today's courts card (T31.1). */
+.slots-image { border-top: 1px solid var(--border); padding-top: 12px; }

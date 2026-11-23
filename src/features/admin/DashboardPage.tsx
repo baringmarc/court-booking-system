@@ -17,6 +17,7 @@ import { DEFAULT_FILTERS, filtersToParams } from './bookingFilters'
 import { DayView } from './DayView'
 import { EarningsSection } from './EarningsSection'
 import { SetupChecklist } from './SetupChecklist'
+import { SlotsImageControl } from './SlotsImageControl'
 import { useVenue } from '../venue/useVenue'
 
 // Shown only where Plotline has turned walk-ins on for the venue (T18.4, venue_settings.walk_ins_enabled); the form
@@ -184,8 +185,11 @@ function DashboardDay({ settings, courts, now, today }: { settings: VenueSetting
         ) : scheduleError ? (
           <ErrorMessage error={scheduleError} onRetry={retrySchedule} />
         ) : (
-          <DayView date={today} courts={courts} slots={availability.data} bookings={todays} timeZone={tz}
-            sessionTitle={(id) => openPlay.data?.find((s) => s.id === id)?.title} />
+          <>
+            <DayView date={today} courts={courts} slots={availability.data} bookings={todays} timeZone={tz}
+              sessionTitle={(id) => openPlay.data?.find((s) => s.id === id)?.title} />
+            <SlotsImageControl settings={settings} courts={courts} today={today} />
+          </>
         )}
       </section>
 
