@@ -61,6 +61,8 @@ async function runFlow(page: Page, alt: string) {
   await form.getByRole('button', { name: 'Save logo' }).click()
   const preview = page.getByRole('img', { name: alt })
   await expect(preview).toBeVisible()
+  // Visible is not loaded: wait for the image to decode before reading its size (it flaked 1 in 3 on desktop, T31.3).
+  await expect.poll(() => preview.evaluate((el) => (el as unknown as { complete: boolean }).complete)).toBe(true)
   expect(await preview.evaluate((el) => (el as unknown as { naturalWidth: number }).naturalWidth)).toBeGreaterThanOrEqual(1)
   await expect.poll(async () => (await storedLogos()).length).toBe(1)
   const { data: set } = await serviceClient().from('venue_settings').select('logo_path').single()
