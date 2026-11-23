@@ -9,7 +9,6 @@ const query = (data: unknown) => ({ data, isPending: false, isError: false, erro
 vi.mock('../catalog/hooks', () => ({
   useVenueSettings: () => query({ timezone: 'Asia/Manila', currency: 'PHP', ...settings.value }),
   useCourts: () => query([]),
-  useOperatingHours: () => query([]),
   useStaffSchedule: () => query([]),
 }))
 vi.mock('./hooks', () => ({

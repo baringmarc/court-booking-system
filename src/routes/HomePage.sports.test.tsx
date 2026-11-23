@@ -12,7 +12,6 @@ vi.mock('../features/catalog/api', async (importOriginal) => ({
   fetchVenueSettings: vi.fn(),
   fetchCourts: vi.fn(),
   fetchPublicSchedule: vi.fn().mockResolvedValue([]),
-  fetchOperatingHours: vi.fn().mockResolvedValue([]),
 }))
 vi.mock('../features/catalog/media', () => ({ mediaUrl: (path: string) => `https://cdn.test/${path}` }))
 vi.mock('../features/venue/api', async (importOriginal) => ({

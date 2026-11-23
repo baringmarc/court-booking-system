@@ -132,7 +132,7 @@ select is((select count(*)::int from public.venue_schedule_state
   where venue_id in ('a0000000-0000-0000-0000-0000000067a1', 'a0000000-0000-0000-0000-0000000067a2')), 2,
   'post-migration venue inserts initialize exactly one state row each');
 select is(pg_temp.val($$select schedule_v2_active::text from public.venue_schedule_state where venue_id = 'a0000000-0000-0000-0000-0000000067a1'$$),
-  'false', 'a venue starts with new schedule behavior inactive');
+  'true', 'a venue starts with new schedule behavior active (T32.1)');
 select is((select count(*)::int from public.court_schedule_modes
   where court_id in ('c0000000-0000-0000-0000-0000000067a1', 'c0000000-0000-0000-0000-0000000067a2')), 2,
   'post-migration court inserts initialize exactly one mode row each');

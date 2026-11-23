@@ -9,7 +9,7 @@ import { useStaffOperatingDate } from './staffDate'
 import { PageLoader } from '../../components/PageLoader'
 import { ErrorMessage } from '../../components/ErrorMessage'
 import { errorMessage } from '../../lib/errors'
-import { SPORT_LABELS, type Court, type OperatingHours } from '../catalog/api'
+import { SPORT_LABELS, type Court } from '../catalog/api'
 import type { OpenPlayInput, OpenPlaySession } from '../openPlay/api'
 import { DETAILS_MAX, LABEL_MAX, linksFromRows, MAX_LINKS, TITLE_MAX, type OpenPlayLink } from '../openPlay/session'
 
@@ -18,8 +18,6 @@ type Props = {
   initial: OpenPlaySession | null
   /** Active courts, plus any archived ones the session already uses (shown as archived, so they can be unticked). */
   courts: Pick<Court, 'id' | 'name' | 'sport' | 'is_active'>[]
-  /** The venue's opening hours: a session fits within one operating day. */
-  hours: OperatingHours[]
   timeZone: string
   /** Hours that have started can't be picked. */
   now: Date

@@ -138,6 +138,9 @@ insert into auth.users (id, email) values
 insert into public.venues (id, slug, status) values
   ('a0000000-0000-0000-0000-00000000000a', 'e2e-vrr-a', 'active'),
   ('b0000000-0000-0000-0000-00000000000b', 'e2e-vrr-b', 'active');
+-- T32.1: new venues start on schedule v2. This file tests the legacy-hours path, so its venues start on legacy
+-- hours, like every venue made before T32.1.
+update public.venue_schedule_state set schedule_v2_active = false where venue_id in ('a0000000-0000-0000-0000-00000000000a', 'b0000000-0000-0000-0000-00000000000b');
 insert into public.venue_members (venue_id, user_id, role) values
   ('a0000000-0000-0000-0000-00000000000a', '22222222-2222-2222-2222-222222222222', 'staff'),
   ('b0000000-0000-0000-0000-00000000000b', '77777777-7777-7777-7777-777777777777', 'staff'),

@@ -36,6 +36,9 @@ insert into public.venues (id, slug, status) values
   ('a0000000-0000-0000-0000-0000000058a4', 'e2e-pv-closed', 'closed'),
   ('a0000000-0000-0000-0000-0000000058a5', 'e2e-pv-active', 'active'),
   ('a0000000-0000-0000-0000-0000000058a6', 'e2e-pv-six', 'draft');
+-- T32.1: new venues start on schedule v2. This file tests the legacy-hours path, so its venues start on legacy
+-- hours, like every venue made before T32.1.
+update public.venue_schedule_state set schedule_v2_active = false where venue_id in ('a0000000-0000-0000-0000-0000000058a1', 'a0000000-0000-0000-0000-0000000058a2', 'a0000000-0000-0000-0000-0000000058a3', 'a0000000-0000-0000-0000-0000000058a4', 'a0000000-0000-0000-0000-0000000058a5', 'a0000000-0000-0000-0000-0000000058a6');
 insert into public.venue_settings (venue_id, name, payment_instructions)
 select v, 'E2E Publication Venue', ''
 from unnest(array['a0000000-0000-0000-0000-0000000058a1', 'a0000000-0000-0000-0000-0000000058a2',

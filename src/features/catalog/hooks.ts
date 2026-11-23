@@ -8,18 +8,15 @@ import {
   fetchCourt,
   fetchCourtRates,
   fetchCourts,
-  fetchOperatingHours,
   fetchPublicSchedule,
   fetchStaffSchedule,
   fetchUpcomingBlackouts,
   fetchVenueSettings,
   saveCourt,
   saveCourtRates,
-  saveOperatingHours,
   updateVenueSettings,
   type CourtInput,
   type CourtWithPhotos,
-  type OperatingHours,
   type RateChanges,
 } from './api'
 
@@ -48,10 +45,6 @@ export function useCourtRates(courtId: string | undefined) {
     queryFn: () => fetchCourtRates(courtId!),
     enabled: !!courtId,
   })
-}
-
-export function useOperatingHours() {
-  return useQuery({ queryKey: catalogKeys.hours(), queryFn: fetchOperatingHours })
 }
 
 export function usePublicSchedule() {
@@ -85,14 +78,6 @@ export function useSaveCourtRates(courtId: string) {
   return useMutation({
     mutationFn: (changes: RateChanges) => saveCourtRates(courtId, changes),
     onSettled: () => qc.invalidateQueries({ queryKey: catalogKeys.rates(courtId) }),
-  })
-}
-
-export function useSaveOperatingHours() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (rows: OperatingHours[]) => saveOperatingHours(rows),
-    onSettled: () => qc.invalidateQueries({ queryKey: catalogKeys.hours() }),
   })
 }
 

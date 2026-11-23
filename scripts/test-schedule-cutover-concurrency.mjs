@@ -69,6 +69,8 @@ insert into public.operating_hours (venue_id, day_of_week, open_time, close_time
 select ${lit(s.venue)}, d, '06:00', '22:00' from generate_series(0, 6) d;
 -- Schedule v2 is deliberately closed all week, so the version that validates the booking is visible in the outcome.
 delete from public.venue_open_periods where venue_id = ${lit(s.venue)};
+-- T32.1: new venues start on schedule v2; this race needs a venue that starts on the legacy hours.
+update public.venue_schedule_state set schedule_v2_active = false where venue_id = ${lit(s.venue)};
 commit;`
 const cleanupSql = (s) => `
 delete from public.email_outbox where booking_id in (select id from public.bookings where court_id = ${lit(s.court)});

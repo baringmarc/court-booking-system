@@ -60,10 +60,20 @@ const missing = (local, remote) => {
 }
 
 /** What the release commit has that the target lacks. Remote-only items are not failures. */
-export function comparePreflight({ localMigrations, remoteMigrations, localFunctions, remoteFunctions }) {
+export function comparePreflight({ localMigrations, remoteMigrations, localFunctions, remoteFunctions, inactiveVenues = [] }) {
   const missingMigrations = missing(localMigrations, remoteMigrations)
   const missingFunctions = missing(localFunctions, remoteFunctions)
-  return { ok: missingMigrations.length === 0 && missingFunctions.length === 0, missingMigrations, missingFunctions }
+  return {
+    ok: missingMigrations.length === 0 && missingFunctions.length === 0 && inactiveVenues.length === 0,
+    missingMigrations,
+    missingFunctions,
+    inactiveVenues,
+  }
+}
+
+/** T32.1: slugs of the target's venues still on the legacy hours (schedule_v2_active false), sorted. */
+export function inactiveScheduleVenues(rows) {
+  return rows.filter((row) => row.schedule_v2_active === false).map((row) => row.slug).sort()
 }
 
 /** The report printed by the script, naming the project ref it checked (L6). */
@@ -76,6 +86,10 @@ export function formatReport({ ref, result }) {
   if (result.missingFunctions.length) {
     lines.push('Edge Functions missing on the target (deploy them first):')
     for (const name of result.missingFunctions) lines.push(`  - ${name}`)
+  }
+  if (result.inactiveVenues?.length) {
+    lines.push('Venues not on schedule v2 (owners\' hours never reach players; activate them, docs/SCHEDULE-CUTOVER.md):')
+    for (const slug of result.inactiveVenues) lines.push(`  - ${slug}`)
   }
   lines.push(
     result.ok

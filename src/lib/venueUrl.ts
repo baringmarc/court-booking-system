@@ -7,3 +7,15 @@ export function venueAdminUrl(slug: string, loc: Location): string {
   if (!domain) return `/admin?venue=${encodeURIComponent(slug)}`
   return `${loc.protocol}//${slug}.${domain}${loc.port ? `:${loc.port}` : ''}/admin`
 }
+
+/**
+ * A venue's public booking page as absolute text, for a caption players read or tap (T31.1): its own subdomain, or
+ * `/book?venue=` on the current host when that host has no venue subdomains.
+ */
+export function venueBookUrl(slug: string, loc: Location): string {
+  const host = loc.hostname.toLowerCase()
+  const port = loc.port ? `:${loc.port}` : ''
+  const domain = ['plotline.fit', 'localhost'].find((d) => host.endsWith(`.${d}`))
+  if (!domain) return `${loc.protocol}//${host}${port}/book?venue=${encodeURIComponent(slug)}`
+  return `${loc.protocol}//${slug}.${domain}${port}/book`
+}

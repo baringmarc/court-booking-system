@@ -8,7 +8,6 @@ const h = vi.hoisted(() => ({ staff: vi.fn() }))
 vi.mock('../catalog/api', async (original) => ({
   ...(await original<object>()),
   fetchCourts: vi.fn(async () => [{ id: 'A', name: 'Court A', sport: 'tennis', is_active: true, court_photos: [] }]),
-  fetchOperatingHours: vi.fn(async () => [0, 1, 2, 3, 4, 5, 6].map((day_of_week) => ({ day_of_week, open_time: '06:00', close_time: '22:00', is_closed: false }))),
   fetchVenueSettings: vi.fn(async () => ({ timezone: 'Asia/Manila' })),
   fetchStaffSchedule: h.staff,
 }))

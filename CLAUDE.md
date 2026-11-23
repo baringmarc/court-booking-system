@@ -30,6 +30,7 @@ npm run build     # type-check (tsc -b) + production build
 npm run lint      # eslint
 npm run test      # vitest run (test:watch for watch mode)
 npm run test:db   # pgTAP tests in supabase/tests against the LOCAL db (auto-starts it, applies pending migrations)
+npm run test:db:check -- <file…>   # is a pgTAP file broken (no plan, plan mismatch, SQL error) or only red? exit 1 only when broken (LOCAL db, read-only)
 npm run verify    # typecheck + lint + test + test:db + build: the gate for "done"
 npm run test:e2e  # Playwright flows against the LOCAL stack (needs `npx supabase start`); not in verify; the full gate runs it when UI files changed
 npm run smoke:proof  # Edge Function smoke test against the local stack

@@ -10,7 +10,6 @@ export type Court = Tables<'courts'>
 export type CourtPhotoRow = Pick<Tables<'court_photos'>, 'id' | 'path' | 'sort_order'>
 export type CourtWithPhotos = Court & { court_photos: CourtPhotoRow[] }
 export type CourtRate = Tables<'court_rates'>
-export type OperatingHours = Tables<'operating_hours'>
 export type PublicSchedulePeriod = Database['public']['Functions']['get_public_schedule']['Returns'][number]
 export type Blackout = Tables<'blackouts'>
 export { SPORTS, SPORT_LABELS, type Sport } from './sports'
@@ -60,10 +59,6 @@ export async function fetchCourt(id: string): Promise<CourtWithPhotos> {
 
 export async function fetchCourtRates(courtId: string) {
   return unwrap(await supabase.from('court_rates').select('*').eq('court_id', courtId))
-}
-
-export async function fetchOperatingHours() {
-  return unwrap(await supabase.from('operating_hours').select('*').eq('venue_id', currentVenueId()).order('day_of_week'))
 }
 
 export async function fetchPublicSchedule() {
@@ -135,12 +130,6 @@ export async function saveCourtRates(courtId: string, { upserts, deletes }: Rate
       ),
     ),
   )
-}
-
-/** Saves the whole week in one step (set_operating_hours: atomic, checks that days don't overlap). */
-export async function saveOperatingHours(rows: OperatingHours[]) {
-  const p_hours = rows.map(({ day_of_week, open_time, close_time, is_closed }) => ({ day_of_week, open_time, close_time, is_closed }))
-  unwrap(await supabase.rpc('set_operating_hours', { p_hours }))
 }
 
 export async function createBlackout(input: Omit<TablesInsert<'blackouts'>, 'venue_id'>) {

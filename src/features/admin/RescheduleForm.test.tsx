@@ -6,7 +6,7 @@ import { ApiError } from '../../lib/queryClient'
 import { zonedLocalToISO } from '../../lib/time'
 import { fetchAvailability } from '../booking/api'
 import type { Slot, SlotStatus } from '../booking/selection'
-import { fetchStaffSchedule, type Court, type OperatingHours } from '../catalog/api'
+import { fetchStaffSchedule, type Court } from '../catalog/api'
 import type { AdminBooking } from './api'
 import { RescheduleForm } from './RescheduleForm'
 
@@ -22,7 +22,6 @@ const FRIDAY = '2030-01-04'
 
 const court = (id: string, name: string, sport = 'badminton', is_active = true) => ({ id, name, sport, is_active }) as unknown as Court
 const courts = [court('A', 'Badminton 1'), court('B', 'Badminton 2'), court('X', 'Badminton 3', 'badminton', false), court('T', 'Tennis 1', 'tennis')]
-const hours = [0, 1, 2, 3, 4, 5, 6].map((d) => ({ day_of_week: d, open_time: '06:00:00', close_time: '22:00:00', is_closed: false })) as OperatingHours[]
 const settings = { timezone: TZ, booking_window_days: 14 }
 
 function booking(startHour: number, endHour: number, date = FRIDAY): AdminBooking {
@@ -56,7 +55,7 @@ function renderForm(b: AdminBooking, props: Partial<React.ComponentProps<typeof 
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
   const ui = (extra: Partial<React.ComponentProps<typeof RescheduleForm>> = {}) => (
     <QueryClientProvider client={client}>
-      <RescheduleForm booking={b} courts={courts} hours={hours} settings={settings} now={NOW} pending={false} error={null}
+      <RescheduleForm booking={b} courts={courts} settings={settings} now={NOW} pending={false} error={null}
         onSubmit={onSubmit} onClose={onClose} {...props} {...extra} />
     </QueryClientProvider>
   )

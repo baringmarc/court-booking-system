@@ -74,6 +74,7 @@ For a task that isn't risky, state your plan in two or three lines, naming what 
 - Cite the **constraints and grants** the fixtures meet (H19, /retro M29: T29.3, T29.4, T29.6, T29.7): for every table a test inserts into or updates, its check constraints and triggers (the migration lines, or `\d+ <table>` on the local database); for every function a fixture calls, which roles may execute it (the migration's `grant execute`, or `\df+`). For every e2e wait on a `role=status` or alert text, list every status and alert text the page can show at that moment, including text owned by a shared component (`SettingsCategoryPage`'s "You have unsaved changes." contains "Saved").
 - Don't send it code or describe how you'll implement anything beyond those names. It works from the task and SPEC, which is the point.
 - Read its report. Use the names it lists. Its tests are now **locked for this task**: the guard won't let you edit them.
+- **Don't start the build until every new or changed pgTAP file shows exit 0** in the report's `npm run test:db:check -- <file>` output (H20, /retro M30: T30.2, T30.5). Run it yourself if the output is missing. A `BROKEN` file goes back to the test-writer before step 5; that's a broken test, not a dispute.
 - Skip this step only when the task has no behavior to test (pure copy, styling or docs). Say so in the plan.
 
 ## 5. Build

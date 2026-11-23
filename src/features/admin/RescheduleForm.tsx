@@ -10,7 +10,7 @@ import { bookingErrorMessage } from '../booking/errors'
 import { useAvailability } from '../booking/hooks'
 import { rangeLabel } from '../booking/moves'
 import type { Slot } from '../booking/selection'
-import type { Court, OperatingHours, VenueSettings } from '../catalog/api'
+import type { Court, VenueSettings } from '../catalog/api'
 import { isAfterMidnight } from '../catalog/hours'
 import { useStaffOperatingDate } from './staffDate'
 import type { AdminBooking, Reschedule } from './api'
@@ -20,7 +20,6 @@ type Props = {
   booking: AdminBooking
   /** Active courts of every sport: the form offers the booking's sport only. */
   courts: Court[]
-  hours: OperatingHours[]
   settings: Pick<VenueSettings, 'timezone' | 'booking_window_days'>
   now: Date
   pending: boolean

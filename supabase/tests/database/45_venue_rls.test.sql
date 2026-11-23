@@ -192,6 +192,9 @@ insert into public.venues (id, slug, status) values
   ('a0000000-0000-0000-0000-00000000000a', 'e2e-rls-a', 'active'),
   ('b0000000-0000-0000-0000-00000000000b', 'e2e-rls-b', 'draft'),
   ('c0000000-0000-0000-0000-00000000000c', 'e2e-rls-c', 'suspended');
+-- T32.1: new venues start on schedule v2. This file tests the legacy-hours path, so its venues start on legacy
+-- hours, like every venue made before T32.1.
+update public.venue_schedule_state set schedule_v2_active = false where venue_id in ('a0000000-0000-0000-0000-00000000000a', 'b0000000-0000-0000-0000-00000000000b', 'c0000000-0000-0000-0000-00000000000c');
 insert into public.venue_members (venue_id, user_id, role) values
   ('a0000000-0000-0000-0000-00000000000a', '22222222-2222-2222-2222-222222222222', 'staff'),
   ('a0000000-0000-0000-0000-00000000000a', '33333333-3333-3333-3333-333333333333', 'owner'),

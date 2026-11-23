@@ -10,7 +10,6 @@ vi.mock('../features/catalog/api', async (importOriginal) => ({
   ...(await importOriginal<object>()),
   fetchVenueSettings: vi.fn(),
   fetchCourts: vi.fn().mockResolvedValue([]),
-  fetchOperatingHours: vi.fn().mockResolvedValue([]),
 }))
 vi.mock('../features/venue/api', async (importOriginal) => ({
   ...(await importOriginal<object>()),

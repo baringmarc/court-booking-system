@@ -3,7 +3,7 @@ import { durationLabel, findHour, type HourOption } from './pickerHours'
 
 type HourProps = {
   label: string
-  /** From operatingHourOptions (one operating day) or calendarHourOptions (all 24 hours). */
+  /** From one operating day's schedule periods or calendarHourOptions (all 24 hours). */
   options: HourOption[]
   /** The chosen start instant; matched to an option as an instant, so any ISO form works. */
   value: string | null
