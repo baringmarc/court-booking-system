@@ -11,6 +11,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:db": "node scripts/with-lock.mjs sh scripts/with-docker.sh sh scripts/test-db.sh",
+    "test:db:check": "node scripts/with-lock.mjs sh scripts/with-docker.sh node scripts/pgtap-check.mjs",
     "smoke:proof": "node scripts/smoke-payment-proof.mjs",
     "preflight:release": "node scripts/release-preflight.mjs",
     "smoke:invite": "node scripts/smoke-invite-owner.mjs",
