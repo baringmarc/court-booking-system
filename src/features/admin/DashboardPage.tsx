@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ErrorMessage } from '../../components/ErrorMessage'
 import { PageLoader } from '../../components/PageLoader'
@@ -17,7 +17,7 @@ import { DEFAULT_FILTERS, filtersToParams } from './bookingFilters'
 import { DayView } from './DayView'
 import { EarningsSection } from './EarningsSection'
 import { SetupChecklist } from './SetupChecklist'
-import { SlotsImageControl } from './SlotsImageControl'
+import { PostOpenSlotsDialog } from './PostOpenSlotsDialog'
 import { useVenue } from '../venue/useVenue'
 
 // Shown only where Plotline has turned walk-ins on for the venue (T18.4, venue_settings.walk_ins_enabled); the form
@@ -105,6 +105,8 @@ function DashboardDay({ settings, courts, now, today }: { settings: VenueSetting
     [schedule.data?.bookings ?? [], pastMidnight ? (scheduleNext.data?.bookings ?? []).filter((b) => Date.parse(b.slot_start) < overnightEnd) : []], null,
   ).filter((b) => ACTIVE.has(displayStatus(b, now)))
   const next = nextBooking(todays, now)
+  const [posting, setPosting] = useState(false)
+  const gridReady = courts.length > 0 && !availability.isPending && !availability.isError && !schedulePending && !scheduleError
   // T27.7: each card opens the bookings it counts.
   const todayLink = `/admin/bookings?${filtersToParams({ ...DEFAULT_FILTERS, status: 'all', date: today })}`
   const refundsLink = `/admin/bookings?${filtersToParams({ ...DEFAULT_FILTERS, status: 'all', refund: 'owed' })}`
@@ -174,7 +176,13 @@ function DashboardDay({ settings, courts, now, today }: { settings: VenueSetting
       )}
 
       <section className="card stack" aria-labelledby="day-view-heading">
-        <h2 id="day-view-heading">Today's courts</h2>
+        <div className="page-head">
+          <h2 id="day-view-heading">Today's courts</h2>
+          {/* T31.1b: the day's open slots as a picture and caption for Facebook, once the grid it mirrors has loaded. */}
+          {gridReady && (
+            <button type="button" className="btn btn-small" onClick={() => setPosting(true)}>Post open slots</button>
+          )}
+        </div>
         {courts.length === 0 ? (
           <div>
             <p className="muted">No courts yet.</p>
@@ -185,12 +193,10 @@ function DashboardDay({ settings, courts, now, today }: { settings: VenueSetting
         ) : scheduleError ? (
           <ErrorMessage error={scheduleError} onRetry={retrySchedule} />
         ) : (
-          <>
-            <DayView date={today} courts={courts} slots={availability.data} bookings={todays} timeZone={tz}
-              sessionTitle={(id) => openPlay.data?.find((s) => s.id === id)?.title} />
-            <SlotsImageControl settings={settings} courts={courts} today={today} />
-          </>
+          <DayView date={today} courts={courts} slots={availability.data} bookings={todays} timeZone={tz}
+            sessionTitle={(id) => openPlay.data?.find((s) => s.id === id)?.title} />
         )}
+        {posting && <PostOpenSlotsDialog settings={settings} courts={courts} today={today} onClose={() => setPosting(false)} />}
       </section>
 
       <section className="card">
