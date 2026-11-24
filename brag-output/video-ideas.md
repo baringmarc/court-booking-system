@@ -12,7 +12,7 @@ Saved 2026-11-24. Revised 2026-11-24 after a review: product claims corrected, o
 | 1 | Messenger chaos vs. Plotline | Owners | **Done 2026-11-24** (v2 approved: longer clash, zoom on the apology) (`messenger-chaos/`) |
 | 2 | Your daily open-slots post in a few taps | Owners | **Done 2026-11-24** (hook A chosen) (`open-slots/`) |
 | 3 | Two people can't reserve the same court and time | Owners | Not started |
-| 4 | The ₱0 math, explained | Owners | Not started |
+| 4 | The ₱0 math, explained | Owners | **Done 2026-11-24** (hook A chosen) (`whats-the-catch/`) |
 | 5 | Advertise your quiet hours | Owners | Not started |
 | 6 | Make it easier for regulars to return | Owners | Not started |
 | 7 | Your venue, your page | Owners | Not started |
@@ -119,6 +119,7 @@ Saved 2026-11-24. Revised 2026-11-24 after a review: product claims corrected, o
 - **Shows the whole flow:** a ₱400 court hour. The player pays the venue ₱410. ₱400 is the venue's court revenue. At the end of the month, Plotline's invoice asks the venue to remit the ₱10 fees it collected. No setup fee, no monthly subscription fee.
 - **Format:** 15–20s.
 - **Why:** answers the first objection, and makes the later invoice unsurprising.
+- **As built (2026-11-24):** 20 s, Dinkhaus Pickleball, the selection bar's real `Court ₱400 + booking fee ₱10 = ₱410`, an invoice drawn like the real PDF (32 × PHP 10.00, tagged "Example"). Two hooks tried; A "Venues pay ₱0. What's the catch?" chosen over B "Venues pay ₱0. So who pays?". As built: `whats-the-catch/plan.md`.
 
 ### 5. Advertise your quiet hours (promo rates, M19)
 - **Hook:** "Your 2 PM is empty. Again."
