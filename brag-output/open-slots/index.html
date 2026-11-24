@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Open slots post</title>
+<link rel="stylesheet" href="app.css">
+<style>
+  :root { --W: 1080px; --H: 1920px; --capTop: 170px; --cap: 108px; --sub: 46px; --phoneTop: 640px; --ps: 2; }
+  :root[data-r="45"] { --H: 1350px; --capTop: 90px; --cap: 84px; --sub: 38px; --phoneTop: 400px; --ps: 1.5; }
+  html, body { margin: 0; width: var(--W); height: var(--H); overflow: hidden; }
+  body { font-family: var(--sans); color: var(--text); background: var(--bg); }
+  .stage { position: absolute; inset: 0; overflow: hidden; }
+  .scene { position: absolute; inset: 0; display: none; }
+  .band { background: var(--band-bg); color: var(--band-text); }
+  .cream { background: var(--bg); }
+  .cap { position: absolute; left: 80px; right: 80px; top: var(--capTop); }
+  .headline { font-family: var(--serif); font-weight: 700; letter-spacing: -0.02em; line-height: 1.04; margin: 0; font-size: var(--cap); }
+  .band .headline { color: var(--band-text); }
+  .word { display: inline-block; }
+  .hl { color: var(--terracotta); }
+  .band .hl { color: var(--rose); }
+  .capstack { position: relative; }
+  .capstack > * { position: absolute; left: 0; right: 0; top: 0; }
+
+  /* ---------- phone ---------- */
+  .pw { position: absolute; left: 50%; top: var(--phoneTop); width: 0; height: 0; }
+  .phone { position: absolute; left: -207px; top: 0; box-sizing: border-box; width: 414px; height: 860px; border-radius: 62px; background: #1d1916; padding: 14px;
+           transform: scale(var(--ps)); transform-origin: 50% 0; box-shadow: 0 30px 70px rgba(0,0,0,0.35); }
+  .screen { position: relative; width: 386px; height: 832px; border-radius: 50px; overflow: hidden; background: var(--bg); font-size: 16px; }
+  .notch { position: absolute; top: 10px; left: 50%; width: 112px; height: 32px; margin-left: -56px; border-radius: 20px; background: #1d1916; z-index: 40; }
+  .statusbar { position: relative; z-index: 35; height: 52px; display: flex; justify-content: space-between; align-items: center; padding: 6px 30px 0; font-size: 15px; font-weight: 700; background: var(--surface); }
+  .tap { position: absolute; width: 60px; height: 60px; margin: -30px 0 0 -30px; border-radius: 50%; background: rgba(20,52,30,0.22); border: 2px solid rgba(20,52,30,0.35); pointer-events: none; z-index: 60; opacity: 0; }
+
+  /* ---------- hook: a generic post composer (deliberately not any real app) ---------- */
+  .gen { position: absolute; inset: 0; background: #fff; color: #1c1c1e; font-family: -apple-system, 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif; }
+  .gen .statusbar { background: #fff; font-weight: 600; }
+  .comp-top { display: flex; align-items: center; justify-content: space-between; padding: 6px 18px 12px; border-bottom: 1px solid #eee; font-size: 18px; font-weight: 700; }
+  .comp-top .x { font-size: 24px; font-weight: 400; color: #555; }
+  .comp-top .postbtn { font-size: 15px; padding: 6px 14px; border-radius: 999px; background: #e9e9ec; color: #9a9aa0; }
+  .who { display: flex; align-items: center; gap: 10px; padding: 14px 18px 6px; font-weight: 700; font-size: 17px; }
+  .who img { width: 42px; height: 42px; border-radius: 10px; }
+  .who small { display: block; font-weight: 500; color: #8e8e93; font-size: 13px; }
+  .typed { padding: 8px 18px; font-size: 21px; line-height: 1.45; white-space: pre-wrap; min-height: 300px; }
+  .caret { display: inline-block; width: 2px; height: 1.15em; background: #1c1c1e; vertical-align: -0.18em; margin-left: 1px; }
+  .kbd { position: absolute; left: 0; right: 0; bottom: 0; height: 270px; background: #d6d8de; padding: 10px 4px 0; box-sizing: border-box; }
+  .kbd .r { display: flex; justify-content: center; gap: 6px; margin-bottom: 11px; }
+  .kbd .k { width: 31px; height: 44px; border-radius: 6px; background: #fff; box-shadow: 0 1px 0 #9b9ca0; display: grid; place-items: center; font-size: 19px; color: #222; }
+  .kbd .k.w { width: 46px; background: #b4b7bf; font-size: 14px; }
+  .kbd .k.sp { width: 190px; font-size: 14px; }
+  .kbd .k.on { background: #b4b7bf; }
+
+  /* ---------- app screens (the venue's Court Green theme) ---------- */
+  .screen .admin-topbar { position: relative; z-index: 30; background: var(--surface); padding: 10px 12px; gap: 6px; }
+  .screen .admin-topbar .btn-small { padding: 4px 8px; font-size: 0.8rem; }
+  .screen .admin-venue-name { font-size: 1rem; flex: 1 1 8rem; }
+  .screen .menu-ic { display: grid; place-items: center; width: 34px; height: 34px; }
+  .screen .container.main { padding: 14px 12px; max-width: none; }
+  .screen .card { padding: 16px 14px; margin: 0; }
+  .screen .page-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: nowrap; margin: 0; }
+  .screen .page-head h2 { margin: 0; font-size: 1.2rem; }
+  .screen .day-grid { font-size: 0.85rem; border-spacing: 4px; }
+  .screen .day-grid td { min-width: 82px; height: 50px; }
+  .screen .day-grid tbody th { font-size: 0.78rem; padding: 0 4px; white-space: nowrap; }
+  .screen .table-scroll { overflow: hidden; }
+  .scrollwrap { position: absolute; left: 0; right: 0; top: 0; }
+  #backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.5); z-index: 45; opacity: 0; }
+  /* the phone runs off the bottom of the frame: only its top ~620px show, so the dialog and toast stay inside that */
+  #dlg { position: absolute; left: 16px; top: 66px; width: 354px; max-height: none; z-index: 50; margin: 0; overflow: hidden; height: 540px; box-sizing: border-box; }
+  #dlg .dialog-body { padding: 18px; }
+  #dlg .post-head h2 { font-size: 1.25rem; }
+  #dlg .icon-btn { width: 36px; height: 36px; padding: 0; display: grid; place-items: center; }
+  #dlg p.muted { font-size: 0.88rem; margin: 0; }
+  #dlg .choice > span { font-size: 0.85rem; }
+  #dlg .post-grid { grid-template-columns: 1fr; gap: 14px; }
+  #dlg .post-preview img { width: 100%; height: 100%; display: block; }
+  #dlg .touch-only { display: block; margin: 6px 0 0; }
+  #dlg .post-caption textarea { min-height: 0; height: 236px; font-size: 0.85rem; resize: none; }
+  #dlg .post-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+  #dlg .post-actions .btn { flex: 1 1 200px; }
+  .drawing { color: var(--muted); font-size: 0.85rem; }
+  #toast { position: absolute; left: 16px; right: 16px; top: 58px; z-index: 70; background: #1f2a22; color: #fff; border-radius: 14px; padding: 12px 14px; font-size: 14px; display: flex; gap: 10px; align-items: center; opacity: 0; }
+  #toast b { display: block; font-size: 13px; }
+  #toast .ok { width: 26px; height: 26px; border-radius: 50%; background: #63d2a6; color: #08140f; display: grid; place-items: center; font-weight: 800; flex: none; }
+
+  /* ---------- payoff: a generic page post (deliberately not any real app) ---------- */
+  .feed-top { display: flex; align-items: center; gap: 12px; padding: 4px 16px 12px; border-bottom: 1px solid #eee; font-size: 18px; font-weight: 700; }
+  .feed-top .bk { font-size: 30px; font-weight: 400; line-height: 1; margin-top: -4px; }
+  .post { padding: 12px 0 0; }
+  .post .who { padding: 0 16px 8px; }
+  .post .cap-text { padding: 0 16px 10px; font-size: 15px; line-height: 1.4; white-space: pre-line; }
+  .post .cap-text .more { color: #8e8e93; font-weight: 600; }
+  .post .pic { width: 386px; height: 482.5px; display: block; }
+  .reacts { display: flex; justify-content: space-between; padding: 10px 16px; font-size: 14px; color: #6e6e73; border-bottom: 1px solid #eee; }
+  .reacts .heart { color: #e5484d; }
+  .cmt { display: flex; gap: 10px; padding: 10px 16px 0; align-items: flex-start; }
+  .cmt .av { width: 34px; height: 34px; border-radius: 50%; color: #fff; font-weight: 700; font-size: 13px; display: grid; place-items: center; flex: none; }
+  .cmt .bub { background: #f0f0f2; border-radius: 16px; padding: 8px 12px; font-size: 15px; line-height: 1.3; }
+  .cmt .bub b { display: block; font-size: 13px; }
+  #bigpic { position: absolute; left: 0; top: 0; width: 1080px; height: 1350px; transform-origin: 0 0; opacity: 0; box-shadow: 0 30px 80px rgba(0,0,0,0.25); z-index: 5; }
+
+  /* ---------- outro ---------- */
+  .center-col { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 0 80px; }
+  .headline, .outro-head { text-wrap: balance; }
+  .outro-head { font-family: var(--serif); font-weight: 700; font-size: calc(var(--cap) * 0.9); letter-spacing: -0.02em; line-height: 1.05; color: var(--band-text); margin: 0 0 90px; }
+  .logo-row { display: flex; align-items: center; gap: 30px; }
+  .logo-row img { width: 150px; height: 150px; border-radius: 32px; }
+  .wordmark { font-family: var(--serif); font-weight: 700; font-size: 150px; letter-spacing: -0.02em; line-height: 1; color: var(--band-text); }
+  .outro-cta { font-family: var(--serif); font-weight: 600; font-size: calc(var(--cap) * 0.72); margin-top: 56px; color: var(--rose); }
+  .url { font-size: 46px; font-weight: 700; color: var(--band-text); margin-top: 40px; padding: 14px 42px; border: 2px solid var(--band-border); border-radius: 999px; background: var(--band-card); }
+  :root[data-r="45"] .outro-head { margin-bottom: 60px; }
+  :root[data-r="45"] .logo-row img { width: 120px; height: 120px; border-radius: 26px; }
+  :root[data-r="45"] .wordmark { font-size: 120px; }
+</style>
+</head>
+<body>
+<div class="stage">
+
+  <!-- 1 HOOK (0–3): typing the day's slots by hand -->
+  <section class="scene band" id="s1">
+    <div class="cap"><div class="capstack">
+      <h1 class="headline" id="hookA"><span class="word">Still</span> <span class="word">typing</span> <span class="word">your</span> <span class="word">open</span> <span class="word">slots</span> <span class="word hl">every</span> <span class="word hl">morning?</span></h1>
+    </div></div>
+    <div class="pw" id="pw1">
+      <div class="phone"><div class="screen">
+        <div class="notch"></div>
+        <div class="gen">
+          <div class="statusbar"><span>6:41</span><span>●●● ▮</span></div>
+          <div class="comp-top"><span class="x">✕</span><span>New post</span><span class="postbtn">Post</span></div>
+          <div class="who"><img src="logo.svg" alt=""><div>Dinkhaus Pickleball<small>Posting to your page</small></div></div>
+          <div class="typed"><span id="typed"></span><span class="caret" id="caret"></span></div>
+          <div class="kbd" id="kbd"></div>
+        </div>
+      </div></div>
+    </div>
+  </section>
+
+  <!-- 2 DASHBOARD + DIALOG (3–8.5) -->
+  <section class="scene cream" id="s2">
+    <div class="cap"><div class="capstack">
+      <h1 class="headline" id="c2a"><span class="word">Now</span> <span class="word">it's</span> <span class="word">one</span> <span class="word">button:</span><br><span class="word hl">Post</span> <span class="word hl">open</span> <span class="word hl">slots.</span></h1>
+      <h1 class="headline" id="c2b"><span class="word">Your</span> <span class="word">free</span> <span class="word">courts,</span> <span class="word hl">drawn</span> <span class="word hl">for</span> <span class="word hl">you.</span></h1>
+      <h1 class="headline" id="c2c"><span class="word">Download</span> <span class="word">the</span> <span class="word">picture.</span><br><span class="word hl">Copy</span> <span class="word hl">the</span> <span class="word hl">caption.</span></h1>
+    </div></div>
+    <div class="pw" id="pw2">
+      <div class="phone"><div class="screen" id="scr2" data-theme="court-green">
+        <div class="notch"></div>
+        <div class="statusbar"><span>6:45</span><span>●●● ▮</span></div>
+        <header class="site-header admin-topbar">
+          <span class="menu-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg></span>
+          <span class="admin-venue-name">Dinkhaus Pickleball</span>
+          <div class="auth-area">
+            <span class="btn btn-small btn-ghost"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>&nbsp;3</span>
+            <span class="btn btn-small btn-ghost">View public site</span>
+            <span class="btn btn-small btn-ghost">Account</span>
+          </div>
+        </header>
+        <main class="container main">
+          <section class="card stack">
+            <div class="page-head">
+              <h2>Today's courts</h2>
+              <span class="btn btn-small" id="postbtn">Post open slots</span>
+            </div>
+            <div class="table-scroll">
+              <table class="slot-grid day-grid">
+                <thead><tr><th></th><th>Court 1</th><th>Court 2</th><th>Court 3</th></tr></thead>
+                <tbody>
+                  <tr><th>6 AM</th><td class="day-cell day-booked"><span class="day-name">Lia R.</span><span class="small">DKH-3QF</span></td><td class="day-cell day-booked"><span class="day-name">Rico T.</span><span class="small">DKH-8MZ</span></td><td class="day-cell day-booked" rowspan="2"><span class="day-name">Dina P.</span><span class="small">DKH-2RA</span><span class="small block">6 AM – 8 AM</span></td></tr>
+                  <tr><th>7 AM</th><td class="day-cell day-booked"><span class="day-name">Ben U.</span><span class="small">DKH-5TK</span></td><td class="day-cell day-free"></td></tr>
+                  <tr><th>8 AM</th><td class="day-cell day-free"></td><td class="day-cell day-free"></td><td class="day-cell day-booked" rowspan="2"><span class="day-name">Kiko R.</span><span class="small">DKH-7WJ</span><span class="small block">8 AM – 10 AM</span></td></tr>
+                  <tr><th>9 AM</th><td class="day-cell day-free"></td><td class="day-cell day-booked" rowspan="3"><span class="day-name">Mae L.</span><span class="small">DKH-4HP</span><span class="small block">9 AM – 12 PM</span></td></tr>
+                  <tr><th>10 AM</th><td class="day-cell day-booked" rowspan="2"><span class="day-name">Coach Ana</span><span class="small">DKH-9CE</span><span class="small block">10 AM – 12 PM</span></td><td class="day-cell day-free"></td></tr>
+                  <tr><th>11 AM</th><td class="day-cell day-free"></td></tr>
+                  <tr><th>12 PM</th><td class="day-cell day-booked"><span class="day-name">Gab S.</span><span class="small">DKH-6LN</span></td><td class="day-cell day-booked"><span class="day-name">Joy V.</span><span class="small">DKH-1BD</span></td><td class="day-cell day-booked"><span class="day-name">Tess M.</span><span class="small">DKH-3XU</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </main>
+        <div id="backdrop"></div>
+        <div class="dialog post-dialog" id="dlg">
+          <div class="scrollwrap" id="dlgscroll">
+            <div class="dialog-body stack">
+              <div class="post-head">
+                <h2>Post your open courts</h2>
+                <span class="btn btn-outline icon-btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></span>
+              </div>
+              <p class="muted">A picture of every court's free times, and a caption with your booking link. Post them together on Facebook or Messenger.</p>
+              <fieldset class="choice-group">
+                <legend>Day</legend>
+                <div class="choice-options">
+                  <label class="choice"><input type="radio" name="d" checked><span>Today · Sat, Nov 28</span></label>
+                  <label class="choice"><input type="radio" name="d"><span>Tomorrow · Sun, Nov 29</span></label>
+                </div>
+              </fieldset>
+              <div class="post-grid">
+                <div class="stack">
+                  <div class="post-preview" id="preview">
+                    <p class="drawing" id="drawing">Drawing the picture…</p>
+                    <img id="prevpic" src="picture.png" alt="" style="display:none">
+                  </div>
+                  <p class="muted small touch-only">Press and hold the picture to save it to Photos.</p>
+                </div>
+                <div class="field post-caption">
+                  <label>Caption</label>
+                  <textarea readonly id="captionbox"></textarea>
+                </div>
+              </div>
+              <div class="form-actions post-actions">
+                <span class="btn" id="dlbtn">Download picture</span>
+                <span class="btn btn-outline" id="copybtn">Copy caption</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div id="toast"><span class="ok">✓</span><span><b>Saved to Photos</b>dinkhaus-slots-2026-11-28.png</span></div>
+        <div class="tap" id="tap2"></div>
+      </div></div>
+    </div>
+  </section>
+
+  <!-- 3 POST (8.5–12) -->
+  <section class="scene cream" id="s3">
+    <div class="cap"><div class="capstack">
+      <h1 class="headline" id="c3"><span class="word">Post</span> <span class="word">it</span> <span class="word">on</span> <span class="word hl">your</span> <span class="word hl">page.</span></h1>
+    </div></div>
+    <div class="pw" id="pw3">
+      <div class="phone"><div class="screen">
+        <div class="notch"></div>
+        <div class="gen">
+          <div class="statusbar"><span>6:47</span><span>●●● ▮</span></div>
+          <div class="feed-top"><span class="bk">‹</span><span>Dinkhaus Pickleball</span></div>
+          <div class="scrollwrap" id="feedscroll" style="top: 103px">
+            <div class="post">
+              <div class="who"><img src="logo.svg" alt=""><div>Dinkhaus Pickleball<small>Just now</small></div></div>
+              <div class="cap-text">Open slots today at Dinkhaus Pickleball, Sat, Nov 28:
+Court 1: 8–10 AM, 1–4 PM, 9–10 PM <span class="more">… See more</span></div>
+              <img class="pic" id="postpic" src="picture.png" alt="">
+              <div class="reacts"><span><span class="heart">♥</span> <span id="likes">0</span></span><span id="ncmt">0 comments</span></div>
+              <div class="cmt" id="cm1"><span class="av" style="background:#c2577a">RC</span><div class="bub"><b>Rina C.</b>Nag-reserve na po kami 5PM 🙌</div></div>
+              <div class="cmt" id="cm2"><span class="av" style="background:#4a7fb5">JA</span><div class="bub"><b>Jules A.</b>Court 3, 8PM. See you! 🏓</div></div>
+            </div>
+          </div>
+        </div>
+      </div></div>
+    </div>
+    <img id="bigpic" src="picture.png" alt="">
+  </section>
+
+  <!-- 4 OUTRO (12–15) -->
+  <section class="scene band" id="s4">
+    <div class="center-col">
+      <div class="outro-head" id="s4head"><span class="word">Your</span> <span class="word">open</span> <span class="word">slots,</span> <span class="word">in</span> <span class="word">a</span> <span class="word">few</span> <span class="word">taps.</span></div>
+      <div class="logo-row"><img id="s4tile" src="/src/assets/plotline-tile.svg" alt=""><span class="wordmark" id="s4word">plotline</span></div>
+      <div class="outro-cta" id="s4cta">Put your venue on Plotline.</div>
+      <div class="url" id="s4url">plotline.fit</div>
+    </div>
+  </section>
+</div>
+
+<script>
+const Q = new URLSearchParams(location.search)
+const R = Q.get('r') === '45' ? '45' : '916'
+document.documentElement.dataset.r = R
+const W = 1080, H = R === '45' ? 1350 : 1920
+const $ = (s) => document.querySelector(s)
+const $$ = (s) => [...document.querySelectorAll(s)]
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x))
+const p = (t, start, dur) => clamp((t - start) / dur)
+const easeOut = (x) => 1 - Math.pow(1 - x, 3)
+const easeIn = (x) => x * x * x
+const easeInOut = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2)
+const backOut = (x) => { const c = 1.6; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2) }
+const lerp = (a, b, x) => a + (b - a) * x
+function set(el, { o = 1, x = 0, y = 0, s = 1, r = 0 } = {}) {
+  el.style.opacity = o
+  el.style.transform = `translate(${x}px, ${y}px) scale(${s}) rotate(${r}deg)`
+}
+function inout(el, t, at, end, { dist = 50, dur = 0.45, outDist = -30 } = {}) {
+  const k = easeOut(p(t, at, dur)), x = end ? easeIn(p(t, end - 0.25, 0.25)) : 0
+  set(el, { o: k * (1 - x), y: (1 - k) * dist + x * outDist })
+}
+function words(sel, t, at, end, step = 0.1, dist = 60) {
+  $$(sel + ' .word').forEach((w, i) => inout(w, t, at + i * step, end, { dist, dur: 0.45 }))
+}
+function tapAt(tapEl, frame, target, t, at) {
+  const d = t - at
+  if (d < -0.18 || d > 0.45) { tapEl.style.opacity = 0; return }
+  const fr = frame.getBoundingClientRect(), r = target.getBoundingClientRect()
+  const scale = fr.width / frame.offsetWidth
+  tapEl.style.left = ((r.left + r.width / 2 - fr.left) / scale) + 'px'
+  tapEl.style.top = ((r.top + r.height / 2 - fr.top) / scale) + 'px'
+  if (d < 0) { const x = p(d, -0.18, 0.18); tapEl.style.opacity = x * 0.9; tapEl.style.transform = `scale(${lerp(1.3, 0.8, x)})` }
+  else { const x = p(d, 0, 0.45); tapEl.style.opacity = 0.9 * (1 - x); tapEl.style.transform = `scale(${lerp(0.8, 1.6, easeOut(x))})` }
+}
+
+// ---------- the hook's typing (audio.mjs builds the same schedule for its key clicks) ----------
+// [text to type] or [-n backspaces], with a pause in seconds after each step
+const SCRIPT = [
+  ['Open slots today po! 🏓\nCourt 1: 8-10AM, 1-4PM, 9-10PM\nCourt 2: 7-9AM, 2-4', 0.22], [-1, 0.1], ['5PM\nCourt 3: 10AM-12PM, 3-6PM, 8-10PM\nCourt 4: fully bo', 0],
+]
+const CHAR = 0.0175, BS = 0.07, T0 = 0.15
+const KEYS = [] // [time, textAfter]
+;(() => {
+  let t = T0, text = []
+  for (const [step, pause] of SCRIPT) {
+    if (typeof step === 'number') for (let i = 0; i < -step; i++) { t += BS; text.pop(); KEYS.push([t, text.join('')]) }
+    else for (const ch of Array.from(step)) { t += CHAR; text.push(ch); KEYS.push([t, text.join('')]) }
+    t += pause
+  }
+})()
+const kb = ['qwertyuiop', 'asdfghjkl', 'zxcvbnm']
+$('#kbd').innerHTML = kb.map((row, i) => `<div class="r">${i === 2 ? '<span class="k w">⇧</span>' : ''}${[...row].map((c) => `<span class="k" data-k="${c}">${c}</span>`).join('')}${i === 2 ? '<span class="k w">⌫</span>' : ''}</div>`).join('')
+  + '<div class="r"><span class="k w">123</span><span class="k w">☺</span><span class="k sp">space</span><span class="k w">return</span></div>'
+
+// ---------- caption (the app's buildCaption output, from caption.txt) ----------
+const CAPTION = `Open slots today at Dinkhaus Pickleball, Sat, Nov 28:
+Court 1: 8–10 AM, 1–4 PM, 9–10 PM
+Court 2: 7–9 AM, 2–5 PM
+Court 3: 10 AM–12 PM, 3–6 PM, 8–10 PM
+Court 4: Fully booked
+Court 5: 9 AM–12 PM, 4–6 PM
+Court 6: 1–3 PM, 8–10 PM
+
+Book at https://dinkhaus.plotline.fit/book`
+$('#captionbox').value = CAPTION
+
+// ---------- timeline ----------
+const S = [['#s1', 0, 3], ['#s2', 3, 8.5], ['#s3', 8.5, 12], ['#s4', 12, 15.01]]
+const show = (id, on) => { $(id).style.display = on ? 'block' : 'none' }
+let PIC = null // where the post's picture sits at 11.0 s, measured once
+
+window.renderAt = function (t) {
+  S.forEach(([id, a, b]) => show(id, t >= a && t < b))
+
+  if (t < 3) {
+    $$('#hookA .word').forEach((w) => inout(w, t, -1, 3.0))
+    const k = KEYS.filter((e) => e[0] <= t), last = k[k.length - 1]
+    $('#typed').textContent = last ? last[1] : ''
+    $('#caret').style.opacity = (last && t - last[0] < 0.3) || Math.floor(t * 2.5) % 2 === 0 ? 1 : 0
+    // the key just pressed lights up
+    $$('#kbd .k').forEach((el) => el.classList.remove('on'))
+    if (last && t - last[0] < 0.06) {
+      const prev = KEYS[KEYS.indexOf(last) - 1], ch = last[1].length < (prev ? prev[1].length : 0) ? '⌫' : last[1].slice(-1).toLowerCase()
+      const key = ch === '⌫' ? $$('#kbd .k.w')[1] : ch === ' ' || ch === '\n' ? $('#kbd .k.sp') : $(`#kbd .k[data-k="${CSS.escape(ch)}"]`)
+      if (key) key.classList.add('on')
+    }
+  } else if (t < 8.5) {
+    words('#c2a', t, 3.05, 4.9, 0.07, 50)
+    words('#c2b', t, 5.0, 6.65, 0.08, 50)
+    words('#c2c', t, 6.75, null, 0.07, 50)
+    const pw = $('#pw2'), k = easeOut(p(t, 3.0, 0.45)), x = easeIn(p(t, 8.25, 0.25))
+    set(pw, { o: 1 - x, y: (1 - k) * 160 + x * 60 })
+    const scr = $('#scr2'), tap = $('#tap2'), pb = $('#postbtn')
+    pb.style.transform = t >= 4.25 && t < 4.4 ? 'scale(0.93)' : ''
+    // the dialog rises over a dimmed dashboard
+    const open = easeOut(p(t, 4.5, 0.3))
+    $('#backdrop').style.opacity = open
+    const dlg = $('#dlg'); dlg.style.display = t >= 4.5 ? 'block' : 'none'
+    dlg.style.opacity = open; dlg.style.transform = `translateY(${(1 - open) * 40}px) scale(${lerp(0.96, 1, open)})`
+    // "Drawing the picture…", then the picture
+    const drawn = t >= 4.95
+    $('#drawing').style.display = drawn ? 'none' : 'block'
+    const pic = $('#prevpic'); pic.style.display = drawn ? 'block' : 'none'
+    if (drawn) { const d = easeOut(p(t, 4.95, 0.35)); pic.style.opacity = d; pic.style.transform = `scale(${lerp(1.04, 1, d)})` }
+    // scroll down to the caption and the buttons
+    const sc = easeInOut(p(t, 6.3, 0.55))
+    $('#dlgscroll').style.transform = `translateY(${-sc * DLG_SCROLL}px)`
+    const dl = $('#dlbtn'), cp = $('#copybtn')
+    dl.style.transform = t >= 7.0 && t < 7.15 ? 'scale(0.95)' : ''
+    cp.style.transform = t >= 7.5 && t < 7.65 ? 'scale(0.95)' : ''
+    cp.textContent = t >= 7.5 ? 'Copied' : 'Copy caption'
+    const toast = $('#toast'), tk = easeOut(p(t, 7.1, 0.3)), tx = easeIn(p(t, 8.0, 0.25))
+    toast.style.opacity = tk * (1 - tx); toast.style.transform = `translateY(${(1 - tk) * -30}px)`
+    if (t < 4.6) tapAt(tap, scr, pb, t, 4.25)
+    else if (t < 7.3) tapAt(tap, scr, dl, t, 7.0)
+    else tapAt(tap, scr, cp, t, 7.5)
+  } else if (t < 12) {
+    words('#c3', t, 8.55, null, 0.08, 50)
+    const pw = $('#pw3'), k = easeOut(p(t, 8.5, 0.45)), z = easeInOut(p(t, 11.0, 0.45))
+    set(pw, { o: 1 - z, y: (1 - k) * 160 })
+    $('#likes').textContent = Math.round(lerp(0, 24, easeOut(p(t, 8.9, 1.8))))
+    const n = (t >= 9.75 ? 1 : 0) + (t >= 10.25 ? 1 : 0)
+    $('#ncmt').textContent = `${n} comment${n === 1 ? '' : 's'}`
+    const sc = easeInOut(p(t, 9.3, 0.5))
+    $('#feedscroll').style.transform = `translateY(${-sc * 300}px)`
+    ;[['#cm1', 9.75], ['#cm2', 10.25]].forEach(([id, at]) => {
+      const el = $(id), c = backOut(p(t, at, 0.3))
+      el.style.opacity = clamp(p(t, at, 0.08)); el.style.transform = `translateY(${(1 - c) * 16}px) scale(${lerp(0.9, 1, c)})`
+      el.style.transformOrigin = '0 0'
+    })
+    // the picture lifts out of the post and fills the frame
+    const big = $('#bigpic')
+    if (t < 11.0 || !PIC) { big.style.opacity = 0 } else {
+      const tgt = R === '45' ? { x: 0, y: 0, w: 1080 } : { x: 60, y: 500, w: 960 }
+      const x = lerp(PIC.x, tgt.x, z), y = lerp(PIC.y, tgt.y, z), w = lerp(PIC.w, tgt.w, z)
+      big.style.opacity = 1
+      big.style.transform = `translate(${x}px, ${y}px) scale(${w / 1080})`
+      big.style.borderRadius = `${lerp(0, R === '45' ? 0 : 24, z) * 1080 / w}px`
+    }
+    if (R === '45') $('#c3').style.opacity = 1 - z
+  } else {
+    words('#s4head', t, 12.05, null, 0.06, 40)
+    const tile = $('#s4tile'), word = $('#s4word')
+    const k = backOut(p(t, 12.5, 0.45))
+    tile.style.opacity = clamp(p(t, 12.5, 0.15))
+    tile.style.transform = `scale(${lerp(0.4, 1, k)}) rotate(${lerp(-12, 0, k)}deg)`
+    const w = easeOut(p(t, 12.7, 0.5))
+    set(word, { o: w, x: (1 - w) * -40 })
+    inout($('#s4cta'), t, 13.0, null, { dist: 40 })
+    inout($('#s4url'), t, 13.4, null, { dist: 24 })
+  }
+}
+
+let DLG_SCROLL = 0
+window.ready = Promise.all(["700 100px 'Fraunces'", "600 60px 'Fraunces'", "700 20px 'DM Sans'", "500 20px 'DM Sans'"].map((f) => document.fonts.load(f)))
+  .then(() => document.fonts.ready).then(() => Promise.all([...document.images].map((i) => i.decode().catch(() => {})))).then(() => {
+    // how far the dialog scrolls so its buttons sit near the bottom of the screen
+    show('#s2', true); $('#dlg').style.display = 'block'; $('#drawing').style.display = 'none'; $('#prevpic').style.display = 'block'
+    const body = $('#dlg .dialog-body')
+    DLG_SCROLL = Math.max(0, body.offsetHeight - $('#dlg').offsetHeight + 6)
+    show('#s2', false)
+    // where the post's picture is when it starts to lift out
+    show('#s3', true); window.renderAt(10.99)
+    const r = $('#postpic').getBoundingClientRect()
+    PIC = { x: r.left, y: r.top, w: r.width }
+    show('#s3', false)
+  })
+</script>
+</body>
+</html>

@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Open slots picture</title></head>
+<body>
+<!-- Draws the open-slots picture and caption with the app's own code (src/features/admin/slotsImage.ts),
+     from fictional data for "Dinkhaus Pickleball". Serve the repo with Vite and run make-picture.mjs. -->
+<script type="module">
+import '/node_modules/@fontsource/fraunces/600.css'
+import '/node_modules/@fontsource/fraunces/700.css'
+import '/node_modules/@fontsource/dm-sans/500.css'
+import '/node_modules/@fontsource/dm-sans/700.css'
+import { buildCaption, buildCourtRanges, renderSlotsImage, slotsImageFileName } from '/src/features/admin/slotsImage.ts'
+import { THEME_SWATCHES } from '/src/lib/themes.ts'
+import { formatDateLabel, zonedLocalToISO } from '/src/lib/time.ts'
+import { venueBookUrl } from '/src/lib/venueUrl.ts'
+
+const tz = 'Asia/Manila', date = '2026-11-28', slug = 'dinkhaus', venueName = 'Dinkhaus Pickleball'
+const courts = [1, 2, 3, 4, 5, 6].map((n) => ({ id: `c${n}`, name: `Court ${n}` }))
+// free hours per court (24 h clock, start hour of each free slot); everything else from 6 AM to 10 PM is booked
+const FREE = { c1: [8, 9, 13, 14, 15, 21], c2: [7, 8, 14, 15, 16], c3: [10, 11, 15, 16, 17, 20, 21], c4: [], c5: [9, 10, 11, 16, 17], c6: [13, 14, 20, 21] }
+const slots = []
+for (const c of courts) for (let h = 6; h < 22; h++) {
+  const at = (x) => zonedLocalToISO(`${date}T${String(x).padStart(2, '0')}:00`, tz)
+  const free = FREE[c.id].includes(h)
+  slots.push({ court_id: c.id, slot_start: at(h), slot_end: at(h + 1), price: 400, status: free ? 'free' : 'booked',
+    booker_first_name: null, open_play_session_id: null, block_key: null })
+}
+const now = new Date(zonedLocalToISO(`${date}T06:45`, tz))
+const input = {
+  venueName,
+  logoUrl: new URL('./logo.svg', location.href).href,
+  dateLabel: formatDateLabel(date, tz),
+  isToday: true,
+  asOf: '6:45 AM',
+  courts: buildCourtRanges(courts, slots, date, tz, now),
+  address: venueBookUrl(slug, { hostname: `${slug}.plotline.fit`, protocol: 'https:', port: '' }),
+  palette: THEME_SWATCHES['court-green'].light,
+}
+const FONTS = ["700 60px 'Fraunces'", "600 60px 'Fraunces'", "700 40px 'DM Sans'", "500 40px 'DM Sans'"]
+window.result = Promise.all(FONTS.map((f) => document.fonts.load(f))).then(() => document.fonts.ready).then(async () => {
+  const png = await renderSlotsImage(input)
+  const buf = new Uint8Array(await png.arrayBuffer())
+  let bin = ''; for (const b of buf) bin += String.fromCharCode(b)
+  return { png: btoa(bin), caption: buildCaption(input), file: slotsImageFileName(slug, date), dateLabel: input.dateLabel }
+})
+</script>
+</body>
+</html>

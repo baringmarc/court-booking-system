@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>What's the catch</title>
+<link rel="stylesheet" href="app.css">
+<style>
+  :root { --W: 1080px; --H: 1920px; --capTop: 170px; --cap: 108px; --sub: 46px; --phoneTop: 640px; --ps: 2;
+          --dgTop: 620px; --ds: 1.15; --invTop: 640px; --is: 1.18; }
+  :root[data-r="45"] { --H: 1350px; --capTop: 90px; --cap: 84px; --sub: 38px; --phoneTop: 400px; --ps: 1.5;
+          --dgTop: 330px; --ds: 1.0; --invTop: 360px; --is: 0.98; }
+  html, body { margin: 0; width: var(--W); height: var(--H); overflow: hidden; }
+  body { font-family: var(--sans); color: var(--text); background: var(--bg); }
+  .stage { position: absolute; inset: 0; overflow: hidden; }
+  .scene { position: absolute; inset: 0; display: none; }
+  .band { background: var(--band-bg); color: var(--band-text); }
+  .cream { background: var(--bg); }
+  .cap { position: absolute; left: 80px; right: 80px; top: var(--capTop); z-index: 10; }
+  .headline { font-family: var(--serif); font-weight: 700; letter-spacing: -0.02em; line-height: 1.04; margin: 0; font-size: var(--cap); text-wrap: balance; }
+  .band .headline { color: var(--band-text); }
+  .word { display: inline-block; }
+  .hl { color: var(--terracotta); }
+  .band .hl { color: var(--rose); }
+  .capstack { position: relative; }
+  .capstack > * { position: absolute; left: 0; right: 0; top: 0; }
+  .center-col { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 0 80px; }
+
+  /* ---------- hook ---------- */
+  .hk-label { font-family: var(--serif); font-weight: 600; font-size: calc(var(--cap) * 0.8); color: var(--band-muted); }
+  .hk-zero { font-family: var(--serif); font-weight: 700; font-size: calc(var(--cap) * 3.6); line-height: 1; letter-spacing: -0.04em; color: var(--rose); margin: 10px 0 40px; }
+  :root[data-r="45"] .hk-zero { font-size: calc(var(--cap) * 3.2); margin: 0 0 24px; }
+  .hk-q { font-size: calc(var(--cap) * 1.05); }
+  .hk-q .q { display: inline-block; transform-origin: 50% 80%; }
+
+  /* ---------- phone ---------- */
+  .pw { position: absolute; left: 50%; top: var(--phoneTop); width: 0; height: 0; }
+  .phone { position: absolute; left: -207px; top: 0; box-sizing: border-box; width: 414px; height: 860px; border-radius: 62px; background: #1d1916; padding: 14px;
+           transform: scale(var(--ps)); transform-origin: 50% 0; box-shadow: 0 30px 70px rgba(0,0,0,0.35); }
+  .screen { position: relative; width: 386px; height: 832px; border-radius: 50px; overflow: hidden; background: var(--bg); font-size: 16px; }
+  .notch { position: absolute; top: 10px; left: 50%; width: 112px; height: 32px; margin-left: -56px; border-radius: 20px; background: #1d1916; z-index: 40; }
+  .statusbar { position: relative; z-index: 35; height: 52px; display: flex; justify-content: space-between; align-items: center; padding: 6px 30px 0; font-size: 15px; font-weight: 700; background: var(--surface); }
+  .tap { position: absolute; width: 60px; height: 60px; margin: -30px 0 0 -30px; border-radius: 50%; background: rgba(20,52,30,0.22); border: 2px solid rgba(20,52,30,0.35); pointer-events: none; z-index: 60; opacity: 0; }
+  .screen .site-header { position: relative; z-index: 5; background: var(--surface); }
+  .screen .header-inner { min-height: 52px; padding: 0 16px; flex-wrap: nowrap; }
+  .screen .venue-name { display: flex; align-items: center; gap: 8px; }
+  .screen .venue-name img { width: 28px; height: 28px; border-radius: 7px; }
+  .screen .container { padding: 0 14px; }
+  .screen .main { padding-top: 14px; }
+  .screen h1 { font-size: 1.45rem; margin-bottom: 4px; }
+  .screen .slot-grid { font-size: 0.92rem; border-spacing: 4px; width: 100%; }
+  .screen .slot-grid tbody th { font-size: 0.8rem; padding: 0 4px; }
+  .screen .slot { min-height: 44px; width: 100%; }
+  .screen .selection-bar { position: absolute; left: 12px; right: 12px; top: 492px; bottom: auto; }
+  .date-pill { display: inline-flex; gap: 8px; align-items: center; font-weight: 700; font-size: 0.9rem; padding: 6px 12px; border-radius: 999px; border: 1.5px solid var(--border-strong); background: var(--surface); margin: 2px 0 12px; }
+  .feehl { border-radius: 4px; padding: 0 2px; margin: 0 -2px; background-repeat: no-repeat; background-image: linear-gradient(rgba(232,196,184,0.95), rgba(232,196,184,0.95)); background-size: 0% 100%; color: inherit; }
+  #veil { position: absolute; inset: 0; background: var(--bg); opacity: 0; z-index: 7; }
+  #bigbar { position: absolute; left: 0; top: 0; width: 362px; transform-origin: 0 0; opacity: 0; z-index: 8; font-size: 16px; }
+  #bigbar .selection-bar { position: relative; box-shadow: 0 10px 30px rgba(20,52,30,0.18); }
+
+  /* ---------- the money diagram ---------- */
+  .dg { position: absolute; left: 50%; top: var(--dgTop); width: 900px; height: 820px; margin-left: -450px; transform: scale(var(--ds)); transform-origin: 50% 0; }
+  .node { position: absolute; left: 50%; display: flex; align-items: center; gap: 22px; background: var(--surface); border: 2px solid var(--border); border-radius: 28px; box-shadow: 0 14px 34px rgba(59,47,42,0.12); padding: 20px 30px; box-sizing: border-box; }
+  .node .av { width: 86px; height: 86px; border-radius: 50%; color: #fff; font-weight: 700; font-size: 32px; display: grid; place-items: center; flex: none; background: #4a7fb5; }
+  .node img { width: 96px; height: 96px; border-radius: 22px; flex: none; }
+  .node .nm { font-weight: 700; font-size: 38px; line-height: 1.1; }
+  .node .role { font-size: 28px; color: var(--muted); font-weight: 500; margin-top: 4px; }
+  #nodeP { top: 0; width: 520px; margin-left: -260px; }
+  #nodeV { top: 340px; width: 640px; margin-left: -320px; }
+  #nodeV .got { margin-left: auto; font-family: var(--serif); font-weight: 700; font-size: 40px; color: var(--terracotta); }
+  .arrow { position: absolute; left: 450px; top: 148px; width: 0; height: 170px; }
+  .arrow .ln { position: absolute; left: -3px; top: 0; width: 6px; height: 100%; border-radius: 3px; background: var(--border-strong); transform-origin: 50% 0; }
+  .arrow .hd { position: absolute; left: -18px; bottom: -6px; width: 0; height: 0; border-left: 18px solid transparent; border-right: 18px solid transparent; border-top: 24px solid var(--border-strong); }
+  .arrow .lbl { position: absolute; left: 34px; top: 58px; white-space: nowrap; font-size: 28px; font-weight: 700; color: var(--muted); }
+  .pill { position: absolute; left: 0; top: 0; font-family: var(--serif); font-weight: 700; border-radius: 999px; display: grid; place-items: center; white-space: nowrap; }
+  #coin { width: 200px; height: 84px; margin: -42px 0 0 -100px; font-size: 46px; background: var(--text); color: var(--cream); box-shadow: 0 12px 30px rgba(59,47,42,0.3); }
+  .split { position: absolute; top: 560px; width: 380px; text-align: center; }
+  .split .big { display: inline-block; font-family: var(--serif); font-weight: 700; font-size: 92px; line-height: 1; padding: 22px 44px; border-radius: 999px; }
+  .split .lab { font-size: 32px; font-weight: 700; margin-top: 22px; line-height: 1.2; }
+  .split .lab small { display: block; font-size: 26px; font-weight: 500; color: var(--muted); margin-top: 4px; }
+  #sp400 { left: 40px; } #sp400 .big { background: var(--sage); color: var(--text); }
+  #sp10 { left: 480px; } #sp10 .big { background: var(--terracotta); color: var(--cream); }
+
+  /* ---------- month end: the fees, then the invoice (drawn like invoice-pdf's PDF) ---------- */
+  .iw { position: absolute; left: 50%; top: var(--invTop); width: 860px; margin-left: -430px; transform: scale(var(--is)); transform-origin: 50% 0; }
+  .chiplbl { font-size: 34px; font-weight: 700; text-align: center; margin-bottom: 26px; }
+  .chiplbl b { color: var(--terracotta); }
+  .chips { display: grid; grid-template-columns: repeat(8, 1fr); gap: 14px; }
+  .chip { height: 62px; border-radius: 999px; background: var(--terracotta); color: var(--cream); font-family: var(--serif); font-weight: 700; font-size: 30px; display: grid; place-items: center; }
+  #chipwrap { position: absolute; left: 0; right: 0; top: 0; z-index: 3; }
+  .inv { position: absolute; left: 0; right: 0; top: 0; background: #fff; color: #2a2522; border-radius: 18px; overflow: hidden; box-shadow: 0 24px 60px rgba(59,47,42,0.2); font-size: 24px; }
+  .inv .strip { height: 14px; background: var(--rose); }
+  .inv .pad { padding: 30px 40px 36px; }
+  .inv .row { display: flex; justify-content: space-between; align-items: flex-start; }
+  .inv .brand { display: flex; align-items: center; gap: 14px; font-family: var(--serif); font-weight: 700; font-size: 40px; }
+  .inv .brand img { width: 60px; height: 60px; border-radius: 14px; }
+  .inv .ttl { text-align: right; font-family: var(--serif); font-weight: 700; font-size: 48px; line-height: 1; }
+  .inv .ttl small { display: block; font-family: var(--sans); font-weight: 500; font-size: 22px; color: #6b5e55; margin-top: 8px; }
+  .inv .mut { color: #6b5e55; font-size: 22px; }
+  .inv .billto b { display: block; font-size: 30px; margin-top: 4px; }
+  .inv .due { text-align: right; }
+  .inv .due b { display: block; font-size: 40px; color: var(--terracotta); margin-top: 2px; }
+  .inv .dates { margin-top: 22px; display: grid; grid-template-columns: auto auto; justify-content: end; gap: 6px 16px; font-size: 22px; }
+  .inv .dates span:nth-child(odd) { color: #6b5e55; text-align: right; }
+  .inv table { width: 100%; border-collapse: collapse; margin-top: 26px; font-size: 25px; }
+  .inv th { background: var(--cream); font-weight: 700; padding: 12px 14px; text-align: right; }
+  .inv td { padding: 16px 14px; text-align: right; border-bottom: 1px solid #e6d9c6; }
+  .inv th:first-child, .inv td:first-child { text-align: left; }
+  #itemrow td { background-repeat: no-repeat; background-image: linear-gradient(rgba(232,196,184,0.7), rgba(232,196,184,0.7)); background-size: 0% 100%; }
+  .inv .tot { display: flex; justify-content: flex-end; gap: 40px; margin-top: 18px; font-size: 27px; font-weight: 700; }
+  .inv .how { margin-top: 26px; padding: 16px 20px; border: 1.5px solid #e6d9c6; border-radius: 12px; font-size: 22px; color: #6b5e55; }
+  .inv .how b { color: #2a2522; }
+  .example { position: absolute; right: 0; top: -50px; z-index: 2; background: var(--sand); color: var(--text); font-size: 20px; font-weight: 700; padding: 6px 14px; border-radius: 999px; letter-spacing: 0.02em; }
+
+  /* ---------- the answer, then the outro ---------- */
+  .bigline { font-family: var(--serif); font-weight: 700; font-size: calc(var(--cap) * 1.3); letter-spacing: -0.02em; line-height: 1.04; margin: 0; }
+  .fee-sub { font-size: calc(var(--sub) * 1.15); font-weight: 700; margin-top: 50px; color: var(--text); }
+  .fee-sub2 { font-size: var(--sub); color: var(--muted); margin-top: 22px; font-weight: 500; text-wrap: balance; }
+  .outro-head { font-family: var(--serif); font-weight: 700; font-size: calc(var(--cap) * 0.9); letter-spacing: -0.02em; line-height: 1.05; color: var(--band-text); margin: 0 0 90px; text-wrap: balance; }
+  .logo-row { display: flex; align-items: center; gap: 30px; }
+  .logo-row img { width: 150px; height: 150px; border-radius: 32px; }
+  .wordmark { font-family: var(--serif); font-weight: 700; font-size: 150px; letter-spacing: -0.02em; line-height: 1; color: var(--band-text); }
+  .outro-cta { font-family: var(--serif); font-weight: 600; font-size: calc(var(--cap) * 0.72); margin-top: 56px; color: var(--rose); }
+  .url { font-size: 46px; font-weight: 700; color: var(--band-text); margin-top: 40px; padding: 14px 42px; border: 2px solid var(--band-border); border-radius: 999px; background: var(--band-card); }
+  :root[data-r="45"] .outro-head { margin-bottom: 60px; }
+  :root[data-r="45"] .logo-row img { width: 120px; height: 120px; border-radius: 26px; }
+  :root[data-r="45"] .wordmark { font-size: 120px; }
+</style>
+</head>
+<body>
+<div class="stage">
+
+  <!-- 1 HOOK (0–2.5) -->
+  <section class="scene band" id="s1">
+    <div class="center-col">
+      <div class="hk-label" id="hkLabel">Venues pay</div>
+      <div class="hk-zero" id="hkZero">₱0</div>
+      <h1 class="headline hk-q" id="hkA"><span class="word">What's</span> <span class="word">the</span> <span class="word hl">catch<span class="q">?</span></span></h1>
+    </div>
+  </section>
+
+  <!-- 2 THE PLAYER BOOKS (2.5–6.5) -->
+  <section class="scene cream" id="s2">
+    <div class="cap"><div class="capstack">
+      <h1 class="headline" id="c2a"><span class="word">A</span> <span class="word">player</span> <span class="word">books</span> <span class="word">a</span> <span class="word hl">₱400</span> <span class="word hl">hour.</span></h1>
+      <h1 class="headline" id="c2b"><span class="word">They</span> <span class="word">add</span> <span class="word">a</span> <span class="word hl">₱10</span> <span class="word hl">booking</span> <span class="word hl">fee.</span></h1>
+    </div></div>
+    <div class="pw" id="pw2">
+      <div class="phone"><div class="screen" id="scr2" data-theme="court-green">
+        <div class="notch"></div>
+        <div class="statusbar"><span>8:12</span><span>●●● ▮</span></div>
+        <header class="site-header"><div class="header-inner"><span class="brand venue-name"><img src="logo.svg" alt="">Dinkhaus Pickleball</span><span class="auth-area"><span class="btn btn-small">Log in</span></span></div></header>
+        <div class="main"><div class="container">
+          <h1>Book a court</h1>
+          <span class="date-pill">📅 Sat, Nov 28 · Pickleball</span>
+          <ul class="slot-legend">
+            <li><span class="slot-swatch slot-free"></span>Available</li>
+            <li><span class="slot-swatch slot-selected">✓</span>Selected</li>
+            <li><span class="slot-swatch slot-booked"></span>Booked</li>
+          </ul>
+          <table class="slot-grid" id="bookgrid">
+            <thead><tr><th></th><th>Court 1</th><th>Court 2</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div></div>
+        <div class="selection-bar" id="selbar">
+          <div class="selection-text">
+            <strong>Court 1</strong>
+            <span class="muted small">Sat, Nov 28 · 7 PM–8 PM · 1 hour</span>
+            <span class="muted small">Court ₱400 <span class="feehl">+ booking fee ₱10</span> = ₱410</span>
+          </div>
+          <div class="selection-total"><strong>₱410</strong></div>
+          <div class="selection-actions">
+            <span class="btn btn-small btn-ghost">Clear</span>
+            <span class="btn btn-small">Continue</span>
+          </div>
+        </div>
+        <div class="tap" id="tap2"></div>
+      </div></div>
+    </div>
+    <div id="veil"></div>
+    <div id="bigbar" data-theme="court-green"></div>
+  </section>
+
+  <!-- 3 THEY PAY THE VENUE (6.5–10.5) -->
+  <section class="scene cream" id="s3">
+    <div class="cap"><div class="capstack">
+      <h1 class="headline" id="c3a"><span class="word">They</span> <span class="word">pay</span> <span class="word">your</span> <span class="word">venue</span> <span class="word hl">₱410.</span></h1>
+      <h1 class="headline" id="c3b"><span class="word hl">₱400</span> <span class="word">is</span> <span class="word">your</span> <span class="word">court</span> <span class="word">revenue.</span></h1>
+    </div></div>
+    <div class="dg" id="dg">
+      <div class="node" id="nodeP"><span class="av">MJ</span><div><div class="nm">Mika J.</div><div class="role">Player</div></div></div>
+      <div class="arrow" id="arrow"><div class="ln"></div><div class="hd"></div><div class="lbl">GCash, Maya or bank</div></div>
+      <div class="node" id="nodeV"><img src="logo.svg" alt=""><div><div class="nm">Dinkhaus Pickleball</div><div class="role">Your venue</div></div></div>
+      <div class="pill" id="coin">₱410</div>
+      <div class="split" id="sp400"><span class="big">₱400</span><div class="lab">Court revenue<small>Yours to keep</small></div></div>
+      <div class="split" id="sp10"><span class="big">₱10</span><div class="lab">Booking fee<small>Paid by the player</small></div></div>
+    </div>
+  </section>
+
+  <!-- 4 MONTH END (10.5–14.5) -->
+  <section class="scene cream" id="s4">
+    <div class="cap"><div class="capstack">
+      <h1 class="headline" id="c4a"><span class="word">Once</span> <span class="word">a</span> <span class="word">month,</span> <span class="word">Plotline</span> <span class="word">sends</span> <span class="word hl">one</span> <span class="word hl">invoice.</span></h1>
+      <h1 class="headline" id="c4b"><span class="word">Just</span> <span class="word">the</span> <span class="word">₱10s</span> <span class="word hl">your</span> <span class="word hl">players</span> <span class="word hl">paid.</span></h1>
+    </div></div>
+    <div class="iw" id="iw">
+      <span class="example" id="example">Example</span>
+      <div class="inv" id="inv">
+        <div class="strip"></div>
+        <div class="pad">
+          <div class="row">
+            <div class="brand"><img src="/src/assets/plotline-tile.svg" alt="">plotline</div>
+            <div class="ttl">INVOICE<small># DINKHAUS-202611</small></div>
+          </div>
+          <div class="row" style="margin-top: 30px">
+            <div class="billto"><span class="mut">Bill To</span><b>Dinkhaus Pickleball</b></div>
+            <div class="due"><span class="mut">Balance Due</span><b>PHP 320.00</b></div>
+          </div>
+          <div class="dates">
+            <span>Billing Month:</span><span>November 2026</span>
+            <span>Invoice Date:</span><span>Dec 1, 2026</span>
+            <span>Due Date:</span><span>Dec 8, 2026</span>
+          </div>
+          <table>
+            <thead><tr><th>Item</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead>
+            <tbody><tr id="itemrow"><td>Booking fees</td><td id="qty">32</td><td>PHP 10.00</td><td>PHP 320.00</td></tr></tbody>
+          </table>
+          <div class="tot"><span>Total</span><span>PHP 320.00</span></div>
+          <div class="how"><b>How to pay:</b> GCash or bank transfer, with the invoice number as the reference.</div>
+        </div>
+      </div>
+      <div id="chipwrap">
+        <div class="chiplbl" id="chiplbl">November: <b id="chipn">0</b> online bookings</div>
+        <div class="chips" id="chips"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 THE ANSWER (14.5–17) -->
+  <section class="scene cream" id="s5">
+    <div class="center-col">
+      <h1 class="bigline" id="c5"><span class="word">Venues</span> <span class="word">pay</span> <span class="word hl">₱0.</span></h1>
+      <div class="fee-sub" id="c5b">No setup fee. No monthly fee.</div>
+      <div class="fee-sub2" id="c5c">Players add ₱10 per confirmed online booking.</div>
+    </div>
+  </section>
+
+  <!-- 6 OUTRO (17–20) -->
+  <section class="scene band" id="s6">
+    <div class="center-col">
+      <div class="outro-head" id="s6head"><span class="word">Simple</span> <span class="word">math.</span> <span class="word">No</span> <span class="word">surprises.</span></div>
+      <div class="logo-row"><img id="s6tile" src="/src/assets/plotline-tile.svg" alt=""><span class="wordmark" id="s6word">plotline</span></div>
+      <div class="outro-cta" id="s6cta">Put your venue on Plotline.</div>
+      <div class="url" id="s6url">plotline.fit</div>
+    </div>
+  </section>
+</div>
+
+<script>
+const Q = new URLSearchParams(location.search)
+const R = Q.get('r') === '45' ? '45' : '916'
+document.documentElement.dataset.r = R
+const $ = (s) => document.querySelector(s)
+const $$ = (s) => [...document.querySelectorAll(s)]
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x))
+const p = (t, start, dur) => clamp((t - start) / dur)
+const easeOut = (x) => 1 - Math.pow(1 - x, 3)
+const easeIn = (x) => x * x * x
+const easeInOut = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2)
+const backOut = (x) => { const c = 1.6; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2) }
+const lerp = (a, b, x) => a + (b - a) * x
+function set(el, { o = 1, x = 0, y = 0, s = 1, r = 0 } = {}) {
+  el.style.opacity = o
+  el.style.transform = `translate(${x}px, ${y}px) scale(${s}) rotate(${r}deg)`
+}
+function inout(el, t, at, end, { dist = 50, dur = 0.45, outDist = -30 } = {}) {
+  const k = easeOut(p(t, at, dur)), x = end ? easeIn(p(t, end - 0.25, 0.25)) : 0
+  set(el, { o: k * (1 - x), y: (1 - k) * dist + x * outDist })
+}
+function words(sel, t, at, end, step = 0.1, dist = 60) {
+  $$(sel + ' .word').forEach((w, i) => inout(w, t, at + i * step, end, { dist, dur: 0.45 }))
+}
+function tapAt(tapEl, frame, target, t, at) {
+  const d = t - at
+  if (d < -0.18 || d > 0.45) { tapEl.style.opacity = 0; return }
+  const fr = frame.getBoundingClientRect(), r = target.getBoundingClientRect()
+  const scale = fr.width / frame.offsetWidth
+  tapEl.style.left = ((r.left + r.width / 2 - fr.left) / scale) + 'px'
+  tapEl.style.top = ((r.top + r.height / 2 - fr.top) / scale) + 'px'
+  if (d < 0) { const x = p(d, -0.18, 0.18); tapEl.style.opacity = x * 0.9; tapEl.style.transform = `scale(${lerp(1.3, 0.8, x)})` }
+  else { const x = p(d, 0, 0.45); tapEl.style.opacity = 0.9 * (1 - x); tapEl.style.transform = `scale(${lerp(0.8, 1.6, easeOut(x))})` }
+}
+// a highlighter swipe across an element (its background-size grows left to right)
+const swipe = (el, k) => { el.style.backgroundSize = `${k * 100}% 100%` }
+
+const HK = '#hkA'
+
+// ---------- booking grid (the app's slot classes; fictional names) ----------
+const bookTimes = ['5 PM – 6 PM', '6 PM – 7 PM', '7 PM – 8 PM', '8 PM – 9 PM']
+const bookedMap = { '0,1': 'Lia', '1,0': 'Ben', '1,1': 'Rico', '2,1': 'Mae', '3,1': 'Joy' }
+const bookBody = $('#bookgrid tbody')
+bookTimes.forEach((tm, r) => {
+  const tr = document.createElement('tr')
+  tr.innerHTML = `<th scope="row">${tm}</th>` + [0, 1].map((c) => {
+    const n = bookedMap[`${r},${c}`]
+    return n ? `<td><button class="slot slot-booked" disabled>Booked<span class="slot-name">${n}</span></button></td>`
+             : `<td><button class="slot slot-free" data-r="${r}" data-c="${c}">₱400</button></td>`
+  }).join('')
+  bookBody.appendChild(tr)
+})
+const pick = $('#bookgrid button[data-r="2"][data-c="0"]')
+function setSlot(el, sel) {
+  if (sel && !el.classList.contains('slot-selected')) { el.className = 'slot slot-selected'; el.innerHTML = '<span>✓ </span>₱400' }
+  if (!sel && !el.classList.contains('slot-free')) { el.className = 'slot slot-free'; el.innerHTML = '₱400' }
+}
+// the callout is a copy of the real selection bar
+$('#bigbar').innerHTML = $('#selbar').outerHTML.replace('id="selbar"', '')
+
+// ---------- 32 booking fees ----------
+const NCHIP = 32
+$('#chips').innerHTML = Array.from({ length: NCHIP }, () => '<span class="chip">₱10</span>').join('')
+
+// ---------- timeline ----------
+const S = [['#s1', 0, 2.5], ['#s2', 2.5, 6.5], ['#s3', 6.5, 10.5], ['#s4', 10.5, 14.5], ['#s5', 14.5, 17], ['#s6', 17, 20.01]]
+const show = (id, on) => { $(id).style.display = on ? 'block' : 'none' }
+let BAR = null, CHIPS = null, ROW = null // measured once in ready
+
+window.renderAt = function (t) {
+  S.forEach(([id, a, b]) => show(id, t >= a && t < b))
+
+  if (t < 2.5) {
+    inout($('#hkLabel'), t, 0.05, 2.5, { dist: 30 })
+    const z = $('#hkZero'), k = backOut(p(t, 0.3, 0.4)), x = easeIn(p(t, 2.25, 0.25))
+    const shake = t > 0.3 && t < 0.6 ? Math.sin(t * 90) * 10 * (1 - p(t, 0.3, 0.3)) : 0
+    z.style.opacity = clamp(p(t, 0.3, 0.08)) * (1 - x)
+    z.style.transform = `translate(${shake}px, ${x * -30}px) scale(${lerp(1.7, 1, k)})`
+    words(HK, t, 1.0, 2.5, 0.12, 50)
+    const q = $(HK + ' .q'), w = p(t, 1.55, 0.6)
+    q.style.transform = `rotate(${Math.sin(w * Math.PI * 3) * 14 * (1 - w)}deg) scale(${1 + 0.25 * Math.sin(w * Math.PI) * (1 - w)})`
+  } else if (t < 6.5) {
+    words('#c2a', t, 2.55, 4.65, 0.07, 50)
+    words('#c2b', t, 4.75, 6.5, 0.07, 50)
+    const pw = $('#pw2'), k = easeOut(p(t, 2.5, 0.45)), x = easeIn(p(t, 6.25, 0.25))
+    set(pw, { o: 1 - x, y: (1 - k) * 160 + x * 60 })
+    setSlot(pick, t >= 3.5)
+    tapAt($('#tap2'), $('#scr2'), pick, t, 3.5)
+    const bar = $('#selbar'), b = easeOut(p(t, 3.6, 0.35))
+    bar.style.opacity = b; bar.style.transform = `translateY(${(1 - b) * 60}px)`
+    swipe($('#selbar .feehl'), 0)
+    // the bar lifts out of the phone, and the fee gets highlighted
+    const z = easeInOut(p(t, 4.75, 0.5)), zo = easeIn(p(t, 6.25, 0.25))
+    $('#veil').style.opacity = 0.82 * z * (1 - zo)
+    const big = $('#bigbar')
+    if (t < 4.75 || !BAR) { big.style.opacity = 0 } else {
+      const tw = R === '45' ? 900 : 980, s = lerp(BAR.w / 362, tw / 362, z)
+      const tx = (1080 - tw) / 2, ty = R === '45' ? 640 : 1000
+      big.style.opacity = 1 - zo
+      big.style.transform = `translate(${lerp(BAR.x, tx, z)}px, ${lerp(BAR.y, ty, z) + zo * 40}px) scale(${s})`
+      swipe(big.querySelector('.feehl'), easeOut(p(t, 5.25, 0.4)))
+    }
+  } else if (t < 10.5) {
+    words('#c3a', t, 6.55, 8.4, 0.07, 50)
+    words('#c3b', t, 8.5, 10.5, 0.07, 50)
+    const dg = $('#dg'), x = easeIn(p(t, 10.25, 0.25))
+    dg.style.opacity = 1 - x
+    const P = easeOut(p(t, 6.5, 0.4)), V = easeOut(p(t, 6.75, 0.4))
+    set($('#nodeP'), { o: P, y: (1 - P) * 50 })
+    set($('#nodeV'), { o: V, y: (1 - V) * 50, s: 1 + 0.05 * Math.sin(p(t, 7.75, 0.3) * Math.PI) })
+    const a = easeOut(p(t, 6.9, 0.35))
+    $('#arrow .ln').style.transform = `scaleY(${a})`
+    $('#arrow .hd').style.opacity = clamp(p(t, 7.15, 0.1))
+    inout($('#arrow .lbl'), t, 7.0, null, { dist: 20 })
+    // the ₱410 travels from the player to the venue, then splits in two
+    const coin = $('#coin'), m = easeInOut(p(t, 7.1, 0.65)), sp = easeOut(p(t, 8.5, 0.5))
+    const cy = lerp(65, 410, m), cs = t < 7.1 ? backOut(p(t, 6.95, 0.25)) : 1
+    coin.style.opacity = clamp(p(t, 6.95, 0.1)) * (1 - clamp(p(t, 8.45, 0.15)))
+    coin.style.transform = `translate(450px, ${lerp(cy, 600, easeOut(p(t, 8.0, 0.4)))}px) scale(${cs * (1 + 0.3 * easeOut(p(t, 8.0, 0.4)))})`
+    ;[['#sp400', 1], ['#sp10', -1]].forEach(([id, dir]) => {
+      const el = $(id), big = el.querySelector('.big'), lab = el.querySelector('.lab')
+      big.style.opacity = clamp(p(t, 8.5, 0.08))
+      big.style.transform = `translateX(${(1 - sp) * dir * 210}px) scale(${lerp(0.6, 1, backOut(p(t, 8.5, 0.45)))})`
+      inout(lab, t, 8.8 + (dir < 0 ? 0.25 : 0), null, { dist: 24 })
+    })
+  } else if (t < 14.5) {
+    words('#c4a', t, 10.55, 12.75, 0.06, 50)
+    words('#c4b', t, 12.85, 14.5, 0.07, 50)
+    const iw = $('#iw'), x = easeIn(p(t, 14.25, 0.25))
+    iw.style.opacity = 1 - x
+    inout($('#chiplbl'), t, 10.6, null, { dist: 24 })
+    const chips = $$('#chips .chip')
+    let n = 0
+    chips.forEach((c, i) => {
+      const at = 10.75 + i * 0.033, k = backOut(p(t, at, 0.22))
+      if (t >= at) n = i + 1
+      // then every chip flies into the invoice's Booking fees row
+      const fa = 12.0 + (NCHIP - 1 - i) * 0.008, f = easeInOut(p(t, fa, 0.38))
+      let dx = 0, dy = 0
+      if (CHIPS && ROW) { dx = (ROW.x - CHIPS[i].x) * f; dy = (ROW.y - CHIPS[i].y) * f }
+      c.style.opacity = clamp(p(t, at, 0.06)) * (1 - clamp(p(t, fa + 0.3, 0.08)))
+      c.style.transform = `translate(${dx}px, ${dy}px) scale(${lerp(0.4, 1, k) * lerp(1, 0.35, f)})`
+    })
+    $('#chipn').textContent = n
+    $('#chiplbl').style.opacity = parseFloat($('#chiplbl').style.opacity) * (1 - clamp(p(t, 12.0, 0.2)))
+    const inv = $('#inv'), iv = easeOut(p(t, 11.85, 0.45))
+    set(inv, { o: iv, y: (1 - iv) * 120 })
+    $('#example').style.opacity = clamp(p(t, 12.2, 0.2))
+    // the row lights up as the fees land, then the qty pops
+    swipe($$('#itemrow td')[0], 0)
+    $$('#itemrow td').forEach((td) => swipe(td, easeOut(p(t, 12.35, 0.35))))
+    const qp = p(t, 12.4, 0.3)
+    $('#qty').style.transform = `scale(${1 + 0.4 * Math.sin(qp * Math.PI)})`
+  } else if (t < 17) {
+    words('#c5', t, 14.55, 16.75, 0.1, 50)
+    inout($('#c5b'), t, 15.05, 16.75, { dist: 30 })
+    inout($('#c5c'), t, 15.45, 16.75, { dist: 30 })
+  } else {
+    words('#s6head', t, 17.05, null, 0.07, 40)
+    const tile = $('#s6tile'), word = $('#s6word')
+    const k = backOut(p(t, 17.5, 0.45))
+    tile.style.opacity = clamp(p(t, 17.5, 0.15))
+    tile.style.transform = `scale(${lerp(0.4, 1, k)}) rotate(${lerp(-12, 0, k)}deg)`
+    const w = easeOut(p(t, 17.7, 0.5))
+    set(word, { o: w, x: (1 - w) * -40 })
+    inout($('#s6cta'), t, 18.0, null, { dist: 40 })
+    inout($('#s6url'), t, 18.4, null, { dist: 24 })
+  }
+}
+
+window.ready = Promise.all(["700 100px 'Fraunces'", "600 60px 'Fraunces'", "700 20px 'DM Sans'", "500 20px 'DM Sans'"].map((f) => document.fonts.load(f)))
+  .then(() => document.fonts.ready).then(() => Promise.all([...document.images].map((i) => i.decode().catch(() => {})))).then(() => {
+    // where the selection bar sits in the frame when it lifts out
+    show('#s2', true); window.renderAt(4.7)
+    const r = $('#selbar').getBoundingClientRect()
+    BAR = { x: r.left, y: r.top, w: r.width }
+    show('#s2', false)
+    // each chip's centre, and the centre of the Booking fees row's Qty cell, at rest
+    show('#s4', true)
+    $$('#chips .chip').forEach((c) => { c.style.transform = 'none' }); $('#inv').style.transform = 'none'; $('#iw').style.opacity = 1
+    const sc = $('#iw').getBoundingClientRect().width / $('#iw').offsetWidth
+    const ctr = (el) => { const b = el.getBoundingClientRect(); return { x: (b.left + b.width / 2) / sc, y: (b.top + b.height / 2) / sc } }
+    CHIPS = $$('#chips .chip').map(ctr)
+    ROW = ctr($('#qty'))
+    show('#s4', false)
+  })
+</script>
+</body>
+</html>
