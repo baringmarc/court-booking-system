@@ -1,0 +1,710 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>The 7 PM problem</title>
+<link rel="stylesheet" href="../work/app.css">
+<style>
+  @font-face { font-family: 'Caveat'; src: url('caveat-600.woff2') format('woff2'); font-weight: 600; }
+  :root { --W: 1080px; --H: 1920px; --capTop: 170px; --cap: 108px; --sub: 46px; --phoneTop: 640px; --ps: 2; --bub: 44px;
+          --lh: 100px; --hand: 72px; --paperTop: 560px; --rs: 1.6; --cpTop: 1150px; --cps: 1.7; --big: 170px; --pen: #c0392b; }
+  :root[data-r="45"] { --H: 1350px; --capTop: 90px; --cap: 86px; --sub: 38px; --phoneTop: 400px; --ps: 1.5; --bub: 38px;
+          --lh: 74px; --hand: 54px; --paperTop: 330px; --rs: 1.15; --cpTop: 760px; --cps: 1.35; --big: 140px; }
+  html, body { margin: 0; width: var(--W); height: var(--H); overflow: hidden; }
+  body { font-family: var(--sans); color: var(--text); background: var(--bg); }
+  .stage { position: absolute; inset: 0; overflow: hidden; }
+  .scene { position: absolute; inset: 0; display: none; }
+  .band { background: var(--band-bg); color: var(--band-text); }
+  .cream { background: var(--bg); }
+
+  .cap { position: absolute; left: 80px; right: 80px; top: var(--capTop); }
+  .headline { font-family: var(--serif); font-weight: 700; letter-spacing: -0.02em; line-height: 1.04; margin: 0; font-size: var(--cap); }
+  .band .headline { color: var(--band-text); }
+  .word { display: inline-block; }
+  .hl { color: var(--terracotta); }
+  .band .hl { color: var(--rose); }
+  .sub { font-size: var(--sub); color: var(--muted); margin: 26px 0 0; line-height: 1.3; font-weight: 500; }
+  .capstack { position: relative; }
+  .capstack > * { position: absolute; left: 0; right: 0; top: 0; }
+
+  /* ---------- phone ---------- */
+  .pw { position: absolute; left: 50%; top: var(--phoneTop); width: 0; height: 0; }
+  .phone { position: absolute; left: -207px; top: 0; box-sizing: border-box; width: 414px; height: 860px; border-radius: 62px; background: #1d1916; padding: 14px;
+           transform: scale(var(--ps)); transform-origin: 50% 0; box-shadow: 0 30px 70px rgba(0,0,0,0.35); }
+  .screen { position: relative; width: 386px; height: 832px; border-radius: 50px; overflow: hidden; background: var(--bg); }
+  .notch { position: absolute; top: 10px; left: 50%; width: 112px; height: 32px; margin-left: -56px; border-radius: 20px; background: #1d1916; z-index: 20; }
+  .statusbar { height: 52px; display: flex; justify-content: space-between; align-items: center; padding: 6px 30px 0; font-size: 15px; font-weight: 700; background: var(--surface); }
+
+  /* ---------- generic chat app (deliberately not any real messenger) ---------- */
+  .chat { position: absolute; inset: 0; background: #fff; color: #1c1c1e; font-family: -apple-system, 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif; }
+  .chat .sb { height: 52px; display: flex; justify-content: space-between; align-items: center; padding: 6px 30px 0; font-size: 15px; font-weight: 600; }
+  .ib-head { display: flex; align-items: center; gap: 10px; padding: 4px 18px 10px; }
+  .ib-title { font-size: 30px; font-weight: 800; letter-spacing: -0.02em; }
+  .ib-count { background: #e5484d; color: #fff; font-weight: 800; font-size: 17px; border-radius: 999px; padding: 3px 11px; display: inline-block; }
+  .ib-search { margin: 0 16px 6px; height: 38px; border-radius: 12px; background: #f0f0f2; color: #8e8e93; font-size: 17px; display: flex; align-items: center; padding: 0 14px; }
+  .ib-list { position: relative; height: 640px; overflow: hidden; }
+  .row { position: absolute; left: 0; right: 0; top: 0; height: 80px; display: flex; align-items: center; gap: 12px; padding: 0 16px; background: #fff; box-sizing: border-box; }
+  .av { width: 54px; height: 54px; border-radius: 50%; flex: none; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 19px; }
+  .rt { flex: 1; min-width: 0; }
+  .rn { display: flex; justify-content: space-between; align-items: baseline; font-size: 18px; font-weight: 600; color: #3a3a3c; }
+  .rn time { font-size: 14px; color: #8e8e93; font-weight: 500; }
+  .rp { font-size: 17px; color: #8e8e93; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 3px; }
+  .row.unread .rn, .row.unread .rp { color: #1c1c1e; font-weight: 700; }
+  .row.unread .rn time { color: #1c1c1e; }
+  .dot { width: 12px; height: 12px; border-radius: 50%; background: #1c1c1e; flex: none; visibility: hidden; }
+  .row.unread .dot { visibility: visible; }
+
+  .th-head { display: flex; align-items: center; gap: 12px; padding: 2px 14px 12px; border-bottom: 1px solid #eee; }
+  .th-back { font-size: 38px; line-height: 1; color: #1c1c1e; margin-top: -4px; }
+  .th-head .av { width: 44px; height: 44px; font-size: 16px; }
+  .th-name { font-size: 20px; font-weight: 700; }
+  .th-sub { font-size: 14px; color: #8e8e93; }
+  .th-body { padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+  .day { align-self: center; font-size: 14px; color: #8e8e93; font-weight: 600; margin: 6px 0 2px; }
+  .msg { max-width: 82%; font-size: 21px; line-height: 1.3; padding: 12px 16px; border-radius: 22px; }
+  .msg.in { align-self: flex-start; background: #ececee; border-bottom-left-radius: 6px; }
+  .msg.out { align-self: flex-end; background: #2c2c2e; color: #fff; border-bottom-right-radius: 6px; }
+  .msg.typing { display: none; gap: 6px; padding: 18px 20px; }
+  .msg.typing i { width: 9px; height: 9px; border-radius: 50%; background: #fff; display: block; }
+  #clash2 { white-space: nowrap; max-width: none; }
+  .vignette { position: absolute; inset: 0; pointer-events: none; opacity: 0;
+              background: radial-gradient(ellipse at 50% 50%, rgba(20,6,4,0) 45%, rgba(20,6,4,0.35) 75%, rgba(40,6,4,0.75) 100%); }
+  .seen { align-self: flex-end; font-size: 13px; color: #8e8e93; margin-top: -4px; }
+
+  /* big message cards over the phone */
+  .bub { position: absolute; left: 0; top: 0; display: flex; gap: 18px; align-items: flex-start; background: #fff; color: #1c1c1e; border-radius: 34px;
+         padding: 22px 34px 24px 22px; box-shadow: 0 18px 50px rgba(0,0,0,0.38); max-width: 880px; box-sizing: border-box;
+         font-family: -apple-system, 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif; transform-origin: 50% 50%; }
+  .bub .av { width: 66px; height: 66px; font-size: 24px; }
+  .bn { font-size: calc(var(--bub) * 0.6); font-weight: 700; color: #8e8e93; }
+  .bt { font-size: var(--bub); font-weight: 600; line-height: 1.18; margin-top: 2px; }
+  .mini-receipt { margin-top: 14px; width: 300px; padding: 14px 18px; border-radius: 14px; background: #f4f4f6; border: 1px solid #e2e2e6; font-size: calc(var(--bub) * 0.45); color: #6e6e73; }
+  .mini-receipt b { display: block; color: #1c1c1e; font-size: calc(var(--bub) * 0.85); margin: 2px 0 4px; }
+
+  /* ---------- logbook ---------- */
+  .paper { position: absolute; left: 80px; right: 80px; top: var(--paperTop); background-color: #fbf6ea; border-radius: 10px; box-shadow: 0 24px 60px rgba(0,0,0,0.35);
+           padding: calc(var(--lh) * 0.5) 50px calc(var(--lh) * 0.6) 120px; box-sizing: border-box;
+           background-image: repeating-linear-gradient(to bottom, transparent 0, transparent calc(var(--lh) - 2px), #c7d3e0 calc(var(--lh) - 2px), #c7d3e0 var(--lh));
+           background-position: 0 calc(var(--lh) * 0.5 + 6px); transform-origin: 50% 0; }
+  .paper::before { content: ''; position: absolute; left: 92px; top: 0; bottom: 0; width: 3px; background: #e7a3a0; }
+  .ln { font-family: 'Caveat', cursive; font-weight: 600; font-size: var(--hand); line-height: var(--lh); height: var(--lh); color: #24324a; white-space: nowrap; position: relative; }
+  .ln.head { color: #24324a; text-decoration: underline; text-underline-offset: 10px; text-decoration-thickness: 3px; }
+  .ink { display: inline-block; }
+  #circles { position: absolute; inset: 0; overflow: visible; pointer-events: none; }
+
+  /* ---------- Plotline phone screens ---------- */
+  .screen .statusbar, .screen .site-header { position: relative; z-index: 5; }
+  .screen .site-header { background: var(--surface); }
+  .screen .header-inner { min-height: 52px; padding: 0 16px; flex-wrap: nowrap; }
+  .screen .container { padding: 0 14px; }
+  .screen .main { padding-top: 14px; }
+  .screen h1 { font-size: 1.45rem; margin-bottom: 4px; }
+  .screen .slot-grid { font-size: 0.92rem; border-spacing: 4px; width: 100%; }
+  .screen .slot-grid tbody th { font-size: 0.8rem; padding: 0 4px; }
+  .screen .slot { min-height: 44px; width: 100%; }
+  .screen .selection-bar { position: absolute; left: 12px; right: 12px; top: 492px; bottom: auto; }
+  .screen .facts { gap: 10px 22px; }
+  .date-pill { display: inline-flex; gap: 8px; align-items: center; font-weight: 700; font-size: 0.9rem; padding: 6px 12px; border-radius: 999px; border: 1.5px solid var(--border-strong); background: var(--surface); margin: 2px 0 12px; }
+  .tap { position: absolute; width: 64px; height: 64px; margin: -32px 0 0 -32px; border-radius: 50%; background: rgba(59,47,42,0.22); border: 2px solid rgba(59,47,42,0.35); pointer-events: none; z-index: 30; opacity: 0; }
+  .filebox { display: flex; align-items: center; gap: 10px; padding: 6px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--field); font-weight: 500; }
+  .fb-btn { padding: 4px 10px; border-radius: 6px; background: var(--sand); color: var(--text); font-weight: 700; font-size: 0.8rem; }
+
+  .rcw { position: absolute; left: 50%; top: var(--phoneTop); width: 0; height: 0; }
+  .review-card { position: absolute; left: -290px; top: 0; width: 580px; font-size: 20px; transform: scale(var(--rs)); transform-origin: 50% 0; }
+  .review-card .card { padding: 30px 32px; box-shadow: 0 24px 60px rgba(59,47,42,0.18); }
+  .review-card h2 { font-size: 34px; }
+  .review-card h3 { font-size: 24px; }
+  .review-card .facts dt { font-size: 16px; }
+  .review-card .small { font-size: 17px; }
+  .review-card .badge { font-size: 16px; padding: 4px 12px; }
+  .receipt { width: 300px; padding: 16px 20px; border-radius: 12px; border: 1px dashed var(--border-strong); background: #fff; font-size: 15px; }
+  .r-top { font-weight: 700; color: var(--accent); }
+  .r-amt { font-family: var(--serif); font-weight: 700; font-size: 34px; margin: 2px 0 8px; }
+  .r-row { display: flex; justify-content: space-between; color: var(--muted); padding: 2px 0; }
+  .r-row span:last-child { color: var(--text); font-weight: 700; }
+  .pw.confirm { top: var(--cpTop); }
+  .pw.confirm .phone { transform: scale(var(--cps)); }
+
+  /* ---------- centered scenes ---------- */
+  .center-col { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 0 80px; }
+  #s4 .headline { font-size: calc(var(--cap) * 1.12); }
+  .bigline { font-family: var(--serif); font-weight: 700; letter-spacing: -0.02em; line-height: 1; font-size: var(--big); margin: 0; }
+  .fee-sub { font-size: calc(var(--sub) * 1.15); font-weight: 700; margin-top: 50px; color: var(--text); }
+  .fee-sub2 { font-size: var(--sub); color: var(--muted); margin-top: 22px; font-weight: 500; }
+  .logo-row { display: flex; align-items: center; gap: 30px; }
+  .logo-row img { width: 160px; height: 160px; border-radius: 34px; }
+  .wordmark { font-family: var(--serif); font-weight: 700; font-size: 160px; letter-spacing: -0.02em; line-height: 1; color: var(--band-text); }
+  .outro-cta { font-family: var(--serif); font-weight: 600; font-size: calc(var(--cap) * 0.78); margin-top: 60px; color: var(--rose); }
+  .url { font-size: 46px; font-weight: 700; color: var(--band-text); margin-top: 44px; padding: 14px 42px; border: 2px solid var(--band-border); border-radius: 999px; background: var(--band-card); }
+</style>
+</head>
+<body>
+<div class="stage">
+
+  <!-- 1 HOOK + PILE-UP (0–6) -->
+  <section class="scene band" id="s1">
+    <div class="pw" id="pw1">
+      <div class="phone"><div class="screen">
+        <div class="notch"></div>
+        <div class="chat">
+          <div class="sb"><span>9:41</span><span>●●● ▮</span></div>
+          <div class="ib-head"><span class="ib-title">Chats</span><span class="ib-count" id="ibcount">0</span></div>
+          <div class="ib-search">Search</div>
+          <div class="ib-list" id="iblist"></div>
+        </div>
+      </div></div>
+    </div>
+    <div id="bubs"></div>
+    <div class="cap"><div class="capstack">
+      <h1 class="headline" id="c1a"><span class="word">7&nbsp;PM.</span> <span class="word hl">Court&nbsp;2.</span></h1>
+      <h1 class="headline" id="c1b"><span class="word">Every</span> <span class="word">day,</span> <span class="word">the</span> <span class="word">same</span> <span class="word">questions.</span></h1>
+    </div></div>
+  </section>
+
+  <!-- 2 LOGBOOK (6–8) -->
+  <section class="scene band" id="s2">
+    <div class="cap"><div class="capstack">
+      <h1 class="headline" id="c2a"><span class="word">So</span> <span class="word">you</span> <span class="word">write</span> <span class="word">it</span> <span class="word">down.</span></h1>
+    </div></div>
+    <div class="paper" id="paper">
+      <div class="ln head"><span class="ink">Sat, Nov 28 · Courts</span></div>
+      <div class="ln"><span class="ink" data-at="6.1">5PM&nbsp; Ct 1 – Jen ✓</span></div>
+      <div class="ln"><span class="ink" data-at="6.35">6PM&nbsp; Ct 2 – Coach Rey</span></div>
+      <div class="ln" id="dupA"><span class="ink" data-at="6.6">7PM&nbsp; Ct 2 – Paolo (paid)</span></div>
+      <div class="ln"><span class="ink" data-at="6.85">8PM&nbsp; Ct 1 – Bea?</span></div>
+      <div class="ln" id="dupB"><span class="ink" data-at="7.1">7PM&nbsp; Ct 2 – Mark</span></div>
+      <svg id="circles"></svg>
+    </div>
+    <div class="cap" style="pointer-events:none"><div class="capstack">
+      <h1 class="headline" id="c2b" style="text-align:right"><span class="word hl">Twice.</span></h1>
+    </div></div>
+  </section>
+
+  <!-- 3 CLASH (8–10) -->
+  <section class="scene band" id="s3">
+    <div class="cap"><div class="capstack">
+      <h1 class="headline" id="c3"><span class="word">Then</span> <span class="word">7&nbsp;PM</span> <span class="word">comes.</span></h1>
+    </div></div>
+    <div class="pw" id="pw3">
+      <div class="phone"><div class="screen">
+        <div class="notch"></div>
+        <div class="chat">
+          <div class="sb"><span>7:02</span><span>●●● ▮</span></div>
+          <div class="th-head"><span class="th-back">‹</span><span class="av" style="background:#7a8b3f">MT</span><div><div class="th-name">Mark T.</div><div class="th-sub">Active now</div></div></div>
+          <div class="th-body">
+            <div class="day">Yesterday</div>
+            <div class="msg in">Pa-reserve po 7–9PM, 4 kami 🏓</div>
+            <div class="msg out">Ok po, reserved na kayo 7PM 👍</div>
+            <div class="day" id="today">Today 7:02 PM</div>
+            <div class="msg in" id="clash1">Ma'am, may naglalaro na po sa Court 2? 😅</div>
+            <div class="msg out typing" id="typing"><i></i><i></i><i></i></div>
+            <div class="msg out" id="clash2">Sorry po, na-double book 🙏</div>
+          </div>
+        </div>
+      </div></div>
+    </div>
+    <div class="vignette" id="vig3"></div>
+  </section>
+
+  <!-- 4 TURN (10–12) -->
+  <section class="scene cream" id="s4">
+    <div class="center-col">
+      <h1 class="headline" id="c4"><span class="word">What</span> <span class="word">if</span> <span class="word">players</span> <span class="word">just</span><br><span class="word hl">booked</span> <span class="word hl">it</span> <span class="word hl">themselves?</span></h1>
+    </div>
+  </section>
+
+  <!-- 5 BOOK + PAY (12–16) -->
+  <section class="scene cream" id="s5">
+    <div class="cap"><div class="capstack">
+      <h1 class="headline" id="c5a"><span class="word">Players</span> <span class="word">see</span> <span class="word hl">what's</span> <span class="word hl">free.</span></h1>
+      <h1 class="headline" id="c5b"><span class="word">They</span> <span class="word">pay</span> <span class="word">by</span> <span class="word">GCash,</span> <span class="word">Maya</span> <span class="word">or</span> <span class="word">bank.</span></h1>
+    </div></div>
+    <div class="pw" id="pw5">
+      <div class="phone"><div class="screen" id="scr5">
+        <div class="notch"></div>
+        <div class="statusbar"><span>3:10</span><span>●●● ▮</span></div>
+        <header class="site-header"><div class="header-inner"><span class="brand venue-name">Claudex Courts</span><span class="auth-area"><span class="btn btn-small">Log in</span></span></div></header>
+        <div id="bookview">
+          <div class="main"><div class="container">
+            <h1>Book a court</h1>
+            <span class="date-pill">📅 Sat, Nov 28 · Pickleball</span>
+            <ul class="slot-legend">
+              <li><span class="slot-swatch slot-free"></span>Available</li>
+              <li><span class="slot-swatch slot-selected">✓</span>Selected</li>
+              <li><span class="slot-swatch slot-booked"></span>Booked</li>
+            </ul>
+            <table class="slot-grid" id="bookgrid">
+              <thead><tr><th></th><th>Court 1</th><th>Court 2</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div></div>
+          <div class="selection-bar" id="selbar">
+            <div class="selection-text">
+              <strong>Court 1</strong>
+              <span class="muted small">Sat, Nov 28 · 7 PM–9 PM · 2 hours</span>
+              <span class="muted small">Court ₱800 + booking fee ₱10 = ₱810</span>
+            </div>
+            <div class="selection-total"><strong>₱810</strong></div>
+            <div class="selection-actions">
+              <span class="btn btn-small btn-ghost">Clear</span>
+              <span class="btn btn-small" id="continue">Continue</span>
+            </div>
+          </div>
+        </div>
+        <div id="payview" class="main"><div class="container"><div class="stack">
+          <ol class="booking-steps" id="steps5"><li class="current">Reserved</li><li>Payment sent</li><li>Confirmed</li></ol>
+          <div id="paycard" class="stack">
+            <section class="card stack" style="margin:0">
+              <h2 class="card-head rose" style="font-size:1.2rem">Pay within <span class="countdown" id="countdown">59:48</span></h2>
+              <p class="muted small" style="margin:0">Pay ₱810 using one of the options below, with <strong>QK7-24M</strong> as the payment note.</p>
+              <article class="payment-account" style="display:flex;gap:14px;align-items:center">
+                <svg id="qr" width="104" height="104" viewBox="0 0 29 29" style="flex-shrink:0;background:#fff;border-radius:6px"></svg>
+                <div><p class="account-label"><strong>GCash</strong></p><p class="small muted">Claudex Courts</p><p class="small muted">0917 ••• 4821</p></div>
+              </article>
+              <h3 style="font-size:1.05rem;margin:4px 0 0">Upload your proof</h3>
+              <div class="field small"><span>Receipt screenshot or PDF (max 5 MB)</span>
+                <div class="filebox" id="filebox"><span class="fb-btn">Choose file</span><span id="fname" class="muted">No file chosen</span></div></div>
+              <span class="btn btn-block" id="submitproof">Submit proof of payment</span>
+            </section>
+          </div>
+          <div id="reviewview" class="stack">
+            <section class="card" style="margin:0">
+              <div class="page-head card-head" style="margin-bottom:16px"><h2>Court 1</h2><span class="badge status-payment_submitted">Payment under review</span></div>
+              <dl class="facts">
+                <div><dt>Reference</dt><dd>QK7-24M</dd></div>
+                <div><dt>Date</dt><dd>Sat, Nov 28</dd></div>
+                <div><dt>Time</dt><dd>7 PM–9 PM (2 hours)</dd></div>
+                <div><dt>Total</dt><dd>₱810</dd></div>
+              </dl>
+            </section>
+          </div>
+        </div></div></div>
+        <div class="tap" id="tap5"></div>
+      </div></div>
+    </div>
+  </section>
+
+  <!-- 7 APPROVE (16–19) -->
+  <section class="scene cream" id="s7">
+    <div class="cap"><div class="capstack">
+      <h1 class="headline" id="c7"><span class="word">You</span> <span class="word">approve</span> <span class="word">in</span> <span class="word hl">one</span> <span class="word hl">tap.</span></h1>
+    </div></div>
+    <div class="rcw" id="rcw">
+      <div class="review-card" id="reviewcard">
+        <section class="card stack" style="margin:0">
+          <div class="page-head" style="margin:0"><h2>QK7-24M</h2><span class="badge" id="rbadge">Payment under review</span></div>
+          <dl class="facts">
+            <div><dt>Court</dt><dd>Court 1</dd></div>
+            <div><dt>When</dt><dd>Sat, Nov 28, 7 PM–9 PM</dd></div>
+            <div><dt>Total</dt><dd>₱810</dd></div>
+            <div><dt>Customer</dt><dd>Mark T.</dd></div>
+          </dl>
+          <div class="stack" id="proofblock">
+            <h3 style="margin:0">Proof waiting for review</h3>
+            <p class="small" style="margin:0">GCash · ₱810 · Ref 4021 337 9915 · Nov 28, 3:12 PM</p>
+            <div class="receipt">
+              <div class="r-top">Payment sent</div>
+              <div class="r-amt">₱810.00</div>
+              <div class="r-row"><span>To</span><span>Claudex Courts</span></div>
+              <div class="r-row"><span>Note</span><span>QK7-24M</span></div>
+              <div class="r-row"><span>Ref no.</span><span>4021 337 9915</span></div>
+            </div>
+            <span class="btn" id="approve">Approve and confirm</span>
+          </div>
+          <p class="muted small" id="noproof" style="margin:0">No proof is waiting for review.</p>
+        </section>
+        <div class="tap" id="tap7"></div>
+      </div>
+    </div>
+    <div class="pw confirm" id="pw7">
+      <div class="phone"><div class="screen">
+        <div class="notch"></div>
+        <div class="statusbar"><span>3:14</span><span>●●● ▮</span></div>
+        <header class="site-header"><div class="header-inner"><span class="brand venue-name">Claudex Courts</span></div></header>
+        <div class="main"><div class="container"><div class="stack">
+          <ol class="booking-steps"><li class="done">Reserved</li><li class="done">Payment sent</li><li class="current">Confirmed</li></ol>
+          <section class="card" style="margin:0">
+            <div class="page-head card-head" style="margin-bottom:16px"><h2>Court 1</h2><span class="badge status-confirmed">Confirmed</span></div>
+            <dl class="facts">
+              <div><dt>Reference</dt><dd>QK7-24M</dd></div>
+              <div><dt>Date</dt><dd>Sat, Nov 28</dd></div>
+              <div><dt>Time</dt><dd>7 PM–9 PM (2 hours)</dd></div>
+              <div><dt>Total</dt><dd>₱810</dd></div>
+            </dl>
+          </section>
+        </div></div></div>
+      </div></div>
+    </div>
+  </section>
+
+  <!-- 8 FEE (19–22) -->
+  <section class="scene cream" id="s8">
+    <div class="center-col">
+      <h1 class="bigline" id="c8"><span class="word">Venues</span> <span class="word">pay</span> <span class="word hl">₱0.</span></h1>
+      <div class="fee-sub" id="c8b">No setup fee. No monthly fee.</div>
+      <div class="fee-sub2" id="c8c">Players add a ₱10 booking fee.</div>
+    </div>
+  </section>
+
+  <!-- 9 OUTRO (22–25) -->
+  <section class="scene band" id="s9">
+    <div class="center-col">
+      <div class="logo-row"><img id="s9tile" src="/src/assets/plotline-tile.svg" alt=""><span class="wordmark" id="s9word">plotline</span></div>
+      <div class="outro-cta" id="s9cta">Put your venue on Plotline.</div>
+      <div class="url" id="s9url">plotline.fit</div>
+    </div>
+  </section>
+</div>
+
+<script>
+const R = new URLSearchParams(location.search).get('r') === '45' ? '45' : '916'
+document.documentElement.dataset.r = R
+const W = 1080, H = R === '45' ? 1350 : 1920
+const $ = (s) => document.querySelector(s)
+const $$ = (s) => [...document.querySelectorAll(s)]
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x))
+const p = (t, start, dur) => clamp((t - start) / dur)
+const easeOut = (x) => 1 - Math.pow(1 - x, 3)
+const easeIn = (x) => x * x * x
+const backOut = (x) => { const c = 1.6; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2) }
+const lerp = (a, b, x) => a + (b - a) * x
+function set(el, { o = 1, x = 0, y = 0, s = 1, r = 0 } = {}) {
+  el.style.opacity = o
+  el.style.transform = `translate(${x}px, ${y}px) scale(${s}) rotate(${r}deg)`
+}
+// rise in at `at`, leave over the 0.25 s before `end`
+function inout(el, t, at, end, { dist = 50, dur = 0.45, outDist = -30 } = {}) {
+  const k = easeOut(p(t, at, dur)), x = end ? easeIn(p(t, end - 0.25, 0.25)) : 0
+  set(el, { o: k * (1 - x), y: (1 - k) * dist + x * outDist })
+}
+function words(sel, t, at, end, step = 0.1, dist = 60) {
+  $$(sel + ' .word').forEach((w, i) => inout(w, t, at + i * step, end, { dist, dur: 0.45 }))
+}
+function tapAt(tapEl, frame, target, t, at) {
+  const d = t - at
+  if (d < -0.18 || d > 0.45) { tapEl.style.opacity = 0; return }
+  const fr = frame.getBoundingClientRect(), r = target.getBoundingClientRect()
+  const scale = fr.width / frame.offsetWidth
+  tapEl.style.left = ((r.left + r.width / 2 - fr.left) / scale) + 'px'
+  tapEl.style.top = ((r.top + r.height / 2 - fr.top) / scale) + 'px'
+  if (d < 0) { const x = p(d, -0.18, 0.18); tapEl.style.opacity = x * 0.9; tapEl.style.transform = `scale(${lerp(1.3, 0.8, x)})` }
+  else { const x = p(d, 0, 0.45); tapEl.style.opacity = 0.9 * (1 - x); tapEl.style.transform = `scale(${lerp(0.8, 1.6, easeOut(x))})` }
+}
+
+// ---------- inbox data (all names fictional) ----------
+const TH = {
+  carla: ['Carla', '#9a8f84', 'C'], nina: ['Nina', '#8e9aa6', 'N'], jo: ['Jo', '#a39486', 'J'],
+  paolo: ['Paolo M.', '#d9822b', 'PM'], jen: ['Jen D.', '#3e8e7e', 'JD'], rey: ['Coach Rey', '#6b5b95', 'CR'],
+  bea: ['Bea S.', '#c2577a', 'BS'], migs: ['Migs', '#4a7fb5', 'M'], mark: ['Mark T.', '#7a8b3f', 'MT'],
+  trish: ['Trish', '#b5654a', 'T'], aly: ['Aly', '#5a8f5a', 'A'], dan: ['Dan R.', '#a0603c', 'DR'], kim: ['Kim', '#7064a8', 'K'],
+}
+const OLD = [['carla', 'Thanks po! 🙏', 'Yesterday'], ['nina', 'See you po bukas', 'Yesterday'], ['jo', 'Ok po, noted', 'Mon']]
+const EV = [
+  { at: 0.5, th: 'paolo', txt: 'Hi po 👋', n: 3 },
+  { at: 1.0, th: 'jen', txt: 'Hello po', n: 6 },
+  { at: 1.5, th: 'rey', txt: 'Good morning po', n: 9 },
+  { at: 2.0, th: 'paolo', txt: 'Hi po! Available pa po Court 2 mamayang 7PM?', n: 12, bub: true },
+  { at: 2.5, th: 'jen', txt: 'How to book?', n: 15, bub: true },
+  { at: 3.0, th: 'rey', txt: 'How much per hour?', n: 18, bub: true },
+  { at: 3.5, th: 'bea', txt: 'is 6PM-8PM available?', n: 21, bub: true },
+  { at: 4.0, th: 'migs', txt: 'Ano mode of payment nyo?', n: 24, bub: true },
+  { at: 4.25, th: 'jen', txt: 'Pwede po GCash?', n: 26, bub: true },
+  { at: 4.5, th: 'mark', txt: 'Pa-reserve po 7–9PM, 4 kami 🏓', n: 29, bub: true },
+  { at: 4.75, th: 'paolo', txt: 'Sent na po 🙏', n: 32, bub: true, receipt: true, preview: 'Sent na po 🙏 · Photo' },
+  { at: 5.0, th: 'paolo', txt: 'Na-receive nyo na po ba?', n: 34, bub: true },
+  { at: 5.25, th: 'bea', txt: 'Hello po? Confirmed na po ba kami?', n: 37, bub: true },
+  { at: 5.5, th: 'trish', txt: 'May open play po ba kayo sa Sat?', n: 40, bub: true },
+  { at: 5.625, th: 'aly', txt: 'How much per hour?', n: 43 },
+  { at: 5.75, th: 'dan', txt: 'How to book?', n: 45 },
+  { at: 5.875, th: 'kim', txt: 'Available pa po?', n: 47 },
+]
+const ROWH = 80
+const rows = {}
+const list = $('#iblist')
+for (const id of Object.keys(TH)) {
+  const [name, color, ini] = TH[id]
+  const el = document.createElement('div')
+  el.className = 'row'
+  el.innerHTML = `<span class="av" style="background:${color}">${ini}</span><div class="rt"><div class="rn"><span>${name}</span><time></time></div><div class="rp"></div></div><span class="dot"></span>`
+  list.appendChild(el)
+  rows[id] = el
+}
+function orderAt(tt) {
+  let order = OLD.map((o) => o[0])
+  for (const e of EV) if (e.at <= tt) order = [e.th, ...order.filter((x) => x !== e.th)]
+  return order
+}
+// big cards
+const bubs = []
+const bubWrap = $('#bubs')
+const ROT = [-3, 2.5, -2, 3, -1.5, 2, -3, 1.5, -2.5, 3, -1]
+EV.filter((e) => e.bub).forEach((e, i) => {
+  const [name, color, ini] = TH[e.th]
+  const el = document.createElement('div')
+  el.className = 'bub'
+  el.innerHTML = `<span class="av" style="background:${color}">${ini}</span><div><div class="bn">${name}</div><div class="bt">${e.txt}</div>` +
+    (e.receipt ? `<div class="mini-receipt">Payment sent<b>₱400.00</b>Ref 7731 205 4418</div>` : '') + `</div>`
+  bubWrap.appendChild(el)
+  bubs.push({ el, e, i })
+})
+function layoutBubs() {
+  const top = R === '45' ? 300 : 560, step = R === '45' ? 86 : 118
+  bubs.forEach(({ el, i }) => {
+    const w = el.offsetWidth, jit = [0, 30, 10, 40, 20, 5, 35, 15, 25, 0, 30][i]
+    el.dataset.x = i % 2 === 0 ? 50 + jit : W - 50 - jit - w
+    el.dataset.y = top + i * step
+  })
+}
+
+// ---------- logbook circles ----------
+function layoutCircles() {
+  const paper = $('#paper'), svg = $('#circles'), pr = paper.getBoundingClientRect()
+  svg.setAttribute('viewBox', `0 0 ${pr.width} ${pr.height}`)
+  svg.setAttribute('width', pr.width); svg.setAttribute('height', pr.height)
+  svg.innerHTML = ['#dupA', '#dupB'].map((sel, i) => {
+    const r = $(sel + ' .ink').getBoundingClientRect()
+    const cx = r.left - pr.left + r.width / 2, cy = r.top - pr.top + r.height / 2 + 4
+    const rx = r.width / 2 + 34, ry = r.height / 2 + 4
+    // a hand-drawn loop: slightly more than one turn, a little tilted
+    let d = ''
+    for (let k = 0; k <= 64; k++) {
+      const a = -Math.PI * 0.9 + (k / 64) * Math.PI * 2.15
+      const wob = 1 + 0.03 * Math.sin(k * 0.9 + i)
+      const x = cx + Math.cos(a) * rx * wob, y = cy + Math.sin(a) * ry * wob + (k / 64) * 8 - 4
+      d += (k ? 'L' : 'M') + x.toFixed(1) + ' ' + y.toFixed(1)
+    }
+    return `<path id="circ${i}" d="${d}" pathLength="1" fill="none" stroke="var(--pen)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="1" stroke-dashoffset="1"/>`
+  }).join('')
+}
+
+// ---------- booking grid ----------
+const bookTimes = ['5 PM – 6 PM', '6 PM – 7 PM', '7 PM – 8 PM', '8 PM – 9 PM']
+const bookedMap = { '0,0': 'Jen', '1,1': 'Rey', '2,1': 'Paolo', '3,1': 'Bea' }
+const bookBody = $('#bookgrid tbody')
+bookTimes.forEach((tm, r) => {
+  const tr = document.createElement('tr')
+  tr.innerHTML = `<th scope="row">${tm}</th>` + [0, 1].map((c) => {
+    const n = bookedMap[`${r},${c}`]
+    return n ? `<td><button class="slot slot-booked" disabled>Booked<span class="slot-name">${n}</span></button></td>`
+             : `<td><button class="slot slot-free" data-r="${r}" data-c="${c}">₱400</button></td>`
+  }).join('')
+  bookBody.appendChild(tr)
+})
+const pick1 = $('#bookgrid button[data-r="2"][data-c="0"]')
+const pick2 = $('#bookgrid button[data-r="3"][data-c="0"]')
+function setSlot(el, sel) {
+  if (sel && !el.classList.contains('slot-selected')) { el.className = 'slot slot-selected'; el.innerHTML = '<span>✓ </span>₱400' }
+  if (!sel && !el.classList.contains('slot-free')) { el.className = 'slot slot-free'; el.innerHTML = '₱400' }
+}
+// fake QR (illustration only)
+;(() => {
+  const svg = $('#qr'); let seed = 7; const r = () => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff)
+  let out = ''
+  const finder = (x, y) => `<rect x="${x}" y="${y}" width="7" height="7" fill="#3b2f2a"/><rect x="${x+1}" y="${y+1}" width="5" height="5" fill="#fff"/><rect x="${x+2}" y="${y+2}" width="3" height="3" fill="#3b2f2a"/>`
+  for (let y = 1; y < 28; y++) for (let x = 1; x < 28; x++) {
+    const inF = (x < 9 && y < 9) || (x > 19 && y < 9) || (x < 9 && y > 19)
+    if (!inF && r() > 0.52) out += `<rect x="${x}" y="${y}" width="1" height="1" fill="#3b2f2a"/>`
+  }
+  svg.innerHTML = out + finder(1, 1) + finder(21, 1) + finder(1, 21)
+})()
+
+// ---------- timeline ----------
+// v2: the clash runs to 11.5 s so the apology can land; the turn, fee and outro hold 0.5 s less each.
+// The book/pay/approve scenes keep their v1 timings, played 1 s later (13–20 s).
+const S = [['#s1', 0, 6], ['#s2', 6, 8], ['#s3', 8, 11.5], ['#s4', 11.5, 13], ['#s5', 13, 17], ['#s7', 17, 20], ['#s8', 20, 22.5], ['#s9', 22.5, 25.01]]
+const show = (id, on) => { $(id).style.display = on ? 'block' : 'none' }
+const ZOOM = { at: 9.75, dur: 0.45 } // the push-in on "Sorry po, na-double book"
+let Z = null // zoom target, measured once fonts are in
+
+window.renderAt = function (T) {
+  S.forEach(([id, a, b]) => show(id, T >= a && T < b))
+  let t = T
+  if (T >= 13 && T < 20) t = T - 1
+  if (T >= 11.5 && T < 13) {
+    words('#c4', T, 11.55, 13.0, 0.085, 60)
+    return
+  }
+  if (T >= 20) {
+    if (T < 22.5) {
+      words('#c8', T, 20.05, 22.5, 0.14, 60)
+      inout($('#c8b'), T, 20.75, 22.5, { dist: 30 })
+      inout($('#c8c'), T, 21.25, 22.5, { dist: 30 })
+    } else {
+      const tile = $('#s9tile'), word = $('#s9word')
+      const k = backOut(p(T, 22.5, 0.45))
+      tile.style.opacity = clamp(p(T, 22.5, 0.15))
+      tile.style.transform = `scale(${lerp(0.4, 1, k)}) rotate(${lerp(-12, 0, k)}deg)`
+      const w = easeOut(p(T, 22.75, 0.5))
+      set(word, { o: w, x: (1 - w) * -40 })
+      inout($('#s9cta'), T, 23.0, null, { dist: 40 })
+      inout($('#s9url'), T, 23.4, null, { dist: 24 })
+    }
+    return
+  }
+
+  if (t < 6) {
+    // captions: the hook is already on screen at frame 0
+    $$('#c1a .word').forEach((w) => inout(w, t, -1, 2.0))
+    words('#c1b', t, 2.05, null, 0.08, 50)
+    // phone, with a shake that grows as the inbox fills
+    const amp = 7 * easeIn(p(t, 4.0, 1.9))
+    set($('#pw1'), { x: Math.sin(t * 71) * amp, y: Math.cos(t * 53) * amp * 0.6 })
+    // inbox rows
+    const past = EV.filter((e) => e.at <= t), last = past[past.length - 1]
+    const now = orderAt(t), prev = last ? orderAt(last.at - 1e-4) : now
+    const k = last ? easeOut(p(t, last.at, 0.2)) : 1
+    for (const id of Object.keys(TH)) {
+      const el = rows[id], ci = now.indexOf(id)
+      if (ci < 0) { el.style.opacity = 0; continue }
+      const pi = prev.indexOf(id)
+      const y = lerp(pi < 0 ? -1 : pi, ci, k) * ROWH
+      el.style.opacity = pi < 0 ? k : 1
+      el.style.transform = `translateY(${y}px)`
+      el.style.zIndex = 100 - ci
+      const mine = past.filter((e) => e.th === id), lastE = mine[mine.length - 1]
+      const old = OLD.find((o) => o[0] === id)
+      el.classList.toggle('unread', !!lastE)
+      el.querySelector('.rp').textContent = lastE ? (lastE.preview || lastE.txt) : old[1]
+      el.querySelector('time').textContent = lastE ? 'now' : old[2]
+    }
+    const cnt = $('#ibcount')
+    cnt.style.visibility = last ? 'visible' : 'hidden'
+    cnt.textContent = last ? last.n : ''
+    cnt.style.transform = last ? `scale(${lerp(1.4, 1, easeOut(p(t, last.at, 0.2)))})` : ''
+    // big cards
+    bubs.forEach(({ el, e, i }) => {
+      if (t < e.at) { el.style.opacity = 0; return }
+      const kk = backOut(p(t, e.at, 0.3))
+      set(el, { o: clamp(p(t, e.at, 0.07)), x: +el.dataset.x, y: +el.dataset.y + (1 - kk) * 30, s: lerp(0.75, 1, kk), r: ROT[i] })
+      // older cards sink back so the newest one reads clearly
+      const age = bubs.filter((b) => b.i > i && b.e.at <= t).reduce((a, b) => a + easeOut(p(t, b.e.at, 0.2)), 0)
+      el.style.filter = `brightness(${lerp(1, 0.62, clamp(age / 3))})`
+    })
+  } else if (t < 8) {
+    words('#c2a', t, 6.05, null, 0.07, 40)
+    const pp = $('#paper'), k = easeOut(p(t, 6.0, 0.3))
+    set(pp, { o: k, y: (1 - k) * 40, r: lerp(-1.5, -0.8, k) })
+    $$('#paper .ink[data-at]').forEach((ink) => {
+      const w = p(t, +ink.dataset.at, 0.3)
+      ink.style.clipPath = `inset(-20px ${(1 - w) * 100}% -20px -10px)`
+    })
+    ;[7.5, 7.62].forEach((at, i) => { const c = $('#circ' + i); if (c) c.setAttribute('stroke-dashoffset', 1 - easeOut(p(t, at, 0.3))) })
+    const tw = $('#c2b .word'), kk = backOut(p(t, 7.5, 0.35))
+    set(tw, { o: clamp(p(t, 7.5, 0.08)), s: lerp(0.5, 1, kk), r: -4 })
+    $('#c2b').style.top = R === '45' ? '120px' : '150px'
+  } else if (t < 11.5) {
+    // headline, then it gets out of the way of the zoom
+    words('#c3', t, 8.05, ZOOM.at + 0.2, 0.1, 40)
+    const k = easeOut(p(t, 8.0, 0.3))
+    $('#today').style.opacity = t >= 8.5 ? 1 : 0
+    const c1 = $('#clash1'), c2 = $('#clash2'), ty = $('#typing')
+    c1.style.visibility = t >= 8.5 ? 'visible' : 'hidden'
+    set(c1, { o: clamp(p(t, 8.5, 0.08)), s: lerp(0.85, 1, backOut(p(t, 8.5, 0.3))) })
+    c1.style.transformOrigin = '0 100%'
+    // the owner types for a beat before answering
+    const typing = t >= 9.0 && t < 9.5
+    ty.style.display = typing ? 'flex' : 'none'
+    c2.style.display = typing ? 'none' : 'block'
+    if (typing) {
+      set(ty, { o: clamp(p(t, 9.0, 0.08)), s: lerp(0.85, 1, backOut(p(t, 9.0, 0.25))) })
+      ty.style.transformOrigin = '100% 100%'
+      $$('#typing i').forEach((d, i) => {
+        const b = Math.max(0, Math.sin((t - 9.0) * 14 - i * 0.9))
+        d.style.transform = `translateY(${-6 * b}px)`; d.style.opacity = 0.55 + 0.45 * b
+      })
+    }
+    c2.style.visibility = t >= 9.5 ? 'visible' : 'hidden'
+    set(c2, { o: clamp(p(t, 9.5, 0.08)), s: lerp(0.85, 1, backOut(p(t, 9.5, 0.3))) })
+    c2.style.transformOrigin = '100% 100%'
+    // push in on the apology: a fast punch, a shake as it lands, then a slow creep
+    const pw = $('#pw3'), zk = backOut(p(t, ZOOM.at, ZOOM.dur))
+    const creep = easeOut(p(t, ZOOM.at + ZOOM.dur, 11.5 - ZOOM.at - ZOOM.dur))
+    const zs = lerp(1, Z.s, zk) * (1 + 0.06 * creep)
+    const land = t - (ZOOM.at + 0.12), sh = land > 0 ? 14 * Math.exp(-land / 0.12) : 0
+    pw.style.transformOrigin = `${Z.ox}px ${Z.oy}px`
+    set(pw, { o: 1, x: Z.dx * clamp(zk, 0, 1.05) + Math.sin(t * 90) * sh, y: (1 - k) * 60 + Z.dy * clamp(zk, 0, 1.05) + Math.cos(t * 70) * sh * 0.7, s: zs })
+    // the bubble glows red once it lands; the frame darkens at the edges
+    const g = easeOut(p(t, ZOOM.at + 0.3, 0.4))
+    c2.style.boxShadow = g ? `0 0 0 ${3 * g}px rgba(229,72,77,${0.9 * g}), 0 0 ${28 * g}px rgba(229,72,77,${0.55 * g})` : ''
+    $('#vig3').style.opacity = easeOut(p(t, ZOOM.at, 0.5))
+  } else if (t < 16) {
+    words('#c5a', t, 12.05, 14.0, 0.1, 50)
+    words('#c5b', t, 14.05, 16.0, 0.08, 50)
+    const pw = $('#pw5'), k = easeOut(p(t, 12.0, 0.5)), x = easeIn(p(t, 15.75, 0.25))
+    set(pw, { o: k * (1 - x), y: (1 - k) * 220 + x * 60 })
+    const paying = t >= 14.0
+    $('#bookview').style.display = paying ? 'none' : 'block'
+    $('#payview').style.display = paying ? 'block' : 'none'
+    const tap = $('#tap5'), scr = $('#scr5')
+    if (!paying) {
+      setSlot(pick1, t >= 12.75); setSlot(pick2, t >= 13.0)
+      pick1.style.transform = t >= 12.75 ? `scale(${lerp(0.9, 1, easeOut(p(t, 12.75, 0.2)))})` : ''
+      pick2.style.transform = t >= 13.0 ? `scale(${lerp(0.9, 1, easeOut(p(t, 13.0, 0.2)))})` : ''
+      const sb = $('#selbar'), sk = easeOut(p(t, 13.25, 0.35))
+      sb.style.opacity = sk; sb.style.transform = `translateY(${(1 - sk) * 80}px)`
+      const cont = $('#continue')
+      cont.style.transform = (t >= 13.75 && t < 13.9) ? 'scale(0.93)' : ''
+      if (t < 12.9) tapAt(tap, scr, pick1, t, 12.75)
+      else if (t < 13.5) tapAt(tap, scr, pick2, t, 13.0)
+      else tapAt(tap, scr, cont, t, 13.75)
+    } else {
+      set($('#payview'), { o: easeOut(p(t, 14.0, 0.3)), y: (1 - easeOut(p(t, 14.0, 0.3))) * 30 })
+      // the player scrolls down to the upload field
+      const sc = p(t, 14.4, 0.3), scE = sc < 0.5 ? 4 * sc * sc * sc : 1 - Math.pow(-2 * sc + 2, 3) / 2
+      $('#payview .container').style.transform = `translateY(${-scE * (R === '45' ? 210 : 190)}px)`
+      const secs = 3588 - Math.floor(t - 14)
+      $('#countdown').textContent = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`
+      const attached = t >= 14.75, fn = $('#fname'), fb = $('#filebox')
+      fn.textContent = attached ? 'receipt.jpg' : 'No file chosen'
+      fn.className = attached ? '' : 'muted'
+      fn.style.fontWeight = attached ? '700' : ''
+      fb.style.borderColor = attached ? 'var(--accent)' : ''
+      fb.style.transform = attached ? `scale(${lerp(1.05, 1, easeOut(p(t, 14.75, 0.25)))})` : ''
+      const sub = $('#submitproof')
+      sub.textContent = (t >= 15.0 && t < 15.5) ? 'Uploading…' : 'Submit proof of payment'
+      sub.style.transform = (t >= 15.0 && t < 15.15) ? 'scale(0.96)' : ''
+      const reviewing = t >= 15.5
+      $('#paycard').style.display = reviewing ? 'none' : 'flex'
+      const rv = $('#reviewview'); rv.style.display = reviewing ? 'flex' : 'none'
+      if (reviewing) set(rv, { o: easeOut(p(t, 15.5, 0.25)), y: (1 - easeOut(p(t, 15.5, 0.25))) * 20 })
+      if (t < 14.95) tapAt(tap, scr, fb, t, 14.75); else if (!reviewing) tapAt(tap, scr, sub, t, 15.0); else tap.style.opacity = 0
+      const st = $$('#steps5 li')
+      st[0].className = reviewing ? 'done' : 'current'
+      st[1].className = reviewing ? 'current' : ''
+    }
+  } else if (t < 19) {
+    words('#c7', t, 16.05, 19.0, 0.1, 50)
+    const rc = $('#rcw'), k = easeOut(p(t, 16.0, 0.45)), x = easeIn(p(t, 18.75, 0.25))
+    set(rc, { o: k * (1 - x), y: (1 - k) * 100 + x * -30 })
+    const approved = t >= 16.75, gone = t >= 17.0
+    const ap = $('#approve')
+    ap.style.transform = (t >= 16.75 && t < 16.9) ? 'scale(0.95)' : ''
+    $('#proofblock').style.display = gone ? 'none' : 'flex'
+    if (!gone) tapAt($('#tap7'), $('#reviewcard'), ap, t, 16.75); else $('#tap7').style.opacity = 0
+    const np = $('#noproof'); np.style.display = gone ? 'block' : 'none'
+    if (gone) set(np, { o: easeOut(p(t, 17.0, 0.3)) })
+    const rb = $('#rbadge')
+    rb.className = 'badge ' + (approved ? 'status-confirmed' : 'status-payment_submitted')
+    rb.textContent = approved ? 'Confirmed' : 'Payment under review'
+    rb.style.transform = approved ? `scale(${lerp(1.35, 1, backOut(p(t, 16.75, 0.35)))})` : ''
+    rb.style.display = 'inline-block'
+    const mp = $('#pw7'), mk = easeOut(p(t, 17.25, 0.5))
+    set(mp, { o: mk * (1 - x), y: (1 - mk) * 400 + x * 60 })
+  }
+}
+
+window.ready = Promise.all([document.fonts.load("600 72px 'Caveat'"), document.fonts.load("700 100px 'Fraunces'"), document.fonts.load("600 60px 'Fraunces'")]).then(() => document.fonts.ready).then(() => Promise.all([...document.images].map((i) => i.decode().catch(() => {})))).then(() => {
+  // layout that needs real measurements: show each scene briefly
+  show('#s1', true); layoutBubs(); show('#s1', false)
+  show('#s2', true); layoutCircles(); show('#s2', false)
+  // zoom target: where the apology bubble sits before any transform
+  show('#s3', true)
+  const pw = $('#pw3'), c2 = $('#clash2'); pw.style.transform = 'none'; c2.style.transform = 'none'; c2.style.display = 'block'
+  const pr = pw.getBoundingClientRect(), cr = c2.getBoundingClientRect()
+  const cx = cr.left + cr.width / 2, cy = cr.top + cr.height / 2
+  Z = { ox: cx - pr.left, oy: cy - pr.top, dx: W / 2 - cx, dy: H * 0.5 - cy, s: Math.min(2.6, (W * 0.86) / cr.width) }
+  show('#s3', false)
+})
+</script>
+</body>
+</html>
