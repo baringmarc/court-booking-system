@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef } from 'react'
 import type { Court } from '../catalog/api'
 import { formatHour, formatMoney } from '../../lib/format'
 import { hourInZone } from '../../lib/time'
@@ -47,6 +48,28 @@ export function SlotGrid({ courts, times, slotsByCourt, selection, onToggle, onO
   // The key lists Promo only on days that have a free promo slot.
   const hasPromo = [...slotsByCourt.values()].some((slots) => slots.some((s) => s.status === 'free' && s.promo_label))
 
+  // Today's grid opens at the row holding the current time (T33.1), once per day and sport shown: a refetch, a pick
+  // or the player's own scrolling never moves it. Only the region scrolls (not the page), instantly.
+  const regionRef = useRef<HTMLDivElement>(null)
+  const scrolledFor = useRef<string | null>(null)
+  const scrollKey = `${date ?? ''}|${courts.map((c) => c.id).join(',')}`
+  useLayoutEffect(() => {
+    const region = regionRef.current
+    if (!region || scrolledFor.current === scrollKey) return
+    scrolledFor.current = scrollKey
+    region.scrollTop = 0
+    const now = Date.now()
+    const rowEnd = (time: string) => {
+      const slot = courts.map((c) => slotsByCourt.get(c.id)?.find((s) => s.slot_start === time)).find((s) => s)
+      return slot ? Date.parse(slot.slot_end) : Date.parse(time) + 3_600_000
+    }
+    const row = times.findIndex((time) => Date.parse(time) <= now && now < rowEnd(time))
+    const head = region.querySelector('thead')
+    const header = row > 0 ? region.querySelectorAll('tbody th[scope="row"]')[row] : null
+    if (!head || !header) return
+    region.scrollTop += header.getBoundingClientRect().top - head.getBoundingClientRect().bottom
+  }, [scrollKey, times, courts, slotsByCourt])
+
   return (
     <div>
       <ul className="slot-legend" aria-label="Slot key">
@@ -64,7 +87,7 @@ export function SlotGrid({ courts, times, slotsByCourt, selection, onToggle, onO
         )}
       </ul>
       {/* Keyboard-reachable even when every slot is past or taken (axe scrollable-region-focusable, T27.6), like DayView. */}
-      <div className="table-scroll" tabIndex={0} role="region" aria-label="Court times">
+      <div ref={regionRef} className="table-scroll" tabIndex={0} role="region" aria-label="Court times">
         <table className="slot-grid">
           <thead>
             <tr>
