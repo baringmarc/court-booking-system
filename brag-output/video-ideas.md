@@ -21,7 +21,7 @@ Saved 2026-11-24. Revised 2026-11-24 after a review: product claims corrected, o
 | 10 | Live stacks for open play | Organizers and players | Not started |
 | 11 | Real owner: one specific change | Owners (trust) | Waiting for a real venue and permission |
 | 12 | We set it up with you | Owners (trust) | Not started (check what's deployed first) |
-| 13 | Can I still use Messenger? | Owners | Not started |
+| 13 | Can I still use Messenger? | Owners | **Done 2026-11-24** (hook A chosen) (`keep-the-chat/`) |
 | 14 | A booking comes in after hours | Owners | Not started |
 | 15 | Owner FAQ series | Owners | Not started |
 | 16 | From a Facebook post to a booking | Owners | Not started |
@@ -173,6 +173,7 @@ Saved 2026-11-24. Revised 2026-11-24 after a review: product claims corrected, o
 - **Shows:** a player asks in chat, the owner replies with the booking link, the player checks availability and books.
 - **Accuracy:** Plotline has no Messenger integration; this is just replying with a link. Generic chat look, as in #1.
 - **Why:** handles a likely objection and pairs naturally with #1.
+- **As built (2026-11-24):** 20 s, Dinkhaus Pickleball, the owner pastes the booking link (no copy-link button exists) and the venue's real link preview text shows; the player books a free slot, pays, waits for review; the owner approves and the player replies "Confirmed na po!". Two hooks tried; A "Your players already message your page. That's okay." chosen over B "Keep the chat. Skip the back-and-forth.". As built: `keep-the-chat/plan.md`.
 
 ### 14. A booking comes in after hours
 - **Hook:** "11 PM. Your front desk is closed. Bookings aren't."
