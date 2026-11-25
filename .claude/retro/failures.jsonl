@@ -741,3 +741,4 @@
 {"ts":"2026-11-25T10:52:18.963Z","task":"T33.4","source":"dispute","file":"src/features/booking/BookingSummary.group.test.tsx","summary":"getAllByText(Confirmed) also counted the status steps line; upheld, fixed to the badge selector","outcome":"upheld"}
 {"ts":"2026-11-25T10:52:19.040Z","task":"T33.4","source":"dispute","file":"src/features/admin/hooks.group.test.tsx","summary":"asserted an empty query cache for a disabled useQuery hook (TanStack caches disabled observers); upheld, replaced with getQueryData undefined","outcome":"upheld"}
 {"ts":"2026-11-25T11:36:06.952Z","task":"adhoc","source":"gate","tier":"full","category":"test:e2e","summary":"first failing: [desktop] › e2e/reschedule.spec.ts:48:1 › staff move a confirmed booking before it starts: the guest sees it and gets an email (3.7m)"}
+{"ts":"2026-11-25T12:53:45.155Z","task":"adhoc","source":"guard","category":"reviewer-readonly","agent":"reviewer","command":"npm run check:drift"}
