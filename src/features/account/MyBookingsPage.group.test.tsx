@@ -1,5 +1,5 @@
 // T33.4: /me/bookings shows the courts of one checkout as one entry (SPEC §7 `/me/bookings`, "Groups"): one link to the
-// earliest-starting court's page, the title "N courts", one line per court, the checkout's total and the group's badge.
+// earliest-starting court's page, the title "N bookings", one line per court, the checkout's total and the group's badge.
 // Times are fixed in 2099 (always ahead) and in Asia/Manila: Badminton 1 at 7 AM Thu, Jan 8 (the previous UTC day),
 // Tennis Court at 11 PM the same day.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -46,7 +46,7 @@ describe('MyBookingsPage: a group is one entry', () => {
     vi.mocked(claimGuestBookings).mockReset().mockResolvedValue(0)
   })
 
-  it('links once to the earliest court’s page, titled "2 courts", with a line per court, the total and the badge', async () => {
+  it('links once to the earliest court’s page, titled "2 bookings", with a line per court, the total and the badge', async () => {
     // Rows come latest first, as the API sorts them.
     vi.mocked(fetchMyBookings).mockResolvedValue([part({ status: 'pending_payment', expires_at: '2099-01-07T12:00:00.000Z' }), lead({ status: 'pending_payment', expires_at: '2099-01-07T12:00:00.000Z' })])
     renderPage()
@@ -54,7 +54,7 @@ describe('MyBookingsPage: a group is one entry', () => {
     const links = within(upcoming).getAllByRole('link')
     expect(links).toHaveLength(1)
     expect(links[0]).toHaveAttribute('href', '/booking/CB-LEAD01')
-    expect(within(links[0]).getByText('2 courts')).toBeInTheDocument()
+    expect(within(links[0]).getByText('2 bookings')).toBeInTheDocument()
     expect(links[0]).toHaveTextContent('Badminton 1 · Thu, Jan 8, 7 AM–8 AM · CB-LEAD01')
     expect(links[0]).toHaveTextContent('Tennis Court · Thu, Jan 8, 11 PM–1 AM · CB-PART02')
     expect(links[0]).toHaveTextContent('₱1,060')

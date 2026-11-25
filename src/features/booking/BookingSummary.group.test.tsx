@@ -220,12 +220,12 @@ describe('BookingSummary: staff cancelled some courts and the others stay booked
 
   it('tells the player which courts were cancelled and that the others are still booked', () => {
     renderBooking({ status: 'confirmed', expires_at: null, group: confirmedOneCancelled })
-    expect(screen.getByRole('status')).toHaveTextContent('The venue cancelled Tennis Court. The other courts are still booked.')
+    expect(screen.getByRole('status')).toHaveTextContent('The venue cancelled Tennis Court. Your other bookings are still confirmed.')
   })
 
   it('adds the reason after the names when the opened court is the cancelled one', () => {
     renderBooking({ ...opened2, status: 'cancelled', expires_at: null, cancelled_by_venue: true, cancel_reason: 'Court maintenance', group: confirmedOneCancelled })
-    expect(screen.getByRole('status')).toHaveTextContent('The venue cancelled Tennis Court: Court maintenance. The other courts are still booked.')
+    expect(screen.getByRole('status')).toHaveTextContent('The venue cancelled Tennis Court: Court maintenance. Your other bookings are still confirmed.')
     // It is not the single-booking alert.
     expect(screen.queryByText(/The venue cancelled this booking/)).not.toBeInTheDocument()
   })
@@ -236,12 +236,12 @@ describe('BookingSummary: staff cancelled some courts and the others stay booked
     const alert = screen.getByRole('status')
     expect(alert.textContent).toMatch(/Badminton 2/)
     expect(alert.textContent).toMatch(/Tennis Court/)
-    expect(alert).toHaveTextContent('The other courts are still booked.')
+    expect(alert).toHaveTextContent('Your other bookings are still confirmed.')
   })
 
   it('shows no such alert while every court stands', () => {
     renderBooking({ status: 'confirmed', expires_at: null, group: group([{ ...lead, status: 'confirmed' }, { ...part, status: 'confirmed' }]) })
-    expect(screen.queryByText(/The other courts are still booked/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Your other bookings are still confirmed/)).not.toBeInTheDocument()
   })
 })
 
@@ -317,6 +317,6 @@ describe('BookingSummary: a booking without a group reads as before', () => {
     expect(screen.queryByRole('heading', { name: 'Your courts' })).not.toBeInTheDocument()
     expect(screen.queryByRole('list', { name: 'Courts in this booking' })).not.toBeInTheDocument()
     expect(fact('Total')).toBe('₱360')
-    expect(screen.queryByText(/The other courts are still booked/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Your other bookings are still confirmed/)).not.toBeInTheDocument()
   })
 })

@@ -104,7 +104,7 @@ describe('BookingPage for a group', () => {
   it('says "Cancel all bookings", with the deadline at the earliest active start (6 AM Jan 7 = 1 hour before 7 AM)', async () => {
     renderPage()
     expect(await screen.findByRole('button', { name: 'Cancel all bookings' })).toBeInTheDocument()
-    expect(screen.getByText('This cancels all 2 courts.')).toBeInTheDocument()
+    expect(screen.getByText('This cancels all 2 bookings.')).toBeInTheDocument()
     // The opened court starts at 11 PM; measuring from it would say 10:00 PM.
     expect(screen.getByText(/You can cancel online until Mon, Jan 7, 6:00 AM/)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Cancel booking' })).not.toBeInTheDocument()

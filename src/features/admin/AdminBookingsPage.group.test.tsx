@@ -72,7 +72,7 @@ function renderPage(path = '/admin/bookings') {
 const rows = async () => within(await screen.findByRole('list', { name: 'Bookings' }))
 const openRow = async (ref: RegExp) => userEvent.click(await screen.findByRole('button', { name: ref }))
 const checkout = async () => screen.findByRole('region', { name: 'Checkout CB-LEAD01' })
-const manage = (region: HTMLElement, ref: string) => within(within(region).getByRole('list', { name: 'Courts in this checkout' })).getByRole('button', { name: `Manage ${ref}` })
+const manage = (region: HTMLElement, ref: string) => within(within(region).getByRole('list', { name: 'Bookings in this checkout' })).getByRole('button', { name: `Manage ${ref}` })
 /** Opens the grouped row and waits until the checkout has loaded (its panel is the proof the group was read). */
 async function openGrouped(ref: RegExp) {
   await openRow(ref)
@@ -90,7 +90,7 @@ beforeEach(() => {
 })
 
 describe('the list', () => {
-  it('under the review queue shows one row per checkout titled with the LEAD’s reference, "N courts" and the summed total; single bookings are unchanged', async () => {
+  it('under the review queue shows one row per checkout titled with the LEAD’s reference, "N bookings" and the summed total; single bookings are unchanged', async () => {
     setBookings([lead(), part(), solo()])
     renderPage()
     const list = await rows()
@@ -98,7 +98,7 @@ describe('the list', () => {
     expect(items).toHaveLength(2)
     // The server lists the latest play time first, so Tennis Court (CB-PART02) is listed first; the row is still the lead's.
     const row = within(list.getByRole('button', { name: /CB-LEAD01/ }))
-    expect(row.getByText(/2 courts/)).toBeInTheDocument()
+    expect(row.getByText(/2 bookings/)).toBeInTheDocument()
     expect(row.getByText('₱1,060')).toBeInTheDocument()
     expect(row.getByText(/Gina Guest/)).toBeInTheDocument()
     expect(list.queryByRole('button', { name: /CB-PART02/ })).not.toBeInTheDocument()
@@ -117,7 +117,7 @@ describe('the list', () => {
     renderPage()
     const list = await rows()
     expect(await list.findAllByRole('listitem')).toHaveLength(1)
-    expect(list.getByRole('button', { name: /CB-THIRD03/ })).toHaveTextContent('2 courts')
+    expect(list.getByRole('button', { name: /CB-THIRD03/ })).toHaveTextContent('2 bookings')
   })
 
   it.each([
@@ -131,7 +131,7 @@ describe('the list', () => {
     expect(await list.findAllByRole('listitem')).toHaveLength(3)
     expect(list.getAllByText('Group booking')).toHaveLength(2)
     expect(within(list.getByRole('button', { name: /CB-SOLO09/ })).queryByText('Group booking')).not.toBeInTheDocument()
-    expect(list.queryByText(/2 courts/)).not.toBeInTheDocument()
+    expect(list.queryByText(/2 bookings/)).not.toBeInTheDocument()
   })
 })
 
@@ -157,14 +157,14 @@ describe('the checkout panel', () => {
     expect(within(panel).getAllByRole('heading', { name: 'Proof waiting for review' })).toHaveLength(1)
     expect(await within(panel).findByRole('img', { name: 'Proof of payment' })).toHaveAttribute('src', 'https://signed/proof')
     expect(fetchProofUrl).toHaveBeenCalledWith('a/proof.png')
-    expect(within(panel).getByText('This decides all 2 courts at once.')).toBeInTheDocument()
+    expect(within(panel).getByText('This decides all 2 bookings at once.')).toBeInTheDocument()
   })
 
   it('has no link in the courts list: nothing navigates away', async () => {
     setBookings([lead(), part()])
     renderPage()
     const panel = await openGrouped(/CB-LEAD01/)
-    expect(within(within(panel).getByRole('list', { name: 'Courts in this checkout' })).queryAllByRole('link')).toHaveLength(0)
+    expect(within(within(panel).getByRole('list', { name: 'Bookings in this checkout' })).queryAllByRole('link')).toHaveLength(0)
   })
 
 })
@@ -244,7 +244,7 @@ describe('the panel of a single booking', () => {
     renderPage()
     await openRow(/CB-SOLO09/)
     const panel = await screen.findByRole('region', { name: 'Booking CB-SOLO09' })
-    expect(within(panel).queryByRole('list', { name: 'Courts in this checkout' })).not.toBeInTheDocument()
+    expect(within(panel).queryByRole('list', { name: 'Bookings in this checkout' })).not.toBeInTheDocument()
     expect(within(panel).queryByText(/in checkout/)).not.toBeInTheDocument()
     expect(fetchAdminGroup).not.toHaveBeenCalled()
     expect(within(panel).queryByText(/This decides all/)).not.toBeInTheDocument()
@@ -287,7 +287,7 @@ describe('reviewing a checkout', () => {
     await userEvent.click(await within(panel).findByRole('button', { name: 'Approve and confirm' }))
     await vi.waitFor(() => expect(reviewPayment).toHaveBeenCalledTimes(1))
     expect(vi.mocked(reviewPayment).mock.calls[0]).toEqual(['a', true, null])
-    expect(await screen.findByText('Checkout CB-LEAD01 is confirmed (2 courts).')).toBeInTheDocument()
+    expect(await screen.findByText('Checkout CB-LEAD01 is confirmed (2 bookings).')).toBeInTheDocument()
   })
 
   it('approves from the queue too, naming the checkout’s court count (3)', async () => {
@@ -295,7 +295,7 @@ describe('reviewing a checkout', () => {
     renderPage()
     const panel = await openGrouped(/CB-LEAD01/)
     await userEvent.click(await within(panel).findByRole('button', { name: 'Approve and confirm' }))
-    expect(await screen.findByText('Checkout CB-LEAD01 is confirmed (3 courts).')).toBeInTheDocument()
+    expect(await screen.findByText('Checkout CB-LEAD01 is confirmed (3 bookings).')).toBeInTheDocument()
     expect(vi.mocked(reviewPayment).mock.calls[0]).toEqual(['a', true, null])
   })
 
@@ -318,7 +318,7 @@ describe('reviewing a checkout', () => {
     const panel = await openGrouped(/CB-LEAD01/)
     await userEvent.type(await within(panel).findByLabelText('Reason for rejecting'), 'Not a receipt')
     await userEvent.click(within(panel).getByRole('button', { name: 'Reject proof' }))
-    expect(await screen.findByText('Checkout CB-LEAD01: proof rejected for the last time. Its courts are cancelled and released.')).toBeInTheDocument()
+    expect(await screen.findByText('Checkout CB-LEAD01: proof rejected for the last time. Its bookings are cancelled and released.')).toBeInTheDocument()
   })
 
   it('a single booking’s review message is unchanged', async () => {
@@ -337,12 +337,12 @@ describe('cancelling in a checkout, from a court’s Manage section', () => {
     renderPage('/admin/bookings?status=all')
     await openRow(/CB-PART02/)
     const form = await within(await checkout()).findByRole('form', { name: 'Cancel booking' })
-    expect(await within(form).findByText('Only this court is cancelled. The other court in this checkout stays booked.')).toBeInTheDocument()
+    expect(await within(form).findByText('Only this booking is cancelled. The other booking in this checkout stays booked.')).toBeInTheDocument()
     await userEvent.type(within(form).getByLabelText('Reason for cancelling'), 'Court maintenance')
     await userEvent.click(within(form).getByRole('button', { name: 'Cancel booking' }))
     await vi.waitFor(() => expect(adminCancelBooking).toHaveBeenCalledTimes(1))
     expect(vi.mocked(adminCancelBooking).mock.calls[0]).toEqual(['b', 'Court maintenance'])
-    expect(await screen.findByText('CB-PART02 (Tennis Court) is cancelled and the slot released. The other courts stay booked.')).toBeInTheDocument()
+    expect(await screen.findByText('CB-PART02 (Tennis Court) is cancelled and the slot released. The other bookings stay booked.')).toBeInTheDocument()
   })
 
   it('counts the other active courts of a confirmed group: a cancelled court is not one of them', async () => {
@@ -350,15 +350,15 @@ describe('cancelling in a checkout, from a court’s Manage section', () => {
     renderPage('/admin/bookings?status=all')
     await openRow(/CB-LEAD01/)
     const form = await within(await checkout()).findByRole('form', { name: 'Cancel booking' })
-    expect(await within(form).findByText('Only this court is cancelled. The other court in this checkout stays booked.')).toBeInTheDocument()
+    expect(await within(form).findByText('Only this booking is cancelled. The other booking in this checkout stays booked.')).toBeInTheDocument()
   })
 
-  it('says "the other 2 courts" when two others stay booked', async () => {
+  it('says "the other 2 bookings" when two others stay booked', async () => {
     setBookings([confirmed(lead()), confirmed(part()), confirmed(third())])
     renderPage('/admin/bookings?status=all')
     await openRow(/CB-LEAD01/)
     const form = await within(await checkout()).findByRole('form', { name: 'Cancel booking' })
-    expect(await within(form).findByText('Only this court is cancelled. The other 2 courts in this checkout stay booked.')).toBeInTheDocument()
+    expect(await within(form).findByText('Only this booking is cancelled. The other 2 bookings in this checkout stay booked.')).toBeInTheDocument()
   })
 
   it('a group that is not fully confirmed cancels every court, and the message says the checkout is cancelled', async () => {
@@ -366,14 +366,14 @@ describe('cancelling in a checkout, from a court’s Manage section', () => {
     renderPage('/admin/bookings?status=all')
     await openRow(/CB-PART02/)
     const form = await within(await checkout()).findByRole('form', { name: 'Cancel booking' })
-    expect(await within(form).findByText('This cancels all 2 courts in this checkout, because one payment covers them all.')).toBeInTheDocument()
+    expect(await within(form).findByText('This cancels all 2 bookings in this checkout, because one payment covers them all.')).toBeInTheDocument()
     await userEvent.type(within(form).getByLabelText('Reason for cancelling'), 'Court maintenance')
     await userEvent.click(within(form).getByRole('button', { name: 'Cancel booking' }))
     await vi.waitFor(() => expect(adminCancelBooking).toHaveBeenCalledTimes(1))
     // One payment covers them all, so the server cancels the whole group whichever court is named.
     expect(['a', 'b']).toContain(vi.mocked(adminCancelBooking).mock.calls[0][0])
     expect(vi.mocked(adminCancelBooking).mock.calls[0][1]).toBe('Court maintenance')
-    expect(await screen.findByText('Checkout CB-LEAD01 is cancelled and its 2 courts released.')).toBeInTheDocument()
+    expect(await screen.findByText('Checkout CB-LEAD01 is cancelled and its 2 bookings released.')).toBeInTheDocument()
   })
 
   it('counts only the active courts of a checkout that is cancelled whole', async () => {
@@ -381,7 +381,7 @@ describe('cancelling in a checkout, from a court’s Manage section', () => {
     renderPage('/admin/bookings?status=all')
     await openRow(/CB-LEAD01/)
     const form = await within(await checkout()).findByRole('form', { name: 'Cancel booking' })
-    expect(await within(form).findByText('This cancels all 2 courts in this checkout, because one payment covers them all.')).toBeInTheDocument()
+    expect(await within(form).findByText('This cancels all 2 bookings in this checkout, because one payment covers them all.')).toBeInTheDocument()
   })
 
   it('a single booking’s form and message are unchanged', async () => {
