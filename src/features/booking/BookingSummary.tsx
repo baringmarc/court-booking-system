@@ -257,7 +257,7 @@ export function BookingSummary({ booking, paymentInstructions, timeZone, currenc
         <div className="alert alert-error" role="status">
           <p>
             The venue cancelled {listFormat.format(cancelledCourts.map((c) => c.court_name))}
-            {ownStatus === 'cancelled' && booking.cancel_reason ? `: ${booking.cancel_reason}` : ''}. The other courts are still booked.
+            {ownStatus === 'cancelled' && booking.cancel_reason ? `: ${booking.cancel_reason}` : ''}. Your other bookings are still confirmed.
           </p>
         </div>
       )}

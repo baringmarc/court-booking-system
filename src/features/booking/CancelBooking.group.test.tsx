@@ -16,10 +16,10 @@ function renderCancel(check: PlayerCancel, courts?: number, { pending = false } 
 }
 
 describe('CancelBooking for a group', () => {
-  it('says it cancels all N courts, under the deadline line, with "Cancel all bookings" as the first button', () => {
+  it('says it cancels all N bookings, under the deadline line, with "Cancel all bookings" as the first button', () => {
     renderCancel(allowed, 3)
     const deadlineLine = screen.getByText(/You can cancel online until Mon, Jan 7, 4:00 PM\./)
-    const all = screen.getByText('This cancels all 3 courts.')
+    const all = screen.getByText('This cancels all 3 bookings.')
     expect(deadlineLine.compareDocumentPosition(all) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Cancel all bookings' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Cancel booking' })).not.toBeInTheDocument()

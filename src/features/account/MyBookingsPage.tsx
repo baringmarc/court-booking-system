@@ -94,7 +94,7 @@ function BookingList({ label, rows, now, timeZone, currency, all }: { label: str
               {b.courts && b.courts.length > 1 ? (
                 // A checkout of several courts (T33.4): one entry, a line per court.
                 <span>
-                  <strong>{b.courts.length} courts</strong>
+                  <strong>{b.courts.length} bookings</strong>
                   {b.courts.map((c) => (
                     <span key={c.id} className="muted small block">
                       {c.court_name} · {formatDateLabel(todayInZone(timeZone, new Date(c.slot_start)), timeZone)}, {formatHour(hourInZone(c.slot_start, timeZone))}–{formatHour(hourInZone(c.slot_end, timeZone))} · {c.reference_code}

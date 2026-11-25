@@ -53,7 +53,7 @@ function renderPanel(overrides: Overrides = {}) {
   return { onOpen, onApprove, onReject, renderCourt }
 }
 const panel = () => screen.getByRole('region', { name: 'Checkout CB-LEAD01' })
-const courtsList = () => within(panel()).getByRole('list', { name: 'Courts in this checkout' })
+const courtsList = () => within(panel()).getByRole('list', { name: 'Bookings in this checkout' })
 const fact = (label: string) => within(panel()).getByText(label, { selector: 'dt' }).nextElementSibling
 const follows = (a: Node, b: Node) => !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)
 
@@ -290,9 +290,9 @@ describe('the proof and the one review', () => {
     expect(within(panel()).getByText('Loading proof…')).toBeInTheDocument()
   })
 
-  it('says "This decides all 2 courts at once." above Approve and confirm and Reject proof', () => {
+  it('says "This decides all 2 bookings at once." above Approve and confirm and Reject proof', () => {
     renderPanel()
-    const note = within(panel()).getByText('This decides all 2 courts at once.')
+    const note = within(panel()).getByText('This decides all 2 bookings at once.')
     expect(follows(note, within(panel()).getByRole('button', { name: 'Approve and confirm' }))).toBe(true)
     expect(follows(note, within(panel()).getByRole('button', { name: 'Reject proof' }))).toBe(true)
   })
@@ -300,7 +300,7 @@ describe('the proof and the one review', () => {
   it('counts all the courts in that sentence: 3', () => {
     const third = { ...part, id: 'c', reference_code: 'CB-THIRD03', court_id: 'c3', slot_start: '2030-01-07T20:00:00.000Z', slot_end: '2030-01-07T21:00:00.000Z', payments: [payment('pc', { amount: 700 })] }
     renderPanel({ group: group([lead, part, third]) })
-    expect(within(panel()).getByText('This decides all 3 courts at once.')).toBeInTheDocument()
+    expect(within(panel()).getByText('This decides all 3 bookings at once.')).toBeInTheDocument()
   })
 
   it('approves once through onApprove', async () => {

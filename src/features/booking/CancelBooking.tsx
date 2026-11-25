@@ -41,7 +41,7 @@ export function CancelBooking({ check, timeZone, paid, pending, error, onCancel,
     <section className="card stack" aria-labelledby="cancel-heading">
       <h2 id="cancel-heading" className="card-head">Need to cancel?</h2>
       <p className="small muted">You can cancel online until {deadline}.</p>
-      {all && <p className="small">This cancels all {courts} courts.</p>}
+      {all && <p className="small">This cancels all {courts} bookings.</p>}
       {error != null && <div className="alert alert-error" role="alert"><p>{bookingErrorMessage(error)}</p></div>}
       {confirming ? (
         <form className="stack" onSubmit={handleSubmit}>

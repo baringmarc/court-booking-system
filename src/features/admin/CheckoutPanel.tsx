@@ -75,7 +75,7 @@ export function CheckoutPanel({ group, openId, onOpen, timeZone, currency, proof
         {rejections > 0 && <div><dt>Rejections</dt><dd>{rejections}</dd></div>}
       </dl>
 
-      <ul className="list checkout-courts" aria-label="Courts in this checkout">
+      <ul className="list checkout-courts" aria-label="Bookings in this checkout">
         {courts.map((c) => (
           <CourtRow key={c.id} court={c} open={c.id === openId} onToggle={() => onOpen(c.id === openId ? null : c.id)}
             timeZone={timeZone} currency={currency} now={now}>
@@ -133,7 +133,7 @@ export function CheckoutPanel({ group, openId, onOpen, timeZone, currency, proof
 
       {canReview && (
         <div className="stack">
-          <p className="small">This decides all {courts.length} courts at once.</p>
+          <p className="small">This decides all {courts.length} bookings at once.</p>
           <button type="button" className="btn" disabled={pending} onClick={onApprove}>Approve and confirm</button>
           <form className="stack" onSubmit={handleReject} noValidate>
             <div className="field">
