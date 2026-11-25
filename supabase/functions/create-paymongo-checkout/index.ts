@@ -13,6 +13,7 @@ import {
   checkAmountPayable,
   checkoutMode,
   checkoutRequestBody,
+  groupCheckoutRequestBody,
   PAYMONGO_API,
   parseCheckoutResponse,
   stubCheckoutSession,
@@ -65,8 +66,10 @@ export default {
         p_user_id: callerUserId(ctx),
       })
       if (target.error) throw rpcError(target.error)
-      const booking = target.data?.[0] as { booking_id: string; total_amount: number; amount_due: number } | undefined
+      const booking = target.data?.[0]
       if (!booking) throw new ProofError('not_found', 'Booking not found.', 404)
+      // A booking group (T33.2) pays once for every court: the group total, one line per court.
+      const groupId = booking.booking_group_id
 
       // The booking's venue's online payments switch (T11.22, per venue since T12.10): Plotline turns it on once the
       // venue's PayMongo account is ready.
@@ -78,8 +81,9 @@ export default {
         throw new ProofError('online_payments_off', "Online payment isn't offered here. Please upload a proof of payment instead.", 409)
       }
 
-      // The court price plus the booking fee (T11.12); record_paymongo_payment checks the same amount.
-      const amountCentavos = toCentavos(booking.amount_due)
+      // The court price plus the booking fee (T11.12); record_paymongo_payment checks the same amount. For a group,
+      // the sum over its courts (record_paymongo_checkout refuses any other amount).
+      const amountCentavos = toCentavos(groupId ? booking.group_amount_due : booking.amount_due)
       const courtCentavos = toCentavos(booking.total_amount)
       checkAmountPayable(amountCentavos)
 
@@ -97,13 +101,36 @@ export default {
         console.error('create-paymongo-checkout: neither PUBLIC_ROOT_DOMAIN nor PUBLIC_SITE_URL is set')
         throw unavailable()
       }
-      const session = await createSession(checkoutRequestBody({
-        bookingId: booking.booking_id,
-        referenceCode,
-        courtCentavos,
-        feeCentavos: amountCentavos - courtCentavos,
-        base,
-      }))
+      let body: ReturnType<typeof checkoutRequestBody>
+      if (groupId) {
+        const courts = await admin
+          .from('bookings')
+          .select('reference_code, total_amount, booking_fee, courts(name)')
+          .eq('booking_group_id', groupId)
+          .order('during')
+          .order('court_id')
+        if (courts.error) throw rpcError(courts.error)
+        const lines = courts.data.map((c) => ({
+          label: `${c.courts?.name ?? 'Court'} · ${c.reference_code}`,
+          centavos: toCentavos(c.total_amount),
+        }))
+        body = groupCheckoutRequestBody({
+          leadBookingId: booking.lead_booking_id ?? booking.booking_id,
+          referenceCode,
+          courts: lines,
+          feeCentavos: amountCentavos - lines.reduce((sum, l) => sum + l.centavos, 0),
+          base,
+        })
+      } else {
+        body = checkoutRequestBody({
+          bookingId: booking.booking_id,
+          referenceCode,
+          courtCentavos,
+          feeCentavos: amountCentavos - courtCentavos,
+          base,
+        })
+      }
+      const session = await createSession(body)
 
       const stored = await admin.rpc('record_paymongo_checkout', {
         p_booking_id: booking.booking_id,

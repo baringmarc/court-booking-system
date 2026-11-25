@@ -68,6 +68,35 @@ export function checkoutRequestBody({ bookingId, referenceCode, courtCentavos, f
   }
 }
 
+export type GroupCheckoutInput = {
+  /** The group's lead booking: the session's key (paymongo_checkouts.booking_id) and the webhook's metadata check. */
+  leadBookingId: string
+  /** The reference the player paid from; the return links open the whole group from it. */
+  referenceCode: string
+  /** One line per court, in order, with its court price (bookings.total_amount). */
+  courts: { label: string; centavos: number }[]
+  /** The group's one booking fee (T33.1: on the lead only). */
+  feeCentavos: number
+  base: string
+}
+
+/** Request body for one checkout session paying a whole booking group (T33.2). Same shape as checkoutRequestBody. */
+export function groupCheckoutRequestBody({ leadBookingId, referenceCode, courts, feeCentavos, base }: GroupCheckoutInput) {
+  const single = checkoutRequestBody({ bookingId: leadBookingId, referenceCode, courtCentavos: 0, feeCentavos, base })
+  const attributes = single.data.attributes
+  return {
+    data: {
+      attributes: {
+        ...attributes,
+        line_items: [
+          ...courts.map((c) => ({ name: c.label, amount: c.centavos, currency: 'PHP', quantity: 1 })),
+          ...(feeCentavos > 0 ? [{ name: 'Booking fee', amount: feeCentavos, currency: 'PHP', quantity: 1 }] : []),
+        ],
+      },
+    },
+  }
+}
+
 export type CheckoutSession = { id: string; checkoutUrl: string }
 
 /** Reads the session id and URL from PayMongo's response, refusing anything that doesn't look right. */

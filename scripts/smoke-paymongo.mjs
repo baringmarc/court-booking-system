@@ -243,5 +243,44 @@ check("webhook: a session we didn't create is ignored", r.status === 200 && r.bo
 state = await bookingState(forged.id)
 check('webhook: ignored events recorded nothing', state.status === 'pending_payment' && state.payments.length === 0, `${state.status}`)
 
+// --- A booking group (T33.2): one session for the group total, paid once for every court ---------------------------
+async function groupOfTwo(offsetDays, hour) {
+  const date = new Date(Date.now() + offsetDays * 86400000).toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' })
+  const { data, error } = await guest.rpc('get_availability', { p_date: date, p_venue_slug: 'claudex-courts' })
+  if (error) throw error
+  const atHour = data.filter((s) => s.status === 'free' && new Date(s.slot_start).toLocaleString('en-US', { timeZone: 'Asia/Manila', hour: 'numeric', hour12: false }) == hour)
+  const courts = [...new Map(atHour.map((s) => [s.court_id, s])).values()].slice(0, 2)
+  if (courts.length < 2) throw new Error('no two free courts')
+  const { data: rows, error: ge } = await guest.rpc('create_booking_group', {
+    p_items: courts.map((s) => ({ court_id: s.court_id, start: s.slot_start, slots: 1 })),
+    p_guest_name: 'Smoke PayMongo Group', p_guest_email: 'smoke-paymongo@example.com', p_guest_phone: '0917 000 2222',
+  })
+  if (ge) throw ge
+  return rows
+}
+const grp = await groupOfTwo(8, 10)
+const lead = grp[0], other = grp[1]
+r = await checkout(guest, { reference_code: other.reference_code, token: other.guest_token })
+check('group: a checkout from a non-lead reference starts', r.status === 200 && typeof r.body?.checkout_url === 'string', `${r.status} ${JSON.stringify(r.body)}`)
+const groupStored = await storedCheckout(lead.id)
+const { data: groupRows } = await service.from('bookings').select('id, amount_due').eq('booking_group_id', lead.booking_group_id)
+const groupDue = groupRows.reduce((sum, b) => sum + Math.round(Number(b.amount_due) * 100), 0)
+check('group: one session, keyed by the lead, for the group total', groupStored?.amount_centavos === groupDue && groupStored?.checkout_url === r.body?.checkout_url,
+  `${groupStored?.amount_centavos} vs ${groupDue}`)
+r = await checkout(guest, { reference_code: lead.reference_code, token: lead.guest_token })
+check("group: the lead's reference reuses the same session", r.status === 200 && r.body?.checkout_url === groupStored?.checkout_url, r.body?.checkout_url)
+const groupBody = paidEvent({ eventId: `evt_smoke_${stamp}_g`, checkoutId: groupStored.checkout_id, paymentId: `pay_smoke_${stamp}_g`, amount: groupDue, bookingId: lead.id })
+r = await webhook(groupBody, sign(groupBody))
+const leadState = await bookingState(lead.id), otherState = await bookingState(other.id)
+check('group: the paid event confirms every court', r.status === 200 && r.body?.outcome === 'confirmed' && leadState.status === 'confirmed' && otherState.status === 'confirmed',
+  `${r.status} ${r.body?.outcome} -> ${leadState.status}, ${otherState.status}`)
+check('group: one approved PayMongo payment per court, adding up to the total',
+  leadState.payments.length === 1 && otherState.payments.length === 1
+  && [...leadState.payments, ...otherState.payments].every((p) => p.method === 'paymongo' && p.review_status === 'approved')
+  && Math.round([...leadState.payments, ...otherState.payments].reduce((sum, p) => sum + Number(p.amount), 0) * 100) === groupDue,
+  JSON.stringify([...leadState.payments, ...otherState.payments]))
+const { data: groupEmails } = await service.from('email_outbox').select('booking_id, kind').in('booking_id', [lead.id, other.id]).eq('kind', 'payment_confirmed')
+check('group: one confirmation email, on the lead', groupEmails?.length === 1 && groupEmails[0].booking_id === lead.id, JSON.stringify(groupEmails))
+
 console.log(failures ? `\n${failures} check(s) failed` : '\nAll checks passed')
 process.exit(failures ? 1 : 0)
