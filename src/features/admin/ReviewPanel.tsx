@@ -1,10 +1,12 @@
 import { useState, type FormEvent } from 'react'
+import { Link } from 'react-router-dom'
 import { formatHour, formatMoney } from '../../lib/format'
 import { formatDateLabel, formatDateTimeInZone, hourInZone, todayInZone } from '../../lib/time'
 import { bookingErrorMessage } from '../booking/errors'
 import { amountMismatch, paymentLabel } from '../booking/proofInput'
 import { displayStatus, STATUS_LABELS } from '../booking/status'
-import { pendingPayment, type AdminBooking } from './api'
+import { pendingPayment, type AdminBooking, type AdminGroup } from './api'
+import { groupPayment, groupPosition } from './groups'
 import { onlinePayments, paymentFlags, sourceLabel } from './paymentFlags'
 
 export type ProofLink = { state: 'none' } | { state: 'loading' } | { state: 'error' } | { state: 'ready'; url: string }
@@ -19,12 +21,20 @@ type Props = {
   onApprove: () => void
   onReject: (note: string) => void
   now?: Date
+  /** Every court of the booking's checkout (T33.4); one review decides them all. */
+  group?: AdminGroup
 }
 
-export function ReviewPanel({ booking, timeZone, currency, proof, pending, error, onApprove, onReject, now }: Props) {
+export function ReviewPanel({ booking, timeZone, currency, proof, pending, error, onApprove, onReject, now, group }: Props) {
   const [note, setNote] = useState('')
   const [noteError, setNoteError] = useState<string | null>(null)
-  const payment = pendingPayment(booking)
+  const checkout = group && group.bookings.length > 1 ? group : null
+  // A group's proof is one pending payment per court, with the file on one of them: shown once, for the summed amount.
+  const groupProof = checkout ? groupPayment(checkout.bookings) : null
+  const payment = groupProof ? groupProof.payment : pendingPayment(booking)
+  const paidAmount = groupProof ? groupProof.amount : payment?.amount ?? 0
+  const checkoutTotal = checkout ? checkout.bookings.reduce((total, b) => total + Math.round(b.amount_due * 100), 0) / 100 : null
+  const dueAmount = checkoutTotal ?? booking.amount_due
   const canReview = booking.status === 'payment_submitted' && payment !== null
   const status = displayStatus(booking, now)
   const date = todayInZone(timeZone, new Date(booking.slot_start))
@@ -47,6 +57,7 @@ export function ReviewPanel({ booking, timeZone, currency, proof, pending, error
         <h2>{booking.reference_code}</h2>
         <span className={`badge status-${status}`}>{STATUS_LABELS[status]}</span>
       </div>
+      {checkout && <CheckoutCourts group={checkout} booking={booking} timeZone={timeZone} currency={currency} now={now} />}
       <dl className="facts">
         <div><dt>Court</dt><dd>{booking.court_name}</dd></div>
         <div>
@@ -56,6 +67,7 @@ export function ReviewPanel({ booking, timeZone, currency, proof, pending, error
         <div><dt>Court price</dt><dd>{formatMoney(booking.total_amount, currency)}</dd></div>
         {booking.booking_fee > 0 && <div><dt>Booking fee</dt><dd>{formatMoney(booking.booking_fee, currency)}</dd></div>}
         <div><dt>Total</dt><dd>{formatMoney(booking.amount_due, currency)}</dd></div>
+        {checkoutTotal !== null && <div><dt>Checkout total</dt><dd>{formatMoney(checkoutTotal, currency)}</dd></div>}
         <div><dt>Customer</dt><dd>{booking.guest_name}</dd></div>
         {booking.guest_phone && <div><dt>Phone</dt><dd><a href={`tel:${booking.guest_phone}`}>{booking.guest_phone}</a></dd></div>}
         {booking.guest_email && <div><dt>Email</dt><dd>{booking.guest_email}</dd></div>}
@@ -103,12 +115,12 @@ export function ReviewPanel({ booking, timeZone, currency, proof, pending, error
         <div className="stack">
           <h3>Proof waiting for review</h3>
           <p className="small">
-            {paymentLabel(payment)} · {formatMoney(payment.amount, currency)}
+            {paymentLabel(payment)} · {formatMoney(paidAmount, currency)}
             {payment.reference_number ? ` · Ref ${payment.reference_number}` : ''} · {formatDateTimeInZone(payment.submitted_at, timeZone)}
           </p>
-          {amountMismatch(String(payment.amount), booking.amount_due) && (
+          {amountMismatch(String(paidAmount), dueAmount) && (
             <p className="form-warning" role="status">
-              Paid {formatMoney(payment.amount, currency)} but the total is {formatMoney(booking.amount_due, currency)}.
+              Paid {formatMoney(paidAmount, currency)} but the total is {formatMoney(dueAmount, currency)}.
             </p>
           )}
           <ProofPreview path={payment.storage_path} proof={proof} />
@@ -121,6 +133,7 @@ export function ReviewPanel({ booking, timeZone, currency, proof, pending, error
 
       {canReview && (
         <div className="stack">
+          {checkout && <p className="small">This decides all {checkout.bookings.length} courts at once.</p>}
           <button type="button" className="btn" disabled={pending} onClick={onApprove}>Approve and confirm</button>
           <form className="stack" onSubmit={handleReject} noValidate>
             <div className="field">
@@ -134,6 +147,37 @@ export function ReviewPanel({ booking, timeZone, currency, proof, pending, error
         </div>
       )}
     </section>
+  )
+}
+
+/** Where the booking sits in its checkout, and every court of it, with links to the others (T33.4). */
+function CheckoutCourts({ group, booking, timeZone, currency, now }: {
+  group: AdminGroup; booking: AdminBooking; timeZone: string; currency: string; now?: Date
+}) {
+  const { index, count } = groupPosition(group, booking.id)
+  return (
+    <div className="stack">
+      <p className="small">Booking {index} of {count} in checkout {group.lead_reference_code}</p>
+      <ul className="list" aria-label="Courts in this checkout">
+        {group.bookings.map((b) => {
+          const status = displayStatus(b, now)
+          const date = todayInZone(timeZone, new Date(b.slot_start))
+          return (
+            <li key={b.id} className="list-row">
+              <span className="small">
+                {b.id === booking.id
+                  ? <><strong>{b.reference_code}</strong> · This booking</>
+                  : <Link to={`/admin/bookings?q=${b.reference_code}`}>{b.reference_code}</Link>}
+                <span className="muted block">
+                  {b.court_name} · {formatDateLabel(date, timeZone)}, {formatHour(hourInZone(b.slot_start, timeZone))}–{formatHour(hourInZone(b.slot_end, timeZone))} · {formatMoney(b.amount_due, currency)}
+                </span>
+              </span>
+              <span className={`badge status-${status}`}>{STATUS_LABELS[status]}</span>
+            </li>
+          )
+        })}
+      </ul>
+    </div>
   )
 }
 

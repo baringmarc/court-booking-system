@@ -1,6 +1,6 @@
 // Admin data access for bookings and payments. Admins read their venue's rows through RLS (private.is_venue_admin);
 // writes go through RPCs (venue media: storage plus the admin RLS on courts and venue_settings). Only imported by lazy admin routes.
-import { FunctionsHttpError, type PostgrestSingleResponse } from '@supabase/supabase-js'
+import { FunctionsHttpError, type PostgrestSingleResponse, type QueryData } from '@supabase/supabase-js'
 import { supabase } from '../../lib/supabase'
 import { ApiError, unwrap } from '../../lib/queryClient'
 import { parseTstzRange } from '../../lib/time'
@@ -83,11 +83,23 @@ export type AdminBooking = {
   cancelled_by_venue: boolean
   /** Set on a moved part (T10.9): the booking it was split from. */
   parent_booking_id: string | null
+  /** The booking group of a multi-court checkout (M33); absent or null for a single booking. */
+  booking_group_id?: string | null
+}
+
+/** Every court of one checkout (T33.4), read by group id whatever the list's filters, by start then court id. */
+export type AdminGroup = {
+  id: string
+  /** The fee carrier (booking_groups.lead_booking_id), else the first court. */
+  lead_reference_code: string
+  bookings: AdminBooking[]
 }
 
 export const adminKeys = {
   bookings: (filters: BookingFilters) => [currentVenueId(), 'admin-bookings', filters] as const,
   allBookings: () => [currentVenueId(), 'admin-bookings'] as const,
+  /** Under allBookings, so every booking mutation's invalidation refreshes it too. */
+  group: (groupId: string) => [currentVenueId(), 'admin-bookings', 'group', groupId] as const,
   proofUrl: (path: string) => ['proof-url', path] as const,
   proofQueue: () => [currentVenueId(), 'admin-proof-queue'] as const,
   refundsOwed: () => [currentVenueId(), 'admin-refunds-owed'] as const,
@@ -103,7 +115,7 @@ export const adminKeys = {
 
 // One literal: supabase-js infers the row type from this string. `owed` is the same refunds read again, only for the
 // "Refund owed" filter (T30.6): filtered to owed rows and required to be non-empty, it keeps the bookings that owe one.
-const SELECT = 'id, reference_code, court_id, during, status, source, total_amount, booking_fee, amount_due, expires_at, rejection_count, guest_name, guest_email, guest_phone, created_at, cancelled_at, cancel_reason, cancelled_by_venue, parent_booking_id, courts(name, sport), payments(id, method, paid_with, amount, reference_number, storage_path, submitted_at, review_status, review_note, reviewed_at, reviewed_by, provider_payment_id, provider_source), refunds(id, payment_id, amount, status, method, settled_on, reason, note, updated_at), owed:refunds(id)' as const
+const SELECT = 'id, reference_code, court_id, during, status, source, total_amount, booking_fee, amount_due, expires_at, rejection_count, guest_name, guest_email, guest_phone, created_at, cancelled_at, cancel_reason, cancelled_by_venue, parent_booking_id, booking_group_id, courts(name, sport), payments(id, method, paid_with, amount, reference_number, storage_path, submitted_at, review_status, review_note, reviewed_at, reviewed_by, provider_payment_id, provider_source), refunds(id, payment_id, amount, status, method, settled_on, reason, note, updated_at), owed:refunds(id)' as const
 
 export const ADMIN_LIST_LIMIT = 200
 
@@ -134,10 +146,17 @@ export async function fetchAdminBookings(
     if (filters.refund === 'owed') query = query.eq('owed.status', 'owed').not('owed', 'is', null)
   }
   const all = unwrap(await query)
-  const rows = all.slice(0, ADMIN_LIST_LIMIT)
-  const bookings = rows.map((row) => {
-    const { start, end } = parseTstzRange(row.during)
-    return {
+  const bookings = all.slice(0, ADMIN_LIST_LIMIT).map(toAdminBooking)
+  return { bookings, truncated: all.length > ADMIN_LIST_LIMIT }
+}
+
+const selectBookings = () => supabase.from('bookings').select(SELECT)
+type AdminBookingRow = QueryData<ReturnType<typeof selectBookings>>[number]
+
+/** One `bookings` row of SELECT as the admin pages use it. */
+export function toAdminBooking(row: AdminBookingRow): AdminBooking {
+  const { start, end } = parseTstzRange(row.during)
+  return {
       id: row.id,
       reference_code: row.reference_code,
       court_id: row.court_id,
@@ -160,15 +179,31 @@ export async function fetchAdminBookings(
       cancel_reason: row.cancel_reason,
       cancelled_by_venue: row.cancelled_by_venue,
       parent_booking_id: row.parent_booking_id,
+      booking_group_id: row.booking_group_id,
       payments: [...row.payments]
         .map((p) => ({ ...p, amount: Number(p.amount) }))
         .sort((a, b) => a.submitted_at.localeCompare(b.submitted_at)),
       refunds: [...(row.refunds ?? [])]
         .map((r) => ({ ...r, amount: Number(r.amount) }))
         .sort((a, b) => a.id.localeCompare(b.id)),
-    }
-  })
-  return { bookings, truncated: all.length > ADMIN_LIST_LIMIT }
+  }
+}
+
+/** A checkout's courts by group id (T33.4), with the list's SELECT, and its lead from booking_groups (venue admins read it). */
+export async function fetchAdminGroup(groupId: string): Promise<AdminGroup> {
+  const [rows, lead] = await Promise.all([
+    selectBookings()
+      .eq('booking_group_id', groupId)
+      .eq('venue_id', currentVenueId())
+      .order('during')
+      .order('court_id')
+      .then((res) => unwrap(res)),
+    supabase.from('booking_groups').select('lead_booking_id').eq('id', groupId).maybeSingle().then((res) => unwrap(res)),
+  ])
+  const bookings = rows.map(toAdminBooking)
+    .sort((a, b) => Date.parse(a.slot_start) - Date.parse(b.slot_start) || a.court_id.localeCompare(b.court_id))
+  const leadBooking = bookings.find((b) => b.id === lead?.lead_booking_id) ?? bookings[0]
+  return { id: groupId, lead_reference_code: leadBooking?.reference_code ?? '', bookings }
 }
 
 /** Short-lived link to a proof file; storage RLS allows admins (and the booking owner) to sign it. */

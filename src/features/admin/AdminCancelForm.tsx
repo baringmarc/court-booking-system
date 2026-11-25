@@ -6,13 +6,16 @@ type Props = {
   paid: boolean
   /** References of this booking's moved parts that are still booked: cancelling doesn't cancel them (T10.1). */
   movedParts?: string[]
+  /** A court of a checkout (T33.4): 'court' cancels this court only (`courts` other active courts stay), 'checkout'
+   * cancels all `courts` active courts because the group is unpaid. */
+  group?: { courts: number; scope: 'court' | 'checkout' }
   pending: boolean
   error: unknown
   onCancel: (reason: string) => void
 }
 
 /** Staff cancel an active booking until it ends. The reason is required because the player sees it. */
-export function AdminCancelForm({ paid, movedParts = [], pending, error, onCancel }: Props) {
+export function AdminCancelForm({ paid, movedParts = [], group, pending, error, onCancel }: Props) {
   const [reason, setReason] = useState('')
   const [reasonError, setReasonError] = useState<string | null>(null)
 
@@ -33,6 +36,18 @@ export function AdminCancelForm({ paid, movedParts = [], pending, error, onCance
         The times are released straight away and the player sees your reason.
         {paid && ' A payment was already approved: a refund will be recorded for you to settle afterwards.'}
       </p>
+      {group?.scope === 'court' && (
+        <p className="form-warning" role="status">
+          {group.courts === 1
+            ? 'Only this court is cancelled. The other court in this checkout stays booked.'
+            : `Only this court is cancelled. The other ${group.courts} courts in this checkout stay booked.`}
+        </p>
+      )}
+      {group?.scope === 'checkout' && (
+        <p className="form-warning" role="status">
+          This cancels all {group.courts} courts in this checkout, because one payment covers them all.
+        </p>
+      )}
       {movedParts.length > 0 && (
         <p className="form-warning" role="status">
           The moved {movedParts.length === 1 ? 'part' : 'parts'} {movedParts.join(', ')} stay booked: cancel

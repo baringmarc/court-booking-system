@@ -3,7 +3,7 @@ import { supabase } from '../../lib/supabase'
 import { ApiError, unwrap } from '../../lib/queryClient'
 import { parseTstzRange } from '../../lib/time'
 import { currentVenue } from '../../lib/currentVenue'
-import type { Enums } from '../../lib/database.types'
+import type { Enums, Json } from '../../lib/database.types'
 import type { Slot, SlotStatus } from './selection'
 import type { BookingStatus } from './status'
 import { parsePlayerRefund, type PlayerRefund } from './refund'
@@ -238,6 +238,60 @@ export type BookingDetail = {
   changes: BookingChange[]
   /** The booking's latest refund record (T30.5), player fields only; null when there is none. */
   refund: PlayerRefund | null
+  /** The whole checkout when the booking is one court of a booking group (M33, T33.4); absent or null otherwise. */
+  group?: BookingGroup | null
+}
+
+/** One court of a booking group as the booking page lists it. */
+export type BookingGroupCourt = {
+  reference_code: string
+  /** Null on the guest path (get_guest_booking doesn't return it). */
+  court_id: string | null
+  court_name: string
+  sport: Enums<'sport'> | null
+  slot_start: string
+  slot_end: string
+  status: BookingStatus
+  total_amount: number
+  booking_fee: number
+  amount_due: number
+  refund: PlayerRefund | null
+}
+
+/** Every court of one checkout (T33.1's booking group), by start then court name, cancelled ones too, with the sums. */
+export type BookingGroup = {
+  id: string
+  /** The fee carrier, the payment note and the email recipient. */
+  lead_reference_code: string
+  total_amount: number
+  booking_fee: number
+  amount_due: number
+  bookings: BookingGroupCourt[]
+}
+
+function toBookingGroup(value: unknown): BookingGroup | null {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return null
+  const g = value as Record<string, unknown>
+  return {
+    id: String(g.id),
+    lead_reference_code: String(g.lead_reference_code),
+    total_amount: Number(g.total_amount),
+    booking_fee: Number(g.booking_fee),
+    amount_due: Number(g.amount_due),
+    bookings: records(g.bookings).map((b) => ({
+      reference_code: String(b.reference_code),
+      court_id: null,
+      court_name: String(b.court_name),
+      sport: (b.sport as Enums<'sport'> | null) ?? null,
+      slot_start: String(b.slot_start),
+      slot_end: String(b.slot_end),
+      status: b.status as BookingStatus,
+      total_amount: Number(b.total_amount),
+      booking_fee: Number(b.booking_fee),
+      amount_due: Number(b.amount_due),
+      refund: parsePlayerRefund(b.refund as Json | null),
+    })),
+  }
 }
 
 const notFound = () =>
@@ -275,6 +329,7 @@ export async function fetchGuestBooking(referenceCode: string, token: string): P
     continuations: toContinuations(row.continuations),
     changes: toChanges(row.changes),
     refund: parsePlayerRefund(row.refund),
+    group: toBookingGroup(row.booking_group),
   }
 }
 
@@ -283,7 +338,7 @@ export async function fetchOwnBooking(referenceCode: string): Promise<BookingDet
   const row = unwrap(
     await supabase
       .from('bookings')
-      .select(`id, reference_code, court_id, user_id, during, status, total_amount, booking_fee, amount_due, waiver_text, waiver_accepted_at, expires_at, rejection_count, guest_name, guest_email, created_at, cancelled_at, cancel_reason, cancelled_by_venue, parent_booking_id, courts(name, sport), payments(${PAYMENT_FIELDS})`)
+      .select(`id, reference_code, court_id, user_id, during, status, total_amount, booking_fee, amount_due, waiver_text, waiver_accepted_at, expires_at, rejection_count, guest_name, guest_email, created_at, cancelled_at, cancel_reason, cancelled_by_venue, parent_booking_id, booking_group_id, courts(name, sport), payments(${PAYMENT_FIELDS})`)
       .eq('reference_code', referenceCode.trim().toUpperCase())
       .maybeSingle(),
   )
@@ -291,8 +346,9 @@ export async function fetchOwnBooking(referenceCode: string): Promise<BookingDet
   const { start, end } = parseTstzRange(row.during)
   const [{ parentReference, continuations, changes }, refund] = await Promise.all([
     fetchOwnMoves(row.id, row.parent_booking_id),
-    supabase.rpc('get_own_booking_refund', { p_booking_id: row.id }).then((res) => parsePlayerRefund(unwrap(res))),
+    fetchOwnRefund(row.id),
   ])
+  const group = row.booking_group_id ? await fetchOwnGroup(row.booking_group_id, row.id, refund) : null
   return {
     id: row.id,
     reference_code: row.reference_code,
@@ -322,6 +378,53 @@ export async function fetchOwnBooking(referenceCode: string): Promise<BookingDet
     continuations,
     changes,
     refund,
+    group,
+  }
+}
+
+const fetchOwnRefund = (bookingId: string) =>
+  supabase.rpc('get_own_booking_refund', { p_booking_id: bookingId }).then((res) => parsePlayerRefund(unwrap(res)))
+
+/**
+ * The owner's or staff's view of a booking's group, read through RLS (T33.4): every court, each court's refund, and the
+ * lead from booking_groups when readable (venue admins), else the earliest-starting court (then the smaller court id).
+ */
+async function fetchOwnGroup(groupId: string, ownId: string, ownRefund: PlayerRefund | null): Promise<BookingGroup> {
+  const [rows, lead] = await Promise.all([
+    supabase
+      .from('bookings')
+      .select('id, reference_code, court_id, during, status, total_amount, booking_fee, amount_due, courts(name, sport)')
+      .eq('booking_group_id', groupId)
+      .order('during')
+      .then((res) => unwrap(res)),
+    supabase.from('booking_groups').select('lead_booking_id').eq('id', groupId).maybeSingle().then((res) => unwrap(res)),
+  ])
+  const courts = rows
+    .map((r) => ({ row: r, ...parseTstzRange(r.during) }))
+    .sort((a, b) => Date.parse(a.start) - Date.parse(b.start) || a.row.court_id.localeCompare(b.row.court_id))
+  const refunds = await Promise.all(courts.map((c) => (c.row.id === ownId ? ownRefund : fetchOwnRefund(c.row.id))))
+  const bookings: BookingGroupCourt[] = courts.map(({ row: r, start, end }, i) => ({
+    reference_code: r.reference_code,
+    court_id: r.court_id,
+    court_name: r.courts?.name ?? 'Court',
+    sport: r.courts?.sport ?? null,
+    slot_start: start,
+    slot_end: end,
+    status: r.status,
+    total_amount: Number(r.total_amount),
+    booking_fee: Number(r.booking_fee),
+    amount_due: Number(r.amount_due),
+    refund: refunds[i],
+  }))
+  const leadReference = courts.find((c) => c.row.id === lead?.lead_booking_id)?.row.reference_code ?? bookings[0]?.reference_code ?? ''
+  const sum = (key: 'total_amount' | 'booking_fee' | 'amount_due') => bookings.reduce((total, b) => total + b[key], 0)
+  return {
+    id: groupId,
+    lead_reference_code: leadReference,
+    total_amount: sum('total_amount'),
+    booking_fee: sum('booking_fee'),
+    amount_due: sum('amount_due'),
+    bookings,
   }
 }
 
