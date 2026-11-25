@@ -1069,6 +1069,18 @@ details[open]::details-content { block-size: auto; }
 .admin-drawer::backdrop { background: #0007; }
 .admin-drawer-content { min-height: 100%; padding: 16px; }
 .admin-drawer-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 24px; }
+/* Booking-site QR code (T34.1): the end of the sidebar (above Collapse sidebar) and of the drawer, and a small dialog. */
+.booking-qr { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px; border: 1px solid var(--border); border-radius: 12px; text-align: center; }
+.admin-drawer .booking-qr { margin-top: 24px; }
+.booking-qr img, .booking-qr-placeholder { display: block; max-width: 100%; height: auto; aspect-ratio: 1; border-radius: 4px; background: #fff; }
+.booking-qr-placeholder { background: var(--bg); }
+.booking-qr-note { margin: 0; font-weight: 700; font-size: .9rem; }
+.booking-qr-link { margin: 0; font-size: .8rem; overflow-wrap: anywhere; }
+.booking-qr-large { border: 0; padding: 0 0 4px; }
+.booking-qr-icon { align-self: center; width: 44px; height: 44px; padding: 0; justify-content: center; }
+.dialog.booking-qr-dialog { width: min(360px, calc(100vw - 32px)); }
+.booking-qr-dialog .dialog-body { display: flex; flex-direction: column; gap: 8px; }
+.booking-qr-close { align-self: flex-end; }
 .settings-category-grid { display: grid; gap: 16px; margin-top: 24px; }
 .modal-backdrop { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(0, 0, 0, .5); }
 .modal-backdrop .dialog { margin: 0; max-height: calc(100vh - 32px); overflow: auto; padding: 20px; }
@@ -1085,6 +1097,9 @@ details[open]::details-content { block-size: auto; }
   .admin-sidebar { position: sticky; top: 0; grid-column: 1; grid-row: 1 / span 2; display: flex; flex-direction: column; gap: 24px; padding: 24px 12px; height: 100dvh; overflow-y: auto; border-right: 1px solid var(--border); background: var(--surface); }
   .admin-sidebar .admin-brand { padding: 0 8px; }
   .sidebar-toggle { margin-top: auto; display: flex; align-items: center; gap: 8px; }
+  /* The QR card sits at the bottom with the toggle right under it; it never covers the toggle, the sidebar scrolls instead. */
+  .admin-sidebar > :is(.booking-qr, .booking-qr-icon) { margin-top: auto; flex-shrink: 0; }
+  .admin-sidebar > :is(.booking-qr, .booking-qr-icon) + .sidebar-toggle { margin-top: -12px; }
   .sidebar-collapsed .admin-sidebar :is(.admin-nav-label, .admin-nav-group-label, .admin-brand .badge) { display: none; }
   .sidebar-collapsed .admin-sidebar .admin-brand { overflow: hidden; padding: 0; }
   .sidebar-collapsed .admin-sidebar .admin-navigation a { position: relative; justify-content: center; }

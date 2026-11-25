@@ -25,6 +25,11 @@ import { useMainFocus } from "../../components/useMainFocus";
 import { useAuth } from "../auth/useAuth";
 import { useIsVenueAdmin } from "../auth/useIsVenueAdmin";
 import { useVenueSettings } from "../catalog/hooks";
+import { mediaUrl } from "../catalog/media";
+import { useVenue } from "../venue/useVenue";
+import { venueBookUrl } from "../../lib/venueUrl";
+import { BookingQrButton, BookingQrCard } from "./BookingQrCard";
+import { useBookingQr } from "./useBookingQr";
 import { VenueSwitcher } from "./VenueSwitcher";
 import { useBookingAlerts } from "./useBookingAlerts";
 
@@ -172,7 +177,24 @@ function AdminWorkspace({
   skipLink: ReactNode;
 }) {
   const { navCount } = useBookingAlerts();
-  const { data: settings } = useVenueSettings();
+  const { data: settings, isError: settingsFailed } = useVenueSettings();
+  const { slug } = useVenue();
+  // The booking-site QR code (T34.1), drawn once here and shown in the sidebar, its collapsed dialog or the drawer.
+  const address = venueBookUrl(slug, window.location);
+  const logoUrl = settings
+    ? settings.logo_path
+      ? mediaUrl(settings.logo_path)
+      : null
+    : settingsFailed
+      ? null // no logo known: still draw a plain code rather than wait
+      : undefined;
+  const qr = useBookingQr(address, logoUrl);
+  const qrProps = {
+    qr,
+    address,
+    slug,
+    venueName: settings?.name.trim() || "this venue",
+  };
   const [collapsed, setCollapsed] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const dialog = useRef<HTMLDialogElement>(null);
@@ -272,6 +294,11 @@ function AdminWorkspace({
         <aside className="admin-sidebar">
           <AdminBrand />
           {navigation(false)}
+          {collapsed ? (
+            <BookingQrButton {...qrProps} />
+          ) : (
+            <BookingQrCard {...qrProps} />
+          )}
           <button
             type="button"
             className="btn btn-small btn-ghost sidebar-toggle"
@@ -376,6 +403,7 @@ function AdminWorkspace({
             </button>
           </div>
           {drawerOpen && navigation(true)}
+          {drawerOpen && <BookingQrCard {...qrProps} />}
         </div>
       </dialog>
       {children}
