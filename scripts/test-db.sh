@@ -15,3 +15,4 @@ node scripts/test-schedule-concurrency.mjs
 node scripts/test-schedule-cutover-concurrency.mjs
 node scripts/test-venue-deletion-concurrency.mjs
 node scripts/test-venue-history-purge.mjs
+node scripts/test-booking-group-concurrency.mjs
