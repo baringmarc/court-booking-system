@@ -1,7 +1,7 @@
-// T33.4: the pure helpers behind the admin's grouped bookings (SPEC §7 `/admin/bookings`, "Bookings in a group").
+// T33.4 (reworked in T33.6): the pure helpers behind the admin's grouped bookings (SPEC §7 `/admin/bookings`, "Bookings in a group").
 import { describe, expect, it } from 'vitest'
-import type { AdminBooking, AdminGroup, AdminPayment } from './api'
-import { groupPayment, groupPosition, reviewQueueEntries } from './groups'
+import type { AdminBooking, AdminPayment } from './api'
+import { checkoutOnlinePayments, groupPayment, reviewQueueEntries } from './groups'
 
 const payment = (id: string, overrides: Partial<AdminPayment> = {}): AdminPayment => ({
   id, method: 'gcash', amount: 360, reference_number: null, storage_path: null, submitted_at: '2030-01-07T02:00:00.000Z',
@@ -30,30 +30,94 @@ describe('reviewQueueEntries', () => {
     ])
   })
 
-  it('makes one entry per group: the first of its bookings in list order, with all of the group’s bookings in list order', () => {
-    const [s1, a1, b1, a2, b2, s2] = [booking('s1', null), booking('a1', 'g1'), booking('b1', 'g2'), booking('a2', 'g1'), booking('b2', 'g2'), booking('s2', null)]
+  // T33.6 (SPEC §10 2026-11-25 "Checkout panel"): the entry is the LEAD, not the first booking in list order.
+  it('makes one entry per group, whose booking is the lead (group_lead_id), wherever it is in the list', () => {
+    const [s1, a1, b1, a2, b2, s2] = [
+      booking('s1', null), booking('a1', 'g1', { group_lead_id: 'a2' }), booking('b1', 'g2', { group_lead_id: 'b1' }),
+      booking('a2', 'g1', { group_lead_id: 'a2' }), booking('b2', 'g2', { group_lead_id: 'b1' }), booking('s2', null),
+    ]
     const entries = reviewQueueEntries([s1, a1, b1, a2, b2, s2])
-    expect(entries.map((e) => e.booking.id)).toEqual(['s1', 'a1', 'b1', 's2'])
-    expect(entries[1].courts).toEqual([a1, a2])
-    expect(entries[2].courts).toEqual([b1, b2])
+    expect(entries.map((e) => e.booking.id)).toEqual(['s1', 'a2', 'b1', 's2'])
+    expect(entries[1].courts.map((c) => c.id).sort()).toEqual(['a1', 'a2'])
+    expect(entries[2].courts.map((c) => c.id).sort()).toEqual(['b1', 'b2'])
     expect(entries[0].courts).toEqual([s1])
   })
 
-  it('keeps list order: the group sits where its first booking is, and the later bookings are dropped', () => {
-    const [late, solo, early] = [booking('late', 'g1'), booking('solo', null), booking('early', 'g1')]
-    const entries = reviewQueueEntries([late, solo, early])
+  it('takes the earliest-starting listed court when the lead is not listed, then the smaller court id', () => {
+    const lateStart = { slot_start: '2030-01-07T09:00:00.000Z', slot_end: '2030-01-07T10:00:00.000Z' }
+    const [late, early, tieB, tieA] = [
+      booking('late', 'g1', { ...lateStart, group_lead_id: 'gone' }),
+      booking('early', 'g1', { group_lead_id: 'gone', court_id: 'c-z' }),
+      booking('tb', 'g2', { court_id: 'c-b' }),
+      booking('ta', 'g2', { court_id: 'c-a' }),
+    ]
+    const entries = reviewQueueEntries([late, early, tieB, tieA])
+    expect(entries.map((e) => e.booking.id)).toEqual(['early', 'ta'])
+  })
+
+  it('takes the earliest-starting court when group_lead_id is absent or null', () => {
+    const [late, early, nullLead] = [
+      booking('late', 'g1', { slot_start: '2030-01-07T09:00:00.000Z', slot_end: '2030-01-07T10:00:00.000Z' }),
+      booking('early', 'g1'),
+      booking('n1', 'g2', { group_lead_id: null }),
+    ]
+    expect(reviewQueueEntries([late, early, nullLead]).map((e) => e.booking.id)).toEqual(['early', 'n1'])
+  })
+
+  it('keeps the entry where the group’s first listed booking was, and sorts courts by start then court id', () => {
+    const [late, solo, early, tie] = [
+      booking('late', 'g1', { group_lead_id: 'late', slot_start: '2030-01-07T09:00:00.000Z', slot_end: '2030-01-07T10:00:00.000Z' }),
+      booking('solo', null),
+      booking('early', 'g1', { court_id: 'c-b' }),
+      booking('tie', 'g1', { court_id: 'c-a' }),
+    ]
+    const entries = reviewQueueEntries([late, solo, early, tie])
     expect(entries.map((e) => e.booking.id)).toEqual(['late', 'solo'])
-    expect(entries[0].courts.map((c) => c.id)).toEqual(['late', 'early'])
+    // early and tie start together: court id c-a before c-b; late starts later.
+    expect(entries[0].courts.map((c) => c.id)).toEqual(['tie', 'early', 'late'])
   })
 })
 
 describe('groupPosition', () => {
-  const group: AdminGroup = { id: 'g1', lead_reference_code: 'CB-a1', bookings: [booking('a1', 'g1'), booking('a2', 'g1'), booking('a3', 'g1')] }
+  it('is removed: no UI says "Booking X of N" any more (T33.6)', async () => {
+    const mod = await import('./groups')
+    expect('groupPosition' in mod).toBe(false)
+  })
+})
 
-  it('is 1-based, by the group’s bookings order, with the count', () => {
-    expect(groupPosition(group, 'a1')).toEqual({ index: 1, count: 3 })
-    expect(groupPosition(group, 'a2')).toEqual({ index: 2, count: 3 })
-    expect(groupPosition(group, 'a3')).toEqual({ index: 3, count: 3 })
+describe('checkoutOnlinePayments', () => {
+  const online = (id: string, amount: number, overrides: Partial<AdminPayment> = {}) =>
+    payment(id, { method: 'paymongo', amount, provider_payment_id: 'pay_1', provider_source: 'gcash', review_status: 'approved', ...overrides })
+
+  it('is empty when no court has a PayMongo payment (proofs are not online payments)', () => {
+    expect(checkoutOnlinePayments([booking('a1', 'g1', { payments: [payment('p1')] }), booking('a2', 'g1')])).toEqual([])
+    expect(checkoutOnlinePayments([])).toEqual([])
+  })
+
+  it('lists one PayMongo payment once: the first row’s fields, the amount summed across the courts', () => {
+    const first = online('r1', 360, { reviewed_at: '2030-01-07T02:20:00.000Z' })
+    const second = online('r2', 700, { reviewed_at: '2030-01-07T02:21:00.000Z' })
+    const result = checkoutOnlinePayments([booking('a1', 'g1', { payments: [first] }), booking('a2', 'g1', { payments: [second] })])
+    expect(result).toEqual([{ ...first, amount: 1060 }])
+  })
+
+  it('keeps separate PayMongo payments apart, ordered by submitted_at, and ignores other methods', () => {
+    const later = online('l1', 100, { provider_payment_id: 'pay_late', submitted_at: '2030-01-07T05:00:00.000Z' })
+    const earlier = online('e1', 50, { provider_payment_id: 'pay_early', submitted_at: '2030-01-07T01:00:00.000Z' })
+    const earlier2 = online('e2', 25, { provider_payment_id: 'pay_early', submitted_at: '2030-01-07T01:00:00.000Z' })
+    const result = checkoutOnlinePayments([
+      booking('a1', 'g1', { payments: [later, payment('gc', { submitted_at: '2030-01-07T00:00:00.000Z' })] }),
+      booking('a2', 'g1', { payments: [earlier, earlier2] }),
+    ])
+    expect(result.map((p) => [p.provider_payment_id, p.amount])).toEqual([['pay_early', 75], ['pay_late', 100]])
+  })
+
+  it('adds centavos without float drift', () => {
+    const result = checkoutOnlinePayments([
+      booking('a1', 'g1', { payments: [online('r1', 0.1)] }),
+      booking('a2', 'g1', { payments: [online('r2', 0.2)] }),
+    ])
+    expect(result[0].amount).toBeCloseTo(0.3, 10)
   })
 })
 

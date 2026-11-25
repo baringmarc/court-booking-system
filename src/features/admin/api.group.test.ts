@@ -79,6 +79,21 @@ describe('toAdminBooking', () => {
   })
 })
 
+describe('the group lead on a booking (T33.6)', () => {
+  it('embeds booking_groups.lead_booking_id in the list’s SELECT', async () => {
+    await fetchAdminBookings({ ...DEFAULT_FILTERS, status: 'all' }, 'Asia/Manila')
+    expect(h.calls[0].select).toMatch(/booking_group:booking_groups!bookings_booking_group_fkey\(lead_booking_id\)/)
+  })
+
+  it('maps the embedded lead to group_lead_id: the lead’s id for a grouped row, null without a group or a readable group row', () => {
+    const during = '["2030-01-06 23:00:00+00","2030-01-07 00:00:00+00")'
+    expect(toAdminBooking(row('b2', 'CB-PART02', 'c2', during, { booking_group: { lead_booking_id: 'b1' } })).group_lead_id).toBe('b1')
+    expect(toAdminBooking(row('b9', 'CB-SOLO09', 'c9', during, { booking_group_id: null, booking_group: null })).group_lead_id).toBeNull()
+    expect(toAdminBooking(row('b3', 'CB-X', 'c3', during, { booking_group: null })).group_lead_id).toBeNull()
+    expect(toAdminBooking(row('b4', 'CB-Y', 'c4', during, { booking_group: { lead_booking_id: null } })).group_lead_id).toBeNull()
+  })
+})
+
 describe('fetchAdminBookings (T33.4)', () => {
   it('selects booking_group_id and returns it on each booking', async () => {
     h.bookingRows = [early, row('b9', 'CB-SOLO09', 'c9', '["2030-01-06 23:00:00+00","2030-01-07 00:00:00+00")', { booking_group_id: null })]

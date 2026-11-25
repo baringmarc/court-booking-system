@@ -85,6 +85,8 @@ export type AdminBooking = {
   parent_booking_id: string | null
   /** The booking group of a multi-court checkout (M33); absent or null for a single booking. */
   booking_group_id?: string | null
+  /** The group's lead (booking_groups.lead_booking_id, T33.6): the review queue titles a checkout with it. */
+  group_lead_id?: string | null
 }
 
 /** Every court of one checkout (T33.4), read by group id whatever the list's filters, by start then court id. */
@@ -115,7 +117,7 @@ export const adminKeys = {
 
 // One literal: supabase-js infers the row type from this string. `owed` is the same refunds read again, only for the
 // "Refund owed" filter (T30.6): filtered to owed rows and required to be non-empty, it keeps the bookings that owe one.
-const SELECT = 'id, reference_code, court_id, during, status, source, total_amount, booking_fee, amount_due, expires_at, rejection_count, guest_name, guest_email, guest_phone, created_at, cancelled_at, cancel_reason, cancelled_by_venue, parent_booking_id, booking_group_id, courts(name, sport), payments(id, method, paid_with, amount, reference_number, storage_path, submitted_at, review_status, review_note, reviewed_at, reviewed_by, provider_payment_id, provider_source), refunds(id, payment_id, amount, status, method, settled_on, reason, note, updated_at), owed:refunds(id)' as const
+const SELECT = 'id, reference_code, court_id, during, status, source, total_amount, booking_fee, amount_due, expires_at, rejection_count, guest_name, guest_email, guest_phone, created_at, cancelled_at, cancel_reason, cancelled_by_venue, parent_booking_id, booking_group_id, courts(name, sport), payments(id, method, paid_with, amount, reference_number, storage_path, submitted_at, review_status, review_note, reviewed_at, reviewed_by, provider_payment_id, provider_source), refunds(id, payment_id, amount, status, method, settled_on, reason, note, updated_at), owed:refunds(id), booking_group:booking_groups!bookings_booking_group_fkey(lead_booking_id)' as const
 
 export const ADMIN_LIST_LIMIT = 200
 
@@ -180,6 +182,7 @@ export function toAdminBooking(row: AdminBookingRow): AdminBooking {
       cancelled_by_venue: row.cancelled_by_venue,
       parent_booking_id: row.parent_booking_id,
       booking_group_id: row.booking_group_id,
+      group_lead_id: row.booking_group?.lead_booking_id ?? null,
       payments: [...row.payments]
         .map((p) => ({ ...p, amount: Number(p.amount) }))
         .sort((a, b) => a.submitted_at.localeCompare(b.submitted_at)),

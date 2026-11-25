@@ -1,10 +1,16 @@
-// Booking groups on /admin/bookings (M33, T33.4; SPEC §7): one review-queue row per checkout, a court's place in its
-// checkout, and the one proof that pays the whole group (one payment row per court, the file on one of them).
-import type { AdminBooking, AdminGroup, AdminPayment } from './api'
+// Booking groups on /admin/bookings (M33, T33.4 and T33.6; SPEC §7): one review-queue row per checkout, titled with its
+// lead, and the payments that pay the whole group once (one payment row per court, a proof's file on one of them).
+import type { AdminBooking, AdminPayment } from './api'
 
 export type QueueEntry = { booking: AdminBooking; courts: AdminBooking[] }
 
-/** The review queue: a group's first booking in list order stands for it, with all its listed bookings as `courts`. */
+const byStart = (a: AdminBooking, b: AdminBooking) =>
+  Date.parse(a.slot_start) - Date.parse(b.slot_start) || a.court_id.localeCompare(b.court_id)
+
+/**
+ * The review queue (T33.6): one entry per checkout, where its first listed booking was, standing for the group's lead
+ * (the payment note the player was given): the listed court that is `group_lead_id`, else the earliest listed one.
+ */
 export function reviewQueueEntries(bookings: AdminBooking[]): QueueEntry[] {
   const byGroup = new Map<string, QueueEntry>()
   const entries: QueueEntry[] = []
@@ -17,12 +23,27 @@ export function reviewQueueEntries(bookings: AdminBooking[]): QueueEntry[] {
     byGroup.set(id, created)
     entries.push(created)
   }
+  for (const entry of byGroup.values()) {
+    entry.courts.sort(byStart)
+    entry.booking = entry.courts.find((c) => c.id === entry.booking.group_lead_id) ?? entry.courts[0]
+  }
   return entries
 }
 
-/** "Booking X of N": 1-based, in the group's order (start, then court id). */
-export function groupPosition(group: AdminGroup, bookingId: string) {
-  return { index: group.bookings.findIndex((b) => b.id === bookingId) + 1, count: group.bookings.length }
+/** A checkout's PayMongo payments once each (T33.6): one row per court shares the PayMongo id; their amounts summed. */
+export function checkoutOnlinePayments(courts: AdminBooking[]): AdminPayment[] {
+  const byId = new Map<string, { payment: AdminPayment; centavos: number }>()
+  const order: string[] = []
+  for (const p of courts.flatMap((c) => c.payments).filter((p) => p.method === 'paymongo')) {
+    const key = p.provider_payment_id ?? p.id
+    const seen = byId.get(key)
+    if (seen) { seen.centavos += Math.round(p.amount * 100); continue }
+    byId.set(key, { payment: p, centavos: Math.round(p.amount * 100) })
+    order.push(key)
+  }
+  return order
+    .map((key) => { const { payment, centavos } = byId.get(key)!; return { ...payment, amount: centavos / 100 } })
+    .sort((a, b) => a.submitted_at.localeCompare(b.submitted_at))
 }
 
 /** The group's pending proof: the payment with the file (else the first pending one) and the pending amounts summed. */

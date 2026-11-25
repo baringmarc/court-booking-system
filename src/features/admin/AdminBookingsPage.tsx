@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { ErrorMessage } from '../../components/ErrorMessage'
 import { PageLoader } from '../../components/PageLoader'
@@ -9,6 +9,7 @@ import { useVenueSettings } from '../catalog/hooks'
 import { displayStatus, STATUS_LABELS, type BookingStatus } from '../booking/status'
 import { adminCanCancel, isActive } from '../booking/cancellation'
 import { ADMIN_LIST_LIMIT, hasApprovedPayment, pendingPayment, type AdminBooking, type AdminGroup } from './api'
+import { CheckoutPanel } from './CheckoutPanel'
 import { groupPayment, reviewQueueEntries } from './groups'
 import { hasPaidOnline, paymentFlags } from './paymentFlags'
 import { AdminCancelForm } from './AdminCancelForm'
@@ -27,7 +28,7 @@ export function AdminBookingsPage() {
   const bookings = useAdminBookings(filters, settings.data?.timezone)
   // `?booking=<id>` opens that booking straight away (the dashboard day view links here, T9.8).
   const [selectedId, setSelectedId] = useState<string | null>(() => params.get('booking'))
-  const [lastReview, setLastReview] = useState<{ ref: string; status: BookingStatus; others: number } | null>(null)
+  const [lastReview, setLastReview] = useState<string | null>(null)
   const [lastMove, setLastMove] = useState<string | null>(null)
   // A saved refund (T30.6): under the "Refund owed" filter the booking then leaves the list, so say what was saved.
   const [lastRefund, setLastRefund] = useState<string | null>(null)
@@ -66,7 +67,7 @@ export function AdminBookingsPage() {
       ) : null}
       <BookingFiltersBar filters={filters} onChange={changeFilters} />
       {lastReview && (
-        <div className="alert alert-info" role="status"><p>{reviewOutcome(lastReview.ref, lastReview.status, lastReview.others)}</p></div>
+        <div className="alert alert-info" role="status"><p>{lastReview}</p></div>
       )}
       {lastMove && <div className="alert alert-info" role="status"><p>{lastMove}</p></div>}
       {lastRefund && <div className="alert alert-info" role="status"><p>{lastRefund}</p></div>}
@@ -104,10 +105,19 @@ export function AdminBookingsPage() {
           {selected && (
             // On phones the panel sits below the list: bring it into view when a booking is picked.
             <div ref={(el) => el?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' })}>
-              <ReviewContainer key={selected.id} booking={selected} timeZone={tz} currency={currency}
-                onReviewed={(status, others) => { setLastMove(null); setLastRefund(null); setLastReview({ ref: selected.reference_code, status, others }) }}
-                onMoved={(message) => { setLastReview(null); setLastRefund(null); setLastMove(message) }}
-                onRefunded={(message) => { setLastReview(null); setLastMove(null); setLastRefund(message) }} />
+              {selected.booking_group_id ? (
+                // Any court of a checkout opens the whole checkout (T33.6); from the review queue no court is open.
+                <CheckoutContainer key={selected.id} booking={selected} groupId={selected.booking_group_id} openFirst={reviewQueue ? null : selected.id}
+                  timeZone={tz} currency={currency}
+                  onReviewed={(message) => { setLastMove(null); setLastRefund(null); setLastReview(message) }}
+                  onMoved={(message) => { setLastReview(null); setLastRefund(null); setLastMove(message) }}
+                  onRefunded={(message) => { setLastReview(null); setLastMove(null); setLastRefund(message) }} />
+              ) : (
+                <ReviewContainer key={selected.id} booking={selected} timeZone={tz} currency={currency}
+                  onReviewed={(message) => { setLastMove(null); setLastRefund(null); setLastReview(message) }}
+                  onMoved={(message) => { setLastReview(null); setLastRefund(null); setLastMove(message) }}
+                  onRefunded={(message) => { setLastReview(null); setLastMove(null); setLastRefund(message) }} />
+              )}
             </div>
           )}
         </div>
@@ -149,92 +159,151 @@ export function BookingRow({ booking, courts, timeZone, currency }: {
   )
 }
 
-/** `others`: the checkout's other bookings the same decision changed (T33.4), named after the reference. */
-function reviewOutcome(ref: string, status: BookingStatus, others = 0) {
-  const names = others > 0 ? `${ref} and its ${others} other ${others === 1 ? 'booking' : 'bookings'}` : ref
-  const verb = others > 1 ? 'are' : 'is'
-  if (status === 'confirmed') return `${names} ${verb} confirmed.`
-  if (status === 'pending_payment') return `${names}: proof rejected. The player has a new payment window to upload another proof.`
-  if (status === 'rejected') return `${names}: proof rejected for the last time. The booking is cancelled and the slot released.`
-  if (status === 'cancelled') return others > 0 ? `${names} ${verb} cancelled and the slots released.` : `${ref} is cancelled and the slot released.`
-  return `${names} ${verb} now ${STATUS_LABELS[status].toLowerCase()}.`
+function reviewOutcome(ref: string, status: BookingStatus) {
+  if (status === 'confirmed') return `${ref} is confirmed.`
+  if (status === 'pending_payment') return `${ref}: proof rejected. The player has a new payment window to upload another proof.`
+  if (status === 'rejected') return `${ref}: proof rejected for the last time. The booking is cancelled and the slot released.`
+  if (status === 'cancelled') return `${ref} is cancelled and the slot released.`
+  return `${ref} is now ${STATUS_LABELS[status].toLowerCase()}.`
 }
 
-/** A grouped booking's cancel (T33.4, SPEC §4): one court once every active court is confirmed, else all of them. */
+/** A review decides the whole checkout (T33.6), so its message names the checkout. */
+function checkoutReviewOutcome(lead: string, status: BookingStatus, courts: number) {
+  if (status === 'confirmed') return `Checkout ${lead} is confirmed (${courts} courts).`
+  if (status === 'pending_payment') return `Checkout ${lead}: proof rejected. The player has a new payment window to upload another proof.`
+  if (status === 'rejected') return `Checkout ${lead}: proof rejected for the last time. Its courts are cancelled and released.`
+  return `Checkout ${lead} is now ${STATUS_LABELS[status].toLowerCase()}.`
+}
+
+/** A grouped booking's cancel (SPEC §4): one court once every active court is confirmed, else all of them. */
 function groupCancel(group: AdminGroup, booking: AdminBooking, now: Date) {
   const active = group.bookings.filter((b) => isActive(b, now))
   if (active.every((b) => b.status === 'confirmed')) {
     const others = active.filter((b) => b.id !== booking.id).length
-    return others > 0 ? { courts: others, scope: 'court' as const, othersAffected: 0 } : null
+    return others > 0 ? { courts: others, scope: 'court' as const } : null
   }
-  return { courts: active.length, scope: 'checkout' as const, othersAffected: active.filter((b) => b.id !== booking.id).length }
+  return { courts: active.length, scope: 'checkout' as const }
 }
 
-type ReviewContainerProps = {
+type ContainerProps = {
   booking: AdminBooking
   timeZone: string
   currency: string
-  /** `others`: how many of the checkout's other bookings the action changed too (T33.4). */
-  onReviewed: (status: BookingStatus, others: number) => void
+  onReviewed: (message: string) => void
   onMoved: (message: string) => void
   onRefunded: (message: string) => void
 }
 
-function ReviewContainer({ booking, timeZone, currency, onReviewed, onMoved, onRefunded }: ReviewContainerProps) {
-  // Every court of the booking's checkout, whatever the list's filters (T33.4).
-  const groupQuery = useAdminGroup(booking.booking_group_id)
-  const group = groupQuery.data && groupQuery.data.bookings.length > 1 ? groupQuery.data : undefined
-  const groupLoading = !!booking.booking_group_id && groupQuery.isPending
-  // A group's proof file sits on one court's payment: preview that one.
-  const path = (group ? groupPayment(group.bookings).payment : pendingPayment(booking))?.storage_path ?? null
+/**
+ * Runs `then` once a mutation succeeds, even if this panel has unmounted meanwhile: a decision usually takes the
+ * booking out of the current filter, so the list refetch closes the panel, and `mutate`'s own callbacks are dropped
+ * for an unmounted component. Errors are shown from the mutation's state, so the rejection is only swallowed here.
+ */
+function settle<T>(promise: Promise<T>, then: (value: T) => void) {
+  promise.then(then, () => {})
+}
+
+const proofLink = (path: string | null, url: { isPending: boolean; isError: boolean; data?: string }): ProofLink =>
+  !path ? { state: 'none' } : url.isPending ? { state: 'loading' } : url.isError || !url.data ? { state: 'error' } : { state: 'ready', url: url.data }
+
+function ReviewContainer({ booking, timeZone, currency, onReviewed, onMoved, onRefunded }: ContainerProps) {
+  const path = pendingPayment(booking)?.storage_path ?? null
   const proofUrl = useProofUrl(path)
   const review = useReviewPayment()
+  const done = (s: BookingStatus | undefined) => { if (s) onReviewed(reviewOutcome(booking.reference_code, s)) }
+  return (
+    <div className="stack">
+      <ReviewPanel
+        booking={booking}
+        timeZone={timeZone}
+        currency={currency}
+        proof={proofLink(path, proofUrl)}
+        pending={review.isPending}
+        error={review.isError ? review.error : null}
+        onApprove={() => settle(review.mutateAsync({ bookingId: booking.id, approve: true, note: null }), done)}
+        onReject={(note) => settle(review.mutateAsync({ bookingId: booking.id, approve: false, note }), done)}
+      />
+      <BookingActions booking={booking} timeZone={timeZone} currency={currency} onRefunded={onRefunded} onMoved={onMoved}
+        onCancelled={(s) => onReviewed(reviewOutcome(booking.reference_code, s))} />
+    </div>
+  )
+}
+
+/** The whole checkout of a grouped booking (T33.6), read by group id whatever the list's filters. */
+function CheckoutContainer({ booking, groupId, openFirst, timeZone, currency, onReviewed, onMoved, onRefunded }: ContainerProps & {
+  groupId: string
+  /** The court open from the start: the one staff opened, or none from the review queue. */
+  openFirst: string | null
+}) {
+  const groupQuery = useAdminGroup(groupId)
+  const [openId, setOpenId] = useState(openFirst)
+  const group = groupQuery.data
+  // The proof's file sits on one court's payment: preview that one.
+  const path = group ? groupPayment(group.bookings).payment?.storage_path ?? null : null
+  const proofUrl = useProofUrl(path)
+  const review = useReviewPayment()
+  if (groupQuery.isPending) return <PageLoader />
+  if (groupQuery.isError || !group) {
+    // Without the checkout the panel can't say what a cancel covers, so nothing is offered until a retry.
+    return <ErrorMessage error={groupQuery.error} onRetry={() => groupQuery.refetch()} />
+  }
+  const lead = group.bookings.find((b) => b.reference_code === group.lead_reference_code) ?? group.bookings[0] ?? booking
+  const done = (s: BookingStatus | undefined) => {
+    if (s) onReviewed(checkoutReviewOutcome(group.lead_reference_code, s, group.bookings.length))
+  }
+  return (
+    <CheckoutPanel
+      group={group}
+      openId={openId}
+      onOpen={setOpenId}
+      timeZone={timeZone}
+      currency={currency}
+      proof={proofLink(path, proofUrl)}
+      pending={review.isPending}
+      error={review.isError ? review.error : null}
+      onApprove={() => settle(review.mutateAsync({ bookingId: lead.id, approve: true, note: null }), done)}
+      onReject={(note) => settle(review.mutateAsync({ bookingId: lead.id, approve: false, note }), done)}
+      renderCourt={(court) => {
+        const scope = groupCancel(group, court, new Date())
+        return (
+          <BookingActions booking={court} scope={scope} timeZone={timeZone} currency={currency} onRefunded={onRefunded} onMoved={onMoved}
+            onCancelled={() => onReviewed(scope?.scope === 'checkout'
+              ? `Checkout ${group.lead_reference_code} is cancelled and its ${scope.courts} courts released.`
+              : `${court.reference_code} (${court.court_name}) is cancelled and the slot released. The other courts stay booked.`)} />
+        )
+      }}
+    />
+  )
+}
+
+/** One booking's own actions: its refund card, reschedule and cancel form (a court's, inside a checkout's Manage). */
+function BookingActions({ booking, scope, timeZone, currency, onRefunded, onMoved, onCancelled }: {
+  booking: AdminBooking
+  scope?: { courts: number; scope: 'court' | 'checkout' } | null
+  timeZone: string
+  currency: string
+  onRefunded: (message: string) => void
+  onMoved: (message: string) => void
+  onCancelled: (status: BookingStatus) => void
+}): ReactNode {
   const cancel = useAdminCancelBooking()
   const refund = useUpdateRefund()
   // The venue's date: the default refund date and the latest one allowed (update_refund checks it too).
   const today = todayInZone(timeZone, useNow(60_000))
-  const now = new Date()
-  const canCancel = adminCanCancel(booking, now)
-  const cancelScope = group ? groupCancel(group, booking, now) : null
-  // A review decides the whole checkout: its other courts.
-  const reviewedOthers = group ? group.bookings.filter((b) => b.id !== booking.id && b.status === booking.status).length : 0
+  const canCancel = adminCanCancel(booking, new Date())
   // A moved part isn't cancelled with its booking (T10.1): the cancel form says which ones stay.
   const movedParts = useActiveMovedParts(booking.id, canCancel && booking.source !== 'moved')
-  const proof: ProofLink = !path
-    ? { state: 'none' }
-    : proofUrl.isPending
-      ? { state: 'loading' }
-      : proofUrl.isError
-        ? { state: 'error' }
-        : { state: 'ready', url: proofUrl.data }
-
   return (
-    <div className="stack">
-      {groupQuery.isError && (
-        // Without the checkout the panel can't say what a cancel covers, so the cancel form waits for a retry.
-        <ErrorMessage error={groupQuery.error} onRetry={() => groupQuery.refetch()} />
-      )}
-      <ReviewPanel
-        booking={booking}
-        group={group}
-        timeZone={timeZone}
-        currency={currency}
-        proof={proof}
-        pending={review.isPending}
-        error={review.isError ? review.error : null}
-        onApprove={() => review.mutate({ bookingId: booking.id, approve: true, note: null }, { onSuccess: (s) => s && onReviewed(s, reviewedOthers) })}
-        onReject={(note) => review.mutate({ bookingId: booking.id, approve: false, note }, { onSuccess: (s) => s && onReviewed(s, reviewedOthers) })}
-      />
+    <>
       <RefundCard refunds={booking.refunds} payments={booking.payments} timeZone={timeZone} currency={currency} today={today}
-        pending={refund.isPending} error={refund.isError ? refund.error : null} onUpdate={(input) => refund.mutate(input, {
-          onSuccess: () => onRefunded(`Refund for ${booking.reference_code} saved: ${REFUND_STATUS_LABELS[input.status]}.`),
-        })} />
+        pending={refund.isPending} error={refund.isError ? refund.error : null} onUpdate={(input) => settle(refund.mutateAsync(input),
+          () => onRefunded(`Refund for ${booking.reference_code} saved: ${REFUND_STATUS_LABELS[input.status]}.`))} />
       <RescheduleSection booking={booking} onMoved={onMoved} />
-      {canCancel && !groupLoading && !groupQuery.isError && (
+      {canCancel && (
         <AdminCancelForm paid={hasApprovedPayment(booking)} movedParts={movedParts.data} pending={cancel.isPending} error={cancel.isError ? cancel.error : null}
-          group={cancelScope ? { courts: cancelScope.courts, scope: cancelScope.scope } : undefined}
-          onCancel={(reason) => cancel.mutate({ bookingId: booking.id, reason }, { onSuccess: (s) => onReviewed(s, cancelScope?.othersAffected ?? 0) })} />
+          group={scope ?? undefined}
+          onCancel={(reason) => settle(cancel.mutateAsync({ bookingId: booking.id, reason }), onCancelled)} />
       )}
-    </div>
+    </>
   )
 }

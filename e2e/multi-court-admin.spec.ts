@@ -1,7 +1,8 @@
-// T33.4: a multi-court checkout on the booking page, in the admin review queue, in the staff cancel and in My bookings.
+// T33.4, reworked in T33.6 (SPEC §7 `/admin/bookings` "Bookings in a group"; §10 2026-11-25 "Checkout panel"): a multi-court checkout on the booking page, in the admin review queue, in the staff cancel and in My bookings.
 // (1) A guest books two badminton courts at different times in one checkout and sees ONE total and ONE proof form on the
-// booking page; one proof is uploaded; an admin finds ONE row for the checkout in the review queue, opens it and approves
-// it once: both bookings are confirmed. (2) Staff cancel one court of that confirmed checkout: the other stays confirmed,
+// booking page; one proof is uploaded; an admin finds ONE row for the checkout in the review queue, titled with the lead's
+// reference, opens ONE "Checkout CB-<lead>" panel and approves it once: both bookings are confirmed. (2) Staff find the
+// non-lead court by its reference, whose Manage section opens, and cancel that one court of the confirmed checkout: the other stays confirmed,
 // the cancelled one has an owed refund for its own payment only, and the guest's page shows it. (3) A signed-in player
 // books two courts and /me/bookings lists ONE entry. Demo venue; every booking carries the E2E guest name and the
 // players and admins carry e2e-…@example.com emails, so global teardown removes the bookings (their payments, refunds and
@@ -135,15 +136,27 @@ test.describe.serial('a guest pays a two-court checkout and staff review and can
     const adminPage = await adminContext.newPage()
     try {
       await logInAdmin(adminPage, admin.email, admin.password, '/admin/bookings')
+      // The row is titled with the lead's reference (what the player was told to put in the payment note), never the other court's.
+      const otherRef = refA === leadReference ? refB : refA
       const row = adminPage.getByRole('button', { name: new RegExp(`${refA}|${refB}`) })
       await expect(row).toHaveCount(1)
+      await expect(row).toContainText(leadReference)
+      await expect(row).not.toContainText(otherRef)
       await expect(row).toContainText('2 courts')
       await expect(row).toContainText(peso(courtTotal + FEE))
       await row.click()
 
-      const panel = adminPage.getByRole('region', { name: /^Booking CB-/ })
-      await expect(panel.getByText(/^Booking [12] of 2 in checkout CB-/)).toBeVisible()
-      await expect(panel.getByRole('list', { name: 'Courts in this checkout' }).getByRole('listitem')).toHaveCount(2)
+      // One panel for the whole checkout; opened from the queue, no court is open.
+      const panel = adminPage.getByRole('region', { name: `Checkout ${leadReference}` })
+      await expect(panel.getByRole('heading', { level: 2, name: `Checkout ${leadReference}` })).toBeVisible()
+      await expect(adminPage.getByRole('region', { name: /^Booking CB-/ })).toHaveCount(0)
+      const courtsList = panel.getByRole('list', { name: 'Courts in this checkout' })
+      await expect(courtsList.getByRole('listitem')).toHaveCount(2)
+      await expect(courtsList.getByRole('link')).toHaveCount(0)
+      await expect(courtsList.getByRole('button', { name: `Manage ${otherRef}` })).toHaveAttribute('aria-expanded', 'false')
+      await expect(courtsList.getByRole('button', { name: `Manage ${leadReference}`, exact: true })).toHaveAttribute('aria-expanded', 'false')
+      await expect(panel.getByText('Customer', { exact: true })).toBeVisible()
+      await expect(adminPage.getByRole('form', { name: 'Cancel booking' })).toHaveCount(0)
       await expect(panel.getByText('Checkout total', { exact: true })).toBeVisible()
       await expect(panel.getByRole('heading', { name: 'Proof waiting for review' })).toHaveCount(1)
       await expect(panel.getByRole('img', { name: 'Proof of payment' })).toBeVisible()
@@ -152,7 +165,7 @@ test.describe.serial('a guest pays a two-court checkout and staff review and can
 
       // One decision confirms both courts.
       await panel.getByRole('button', { name: 'Approve and confirm' }).click()
-      await expect(adminPage.getByRole('status').filter({ hasText: 'its 1 other booking is confirmed' })).toBeVisible()
+      await expect(adminPage.getByRole('status').filter({ hasText: `Checkout ${leadReference} is confirmed (2 courts).` })).toBeVisible()
       const after = await groupOf(leadReference)
       expect(after.bookings.map((b) => b.status)).toEqual(['confirmed', 'confirmed'])
       expect(after.bookings.flatMap((b) => b.payments).map((p) => p.review_status)).toEqual(['approved', 'approved'])
@@ -181,13 +194,19 @@ test.describe.serial('a guest pays a two-court checkout and staff review and can
     const adminContext = await browser.newContext({ ...test.info().project.use })
     const adminPage = await adminContext.newPage()
     try {
+      // A search for the non-lead court's reference opens its checkout with that court's Manage section open.
       await logInAdmin(adminPage, admin.email, admin.password, `/admin/bookings?status=all&q=${cancelled.reference_code}`)
-      const form = adminPage.getByRole('form', { name: 'Cancel booking' })
+      const panel = adminPage.getByRole('region', { name: `Checkout ${leadReference}` })
+      await expect(panel.getByRole('button', { name: `Manage ${cancelled.reference_code}` })).toHaveAttribute('aria-expanded', 'true')
+      await expect(panel.getByRole('button', { name: `Manage ${kept.reference_code}`, exact: true })).toHaveAttribute('aria-expanded', 'false')
+      const form = panel.getByRole('form', { name: 'Cancel booking' })
       await expect(form.getByText('Only this court is cancelled. The other court in this checkout stays booked.')).toBeVisible()
       await expectCleanAndFits(adminPage, 'staff cancel form of a checkout')
       await form.getByLabel('Reason for cancelling').fill('Court maintenance')
       await form.getByRole('button', { name: 'Cancel booking' }).click()
-      await expect(adminPage.getByRole('status').filter({ hasText: `${cancelled.reference_code} is cancelled and the slot released.` })).toBeVisible()
+      await expect(adminPage.getByRole('status').filter({
+        hasText: `${cancelled.reference_code} (${cancelledName}) is cancelled and the slot released. The other courts stay booked.`,
+      })).toBeVisible()
     } finally {
       await adminContext.close()
     }
