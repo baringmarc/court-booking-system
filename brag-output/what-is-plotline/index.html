@@ -1,0 +1,494 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>What is Plotline</title>
+<link rel="stylesheet" href="app.css">
+<style>
+  /* 16:9 is the default; ?r=916 switches to 9:16. Sizes in px of the output frame. */
+  :root { --W: 1920px; --H: 1080px; --capSize: 38px; --capBottom: 26px; --capMax: 1500px; }
+  :root[data-r="916"] { --W: 1080px; --H: 1920px; --capSize: 46px; --capBottom: 60px; --capMax: 960px; }
+  html, body { margin: 0; width: var(--W); height: var(--H); overflow: hidden; }
+  body { font-family: var(--sans); color: var(--text); background: var(--bg); }
+  .scene { position: absolute; inset: 0; display: none; overflow: hidden; }
+  .cream { background: var(--bg); }
+  .band { background: var(--band-bg); color: var(--band-text); }
+  .center-col { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 0 100px; }
+  .serif { font-family: var(--serif); font-weight: 700; letter-spacing: -0.02em; line-height: 1.04; margin: 0; text-wrap: balance; }
+  .hl { color: var(--terracotta); }
+  .band .hl { color: var(--rose); }
+  .word { display: inline-block; }
+
+  /* brand shapes in the corners of cream scenes: decorative only */
+  .shape { position: absolute; border-radius: 50%; }
+  .ring { border: 26px solid var(--sand); background: transparent; }
+  .dot { background: var(--rose); }
+  .leaf { background: var(--sage); border-radius: 0 100% 0 100%; }
+
+  /* ---------- captions ---------- */
+  #cap { position: absolute; left: 50%; bottom: var(--capBottom); transform: translateX(-50%); z-index: 50; max-width: var(--capMax); width: max-content;
+         padding: 14px 30px 16px; border-radius: 18px; background: rgba(42, 37, 34, 0.93); color: #fffaf2; font: 700 var(--capSize)/1.3 var(--sans);
+         text-align: center; box-shadow: 0 12px 34px rgba(0, 0, 0, 0.25); text-wrap: balance; display: none; }
+
+  /* ---------- hook ---------- */
+  .thread { position: absolute; overflow: hidden; -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 22%, #000 95%, transparent 100%); mask-image: linear-gradient(to bottom, transparent 0, #000 22%, #000 95%, transparent 100%); }
+  .thread-in { position: absolute; left: 0; right: 0; top: 0; display: flex; flex-direction: column; gap: 20px; }
+  .bub { align-self: flex-start; background: #f1efed; color: #1c1c1e; border-radius: 30px 30px 30px 8px; padding: 20px 30px; font: 500 40px/1.25 -apple-system, 'Helvetica Neue', Arial, sans-serif;
+         box-shadow: 0 10px 30px rgba(0,0,0,.25); transform-origin: 0 100%; white-space: nowrap; }
+  .bub small { display: block; font-size: 22px; color: #6b6b70; font-weight: 600; margin-bottom: 4px; }
+  .bub.small { font-size: 32px; padding: 15px 24px; }
+  .badge { position: absolute; min-width: 92px; height: 92px; border-radius: 46px; background: #d9534f; color: #fff; font: 800 50px/92px var(--sans); text-align: center; padding: 0 18px; box-sizing: border-box;
+           box-shadow: 0 10px 26px rgba(0,0,0,.35); }
+  .hook-head { position: absolute; color: var(--band-text); font-size: 120px; }
+  :root[data-r="916"] .hook-head { font-size: 112px; }
+  .hookB-col .serif { font-size: 140px; color: var(--band-text); }
+  .hookB-col .sub { font: 600 52px/1.3 var(--sans); color: var(--band-muted); margin-top: 40px; }
+  :root[data-r="916"] .hookB-col .serif { font-size: 124px; }
+  .tile { width: 170px; height: 170px; border-radius: 38px; }
+
+  /* ---------- intro ---------- */
+  .logo-row { display: flex; align-items: center; gap: 28px; }
+  .logo-row img { width: 120px; height: 120px; border-radius: 28px; }
+  .wordmark { font-family: var(--serif); font-weight: 700; font-size: 120px; letter-spacing: -0.02em; line-height: 1; }
+  .tagline { font: 600 36px/1.3 var(--sans); color: var(--muted); margin-top: 18px; }
+  .intro-head { font-size: 86px; margin-top: 46px; }
+  .combo { position: absolute; }
+  .combo .mini-win { position: absolute; left: 0; top: 0; border-radius: 14px; overflow: hidden; background: #fff; box-shadow: 0 24px 60px rgba(59,47,42,.22); }
+  .combo .mini-win .bar { height: 30px; background: #ebe7e1; display: flex; align-items: center; gap: 8px; padding-left: 14px; }
+  .combo .mini-win .bar i { width: 11px; height: 11px; border-radius: 50%; background: #cfc8bf; display: block; }
+  .combo .mini-win img { display: block; width: 100%; }
+  .combo .mini-phone { position: absolute; border-radius: 34px; background: #1d1916; padding: 8px; box-shadow: 0 24px 60px rgba(59,47,42,.3); }
+  .combo .mini-phone img { display: block; width: 100%; border-radius: 27px; }
+  .labels { position: absolute; display: flex; gap: 60px; }
+  .label { font: 700 34px/1.25 var(--sans); color: var(--text); display: flex; gap: 14px; align-items: center; }
+  .label b { width: 50px; height: 50px; border-radius: 50%; background: var(--sage); display: inline-flex; align-items: center; justify-content: center; font-size: 28px; flex: none; }
+
+  /* ---------- app scenes: the phone and the browser window around the recordings ---------- */
+  .copy { position: absolute; }
+  .kicker { font: 700 26px/1 var(--sans); letter-spacing: 0.16em; text-transform: uppercase; color: var(--terracotta); margin-bottom: 26px; }
+  .heads { position: relative; }
+  .heads .serif { position: absolute; left: 0; top: 0; width: 100%; font-size: 104px; }
+  .phone { position: absolute; width: 414px; height: 868px; box-sizing: border-box; padding: 12px; border-radius: 62px; background: #1d1916; transform-origin: 0 0;
+           box-shadow: 0 30px 70px rgba(59,47,42,0.32); }
+  .screen { position: relative; width: 390px; height: 844px; border-radius: 50px; overflow: hidden; background: #fff; }
+  .sbar { height: 44px; display: flex; justify-content: space-between; align-items: center; padding: 4px 32px 0 36px; font: 700 16px/1 -apple-system, 'Helvetica Neue', Arial, sans-serif; color: #111;
+          background: var(--sbar, #fff); box-sizing: border-box; }
+  .sbar .icons { display: flex; gap: 6px; align-items: center; }
+  .sbar .icons i { display: block; background: #111; border-radius: 2px; }
+  .notch { position: absolute; top: 9px; left: 50%; width: 110px; height: 30px; margin-left: -55px; border-radius: 18px; background: #1d1916; z-index: 3; }
+  .screen-img { display: block; width: 390px; height: 760px; object-fit: cover; }
+  .ubar { height: 40px; background: #f2f1ef; display: flex; align-items: center; justify-content: center; border-top: 1px solid #e3e1dd; }
+  .ubar span { font: 600 14px/1 -apple-system, 'Helvetica Neue', Arial, sans-serif; color: #333; background: #e4e2de; border-radius: 10px; padding: 7px 16px; }
+  .win { position: absolute; border-radius: 14px; overflow: hidden; background: #fff; box-shadow: 0 30px 80px rgba(59,47,42,0.28); }
+  .win .chrome { height: 44px; background: #ebe7e1; display: flex; align-items: center; position: relative; }
+  .win .chrome .dots { display: flex; gap: 9px; padding-left: 18px; }
+  .win .chrome .dots i { width: 13px; height: 13px; border-radius: 50%; display: block; }
+  .win .chrome .url { position: absolute; left: 50%; transform: translateX(-50%); background: #fff; border-radius: 9px; padding: 7px 26px; font: 600 16px/1 -apple-system, 'Helvetica Neue', Arial, sans-serif; color: #333; min-width: 380px; text-align: center; }
+  .win .view { position: relative; overflow: hidden; }
+  .win .view img { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+  .callout { position: absolute; z-index: 6; transform: translateY(-50%); background: var(--terracotta); color: #fffaf2; font: 700 30px/1 var(--sans);
+             padding: 16px 26px 16px 24px; border-radius: 999px; box-shadow: 0 14px 30px rgba(59,47,42,.3); white-space: nowrap; display: none; }
+  .callout::before { content: ''; position: absolute; left: -14px; top: 50%; margin-top: -12px; border: 12px solid transparent; border-right: 14px solid var(--terracotta); border-left: 0; }
+  .tag { position: absolute; font: 700 18px/1 var(--sans); letter-spacing: 0.06em; color: var(--muted); background: rgba(255,252,247,0.92); border: 1.5px solid var(--sand);
+         border-radius: 999px; padding: 8px 16px; z-index: 5; }
+
+  /* ---------- fee ---------- */
+  .fee-big { font-size: 150px; }
+  .fee-sub { font: 700 50px/1.3 var(--sans); margin-top: 30px; }
+  .flow { display: flex; gap: 34px; margin-top: 70px; align-items: stretch; }
+  :root[data-r="916"] .flow { flex-direction: column; gap: 26px; margin-top: 60px; }
+  .fcard { background: var(--surface); border: 2px solid var(--sand); border-radius: 26px; padding: 30px 38px; text-align: left; width: 600px; box-sizing: border-box; box-shadow: var(--shadow); }
+  :root[data-r="916"] .fcard { width: 860px; }
+  .fcard .k { font: 700 24px/1 var(--sans); letter-spacing: .12em; text-transform: uppercase; color: var(--terracotta); }
+  .fcard .v { font: 700 46px/1.2 var(--serif); margin-top: 14px; }
+  .fcard .s { font: 500 30px/1.35 var(--sans); color: var(--muted); margin-top: 10px; }
+  .fee-note { font: 700 34px/1.3 var(--sans); color: var(--accent); margin-top: 40px; }
+
+  /* ---------- outro ---------- */
+  .band .wordmark { color: var(--band-text); }
+  .outro-cta { font-family: var(--serif); font-weight: 600; font-size: 84px; margin-top: 64px; color: var(--rose); line-height: 1.1; text-wrap: balance; }
+  .url-pill { font: 700 50px/1 var(--sans); color: var(--band-text); margin-top: 44px; padding: 18px 48px; border: 2px solid var(--band-border); border-radius: 999px; background: var(--band-card); }
+  .ai-note { position: absolute; left: 0; right: 0; bottom: 34px; text-align: center; font: 500 22px/1 var(--sans); color: var(--band-muted); opacity: 0.75; }
+</style>
+</head>
+<body>
+<div id="stage">
+
+  <!-- HOOK A: the questions every venue gets, then the stream that never stops -->
+  <section class="scene band" id="sc-hookA">
+    <div class="thread" id="thread"><div class="thread-in" id="threadIn">
+      <div class="bub" id="q1"><small>Player</small>Is 7 PM free?</div>
+      <div class="bub" id="q2"><small>Player</small>How do I pay?</div>
+      <div class="bub" id="q3"><small>Player</small>Are we confirmed?</div>
+    </div></div>
+    <div class="badge" id="badge">3</div>
+    <h1 class="serif hook-head" id="hookHead"><span class="word">Your</span> <span class="word">phone</span> <span class="word hl">never</span> <span class="word hl">stops.</span></h1>
+  </section>
+
+  <!-- HOOK B -->
+  <section class="scene band" id="sc-hookB">
+    <div class="center-col hookB-col">
+      <img class="tile" id="bTile" src="/src/assets/plotline-tile.svg" alt="">
+      <h1 class="serif" id="bHead" style="margin-top:56px"><span class="word">What</span> <span class="word">is</span> <span class="word hl">Plotline?</span></h1>
+      <div class="sub" id="bSub">Here’s the whole thing in about a minute.</div>
+    </div>
+  </section>
+
+  <!-- INTRO -->
+  <section class="scene cream" id="sc-intro">
+    <div class="shape ring" style="width:300px;height:300px;right:-110px;top:-110px"></div>
+    <div class="shape dot" style="width:120px;height:120px;left:70px;bottom:120px"></div>
+    <div class="copy" id="introTop" style="left:0;right:0;text-align:center">
+      <div class="logo-row" style="justify-content:center"><img src="/src/assets/plotline-tile.svg" alt=""><span class="wordmark">plotline</span></div>
+      <div class="tagline">Plot your day. Fill your hours.</div>
+      <h1 class="serif intro-head" id="introHead">Online booking for <span class="hl">your courts.</span></h1>
+    </div>
+    <div class="combo" id="combo">
+      <div class="mini-win" id="miniWin"><div class="bar"><i></i><i></i><i></i></div><img id="miniWinImg" alt=""></div>
+      <div class="mini-phone" id="miniPhone"><img id="miniPhoneImg" alt=""></div>
+    </div>
+    <div class="labels" id="labels">
+      <div class="label" id="lab1"><b>1</b>Players book and pay on your page</div>
+      <div class="label" id="lab2"><b>2</b>You run it from one dashboard</div>
+    </div>
+  </section>
+
+  <!-- APP: recordings in a phone or a browser window -->
+  <section class="scene cream" id="sc-app">
+    <div class="shape ring" style="width:260px;height:260px;left:-120px;top:-120px"></div>
+    <div class="shape leaf" style="width:150px;height:150px;right:60px;bottom:150px;opacity:.75"></div>
+    <div class="copy" id="copy">
+      <div class="kicker" id="kicker"></div>
+      <div class="heads"><h1 class="serif" id="headA"></h1><h1 class="serif" id="headB"></h1></div>
+    </div>
+    <div class="phone" id="phone">
+      <div class="screen">
+        <div class="notch"></div>
+        <div class="sbar"><span>9:41</span><span class="icons"><i style="width:18px;height:11px;border-radius:3px"></i><i style="width:16px;height:11px"></i><i style="width:26px;height:12px;border-radius:4px"></i></span></div>
+        <img class="screen-img" id="phoneImg" alt="">
+        <div class="ubar"><span id="phoneUrl">🔒 dinkhaus.plotline.fit</span></div>
+      </div>
+    </div>
+    <div class="win" id="win">
+      <div class="chrome"><div class="dots"><i style="background:#ee6a5f"></i><i style="background:#f5be4f"></i><i style="background:#62c554"></i></div><div class="url" id="winUrl">dinkhaus.plotline.fit/admin</div></div>
+      <div class="view" id="view"><img id="winImg" alt=""></div>
+    </div>
+    <div class="tag" id="tag">Example data</div>
+    <div class="callout" id="callout"></div>
+  </section>
+
+  <!-- FEE -->
+  <section class="scene cream" id="sc-fee">
+    <div class="shape ring" style="width:300px;height:300px;left:-120px;bottom:-120px"></div>
+    <div class="shape dot" style="width:110px;height:110px;right:110px;top:90px"></div>
+    <div class="center-col">
+      <h1 class="serif fee-big" id="feeBig"><span class="word">Venues</span> <span class="word">pay</span> <span class="word hl">₱0.</span></h1>
+      <div class="fee-sub" id="feeSub">No setup fee. No monthly fee.</div>
+      <div class="flow">
+        <div class="fcard" id="fc1"><div class="k">When a player books online</div><div class="v">They pay you ₱810</div><div class="s">Court ₱800 + booking fee ₱10, paid by the player</div></div>
+        <div class="fcard" id="fc2"><div class="k">At the end of the month</div><div class="v">We invoice the ₱10 fees</div><div class="s">One invoice for the booking fees you collected</div></div>
+      </div>
+      <div class="fee-note" id="feeNote">Walk-ins you record at the desk: no booking fee.</div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="scene band" id="sc-cta">
+    <div class="center-col">
+      <div class="logo-row" id="ctaLogo"><img src="/src/assets/plotline-tile.svg" alt=""><span class="wordmark">plotline</span></div>
+      <div class="outro-cta" id="ctaHead">Message us for a walkthrough.</div>
+      <div class="url-pill" id="ctaUrl">plotline.fit</div>
+    </div>
+    <div class="ai-note" id="aiNote">Narrated with an AI voice · Example venue and data</div>
+  </section>
+
+  <div id="cap"></div>
+</div>
+
+<script type="module">
+import { buildTimeline, markTime, shotAt, zoomAt } from './timeline.mjs'
+
+const Q = new URLSearchParams(location.search)
+const R = Q.get('r') === '916' ? '916' : '169'
+const HOOK = Q.get('hook') === 'B' ? 'B' : 'A'
+document.documentElement.dataset.r = R
+const $ = (s) => document.querySelector(s)
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x))
+const lerp = (a, b, k) => a + (b - a) * k
+const ease = (k) => 1 - Math.pow(1 - clamp(k), 3)
+const p = (t, a, d) => ease((t - a) / d) // 0→1 progress of an entrance that starts at a and lasts d
+const W = R === '916' ? 1080 : 1920, H = R === '916' ? 1920 : 1080
+
+const json = (u) => fetch(u).then((r) => r.json())
+const TAKES = ['player', 'admin-desktop', 'admin-phone', 'setup-desktop', 'setup-phone']
+const [durations, narration, ...takeList] = await Promise.all([json('rec/voice/durations.json'), json('narration.json'), ...TAKES.map((t) => json(`rec/${t}/take.json`))])
+const takes = Object.fromEntries(TAKES.map((t, i) => [t, takeList[i]]))
+const TL = buildTimeline({ format: R, hook: HOOK, durations: durations.seconds, takes, narration })
+window.timeline = TL
+window.TOTAL = TL.total
+
+// Phrase starts inside a line, measured from its pauses (rec/voice, 2026-11-25), as fractions of the line.
+const lineStart = (id) => TL.lines.find((l) => l.id === id)?.start ?? 0
+const lineEnd = (id) => TL.lines.find((l) => l.id === id)?.end ?? 0
+
+/** The frame of a take at clip time t (the last frame at or before it). */
+function frameAt(take, t) {
+  const f = takes[take].frames
+  let lo = 0, hi = f.length - 1
+  while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (f[mid].t <= t) lo = mid; else hi = mid - 1 }
+  return `rec/${take}/${f[lo].file}`
+}
+async function setSrc(img, src) {
+  if (img.dataset.src === src) return
+  img.dataset.src = src
+  img.src = src
+  await img.decode().catch(() => {})
+}
+
+// ---------- layout per format ----------
+const L = R === '916'
+  ? { phone: { x: 229, y: 420, s: 1.5 }, copy: { x: 90, y: 120, w: 900 }, headSize: 92, win: null, tagPhone: { x: 836, y: 372 } }
+  : { phone: { x: 300, y: 48, s: 1.03 }, copy: { x: 880, y: 330, w: 920 }, headSize: 112, win: { x: 240, y: 26, w: 1440 }, tagPhone: { x: 880, y: 680 }, tagWin: { x: 1520, y: 33 } }
+const phone = $('#phone'), win = $('#win'), view = $('#view'), copy = $('#copy')
+phone.style.left = `${L.phone.x}px`; phone.style.top = `${L.phone.y}px`; phone.style.transform = `scale(${L.phone.s})`
+copy.style.left = `${L.copy.x}px`; copy.style.top = `${L.copy.y}px`; copy.style.width = `${L.copy.w}px`
+for (const h of ['#headA', '#headB']) $(h).style.fontSize = `${L.headSize}px`
+if (L.win) {
+  win.style.left = `${L.win.x}px`; win.style.top = `${L.win.y}px`; win.style.width = `${L.win.w}px`
+  view.style.width = `${L.win.w}px`; view.style.height = `${L.win.w * 800 / 1280}px`
+  $('#winImg').style.width = `${L.win.w}px`
+}
+
+// The phone's status bar takes the colour of the page's top edge, as on a real phone.
+async function topColor(src) {
+  const img = new Image(); img.src = src; await img.decode()
+  const c = document.createElement('canvas'); c.width = 4; c.height = 4
+  const g = c.getContext('2d'); g.drawImage(img, 0, 0, 4, 4)
+  const [r, gg, b] = g.getImageData(1, 0, 1, 1).data
+  return `rgb(${r},${gg},${b})`
+}
+const SBAR = { player: await topColor(`rec/player/${takes.player.frames[0].file}`), 'admin-phone': await topColor(`rec/admin-phone/${takes['admin-phone'].frames[0].file}`) }
+SBAR['setup-phone'] = SBAR['admin-phone']
+
+// Intro thumbnails: the first frames of the takes.
+$('#miniPhoneImg').src = `rec/player/${takes.player.frames[0].file}`
+$('#miniWinImg').src = `rec/admin-desktop/${takes['admin-desktop'].frames[0].file}`
+{
+  const combo = $('#combo'), labels = $('#labels')
+  const top = $('#introTop')
+  if (R === '916') {
+    Object.assign(top.style, { top: '210px', left: '0', right: '0' })
+    Object.assign(combo.style, { left: '90px', top: '720px' })
+    Object.assign($('#miniWin').style, { width: '860px' })
+    Object.assign($('#miniPhone').style, { width: '230px', left: '640px', top: '270px' })
+    Object.assign(labels.style, { left: '110px', right: '90px', top: '1500px', flexDirection: 'column', gap: '22px' })
+  } else {
+    Object.assign(top.style, { top: '190px', left: '140px', width: '820px', textAlign: 'left' })
+    top.querySelector('.logo-row').style.justifyContent = 'flex-start'
+    Object.assign(combo.style, { left: '1010px', top: '210px' })
+    Object.assign($('#miniWin').style, { width: '760px' })
+    Object.assign($('#miniPhone').style, { width: '200px', left: '640px', top: '250px' })
+    Object.assign(labels.style, { left: '140px', top: '700px', flexDirection: 'column', gap: '26px' })
+  }
+}
+
+// Hook A: positions of the three questions, the badge, the headline, and the stream behind them.
+const STREAM = ['Available pa po Court 2?', 'How much per hour?', 'Pwede po GCash?', 'Sent na po 🙏', 'Hello po?', 'Is 6–8 PM open?', 'Pa-reserve po 7–9 PM', 'Open play sa Sat?',
+  'Na-receive nyo na po?', 'Confirmed na po ba?', 'May slot pa po bukas?', 'Ilan po per hour?', 'Can we book 4 courts?', 'Hi po! 👋']
+const THREAD = R === '916' ? { x: 110, y: 150, w: 860, h: 1000 } : { x: 190, y: 90, w: 720, h: 900 }
+{
+  const thread = $('#thread'), badge = $('#badge'), head = $('#hookHead')
+  Object.assign(thread.style, { left: `${THREAD.x}px`, top: `${THREAD.y}px`, width: `${THREAD.w}px`, height: `${THREAD.h}px` })
+  if (R === '916') {
+    Object.assign(badge.style, { left: '860px', top: '1060px' })
+    Object.assign(head.style, { left: '100px', right: '100px', top: '1250px' })
+  } else {
+    Object.assign(badge.style, { left: '800px', top: '890px' })
+    Object.assign(head.style, { left: '1030px', width: '780px', top: '330px' })
+  }
+  STREAM.forEach((text) => {
+    const b = document.createElement('div')
+    b.className = 'bub small'
+    b.textContent = text
+    $('#threadIn').append(b)
+  })
+}
+const BUBBLES = [...document.querySelectorAll('#threadIn .bub')]
+
+// ---------- rendering ----------
+const ids = ['#sc-hookA', '#sc-hookB', '#sc-intro', '#sc-app', '#sc-fee', '#sc-cta']
+const show = (id) => ids.forEach((x) => { $(x).style.display = x === id ? 'block' : 'none' })
+const enter = (el, k, dy = 40) => { el.style.opacity = k; el.style.transform = `translateY(${(1 - k) * dy}px)` }
+const words = (sel, t0, step = 0.09) => document.querySelectorAll(`${sel} .word`).forEach((w, i) => enter(w, p(window.__t, t0 + i * step, 0.35), 30))
+
+/** When each bubble of the hook arrives: the three questions on their words, then the stream, faster and faster. */
+function bubbleTimes(sc) {
+  const s = sc.start + 0.35
+  const q = [0, 1.76, 2.66].map((x) => s + x - 0.05)
+  const rest = STREAM.map((_, i) => s + 3.95 + 2.5 * Math.pow(i / STREAM.length, 0.7))
+  return [...q, ...rest]
+}
+function renderHookA(t, sc) {
+  show('#sc-hookA')
+  const times = bubbleTimes(sc)
+  const n = times.filter((x) => t >= x).length
+  BUBBLES.forEach((b, i) => {
+    const k = p(t, times[i], 0.28)
+    b.style.opacity = k
+    b.style.transform = `scale(${lerp(0.6, 1, k)})`
+  })
+  // The thread scrolls so the newest bubble sits at the bottom; each scroll eases in as the bubble arrives.
+  const bottomOf = (i) => (i < 0 ? 0 : BUBBLES[i].offsetTop + BUBBLES[i].offsetHeight)
+  const targetY = (i) => Math.min(THREAD.h * 0.42, THREAD.h - 40 - bottomOf(i))
+  const last = n - 1
+  const y = last < 0 ? targetY(0) : lerp(targetY(Math.max(0, last - 1)), targetY(last), p(t, times[last], 0.28))
+  $('#threadIn').style.transform = `translateY(${y}px)`
+  // Alone, the thread sits in the middle; it moves aside when the headline comes in.
+  const headAt = sc.start + 0.35 + 4.9
+  const side = p(t, headAt - 0.5, 0.6)
+  const mid = R === '916' ? THREAD.x : (W - THREAD.w) / 2
+  const x = lerp(mid, THREAD.x, side)
+  $('#thread').style.left = `${x}px`
+  if (R !== '916') $('#badge').style.left = `${x + 610}px`
+  const badge = $('#badge')
+  badge.textContent = String(Math.max(1, n))
+  badge.style.opacity = p(t, times[0], 0.2)
+  badge.style.transform = `scale(${last >= 0 && t < times[last] + 0.18 ? 1.12 : 1})`
+  window.__t = t
+  words('#hookHead', headAt, 0.14)
+}
+
+function renderHookB(t, sc) {
+  show('#sc-hookB')
+  const s = sc.start + 0.35
+  const tile = $('#bTile'), k = p(t, sc.start + 0.05, 0.45)
+  tile.style.opacity = k
+  tile.style.transform = `scale(${lerp(0.5, 1, k)}) rotate(${lerp(-10, 0, k)}deg)`
+  window.__t = t
+  words('#bHead', s, 0.12)
+  enter($('#bSub'), p(t, s + 1.22, 0.4), 24)
+}
+
+function renderIntro(t, sc) {
+  show('#sc-intro')
+  const s1 = lineStart('intro1'), s2 = lineStart('intro2')
+  enter($('#introTop'), p(t, sc.start, 0.4), 30)
+  enter($('#introHead'), p(t, s1 + 0.1, 0.4), 30)
+  enter($('#combo'), p(t, s2 - 0.1, 0.5), 60)
+  enter($('#lab1'), p(t, s2 + 0.2, 0.35), 24)
+  enter($('#lab2'), p(t, s2 + 2.76, 0.35), 24) // "and you run it all from one dashboard"
+}
+
+let lastApp = null
+async function renderApp(t, sc) {
+  show('#sc-app')
+  const lt = t - sc.start
+  const { shot, clip } = shotAt(sc, lt)
+  const take = shot.take
+  const onPhone = !take.endsWith('desktop')
+  // Copy (kicker and headline): shown beside the phone; in 16:9 the window takes the width, so none there.
+  const showCopy = onPhone
+  copy.style.display = showCopy ? 'block' : 'none'
+  $('#kicker').textContent = sc.kicker ?? ''
+  const heads = sc.heads
+  let cur = 0
+  heads.forEach((h, i) => { if (lt >= h.at) cur = i })
+  const prev = TL.scenes[TL.scenes.indexOf(sc) - 1]
+  const prevText = cur > 0 ? heads[cur - 1].text : (prev?.kind === 'app' ? prev.heads.at(-1)?.text : '')
+  const since = lt - heads[cur].at
+  const kIn = p(since, 0.05, 0.35), kOut = 1 - p(since, 0, 0.2)
+  const A = $('#headA'), B = $('#headB')
+  B.textContent = heads[cur].text
+  enter(B, kIn, 30)
+  A.textContent = prevText && prevText !== heads[cur].text ? prevText : ''
+  A.style.opacity = A.textContent ? kOut : 0
+  A.style.transform = `translateY(${-(1 - kOut) * 30}px)`
+  // Devices. A device that wasn't on screen in the previous scene slides in.
+  const prevOnPhone = prev?.kind === 'app' ? !shotAt(prev, prev.duration - 0.01).shot.take.endsWith('desktop') : null
+  const kDev = prevOnPhone === onPhone ? 1 : p(lt, 0, 0.45)
+  phone.style.display = onPhone ? 'block' : 'none'
+  win.style.display = onPhone ? 'none' : 'block'
+  const tag = $('#tag')
+  if (onPhone) {
+    $('#callout').style.display = 'none'
+    phone.style.opacity = kDev
+    phone.style.transform = `translateY(${(1 - kDev) * 80}px) scale(${L.phone.s})`
+    phone.querySelector('.sbar').style.setProperty('--sbar', SBAR[take])
+    $('#phoneUrl').textContent = '🔒 dinkhaus.plotline.fit'
+    Object.assign(tag.style, { left: `${L.tagPhone.x}px`, top: `${L.tagPhone.y}px` })
+    await setSrc($('#phoneImg'), frameAt(take, clip))
+  } else {
+    win.style.opacity = kDev
+    win.style.transform = `translateY(${(1 - kDev) * 80}px)`
+    $('#winUrl').textContent = `dinkhaus.plotline.fit${shot.url ?? urlFor(sc, shot)}`
+    Object.assign(tag.style, { left: `${L.tagWin.x}px`, top: `${L.tagWin.y}px` })
+    // The camera: scale about a focus point, kept inside the page's edges.
+    const VW = L.win.w, VH = VW * 800 / 1280, f = VW / 1280
+    const z = zoomAt(sc, clip)
+    const tx = clamp(VW / 2 - z.x * f * z.s, VW - VW * z.s, 0), ty = clamp(VH / 2 - z.y * f * z.s, VH - VH * z.s, 0)
+    $('#winImg').style.transform = `translate(${tx}px, ${ty}px) scale(${z.s})`
+    const co = sc.callout, chip = $('#callout')
+    if (co) {
+      const a = markTime(takes[take], co.from), b = markTime(takes[take], co.to)
+      const k = clamp((clip - a) / 0.25) * clamp((b - clip) / 0.25)
+      chip.style.display = k > 0 ? 'block' : 'none'
+      chip.textContent = co.text
+      chip.style.left = `${L.win.x + co.x * f * z.s + tx + 18}px`
+      chip.style.top = `${L.win.y + 44 + co.y * f * z.s + ty}px`
+      chip.style.opacity = k
+    } else chip.style.display = 'none'
+    await setSrc($('#winImg'), frameAt(take, clip))
+  }
+  tag.style.opacity = kDev
+}
+function urlFor(sc, shot) {
+  if (sc.id === 'approve') return shot.from < takes[shot.take].marks.proof - 0.5 ? '/admin' : '/admin/bookings'
+  if (sc.id === 'run') return ['/admin/schedule', '/admin/schedule', '/admin/bookings', '/admin'][sc.shots.indexOf(shot)]
+  return '/admin'
+}
+
+function renderFee(t, sc) {
+  show('#sc-fee')
+  const s1 = lineStart('fee1'), s2 = lineStart('fee2')
+  window.__t = t
+  words('#feeBig', s1, 0.12)
+  enter($('#feeSub'), p(t, s1 + 1.5, 0.4), 24)
+  enter($('#fc1'), p(t, s2, 0.45), 40)
+  enter($('#fc2'), p(t, s2 + 3.9, 0.45), 40) // "and we invoice you monthly"
+  enter($('#feeNote'), p(t, s2 + 5.4, 0.45), 24)
+}
+
+function renderCta(t, sc) {
+  show('#sc-cta')
+  const s = lineStart('cta')
+  enter($('#ctaLogo'), p(t, sc.start + 0.05, 0.45), 30)
+  enter($('#ctaHead'), p(t, s, 0.4), 30)
+  enter($('#ctaUrl'), p(t, s + 1.6, 0.4), 20)
+  $('#aiNote').style.opacity = 0.75 * p(t, s + 2.2, 0.5)
+}
+
+function renderCaption(t) {
+  const cap = $('#cap')
+  const c = TL.captions.filter((x) => t >= x.start && t < x.end).at(-1)
+  if (!c) { cap.style.display = 'none'; return }
+  cap.style.display = 'block'
+  cap.textContent = c.text
+}
+
+window.renderAt = async function (t) {
+  const sc = TL.scenes.find((s) => t >= s.start && t < s.end) ?? TL.scenes.at(-1)
+  if (sc.kind === 'hook') (HOOK === 'A' ? renderHookA : renderHookB)(t, sc)
+  else if (sc.kind === 'intro') renderIntro(t, sc)
+  else if (sc.kind === 'app') await renderApp(t, sc)
+  else if (sc.kind === 'fee') renderFee(t, sc)
+  else renderCta(t, sc)
+  renderCaption(t)
+}
+
+window.ready = Promise.all(["700 100px 'Fraunces'", "600 60px 'Fraunces'", "700 20px 'DM Sans'", "500 20px 'DM Sans'"].map((f) => document.fonts.load(f)))
+  .then(() => document.fonts.ready)
+  .then(() => Promise.all([...document.images].filter((i) => i.src).map((i) => i.decode().catch(() => {}))))
+  .then(() => window.renderAt(Number(Q.get('t') ?? 0)))
+</script>
+</body>
+</html>
