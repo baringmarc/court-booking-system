@@ -1,4 +1,4 @@
-import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { ErrorMessage } from '../../components/ErrorMessage'
 import { PageLoader } from '../../components/PageLoader'
 import { formatHour, formatMoney } from '../../lib/format'
@@ -6,23 +6,22 @@ import { formatDateLabel, hourInZone, todayInZone } from '../../lib/time'
 import { useAuth } from '../auth/useAuth'
 import { SPORT_LABELS, type Court, type PublicSchedulePeriod, type VenueSettings } from '../catalog/api'
 import { useCourts, usePublicSchedule, useVenueSettings } from '../catalog/hooks'
-import { CheckoutForm } from './CheckoutForm'
+import { CheckoutDetails } from './CheckoutDetails'
 import { guestBookingPath } from './guestLink'
-import { parseCheckoutSearch, parseRebookReference, type CheckoutParams } from './checkoutParams'
-import type { Contact } from './contact'
+import { freeRunSlots, parseCheckoutRuns, parseRebookReference, type CheckoutParams, type CheckoutRun } from './checkoutParams'
 import { bookingErrorMessage, isSlotGone } from './errors'
 import { useAvailability, useCreateBooking, usePlatformFee } from './hooks'
+import { GroupCheckout } from './GroupCheckout'
 import { promoLabelsOf } from './selection'
-import { CancellationPolicyLink } from '../venue/VenueInfo'
 
 export function CheckoutPage() {
   const [params] = useSearchParams()
-  const choice = parseCheckoutSearch(params)
-  if (!choice) return <Navigate to="/book" replace />
-  return <CheckoutLoader choice={choice} />
+  const runs = parseCheckoutRuns(params)
+  if (!runs) return <Navigate to="/book" replace />
+  return <CheckoutLoader runs={runs} />
 }
 
-function CheckoutLoader({ choice }: { choice: CheckoutParams }) {
+function CheckoutLoader({ runs }: { runs: CheckoutRun[] }) {
   const settings = useVenueSettings()
   const courts = useCourts()
   const hours = usePublicSchedule()
@@ -39,8 +38,11 @@ function CheckoutLoader({ choice }: { choice: CheckoutParams }) {
         <ErrorMessage error={courts.error} onRetry={() => courts.refetch()} />
       ) : hours.isError ? (
         <ErrorMessage error={hours.error} onRetry={() => hours.refetch()} />
+      ) : runs.length > 1 ? (
+        // Two or more bookings in one checkout (T33.3): several courts, or several times on one court.
+        <GroupCheckout runs={runs} settings={settings.data} courts={courts.data} hours={hours.data} />
       ) : (
-        <Checkout choice={choice} settings={settings.data} court={courts.data.find((c) => c.id === choice.courtId)} hours={hours.data} />
+        <Checkout choice={runs[0]} settings={settings.data} court={courts.data.find((c) => c.id === runs[0].courtId)} hours={hours.data} />
       )}
     </section>
   )
@@ -48,11 +50,9 @@ function CheckoutLoader({ choice }: { choice: CheckoutParams }) {
 
 function Checkout({ choice, settings, court, hours }: { choice: CheckoutParams; settings: VenueSettings; court: Court | undefined; hours: PublicSchedulePeriod[] }) {
   const navigate = useNavigate()
-  const location = useLocation()
   // From a "Same time next week" link (T30.4): the booking being repeated, recorded on the new one by create_booking.
   const [params] = useSearchParams()
   const rebookOfReference = parseRebookReference(params) ?? undefined
-  const { user, profile } = useAuth()
   const create = useCreateBooking()
 
   const tz = settings.timezone
@@ -69,10 +69,9 @@ function Checkout({ choice, settings, court, hours }: { choice: CheckoutParams; 
   if (platformFee.isError) return <ErrorMessage error={platformFee.error} onRetry={() => platformFee.refetch()} />
 
   // Re-check the chosen run against fresh availability and take its prices from the server.
-  const courtSlots = availability.data.filter((s) => s.court_id === choice.courtId)
-  const first = courtSlots.findIndex((s) => Date.parse(s.slot_start) === Date.parse(choice.start))
-  const run = first < 0 ? [] : courtSlots.slice(first, first + choice.slots)
-  const available = !!court && !!period && run.length === choice.slots && run.every((s, i) => s.status === 'free' && Date.parse(s.slot_end) <= Date.parse(period.period_end) && (i === 0 ? Date.parse(s.slot_start) === Date.parse(choice.start) : run[i - 1].slot_end === s.slot_start))
+  const freeRun = court ? freeRunSlots(choice, availability.data, period) : null
+  const run = freeRun ?? []
+  const available = freeRun !== null
 
   if (!available && !create.isPending) {
     return (
@@ -87,18 +86,14 @@ function Checkout({ choice, settings, court, hours }: { choice: CheckoutParams; 
   const promoLabels = promoLabelsOf(run)
   const fee = platformFee.data
   const end = run.at(-1)?.slot_end ?? choice.start
-  const isGuest = !user
-  const initial: Contact = isGuest
-    ? { name: '', email: '', phone: '' }
-    : { name: profile?.full_name ?? '', email: user.email ?? '', phone: profile?.phone ?? '' }
 
-  function handleSubmit(contact: Contact, waiverAccepted: boolean) {
+  function handleSubmit(contact: { name?: string; email?: string; phone?: string }, waiverAccepted: boolean) {
     create.mutate(
       {
         courtId: choice.courtId,
         start: choice.start,
         slots: choice.slots,
-        contact: isGuest ? contact : { name: contact.name, phone: contact.phone || undefined },
+        contact,
         waiverAccepted,
         rebookOfReference,
       },
@@ -141,18 +136,7 @@ function Checkout({ choice, settings, court, hours }: { choice: CheckoutParams; 
         </div>
       )}
 
-      <section className="card stack">
-        <h2 className="card-head">Your details</h2>
-        {isGuest && (
-          <p className="muted small">
-            Booking as a guest.{' '}
-            <Link to="/login" state={{ from: location.pathname + location.search }}>Log in</Link> to fill this in and keep the booking in your account.
-          </p>
-        )}
-        <CheckoutForm key={user?.id ?? 'guest'} initial={initial} isGuest={isGuest} pending={create.isPending}
-          waiverText={settings.waiver_text} cancelCutoffHours={settings.cancel_cutoff_hours} onSubmit={handleSubmit} />
-        <CancellationPolicyLink />
-      </section>
+      <CheckoutDetails settings={settings} pending={create.isPending} onSubmit={handleSubmit} />
     </div>
   )
 }

@@ -5,6 +5,7 @@ import { goToCheckout, rememberCheckoutStart, rememberGuestToken } from './paymo
 import {
   cancelBooking,
   createBooking,
+  createBookingGroup,
   fetchAvailability,
   fetchGuestBooking,
   fetchOwnBooking,
@@ -15,6 +16,7 @@ import {
   type BookingDetail,
   type Cancellation,
   type NewBooking,
+  type NewBookingGroup,
   type ProofSubmission,
 } from './api'
 import { currentVenueId } from '../../lib/currentVenue'
@@ -51,6 +53,21 @@ export function useCreateBooking() {
       if (guestToken) requestGuestLinkEmail({ referenceCode, token: guestToken }).catch(() => {})
     },
     // Success and "slot taken" both mean the grid is stale; a new booking also belongs in My bookings.
+    onSettled: () => Promise.all([
+      qc.invalidateQueries({ queryKey: bookingKeys.allAvailability() }),
+      qc.invalidateQueries({ queryKey: accountKeys.allMyBookings() }),
+    ]),
+  })
+}
+
+/** A checkout of several bookings (T33.3). As useCreateBooking; the guest link email goes with the lead's reference. */
+export function useCreateBookingGroup() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: NewBookingGroup) => createBookingGroup(input),
+    onSuccess: ({ bookings, guestToken }) => {
+      if (guestToken && bookings[0]) requestGuestLinkEmail({ referenceCode: bookings[0].referenceCode, token: guestToken }).catch(() => {})
+    },
     onSettled: () => Promise.all([
       qc.invalidateQueries({ queryKey: bookingKeys.allAvailability() }),
       qc.invalidateQueries({ queryKey: accountKeys.allMyBookings() }),

@@ -13,6 +13,17 @@ export type EmailKind =
   | 'booking_reminder'
 export type BookingStatus = 'pending_payment' | 'payment_submitted' | 'confirmed' | 'expired' | 'rejected' | 'cancelled'
 
+/** One court of a booking group, as private.group_email_data lists it in `courts` (T33.2). */
+export type GroupCourt = {
+  booking_id: string
+  reference_code: string
+  court_name: string
+  sport?: string
+  starts_at: string
+  ends_at: string
+  total_amount: number | string
+}
+
 /** The email_outbox.data snapshot (see private.booking_email_data and the trigger). */
 export type EmailData = {
   reference_code: string
@@ -52,6 +63,12 @@ export type EmailData = {
   address?: string | null
   /** '' when unset, else a Google Maps link (venue_settings_maps_url_link). */
   maps_url?: string | null
+  /**
+   * A booking group's courts (T33.2), ordered by start then court id; only on the group's one email, where
+   * total_amount, booking_fee and amount_due are the group's sums. Absent for an ungrouped booking and for a
+   * cancellation of one court.
+   */
+  courts?: GroupCourt[]
 }
 
 export type RenderInput = {
@@ -154,10 +171,15 @@ function content(input: RenderInput): { subject: string; block: Block } {
   const ref = data.reference_code
   const when = whenLabel(data.starts_at, data.ends_at, tz)
   const fee = Number(data.booking_fee ?? 0)
+  // A booking group (T33.2): one row per court with its own time, in place of the Court and When rows. The amounts in
+  // the snapshot are already the group's sums.
+  const group = data.courts && data.courts.length >= 2 ? data.courts : null
+  const courtRows: [string, string][] = group
+    ? group.map((c) => [c.court_name, whenLabel(c.starts_at, c.ends_at, tz)])
+    : [['Court', data.court_name], ['When', when]]
   const facts: [string, string][] = [
     ['Reference', ref],
-    ['Court', data.court_name],
-    ['When', when],
+    ...courtRows,
     ['Court price', money(data.total_amount)],
     ...(fee > 0 ? [['Booking fee', money(fee)] as [string, string]] : []),
     ['Total', money(data.amount_due ?? data.total_amount)],
@@ -231,13 +253,19 @@ function content(input: RenderInput): { subject: string; block: Block } {
         subject: `See you tomorrow at ${data.venue_name}`,
         block: {
           paragraphs: [`See you tomorrow at ${data.venue_name}! Here are your booking details.`],
-          facts: [
-            ['Reference', ref],
-            ['Court', data.court_name],
-            ...(sport ? [['Sport', `${sport.charAt(0).toUpperCase()}${sport.slice(1)}`] as [string, string]] : []),
-            ['When', when],
-            ...(address ? [['Address', address] as [string, string]] : []),
-          ],
+          facts: group
+            ? [
+                ['Reference', ref],
+                ...courtRows,
+                ...(address ? [['Address', address] as [string, string]] : []),
+              ]
+            : [
+                ['Reference', ref],
+                ['Court', data.court_name],
+                ...(sport ? [['Sport', `${sport.charAt(0).toUpperCase()}${sport.slice(1)}`] as [string, string]] : []),
+                ['When', when],
+                ...(address ? [['Address', address] as [string, string]] : []),
+              ],
           link,
           links: [
             ...(maps ? [{ href: maps, label: 'Open in Maps' }] : []),

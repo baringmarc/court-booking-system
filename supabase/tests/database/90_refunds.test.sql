@@ -190,8 +190,8 @@ select is(pg_temp.q($$ select concat_ws(',',
     has_function_privilege('service_role', 'public.get_own_booking_refund(uuid)', 'execute')::text) $$),
   'false,true,true', 'get_own_booking_refund: authenticated and service_role may execute, anon may not');
 select is(pg_temp.q($$ select pg_get_function_result('private.backfill_refunds()'::regprocedure) $$), 'integer', 'private.backfill_refunds() returns integer');
-select is(pg_temp.q($$ select (pg_get_function_result('public.get_guest_booking(text, text)'::regprocedure) like '%waiver_accepted_at timestamp with time zone, refund jsonb)')::text $$),
-  'true', 'get_guest_booking gains refund jsonb as its last column (the others are unchanged)');
+select is(pg_temp.q($$ select (pg_get_function_result('public.get_guest_booking(text, text)'::regprocedure) like '%waiver_accepted_at timestamp with time zone, refund jsonb, booking_group jsonb)')::text $$),
+  'true', 'get_guest_booking gains refund jsonb after waiver_accepted_at (the others are unchanged; T33.1 adds booking_group jsonb after it)');
 
 -- ---------------------------------------------------------------------------
 -- Fixture: venue A (Asia/Manila), B (Pacific/Kiritimati, UTC+14), C (Pacific/Pago_Pago, UTC-11), E (Asia/Manila, earnings)

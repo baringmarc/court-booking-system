@@ -271,6 +271,11 @@ from (values
   ('f5000000-0000-0000-0000-0000000000b1'::uuid, 'b0000000-0000-0000-0000-00000000000b'::uuid, 'b1000000-0000-0000-0000-0000000000b1'::uuid, 600)
 ) x(id, venue, booking, amt);
 
+-- T33.1: booking groups (staff read them; written only by create_booking_group)
+insert into public.booking_groups (id, venue_id, lead_booking_id) values
+  ('f6000000-0000-0000-0000-0000000000a1', 'a0000000-0000-0000-0000-00000000000a', 'b1000000-0000-0000-0000-0000000000a1'),
+  ('f6000000-0000-0000-0000-0000000000b1', 'b0000000-0000-0000-0000-00000000000b', 'b1000000-0000-0000-0000-0000000000b1');
+
 -- T29.4: live stacks have no client grants at all (reads through get_live_stack by code only)
 insert into public.live_stacks (venue_id, code, secret_hash, title, courts) values
   ('a0000000-0000-0000-0000-00000000000a', 'e2eisolivestackaaaaaaaa', repeat('a', 64), 'E2E A stack', 2),
@@ -324,7 +329,7 @@ select is_empty(
      where tbl not in (select tbl from pg_temp.tpl where venue_id = 'a0000000-0000-0000-0000-00000000000a')
         or tbl not in (select tbl from pg_temp.tpl where venue_id = 'b0000000-0000-0000-0000-00000000000b') $$,
   'every table with a venue_id has fixture rows in venue A and in venue B (add rows here when a table is added)');
-select is((select count(*)::int from pg_temp.swp), 29, 'the catalog sweep includes the four schedule tables, the two promo tables (T19.1), live_stacks (T29.4) and refunds (T30.5)');
+select is((select count(*)::int from pg_temp.swp), 30, 'the catalog sweep includes the four schedule tables, the two promo tables (T19.1), live_stacks (T29.4), refunds (T30.5) and booking_groups (T33.1)');
 select is(
   (select count(*)::int from pg_temp.swp where tbl in ('billing_charges', 'invoices', 'venue_members', 'guest_link_tokens', 'bookings', 'payments')),
   6, 'the sweep includes the billing, membership, booking and payment tables');
@@ -371,8 +376,8 @@ reset role;
 set local role authenticated;
 select pg_temp.as_user('11111111-1111-1111-1111-111111111111');
 select is_empty($$ select s from pg_temp.sweep('select', 'b0000000-0000-0000-0000-00000000000b', 'a0000000-0000-0000-0000-00000000000a') s
-                   where s ~ '^(bookings|booking_changes|payments|email_outbox|paymongo_checkouts|guest_link_tokens|billing_charges|invoices|venue_members):' $$,
-  'a player of venue A reads no private row of venue B (bookings, payments, outbox, tokens, billing, members)');
+                   where s ~ '^(bookings|booking_changes|booking_groups|payments|email_outbox|paymongo_checkouts|guest_link_tokens|billing_charges|invoices|venue_members):' $$,
+  'a player of venue A reads no private row of venue B (bookings, groups, payments, outbox, tokens, billing, members)');
 select is_empty($$ select * from pg_temp.sweep('update', 'a0000000-0000-0000-0000-00000000000a', 'b0000000-0000-0000-0000-00000000000b') $$,
   'a player updates no row of either venue');
 select is_empty($$ select * from pg_temp.sweep('delete', 'a0000000-0000-0000-0000-00000000000a', 'b0000000-0000-0000-0000-00000000000b') $$,
@@ -534,7 +539,8 @@ select is_empty(
          'reorder_courts', 'reorder_info_sections', 'reorder_payment_accounts', 'set_operating_hours', 'get_earnings',
          'create_open_play', 'update_open_play', 'delete_open_play', 'save_court_promo', 'delete_court_promo', 'update_refund',
          -- public by design: they take a court or a slug and only ever act on that venue's own published data
-         'create_booking', 'get_availability', 'get_public_schedule',
+         -- (create_booking_group takes courts and refuses courts of two venues: 92_booking_groups)
+         'create_booking', 'create_booking_group', 'get_availability', 'get_public_schedule',
          -- by secret token or by the caller's own account: no venue id to cross
          'get_guest_booking', 'claim_guest_bookings', 'get_own_booking_refund',
          -- live stacks by code (and secret): no venue id to cross; create_venue_live_stack refuses staff of another venue (86_live_stacks)

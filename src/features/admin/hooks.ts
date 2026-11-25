@@ -5,6 +5,7 @@ import {
   createWalkIn,
   fetchActiveMovedParts,
   fetchAdminBookings,
+  fetchAdminGroup,
   fetchBookingsForExport,
   fetchPaymentsForExport,
   fetchEarnings,
@@ -76,6 +77,16 @@ export function useAdminBookings(filters: BookingFilters, timeZone: string | und
     enabled: !!timeZone,
     staleTime: 15_000,
     refetchInterval: 60_000,
+  })
+}
+
+/** Every court of a checkout (T33.4); off for a booking without a group. */
+export function useAdminGroup(groupId: string | null | undefined) {
+  return useQuery({
+    queryKey: adminKeys.group(groupId ?? ''),
+    queryFn: () => fetchAdminGroup(groupId!),
+    enabled: !!groupId,
+    staleTime: 15_000,
   })
 }
 

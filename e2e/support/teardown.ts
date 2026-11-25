@@ -24,10 +24,12 @@ export default async function teardown() {
 
   const { data: bookings, error } = await service
     .from('bookings')
-    .select('id')
+    .select('id, booking_group_id')
     .or(`guest_name.like.${E2E_PREFIX}*,guest_email.like.e2e-*`)
   if (error) throw error
   const ids = (bookings ?? []).map((b) => b.id)
+  // A multi-court checkout (M33) also leaves a booking group; it goes once its bookings are gone.
+  const groupIds = [...new Set((bookings ?? []).map((b) => b.booking_group_id).filter((g): g is string => !!g))]
 
   for (const id of ids) {
     const { data: files } = await service.storage.from('payment-proofs').list(id)
@@ -36,6 +38,10 @@ export default async function teardown() {
   if (ids.length) {
     const { error: deleteError } = await service.from('bookings').delete().in('id', ids)
     if (deleteError) throw deleteError
+  }
+  if (groupIds.length) {
+    const { error: groupError } = await service.from('booking_groups').delete().in('id', groupIds)
+    if (groupError) throw groupError
   }
 
   // Tagged courts and their photos. Files go through the Storage API (a SQL delete would orphan them).

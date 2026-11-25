@@ -551,6 +551,15 @@ button.day:focus-visible, .slot:focus-visible { outline: 2px solid var(--accent)
 .selection-text { display: flex; flex-direction: column; flex: 1 1 160px; min-width: 0; }
 .selection-total { font-size: 1.1rem; }
 .selection-actions { display: flex; gap: 6px; margin-left: auto; }
+/* T33.3: several times in one checkout. The bar lists each with its own Remove and scrolls inside itself on a short
+   phone screen, so the grid above stays reachable. */
+.selection-bar:has(.selection-runs) { max-height: 50vh; overflow-y: auto; }
+.selection-runs { list-style: none; margin: 4px 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.selection-runs li { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
+.selection-runs li span { min-width: 0; overflow-wrap: anywhere; }
+.checkout-runs { list-style: none; margin: 0 0 12px; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.checkout-runs li { display: flex; flex-direction: column; gap: 2px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+.checkout-run-head { display: flex; justify-content: space-between; gap: 8px; }
 
 /* Booking detail */
 .card-highlight { border-color: var(--accent); }

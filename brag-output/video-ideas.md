@@ -25,7 +25,7 @@ Saved 2026-11-24. Revised 2026-11-24 after a review: product claims corrected, o
 | 14 | A booking comes in after hours | Owners | Not started |
 | 15 | Owner FAQ series | Owners | Not started |
 | 16 | From a Facebook post to a booking | Owners | Not started |
-| 17 | Founder walkthrough: what is Plotline? | Owners | Not started |
+| 17 | Founder walkthrough: what is Plotline? | Owners | **v2 2026-11-25** (hook A chosen, walk-ins added): AI narrator instead of a founder, real app recording, 16:9 + 9:16 (`what-is-plotline/`) |
 
 **Suggested order:** #1 (the owner's problem), #2 (a concrete feature), #4 (the "what's the catch?" answer), #13 (meets owners where they already work), #17 (something to send an interested owner). Cut shorter versions from the strongest of these afterwards. #0 only after checking the launch video's text still reads in a vertical crop.
 
@@ -192,3 +192,4 @@ Saved 2026-11-24. Revised 2026-11-24 after a review: product claims corrected, o
 - **What:** a person introduces Plotline in one sentence, then shows a booking page and the owner dashboard, and ends with "Message us for a walkthrough."
 - **Why:** gives the brand a face, and works as a pinned introduction or something to send an interested owner.
 - **Format:** 60–90s, 16:9 plus a 9:16 cut.
+- **As built (2026-11-25, draft v1):** no founder on camera (the user's call): an AI narrator (Kokoro `af_heart`, run locally) speaks for Plotline and never claims to be a person, and the outro and caption disclose the AI voice. Real app footage recorded from `origin/master` with Playwright on the local stack, with the fictional Dinkhaus Pickleball created for the recording and deleted after. 16:9 with the desktop admin and 9:16 with the phone admin. "Your logo" in the script became "your courts", since the booking page doesn't show the logo. Two hooks tried; A ("Is 7 PM free?… your phone never stops") chosen over B ("What is Plotline?"). v2 adds a walk-in scene ("Walk-ins have no booking fee"), shown as on for every venue per the user's plan (today walk-ins are off by default and switched on per venue in the console). About 86 s. As built: `what-is-plotline/plan.md`.

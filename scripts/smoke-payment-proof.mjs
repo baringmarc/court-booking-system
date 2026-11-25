@@ -70,6 +70,27 @@ log('guest: second proof while under review', await invoke(guest, { reference_co
 const { data: gview } = await guest.rpc('get_guest_booking', { p_reference_code: ref, p_token: token })
 console.log('guest: booking status / payments'.padEnd(44), gview[0].status, gview[0].payments.length, Object.keys(gview[0].payments[0]).includes('storage_path') ? 'LEAKS PATH' : 'no path')
 
+// A booking group (T33.2): one proof, from any of its references, covers every court.
+const gdate = new Date(Date.now() + 5 * 86400000).toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' })
+const { data: gslots, error: gse } = await guest.rpc('get_availability', { p_date: gdate, p_venue_slug: 'claudex-courts' })
+if (gse) throw gse
+const atNoon = gslots.filter((s) => s.status === 'free' && new Date(s.slot_start).toLocaleString('en-US', { timeZone: 'Asia/Manila', hour: 'numeric', hour12: false }) == 14)
+const twoCourts = [...new Map(atNoon.map((s) => [s.court_id, s])).values()].slice(0, 2)
+if (twoCourts.length < 2) throw new Error('no two free courts')
+const { data: grp, error: grpe } = await guest.rpc('create_booking_group', {
+  p_items: twoCourts.map((s) => ({ court_id: s.court_id, start: s.slot_start, slots: 1 })),
+  p_guest_name: 'Smoke Group', p_guest_email: 'smoke@example.com', p_guest_phone: '0917 000 1111',
+})
+if (grpe) throw grpe
+const grpTotal = twoCourts.reduce((sum, s) => sum + Number(s.price), 0)
+log('group: proof from a non-lead reference', await invoke(guest, { reference_code: grp[1].reference_code, token: grp[1].guest_token, method: 'gcash', amount: grpTotal, reference_number: '5678' }, PNG))
+const { data: grpRows } = await service.from('bookings').select('id, status, payments(amount, review_status, storage_path)').eq('booking_group_id', grp[0].booking_group_id)
+console.log('group: statuses / pending payments / files'.padEnd(44),
+  grpRows.map((b) => b.status).join(','),
+  grpRows.flatMap((b) => b.payments).filter((p) => p.review_status === 'pending').length,
+  grpRows.flatMap((b) => b.payments).filter((p) => p.storage_path).length)
+log('group: a second proof from the lead', await invoke(guest, { reference_code: grp[0].reference_code, token: grp[0].guest_token, method: 'gcash', amount: grpTotal }, PNG))
+
 // Player
 const { sb: player } = await signedInUser(`smoke-${Date.now()}@example.com`)
 const { data: sess } = await player.auth.getSession()

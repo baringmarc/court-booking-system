@@ -1,0 +1,90 @@
+{
+  "_comment": "The narration, one entry per line. `caption` is the burned-in subtitle (what a viewer reads with the sound off); `say` is what the AI voice reads, spelled for pronunciation. Both hooks are here; a render picks one. voice.py voices every line into rec/voice/; the timeline reads the durations it writes.",
+  "hooks": {
+    "A": {
+      "caption": "“Is 7 PM free?” “How do I pay?” “Are we confirmed?” If you run a court venue, your phone never stops.",
+      "say": "Is seven P M free? How do I pay? Are we confirmed? If you run a court venue, your phone never stops."
+    },
+    "B": {
+      "caption": "What is Plotline? Here’s the whole thing in about a minute.",
+      "say": "What is Plotline? Here's the whole thing, in about a minute."
+    }
+  },
+  "lines": [
+    {
+      "id": "intro1",
+      "caption": "Plotline is online booking for your courts.",
+      "say": "Plotline is online booking for your courts."
+    },
+    {
+      "id": "intro2",
+      "caption": "Players book and pay on your venue’s own page, and you run it all from one dashboard.",
+      "say": "Players book and pay on your venue's own page, and you run it all from one dashboard."
+    },
+    {
+      "id": "page",
+      "caption": "This is your page: your name, your courts, your colors.",
+      "say": "This is your page. Your name, your courts, your colors."
+    },
+    {
+      "id": "grid",
+      "caption": "Players see which courts are free and pick a time. No account needed.",
+      "say": "Players see which courts are free, and pick a time. No account needed."
+    },
+    {
+      "id": "pay",
+      "caption": "They pay by GCash, Maya or bank with your QR code, and upload the receipt.",
+      "say": "They pay by G-Cash, Maya, or bank, with your Q R code, and upload the receipt."
+    },
+    {
+      "id": "held",
+      "caption": "Their time is held while you check it.",
+      "say": "Their time is held while you check it."
+    },
+    {
+      "id": "dashboard",
+      "caption": "On your side, the dashboard shows today’s courts and every payment waiting for you.",
+      "say": "On your side, the dashboard shows today's courts, and every payment waiting for you."
+    },
+    {
+      "id": "approve",
+      "caption": "Open the receipt, check it and approve. The booking is confirmed, and the player gets an email.",
+      "say": "Open the receipt, check it, and approve. The booking is confirmed, and the player gets an email."
+    },
+    {
+      "id": "walkin",
+      "caption": "Someone walks in? Record it right from your dashboard. Walk-ins have no booking fee.",
+      "say": "Someone walks in? Record it right from your dashboard. Walk-ins have no booking fee."
+    },
+    {
+      "id": "run",
+      "caption": "Set your own hours and prices, move a booking when it rains, and see what you earned.",
+      "say": "Set your own hours and prices, move a booking when it rains, and see what you earned."
+    },
+    {
+      "id": "slots",
+      "caption": "And each morning, post your open slots to Facebook in a few taps.",
+      "say": "And each morning, post your open slots to Facebook, in a few taps."
+    },
+    {
+      "id": "fee1",
+      "caption": "Venues pay ₱0: no setup fee, no monthly fee.",
+      "say": "Venues pay zero pesos. No setup fee, no monthly fee."
+    },
+    {
+      "id": "fee2",
+      "caption": "Players add a ₱10 booking fee to each online booking, and we invoice you monthly for the fees you collected.",
+      "say": "Players add a ten peso booking fee to each online booking, and we invoice you monthly for the fees you collected."
+    },
+    {
+      "id": "setup",
+      "caption": "We set up your venue with you, and a checklist walks you through the rest.",
+      "say": "We set up your venue with you, and a checklist walks you through the rest."
+    },
+    {
+      "id": "cta",
+      "caption": "Message us for a walkthrough: plotline.fit",
+      "say": "Message us for a walkthrough, at plotline dot fit."
+    }
+  ]
+}

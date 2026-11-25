@@ -48,13 +48,8 @@ function fold(line: string): string {
   return out.join('\r\n')
 }
 
-export function buildIcs(event: CalendarEvent): string {
-  const lines = [
-    'BEGIN:VCALENDAR',
-    'VERSION:2.0',
-    'PRODID:-//Plotline//Booking//EN',
-    'CALSCALE:GREGORIAN',
-    'METHOD:PUBLISH',
+function eventLines(event: CalendarEvent): string[] {
+  return [
     'BEGIN:VEVENT',
     `UID:${text(event.uid)}`,
     `DTSTAMP:${utc(event.stamp)}`,
@@ -66,9 +61,25 @@ export function buildIcs(event: CalendarEvent): string {
     ...(event.description !== undefined ? [`DESCRIPTION:${text(event.description)}`] : []),
     'STATUS:CONFIRMED',
     'END:VEVENT',
+  ]
+}
+
+/** One calendar with a VEVENT per event: a booking group's courts (T33.2). */
+export function buildIcsEvents(events: CalendarEvent[]): string {
+  const lines = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//Plotline//Booking//EN',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    ...events.flatMap(eventLines),
     'END:VCALENDAR',
   ]
   return lines.map(fold).join('\r\n') + '\r\n'
+}
+
+export function buildIcs(event: CalendarEvent): string {
+  return buildIcsEvents([event])
 }
 
 const SEQUENCE_EPOCH = Date.UTC(2026, 0, 1)
@@ -90,16 +101,33 @@ export function bookingCalendarFile({ kind, data, bookingId, now }: { kind: Emai
   if (!KINDS.includes(kind)) return null
   const moved = kind === 'booking_rescheduled'
   if (moved && data.continuation_reference?.trim()) return null
-  const sport = data.sport?.trim()
-  const ics = buildIcs({
-    uid: `booking-${bookingId}@plotline.fit`,
-    summary: sport ? `${sport.charAt(0).toUpperCase()}${sport.slice(1)} at ${data.venue_name}` : `Booking at ${data.venue_name}`,
-    startsAt: (moved && data.new_starts_at) || data.starts_at,
-    endsAt: (moved && data.new_ends_at) || data.ends_at,
-    location: data.address?.trim() || data.venue_name,
-    sequence: moved ? Math.floor((now.getTime() - SEQUENCE_EPOCH) / 60000) : 0,
-    stamp: now,
-  })
+  const summary = (sport: string | undefined) => {
+    const s = sport?.trim()
+    return s ? `${s.charAt(0).toUpperCase()}${s.slice(1)} at ${data.venue_name}` : `Booking at ${data.venue_name}`
+  }
+  const location = data.address?.trim() || data.venue_name
+  // A booking group's confirmation and reminder (T33.2): one event per court, each with its own booking's UID, so a
+  // later reschedule of one court updates its own event. A reschedule is always one court.
+  const courts = !moved && data.courts && data.courts.length >= 2 ? data.courts : null
+  const ics = courts
+    ? buildIcsEvents(courts.map((c) => ({
+        uid: `booking-${c.booking_id}@plotline.fit`,
+        summary: summary(c.sport ?? data.sport),
+        startsAt: c.starts_at,
+        endsAt: c.ends_at,
+        location,
+        sequence: 0,
+        stamp: now,
+      })))
+    : buildIcs({
+        uid: `booking-${bookingId}@plotline.fit`,
+        summary: summary(data.sport),
+        startsAt: (moved && data.new_starts_at) || data.starts_at,
+        endsAt: (moved && data.new_ends_at) || data.ends_at,
+        location,
+        sequence: moved ? Math.floor((now.getTime() - SEQUENCE_EPOCH) / 60000) : 0,
+        stamp: now,
+      })
   return {
     filename: `booking-${data.reference_code}.ics`,
     contentBase64: base64(ics),

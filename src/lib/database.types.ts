@@ -234,10 +234,47 @@ export type Database = {
           },
         ]
       }
+      booking_groups: {
+        Row: {
+          created_at: string
+          id: string
+          lead_booking_id: string | null
+          venue_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          lead_booking_id?: string | null
+          venue_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          lead_booking_id?: string | null
+          venue_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_groups_lead_fkey"
+            columns: ["venue_id", "lead_booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["venue_id", "id"]
+          },
+          {
+            foreignKeyName: "booking_groups_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bookings: {
         Row: {
           amount_due: number
           booking_fee: number
+          booking_group_id: string | null
           cancel_reason: string | null
           cancelled_at: string | null
           cancelled_by: string | null
@@ -269,6 +306,7 @@ export type Database = {
         Insert: {
           amount_due?: number
           booking_fee?: number
+          booking_group_id?: string | null
           cancel_reason?: string | null
           cancelled_at?: string | null
           cancelled_by?: string | null
@@ -300,6 +338,7 @@ export type Database = {
         Update: {
           amount_due?: number
           booking_fee?: number
+          booking_group_id?: string | null
           cancel_reason?: string | null
           cancelled_at?: string | null
           cancelled_by?: string | null
@@ -329,6 +368,13 @@ export type Database = {
           waiver_text?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "bookings_booking_group_fkey"
+            columns: ["venue_id", "booking_group_id"]
+            isOneToOne: false
+            referencedRelation: "booking_groups"
+            referencedColumns: ["venue_id", "id"]
+          },
           {
             foreignKeyName: "bookings_cancelled_by_fkey"
             columns: ["cancelled_by"]
@@ -1219,6 +1265,7 @@ export type Database = {
       paymongo_checkouts: {
         Row: {
           amount_centavos: number
+          booking_group_id: string | null
           booking_id: string
           checkout_id: string
           checkout_url: string
@@ -1227,6 +1274,7 @@ export type Database = {
         }
         Insert: {
           amount_centavos: number
+          booking_group_id?: string | null
           booking_id: string
           checkout_id: string
           checkout_url: string
@@ -1235,6 +1283,7 @@ export type Database = {
         }
         Update: {
           amount_centavos?: number
+          booking_group_id?: string | null
           booking_id?: string
           checkout_id?: string
           checkout_url?: string
@@ -1242,6 +1291,13 @@ export type Database = {
           venue_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "paymongo_checkouts_booking_group_fkey"
+            columns: ["venue_id", "booking_group_id"]
+            isOneToOne: false
+            referencedRelation: "booking_groups"
+            referencedColumns: ["venue_id", "id"]
+          },
           {
             foreignKeyName: "paymongo_checkouts_booking_id_fkey"
             columns: ["venue_id", "booking_id"]
@@ -1870,6 +1926,22 @@ export type Database = {
           reference_code: string
         }[]
       }
+      create_booking_group: {
+        Args: {
+          p_guest_email?: string
+          p_guest_name?: string
+          p_guest_phone?: string
+          p_items: Json
+          p_waiver_accepted?: boolean
+        }
+        Returns: {
+          booking_group_id: string
+          court_id: string
+          guest_token: string
+          id: string
+          reference_code: string
+        }[]
+      }
       create_open_play: {
         Args: {
           p_court_ids: string[]
@@ -1948,6 +2020,7 @@ export type Database = {
         Returns: {
           amount_due: number
           booking_fee: number
+          booking_group: Json
           cancel_reason: string
           cancelled_at: string
           cancelled_by_venue: boolean
@@ -2042,7 +2115,10 @@ export type Database = {
         Args: { p_reference_code: string; p_token: string; p_user_id: string }
         Returns: {
           amount_due: number
+          booking_group_id: string
           booking_id: string
+          group_amount_due: number
+          lead_booking_id: string
           total_amount: number
         }[]
       }
