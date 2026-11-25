@@ -39,13 +39,13 @@ export function AdminCancelForm({ paid, movedParts = [], group, pending, error, 
       {group?.scope === 'court' && (
         <p className="form-warning" role="status">
           {group.courts === 1
-            ? 'Only this court is cancelled. The other court in this checkout stays booked.'
-            : `Only this court is cancelled. The other ${group.courts} courts in this checkout stay booked.`}
+            ? 'Only this booking is cancelled. The other booking in this checkout stays booked.'
+            : `Only this booking is cancelled. The other ${group.courts} bookings in this checkout stay booked.`}
         </p>
       )}
       {group?.scope === 'checkout' && (
         <p className="form-warning" role="status">
-          This cancels all {group.courts} courts in this checkout, because one payment covers them all.
+          This cancels all {group.courts} bookings in this checkout, because one payment covers them all.
         </p>
       )}
       {movedParts.length > 0 && (

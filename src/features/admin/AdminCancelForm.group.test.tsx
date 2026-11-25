@@ -15,20 +15,20 @@ const renderForm = (group?: Group, props: { paid?: boolean } = {}) => {
 describe('AdminCancelForm in a group', () => {
   it('scope "court": cancels only this court and says how many others stay booked', () => {
     renderForm({ courts: 2, scope: 'court' })
-    expect(screen.getByText('Only this court is cancelled. The other 2 courts in this checkout stay booked.')).toBeInTheDocument()
+    expect(screen.getByText('Only this booking is cancelled. The other 2 bookings in this checkout stay booked.')).toBeInTheDocument()
     expect(screen.queryByText(/This cancels all/)).not.toBeInTheDocument()
   })
 
-  it('scope "court" with one other court says "The other court in this checkout stays booked."', () => {
+  it('scope "court" with one other court says "The other booking in this checkout stays booked."', () => {
     renderForm({ courts: 1, scope: 'court' })
-    expect(screen.getByText('Only this court is cancelled. The other court in this checkout stays booked.')).toBeInTheDocument()
+    expect(screen.getByText('Only this booking is cancelled. The other booking in this checkout stays booked.')).toBeInTheDocument()
     expect(screen.queryByText(/The other 1 courts/)).not.toBeInTheDocument()
   })
 
-  it('scope "checkout": cancels all N courts because one payment covers them', () => {
+  it('scope "checkout": cancels all N bookings because one payment covers them', () => {
     renderForm({ courts: 3, scope: 'checkout' })
-    expect(screen.getByText('This cancels all 3 courts in this checkout, because one payment covers them all.')).toBeInTheDocument()
-    expect(screen.queryByText(/Only this court is cancelled/)).not.toBeInTheDocument()
+    expect(screen.getByText('This cancels all 3 bookings in this checkout, because one payment covers them all.')).toBeInTheDocument()
+    expect(screen.queryByText(/Only this booking is cancelled/)).not.toBeInTheDocument()
   })
 
   it('keeps the button "Cancel booking" and the reason rule', async () => {

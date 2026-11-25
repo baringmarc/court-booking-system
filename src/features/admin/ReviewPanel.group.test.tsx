@@ -1,5 +1,5 @@
 // T33.6: ReviewPanel is the single-booking panel again. Its T33.4 `group` prop (booking X of N, the courts list, the
-// checkout total, the summed proof, "This decides all N courts at once.") moved to CheckoutPanel and CheckoutPanel.test.tsx
+// checkout total, the summed proof, "This decides all N bookings at once.") moved to CheckoutPanel and CheckoutPanel.test.tsx
 // (SPEC §10 2026-11-25 "Checkout panel": a behavior change, not a weakened test). What stays here: a booking that belongs
 // to a group, shown on its own by ReviewPanel, says nothing about a checkout and keeps its own proof, total and review.
 import { render, screen } from '@testing-library/react'
@@ -39,7 +39,7 @@ describe('ReviewPanel for a booking that has a booking_group_id', () => {
   it('renders as a single booking: no checkout lines, its own total and proof, and its own review', async () => {
     const { onApprove, onReject } = renderPanel(lead)
     expect(screen.queryByText(/in checkout/)).not.toBeInTheDocument()
-    expect(screen.queryByRole('list', { name: 'Courts in this checkout' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('list', { name: 'Bookings in this checkout' })).not.toBeInTheDocument()
     expect(screen.queryByText('Checkout total', { selector: 'dt' })).not.toBeInTheDocument()
     expect(screen.queryByText(/This decides all/)).not.toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'CB-LEAD01' })).toBeInTheDocument()

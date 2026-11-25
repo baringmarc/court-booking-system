@@ -143,7 +143,7 @@ export function BookingRow({ booking, courts, timeZone, currency }: {
       <span>
         <strong>{booking.reference_code}</strong> · {booking.guest_name}
         <span className="muted small block">
-          {checkout ? `${checkout.length} courts` : booking.court_name} · {formatDateLabel(date, timeZone)} {formatHour(hourInZone(booking.slot_start, timeZone))}
+          {checkout ? `${checkout.length} bookings` : booking.court_name} · {formatDateLabel(date, timeZone)} {formatHour(hourInZone(booking.slot_start, timeZone))}
           {booking.source === 'walk_in' ? ' · Walk-in' : booking.source === 'moved' ? ' · Moved part' : ''}
         </span>
       </span>
@@ -169,9 +169,9 @@ function reviewOutcome(ref: string, status: BookingStatus) {
 
 /** A review decides the whole checkout (T33.6), so its message names the checkout. */
 function checkoutReviewOutcome(lead: string, status: BookingStatus, courts: number) {
-  if (status === 'confirmed') return `Checkout ${lead} is confirmed (${courts} courts).`
+  if (status === 'confirmed') return `Checkout ${lead} is confirmed (${courts} bookings).`
   if (status === 'pending_payment') return `Checkout ${lead}: proof rejected. The player has a new payment window to upload another proof.`
-  if (status === 'rejected') return `Checkout ${lead}: proof rejected for the last time. Its courts are cancelled and released.`
+  if (status === 'rejected') return `Checkout ${lead}: proof rejected for the last time. Its bookings are cancelled and released.`
   return `Checkout ${lead} is now ${STATUS_LABELS[status].toLowerCase()}.`
 }
 
@@ -268,8 +268,8 @@ function CheckoutContainer({ booking, groupId, openFirst, timeZone, currency, on
         return (
           <BookingActions booking={court} scope={scope} timeZone={timeZone} currency={currency} onRefunded={onRefunded} onMoved={onMoved}
             onCancelled={() => onReviewed(scope?.scope === 'checkout'
-              ? `Checkout ${group.lead_reference_code} is cancelled and its ${scope.courts} courts released.`
-              : `${court.reference_code} (${court.court_name}) is cancelled and the slot released. The other courts stay booked.`)} />
+              ? `Checkout ${group.lead_reference_code} is cancelled and its ${scope.courts} bookings released.`
+              : `${court.reference_code} (${court.court_name}) is cancelled and the slot released. The other bookings stay booked.`)} />
         )
       }}
     />

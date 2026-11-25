@@ -142,7 +142,7 @@ test.describe.serial('a guest pays a two-court checkout and staff review and can
       await expect(row).toHaveCount(1)
       await expect(row).toContainText(leadReference)
       await expect(row).not.toContainText(otherRef)
-      await expect(row).toContainText('2 courts')
+      await expect(row).toContainText('2 bookings')
       await expect(row).toContainText(peso(courtTotal + FEE))
       await row.click()
 
@@ -150,7 +150,7 @@ test.describe.serial('a guest pays a two-court checkout and staff review and can
       const panel = adminPage.getByRole('region', { name: `Checkout ${leadReference}` })
       await expect(panel.getByRole('heading', { level: 2, name: `Checkout ${leadReference}` })).toBeVisible()
       await expect(adminPage.getByRole('region', { name: /^Booking CB-/ })).toHaveCount(0)
-      const courtsList = panel.getByRole('list', { name: 'Courts in this checkout' })
+      const courtsList = panel.getByRole('list', { name: 'Bookings in this checkout' })
       await expect(courtsList.getByRole('listitem')).toHaveCount(2)
       await expect(courtsList.getByRole('link')).toHaveCount(0)
       await expect(courtsList.getByRole('button', { name: `Manage ${otherRef}` })).toHaveAttribute('aria-expanded', 'false')
@@ -160,12 +160,12 @@ test.describe.serial('a guest pays a two-court checkout and staff review and can
       await expect(panel.getByText('Checkout total', { exact: true })).toBeVisible()
       await expect(panel.getByRole('heading', { name: 'Proof waiting for review' })).toHaveCount(1)
       await expect(panel.getByRole('img', { name: 'Proof of payment' })).toBeVisible()
-      await expect(panel.getByText('This decides all 2 courts at once.')).toBeVisible()
+      await expect(panel.getByText('This decides all 2 bookings at once.')).toBeVisible()
       await expectCleanAndFits(adminPage, 'admin review panel of a checkout')
 
       // One decision confirms both courts.
       await panel.getByRole('button', { name: 'Approve and confirm' }).click()
-      await expect(adminPage.getByRole('status').filter({ hasText: `Checkout ${leadReference} is confirmed (2 courts).` })).toBeVisible()
+      await expect(adminPage.getByRole('status').filter({ hasText: `Checkout ${leadReference} is confirmed (2 bookings).` })).toBeVisible()
       const after = await groupOf(leadReference)
       expect(after.bookings.map((b) => b.status)).toEqual(['confirmed', 'confirmed'])
       expect(after.bookings.flatMap((b) => b.payments).map((p) => p.review_status)).toEqual(['approved', 'approved'])
@@ -200,12 +200,12 @@ test.describe.serial('a guest pays a two-court checkout and staff review and can
       await expect(panel.getByRole('button', { name: `Manage ${cancelled.reference_code}` })).toHaveAttribute('aria-expanded', 'true')
       await expect(panel.getByRole('button', { name: `Manage ${kept.reference_code}`, exact: true })).toHaveAttribute('aria-expanded', 'false')
       const form = panel.getByRole('form', { name: 'Cancel booking' })
-      await expect(form.getByText('Only this court is cancelled. The other court in this checkout stays booked.')).toBeVisible()
+      await expect(form.getByText('Only this booking is cancelled. The other booking in this checkout stays booked.')).toBeVisible()
       await expectCleanAndFits(adminPage, 'staff cancel form of a checkout')
       await form.getByLabel('Reason for cancelling').fill('Court maintenance')
       await form.getByRole('button', { name: 'Cancel booking' }).click()
       await expect(adminPage.getByRole('status').filter({
-        hasText: `${cancelled.reference_code} (${cancelledName}) is cancelled and the slot released. The other courts stay booked.`,
+        hasText: `${cancelled.reference_code} (${cancelledName}) is cancelled and the slot released. The other bookings stay booked.`,
       })).toBeVisible()
     } finally {
       await adminContext.close()
@@ -227,7 +227,7 @@ test.describe.serial('a guest pays a two-court checkout and staff review and can
     await expect(items.filter({ hasText: cancelledName }).getByText('Cancelled')).toBeVisible()
     await expect(items.filter({ hasText: kept.courtName }).getByText('Cancelled')).toHaveCount(0)
     await expect(page.locator('.badge.status-confirmed')).toHaveCount(1)
-    await expect(page.getByRole('status').filter({ hasText: `The venue cancelled ${cancelledName}` })).toContainText('The other courts are still booked.')
+    await expect(page.getByRole('status').filter({ hasText: `The venue cancelled ${cancelledName}` })).toContainText('Your other bookings are still confirmed.')
     await expect(page.getByRole('region', { name: `Refund: ${cancelledName}` })).toContainText(`The venue owes you a refund of ${peso(ownPayment)}`)
     await expectCleanAndFits(page, 'booking page after one court was cancelled')
   })
@@ -260,7 +260,7 @@ test('a signed-in player books two courts and My bookings lists one entry for th
     const upcoming = page.getByRole('list', { name: 'Upcoming bookings' })
     const entries = upcoming.getByRole('link')
     await expect(entries).toHaveCount(1)
-    await expect(entries).toContainText('2 courts')
+    await expect(entries).toContainText('2 bookings')
     for (const b of bookings) await expect(entries).toContainText(b.reference_code)
     await expect(entries).toContainText(peso(courtTotal + FEE))
     await expect(entries).toContainText('Waiting for payment')
