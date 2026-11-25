@@ -2,7 +2,7 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import type { Court } from '../catalog/api'
-import type { Slot } from './selection'
+import type { Selection, Slot } from './selection'
 import { SlotGrid } from './SlotGrid'
 
 const court = (id: string, name: string) => ({ id, name, sport: 'badminton' }) as Court
@@ -18,7 +18,7 @@ const slotsByCourt = new Map<string, Slot[]>([
   ['B', [row('B', 0, 'past'), row('B', 1, 'blackout'), row('B', 2, 'free')]],
 ])
 
-function renderGrid(onToggle = vi.fn(), selection: { courtId: string; starts: string[] } | null = null) {
+function renderGrid(onToggle = vi.fn(), selection: Selection = []) {
   render(
     <SlotGrid courts={courts} times={times} slotsByCourt={slotsByCourt} selection={selection}
       onToggle={onToggle} timeZone="Asia/Manila" currency="PHP" />,
@@ -58,15 +58,38 @@ describe('SlotGrid', () => {
   })
 
   it('marks selected slots as pressed', () => {
-    renderGrid(vi.fn(), { courtId: 'A', starts: [times[0]] })
+    renderGrid(vi.fn(), [{ courtId: 'A', start: times[0] }])
     expect(screen.getByRole('button', { name: 'Badminton 1, 10 AM – 11 AM, ₱350' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('button', { name: 'Badminton 1, 12 PM – 1 PM, ₱350' })).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  // T33.3: a selection can hold slots on several courts and times.
+  it('marks selected slots as pressed on several courts at once, and nothing else', () => {
+    renderGrid(vi.fn(), [{ courtId: 'A', start: times[0] }, { courtId: 'B', start: times[2] }, { courtId: 'A', start: times[2] }])
+    for (const name of ['Badminton 1, 10 AM – 11 AM, ₱350', 'Badminton 2, 12 PM – 1 PM, ₱350', 'Badminton 1, 12 PM – 1 PM, ₱350']) {
+      const button = screen.getByRole('button', { name })
+      expect(button, name).toHaveAttribute('aria-pressed', 'true')
+      expect(button, name).toHaveClass('slot-selected')
+    }
+    expect(screen.getAllByRole('button', { pressed: true })).toHaveLength(3)
+  })
+
+  it('a pick matches its court and its start: the same time on the other court is not selected', () => {
+    renderGrid(vi.fn(), [{ courtId: 'B', start: times[2] }])
+    expect(screen.getByRole('button', { name: 'Badminton 1, 12 PM – 1 PM, ₱350' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('button', { name: 'Badminton 2, 12 PM – 1 PM, ₱350' })).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('a pick on a slot that is not free shows no selection', () => {
+    renderGrid(vi.fn(), [{ courtId: 'A', start: times[1] }])
+    expect(screen.getByRole('button', { name: 'Badminton 1, 11 AM – 12 PM, Booked' })).toHaveClass('slot-booked')
+    expect(screen.queryAllByRole('button', { pressed: true })).toHaveLength(0)
   })
 
   it('names the booker of a booked slot by first name, in the label and on screen', () => {
     const named = new Map(slotsByCourt)
     named.set('A', [row('A', 0, 'free'), { ...row('A', 1, 'booked'), booker_first_name: 'Ana' }, row('A', 2, 'free')])
-    render(<SlotGrid courts={courts} times={times} slotsByCourt={named} selection={null}
+    render(<SlotGrid courts={courts} times={times} slotsByCourt={named} selection={[]}
       onToggle={vi.fn()} timeZone="Asia/Manila" currency="PHP" />)
     const slot = screen.getByRole('button', { name: 'Badminton 1, 11 AM – 12 PM, Booked by Ana' })
     expect(slot).toBeDisabled()
@@ -78,7 +101,7 @@ describe('SlotGrid', () => {
     // Operating date 2030-01-07; a 1 AM slot on the 8th (Manila) belongs to it.
     const late = '2030-01-07T17:00:00.000Z' // 2030-01-08 01:00 Manila
     const lateSlots = new Map<string, Slot[]>([['A', [{ ...row('A', 0, 'free'), slot_start: late, slot_end: end(late) }]], ['B', [row('B', 0, 'free')]]])
-    render(<SlotGrid courts={courts} times={[times[0], late]} slotsByCourt={lateSlots} selection={null} date="2030-01-07"
+    render(<SlotGrid courts={courts} times={[times[0], late]} slotsByCourt={lateSlots} selection={[]} date="2030-01-07"
       onToggle={vi.fn()} timeZone="Asia/Manila" currency="PHP" />)
     expect(screen.getByRole('rowheader', { name: '10 AM – 11 AM' })).toBeInTheDocument()
     expect(screen.getByRole('rowheader', { name: '1 AM – 2 AM (next day)' })).toBeInTheDocument()
@@ -88,7 +111,7 @@ describe('SlotGrid', () => {
   it('ends the last row before a midnight close at 12 AM, on the same day', () => {
     const last = '2030-01-07T15:00:00.000Z' // 2030-01-07 23:00 Manila, ends at midnight
     const lastSlots = new Map<string, Slot[]>([['A', []], ['B', [{ ...row('B', 0, 'free'), slot_start: last, slot_end: end(last) }]]])
-    render(<SlotGrid courts={courts} times={[last]} slotsByCourt={lastSlots} selection={null} date="2030-01-07"
+    render(<SlotGrid courts={courts} times={[last]} slotsByCourt={lastSlots} selection={[]} date="2030-01-07"
       onToggle={vi.fn()} timeZone="Asia/Manila" currency="PHP" />)
     expect(screen.getByRole('rowheader', { name: '11 PM – 12 AM' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Badminton 2, 11 PM – 12 AM, ₱350' })).toBeEnabled()
@@ -99,7 +122,7 @@ describe('SlotGrid', () => {
     withSession.set('B', [row('B', 0, 'past'), { ...row('B', 1, 'open_play'), open_play_session_id: 'S1' }, row('B', 2, 'free')])
     const onToggle = vi.fn()
     const onOpenPlay = vi.fn()
-    render(<SlotGrid courts={courts} times={times} slotsByCourt={withSession} selection={null}
+    render(<SlotGrid courts={courts} times={times} slotsByCourt={withSession} selection={[]}
       onToggle={onToggle} onOpenPlay={onOpenPlay} timeZone="Asia/Manila" currency="PHP" />)
     const slot = screen.getByRole('button', { name: 'Badminton 2, 11 AM – 12 PM, Open play' })
     expect(slot).toBeEnabled()
@@ -115,13 +138,13 @@ describe('SlotGrid', () => {
   it('disables open play slots when there is no details handler', () => {
     const withSession = new Map(slotsByCourt)
     withSession.set('B', [row('B', 0, 'past'), { ...row('B', 1, 'open_play'), open_play_session_id: 'S1' }, row('B', 2, 'free')])
-    render(<SlotGrid courts={courts} times={times} slotsByCourt={withSession} selection={null}
+    render(<SlotGrid courts={courts} times={times} slotsByCourt={withSession} selection={[]}
       onToggle={vi.fn()} timeZone="Asia/Manila" currency="PHP" />)
     expect(screen.getByRole('button', { name: 'Badminton 2, 11 AM – 12 PM, Open play' })).toBeDisabled()
   })
 
   it('gives each status its own class and label', () => {
-    renderGrid(vi.fn(), { courtId: 'A', starts: [times[0]] })
+    renderGrid(vi.fn(), [{ courtId: 'A', start: times[0] }])
     const cases: [string, string, string][] = [
       ['Badminton 1, 10 AM – 11 AM, ₱350', 'slot-selected', '✓ ₱350'],
       ['Badminton 1, 12 PM – 1 PM, ₱350', 'slot-free', '₱350'],
@@ -154,7 +177,7 @@ describe('SlotGrid', () => {
     const three = [court('A', 'Badminton 1'), court('B', 'Badminton 2'), court('C', 'Badminton 3')]
 
     function renderBlocks(map: Map<string, Slot[]>, onOpenPlay = vi.fn(), cs = three) {
-      render(<SlotGrid courts={cs} times={times} slotsByCourt={map} selection={null} onToggle={vi.fn()}
+      render(<SlotGrid courts={cs} times={times} slotsByCourt={map} selection={[]} onToggle={vi.fn()}
         onOpenPlay={onOpenPlay} timeZone="Asia/Manila" currency="PHP" />)
       return onOpenPlay
     }
@@ -230,7 +253,7 @@ describe('SlotGrid', () => {
       const t2 = '2030-01-07T16:00:00.000Z' // 12 AM on the 8th
       const late = (i: number, t: string): Slot => ({ ...block('A', i, 'booked', 'k9'), slot_start: t, slot_end: end(t) })
       render(<SlotGrid courts={[court('A', 'Badminton 1')]} times={[t1, t2]} slotsByCourt={new Map([['A', [late(0, t1), late(1, t2)]]])}
-        selection={null} onToggle={vi.fn()} timeZone="Asia/Manila" currency="PHP" date="2030-01-07" />)
+        selection={[]} onToggle={vi.fn()} timeZone="Asia/Manila" currency="PHP" date="2030-01-07" />)
       expect(screen.getByRole('button', { name: 'Badminton 1, 11 PM – 1 AM (next day), Booked' })).toBeDisabled()
     })
   })
@@ -244,7 +267,7 @@ describe('SlotGrid promo slots (T19.3)', () => {
 
   it('shows the promo label as visible text next to the price and names it in the accessible name', () => {
     render(
-      <SlotGrid courts={courts} times={times} slotsByCourt={promoSlots} selection={null}
+      <SlotGrid courts={courts} times={times} slotsByCourt={promoSlots} selection={[]}
         onToggle={vi.fn()} timeZone="Asia/Manila" currency="PHP" />,
     )
     const promo = screen.getByRole('button', { name: 'Badminton 1, 10 AM – 11 AM, ₱500, promo: Happy hour' })
@@ -255,7 +278,7 @@ describe('SlotGrid promo slots (T19.3)', () => {
 
   it('leaves slots without a promo label unchanged', () => {
     render(
-      <SlotGrid courts={courts} times={times} slotsByCourt={promoSlots} selection={null}
+      <SlotGrid courts={courts} times={times} slotsByCourt={promoSlots} selection={[]}
         onToggle={vi.fn()} timeZone="Asia/Manila" currency="PHP" />,
     )
     const plain = screen.getByRole('button', { name: 'Badminton 2, 10 AM – 11 AM, ₱350' })
@@ -265,7 +288,7 @@ describe('SlotGrid promo slots (T19.3)', () => {
 
   it('gives free promo slots their own look and lists Promo in the key, but not once selected', () => {
     const { rerender } = render(
-      <SlotGrid courts={courts} times={times} slotsByCourt={promoSlots} selection={null}
+      <SlotGrid courts={courts} times={times} slotsByCourt={promoSlots} selection={[]}
         onToggle={vi.fn()} timeZone="Asia/Manila" currency="PHP" />,
     )
     expect(screen.getByRole('button', { name: /promo: Happy hour/ })).toHaveClass('slot-free', 'slot-promo-free')
@@ -274,7 +297,7 @@ describe('SlotGrid promo slots (T19.3)', () => {
     expect(within(key).getByText('Promo').querySelector('.slot-promo-free')).not.toBeNull()
 
     rerender(
-      <SlotGrid courts={courts} times={times} slotsByCourt={promoSlots} selection={{ courtId: 'A', starts: [times[0]] }}
+      <SlotGrid courts={courts} times={times} slotsByCourt={promoSlots} selection={[{ courtId: 'A', start: times[0] }]}
         onToggle={vi.fn()} timeZone="Asia/Manila" currency="PHP" />,
     )
     expect(screen.getByRole('button', { name: /promo: Happy hour/ })).not.toHaveClass('slot-promo-free')

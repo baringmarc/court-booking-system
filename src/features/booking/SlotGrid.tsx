@@ -97,7 +97,7 @@ export function SlotGrid({ courts, times, slotsByCourt, selection, onToggle, onO
                     const where = joinNames(cell.columns.map((c) => courts[c].name))
                     const when = `${blockRange}${nextDayOf(times[cell.lastRow]) ? ' (next day)' : ''}`
                     const free = slot.status === 'free'
-                    const selected = free && selection?.courtId === court.id && selection.starts.includes(time)
+                    const selected = free && selection.some((p) => p.courtId === court.id && p.start === time)
                     const look: SlotLook = selected ? 'selected' : slot.status
                     const sessionId = slot.status === 'open_play' && onOpenPlay ? slot.open_play_session_id : null
                     // Booked slots name the booker by first name only (T9.8; the server never sends more).

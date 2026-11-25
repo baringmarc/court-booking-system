@@ -164,6 +164,41 @@ export async function createBooking({ courtId, start, slots, contact, waiverAcce
   return { id: row.id, referenceCode: row.reference_code, guestToken: (row.guest_token as string | null) ?? null }
 }
 
+export type NewBookingGroup = {
+  /** Each item is one booking: a court and a run of `slots` hours from `start` (T33.3). */
+  items: { courtId: string; start: string; slots: number }[]
+  /** Guests: required. Logged-in players: optional overrides of their profile name/phone. */
+  contact?: { name?: string; email?: string; phone?: string }
+  waiverAccepted?: boolean
+}
+
+export type CreatedBookingGroup = {
+  groupId: string
+  /** Lead first: it carries the booking fee and the emails (T33.1). */
+  bookings: { id: string; referenceCode: string; courtId: string }[]
+  guestToken: string | null
+}
+
+/** One checkout of several bookings (T33.1's create_booking_group): all or none. Prices come from the server. */
+export async function createBookingGroup({ items, contact, waiverAccepted }: NewBookingGroup): Promise<CreatedBookingGroup> {
+  const rows = unwrap(
+    await supabase.rpc('create_booking_group', {
+      p_items: items.map((i) => ({ court_id: i.courtId, start: i.start, slots: i.slots })),
+      p_guest_name: contact?.name,
+      p_guest_email: contact?.email,
+      p_guest_phone: contact?.phone,
+      p_waiver_accepted: waiverAccepted ?? false,
+    }),
+  )
+  if (!rows || rows.length === 0) throw new Error('The booking could not be created. Please try again.')
+  return {
+    groupId: rows[0].booking_group_id,
+    bookings: rows.map((r) => ({ id: r.id, referenceCode: r.reference_code, courtId: r.court_id })),
+    // Typed string, but null for a signed-in player (as create_booking).
+    guestToken: (rows[0].guest_token as string | null) ?? null,
+  }
+}
+
 /** What the booking page shows, whether it was loaded by a guest token or by the owner through RLS. */
 export type BookingDetail = {
   id: string

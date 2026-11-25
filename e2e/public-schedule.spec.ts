@@ -35,7 +35,14 @@ test('custom-only day, gaps, touching boundaries and overnight checkout', async 
     await expect(page.getByRole('rowheader', { name: '11 AM – 12 PM' })).toHaveCount(0)
     await seven.click()
     await eight.click()
+    // Tap-to-pick (T33.3, SPEC §10 2026-11-25): both stay picked, but touching periods never merge into one booking.
     await expect(eight).toHaveAttribute('aria-pressed', 'true')
+    await expect(seven).toHaveAttribute('aria-pressed', 'true')
+    await expect(page.getByRole('region', { name: 'Your selection' }).locator('strong').first()).toHaveText('2 times · 1 court')
+    // Tapping them again removes them, so the overnight hour below is checked out on its own.
+    await seven.click()
+    await eight.click()
+    await expect(eight).toHaveAttribute('aria-pressed', 'false')
     await expect(seven).toHaveAttribute('aria-pressed', 'false')
     const overnight = page.getByRole('button', { name: new RegExp(`^${venue.court}, 1 AM – 2 AM \\(next day\\)`) })
     await overnight.click()

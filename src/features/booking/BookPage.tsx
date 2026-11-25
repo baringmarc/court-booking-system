@@ -2,16 +2,20 @@ import { useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ErrorMessage } from '../../components/ErrorMessage'
 import { PageLoader } from '../../components/PageLoader'
-import { addDays, formatDateLabel, todayInZone } from '../../lib/time'
+import { formatHour } from '../../lib/format'
+import { addDays, formatDateLabel, hourInZone, todayInZone } from '../../lib/time'
 import { SPORT_LABELS, type CourtWithPhotos, type PublicSchedulePeriod, type Sport, type VenueSettings } from '../catalog/api'
 import { sportsOf } from '../catalog/sportOrder'
 import { useCourts, usePublicSchedule, useVenueSettings } from '../catalog/hooks'
 import { useUpcomingOpenPlay } from '../openPlay/hooks'
 import { OpenPlayDialog } from '../openPlay/OpenPlayDialog'
 import { CourtTiles } from '../catalog/CourtTiles'
-import { toCheckoutSearch } from './checkoutParams'
+import { joinNames } from './blocks'
+import { toRunsSearch } from './checkoutParams'
 import { useAvailability, usePlatformFee } from './hooks'
-import { reconcileSelection, summarizeSelection, toggleSlot, type Selection, type Slot } from './selection'
+import {
+  reconcileSelection, removeRun, selectionRuns, summarizeSelection, toggleSlot, TOO_MANY_RUNS_MESSAGE, type Selection, type Slot,
+} from './selection'
 import { SelectionBar } from './SelectionBar'
 import { SlotGrid } from './SlotGrid'
 import { DateStrip } from './DateStrip'
@@ -49,7 +53,9 @@ function clampDate(value: string | null, min: string, max: string) {
 function BookingBoard({ settings, courts, hours }: { settings: VenueSettings; courts: CourtWithPhotos[]; hours: PublicSchedulePeriod[] }) {
   const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
-  const [selection, setSelection] = useState<Selection>(null)
+  const [selection, setSelection] = useState<Selection>([])
+  // A tap refused for the 6-run cap (T33.3); cleared by the next tap, Clear, or a date or sport change.
+  const [refused, setRefused] = useState(false)
   const [openPlayId, setOpenPlayId] = useState<string | null>(null)
 
   const tz = settings.timezone
@@ -81,23 +87,33 @@ function BookingBoard({ settings, courts, hours }: { settings: VenueSettings; co
     [sportCourts, slotsByCourt],
   )
 
-  // A refetch can make a selected slot unavailable; derive the live selection instead of syncing state.
-  const selectedCourtSlots = selection ? slotsByCourt.get(selection.courtId) ?? [] : []
-  const activeSelection = availability.data ? reconcileSelection(selection, selectedCourtSlots) : selection
-  const lostSelection = selection !== null && activeSelection === null
-  const summary = summarizeSelection(activeSelection, selectedCourtSlots)
-  const selectedCourt = courts.find((c) => c.id === summary?.courtId)
+  // A refetch can make picked slots unavailable; derive the live selection instead of syncing state. Only the taken
+  // picks are dropped, and the page names them until the next change.
+  const reconciled = availability.data ? reconcileSelection(selection, slotsByCourt) : { selection, dropped: [] }
+  const activeSelection = reconciled.selection
+  const summary = summarizeSelection(activeSelection, slotsByCourt)
+  const courtName = (id: string) => courts.find((c) => c.id === id)?.name ?? ''
+  const droppedNames = joinNames(reconciled.dropped.map((p) => `${courtName(p.courtId)} at ${formatHour(hourInZone(p.start, tz))}`))
 
   function update(next: { date?: string; sport?: Sport }) {
     const p = new URLSearchParams(params)
     if (next.date) p.set('date', next.date)
     if (next.sport) p.set('sport', next.sport)
     setParams(p, { replace: true })
-    setSelection(null)
+    // Picks belong to one date; switching sport tabs keeps them (T33.3).
+    if (next.date) setSelection([])
+    setRefused(false)
   }
 
   function handleToggle(slot: Slot) {
-    setSelection(toggleSlot(activeSelection, slot, slotsByCourt.get(slot.court_id) ?? []))
+    const result = toggleSlot(activeSelection, slot, slotsByCourt)
+    setSelection(result.selection)
+    setRefused(result.refused !== null)
+  }
+
+  function handleContinue() {
+    const runs = selectionRuns(activeSelection, slotsByCourt).map((r) => ({ courtId: r.courtId, start: r.starts[0], slots: r.starts.length }))
+    navigate(`/book/checkout?${toRunsSearch(runs)}`)
   }
 
   return (
@@ -124,12 +140,17 @@ function BookingBoard({ settings, courts, hours }: { settings: VenueSettings; co
       </details>
 
       <p className="muted small">
-        {formatDateLabel(date, tz)} · Tap a time to select it, then tap more to extend. Prices are per hour.
+        {formatDateLabel(date, tz)} · Tap a time to select it, and tap more times on any court to add them. Prices are per hour.
       </p>
 
-      {lostSelection && (
+      {reconciled.dropped.length > 0 && (
         <div className="alert alert-error" role="alert">
-          <p>One of the slots you picked is no longer available. Please choose again.</p>
+          <p>{`${droppedNames} ${reconciled.dropped.length === 1 ? 'is' : 'are'} no longer available. Please choose again.`}</p>
+        </div>
+      )}
+      {refused && (
+        <div className="alert alert-error" role="alert">
+          <p>{TOO_MANY_RUNS_MESSAGE}</p>
         </div>
       )}
 
@@ -163,18 +184,21 @@ function BookingBoard({ settings, courts, hours }: { settings: VenueSettings; co
         />
       )}
 
-      {summary && selectedCourt && !availability.isError && (
+      {summary && !availability.isError && (
         <SelectionBar
           summary={summary}
-          courtName={selectedCourt.name}
-          date={todayInZone(tz, new Date(summary.start))}
+          courtName={courtName}
+          date={todayInZone(tz, new Date(summary.runs[0].start))}
           timeZone={tz}
           currency={settings.currency}
           fee={platformFee.data ?? null}
-          onClear={() => setSelection(null)}
-          onContinue={() =>
-            navigate(`/book/checkout?${toCheckoutSearch({ courtId: summary.courtId, start: summary.start, slots: summary.slots })}`)
-          }
+          onRemoveRun={(run) => {
+            const picked = selectionRuns(activeSelection, slotsByCourt).find((r) => r.courtId === run.courtId && r.starts[0] === run.start)
+            if (picked) setSelection(removeRun(activeSelection, picked))
+            setRefused(false)
+          }}
+          onClear={() => { setSelection([]); setRefused(false) }}
+          onContinue={handleContinue}
         />
       )}
     </div>
