@@ -10,7 +10,7 @@ import { displayStatus, STATUS_LABELS } from '../booking/status'
 import { useNow } from '../booking/useNow'
 import type { MyBooking } from './api'
 import { useClaimGuestBookings, useMyBookings } from './hooks'
-import { MY_SORTS, mySortFromParams, splitMyBookings, type MySort } from './myBookings'
+import { collapseGroups, MY_SORTS, mySortFromParams, splitMyBookings, type MySort } from './myBookings'
 
 export function MyBookingsPage() {
   const { user } = useAuth()
@@ -53,7 +53,7 @@ export function MyBookingsPage() {
 type ListsProps = { rows: MyBooking[]; now: Date; timeZone: string; currency: string; sort: MySort; onSort: (sort: MySort) => void }
 
 function BookingLists({ rows, now, timeZone, currency, sort, onSort }: ListsProps) {
-  const { upcoming, past } = splitMyBookings(rows, now, sort)
+  const { upcoming, past } = splitMyBookings(collapseGroups(rows, now), now, sort)
   return (
     <div className="stack">
       <div className="field my-sort">
@@ -91,6 +91,18 @@ function BookingList({ label, rows, now, timeZone, currency, all }: { label: str
         return (
           <li key={b.id}>
             <Link to={`/booking/${b.reference_code}`} className="list-row">
+              {b.courts && b.courts.length > 1 ? (
+                // A checkout of several courts (T33.4): one entry, a line per court.
+                <span>
+                  <strong>{b.courts.length} courts</strong>
+                  {b.courts.map((c) => (
+                    <span key={c.id} className="muted small block">
+                      {c.court_name} · {formatDateLabel(todayInZone(timeZone, new Date(c.slot_start)), timeZone)}, {formatHour(hourInZone(c.slot_start, timeZone))}–{formatHour(hourInZone(c.slot_end, timeZone))} · {c.reference_code}
+                      {c.status === 'cancelled' ? ' · Cancelled' : ''}
+                    </span>
+                  ))}
+                </span>
+              ) : (
               <span>
                 <strong>{b.court_name}</strong>
                 <span className="muted small block">
@@ -98,6 +110,7 @@ function BookingList({ label, rows, now, timeZone, currency, all }: { label: str
                   {b.parent_booking_id ? ` · Moved part${parent ? ` of ${parent.reference_code}` : ''}` : ''}
                 </span>
               </span>
+              )}
               <span className="list-row-end">
                 <span>{formatMoney(b.amount_due, currency)}</span>
                 <span className={`badge status-${status}`}>{STATUS_LABELS[status]}</span>

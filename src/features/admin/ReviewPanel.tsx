@@ -137,7 +137,7 @@ export function ReviewPanel({ booking, timeZone, currency, proof, pending, error
   )
 }
 
-function ProofPreview({ path, proof }: { path: string | null; proof: ProofLink }) {
+export function ProofPreview({ path, proof }: { path: string | null; proof: ProofLink }) {
   if (!path) return <p className="muted small">No file attached (recorded without a proof).</p>
   if (proof.state === 'loading' || proof.state === 'none') return <p className="muted small">Loading proof…</p>
   if (proof.state === 'error') return <p className="form-error">The proof file could not be loaded.</p>

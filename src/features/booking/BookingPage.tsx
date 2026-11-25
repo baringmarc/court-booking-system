@@ -9,6 +9,7 @@ import { PaymentAccountList } from './PaymentAccountList'
 import { BookingSummary } from './BookingSummary'
 import { CancelBooking } from './CancelBooking'
 import { playerCancel } from './cancellation'
+import { groupCancelInput } from './group'
 import { bookingErrorCode } from './errors'
 import type { BookingDetail } from './api'
 import { readGuestToken, tokenHash } from './guestLink'
@@ -126,7 +127,7 @@ function ProofUpload({ booking, token, currency, method, onMethodChange }: {
   const submitProof = useSubmitPaymentProof(booking.reference_code, token)
   return (
     <ProofForm
-      total={booking.amount_due}
+      total={booking.group?.amount_due ?? booking.amount_due}
       currency={currency}
       pending={submitProof.isPending}
       error={submitProof.isError ? submitProof.error : null}
@@ -164,9 +165,12 @@ function CancelSection({ booking, token, timeZone, cutoffHours, now }: {
   if (isAdmin && token === null) {
     return <p className="muted small">Staff: cancel this booking from <Link to="/admin/bookings?status=all">Admin → Bookings</Link>.</p>
   }
+  // A group (T33.4): cancel_booking cancels every active court, with the cutoff at the earliest active start.
+  const target = booking.group ? groupCancelInput(booking, booking.group.bookings, now) : null
   return (
     <CancelBooking
-      check={playerCancel(booking, cutoffHours, now)}
+      check={playerCancel(target ?? booking, cutoffHours, now)}
+      courts={target?.courts}
       timeZone={timeZone}
       paid={booking.payments.some((p) => p.review_status === 'approved')}
       pending={cancel.isPending}

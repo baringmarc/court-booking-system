@@ -21,6 +21,10 @@ export type MyBooking = {
   parent_booking_id: string | null
   /** When it was booked (the "Booked on" sort, T11.5b). */
   created_at: string
+  /** The booking group of a multi-court checkout (M33); absent or null for a single booking. */
+  booking_group_id?: string | null
+  /** Set by collapseGroups (T33.4): every court of the checkout this row stands for. */
+  courts?: MyBooking[]
 }
 
 export const MY_BOOKINGS_LIMIT = 200
@@ -33,7 +37,7 @@ export async function fetchMyBookings(userId: string): Promise<MyBooking[]> {
   const rows = unwrap(
     await supabase
       .from('bookings')
-      .select('id, reference_code, during, status, expires_at, amount_due, parent_booking_id, created_at, courts(name, sport)')
+      .select('id, reference_code, during, status, expires_at, amount_due, parent_booking_id, booking_group_id, created_at, courts(name, sport)')
       .eq('user_id', userId)
       .eq('venue_id', currentVenueId())
       .order('during', { ascending: false })
@@ -54,6 +58,7 @@ export async function fetchMyBookings(userId: string): Promise<MyBooking[]> {
       amount_due: Number(row.amount_due),
       parent_booking_id: row.parent_booking_id,
       created_at: row.created_at,
+      booking_group_id: row.booking_group_id,
     }
   })
 }
