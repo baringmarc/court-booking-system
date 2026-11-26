@@ -556,6 +556,8 @@ export function usePublishVenue() {
     onSuccess: () => Promise.all([
       qc.invalidateQueries({ queryKey: adminKeys.setup() }),
       qc.invalidateQueries({ queryKey: ['venue'] }),
+      // A draft's availability was refused (venue_unavailable); the dashboard reads it again once published (T35.1).
+      qc.invalidateQueries({ queryKey: bookingKeys.allAvailability() }),
     ]),
   })
 }

@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { bookingKeys } from '../booking/hooks'
 import { setCurrentVenue } from '../../lib/currentVenue'
 import { fetchSetupStatus, publishVenue } from './api'
 import { usePublishVenue, useSetupStatus } from './hooks'
@@ -47,6 +48,23 @@ describe('setup hooks', () => {
     const { result } = renderHook(() => usePublishVenue(), { wrapper })
     await act(() => result.current.mutateAsync())
     expect(client.getQueryState(['venue', 'a-venue', 'user-1'])?.isInvalidated).toBe(true)
+  })
+
+  it('a successful publish marks cached availability stale so Today\'s courts reads it again (T35.1)', async () => {
+    const { client, wrapper } = setup()
+    client.setQueryData(bookingKeys.availability('2030-01-07'), [])
+    const { result } = renderHook(() => usePublishVenue(), { wrapper })
+    await act(() => result.current.mutateAsync())
+    expect(client.getQueryState(bookingKeys.availability('2030-01-07'))?.isInvalidated).toBe(true)
+  })
+
+  it('a failed publish leaves cached availability alone (T35.1)', async () => {
+    vi.mocked(publishVenue).mockRejectedValue(new Error('Finish setting up first.'))
+    const { client, wrapper } = setup()
+    client.setQueryData(bookingKeys.availability('2030-01-07'), [])
+    const { result } = renderHook(() => usePublishVenue(), { wrapper })
+    await act(async () => { await result.current.mutateAsync().catch(() => undefined) })
+    expect(client.getQueryState(bookingKeys.availability('2030-01-07'))?.isInvalidated).toBe(false)
   })
 
   it('a failed publish does not refresh the venue and surfaces the error', async () => {
