@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Set up your venue</title>
+<link rel="stylesheet" href="app.css">
+<style>
+  /* 1920 × 1080; renderAt(t) draws the frame at t seconds. */
+  html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; }
+  body { font-family: var(--sans); color: var(--text); background: var(--bg); }
+  .scene { position: absolute; inset: 0; display: none; overflow: hidden; }
+  .cream { background: var(--bg); }
+  .band { background: var(--band-bg); color: var(--band-text); }
+  .serif { font-family: var(--serif); font-weight: 700; letter-spacing: -0.02em; line-height: 1.05; margin: 0; text-wrap: balance; }
+  .hl { color: var(--terracotta); }
+  .band .hl { color: var(--rose); }
+  .shape { position: absolute; border-radius: 50%; }
+  .ring { border: 26px solid var(--sand); background: transparent; }
+  .dot { background: var(--rose); }
+  .leaf { background: var(--sage); border-radius: 0 100% 0 100%; }
+  .kicker { font: 700 26px/1 var(--sans); letter-spacing: 0.16em; text-transform: uppercase; color: var(--terracotta); }
+  .logo-row { display: flex; align-items: center; gap: 22px; }
+  .logo-row img { width: 84px; height: 84px; border-radius: 20px; }
+  .wordmark { font-family: var(--serif); font-weight: 700; font-size: 80px; letter-spacing: -0.02em; line-height: 1; }
+
+  /* captions */
+  #cap { position: absolute; left: 50%; bottom: 46px; transform: translateX(-50%); z-index: 50; max-width: 1500px; width: max-content;
+         padding: 14px 30px 16px; border-radius: 18px; background: rgba(42, 37, 34, 0.93); color: #fffaf2; font: 700 36px/1.3 var(--sans);
+         text-align: center; box-shadow: 0 12px 34px rgba(0, 0, 0, 0.25); text-wrap: balance; display: none; }
+
+  /* title card */
+  #titleL { position: absolute; left: 150px; top: 200px; width: 860px; }
+  #titleL h1 { font-size: 118px; margin-top: 70px; }
+  #titleL .sub { font: 600 38px/1.35 var(--sans); color: var(--muted); margin-top: 36px; max-width: 760px; }
+  #toc { position: absolute; left: 1100px; top: 170px; width: 680px; list-style: none; margin: 0; padding: 0; }
+  #toc li { display: flex; align-items: center; gap: 22px; font: 700 34px/1 var(--sans); padding: 15px 0; border-bottom: 2px solid var(--sand); }
+  #toc li b { width: 54px; height: 54px; border-radius: 50%; background: var(--sage); display: inline-flex; align-items: center; justify-content: center; font-size: 26px; flex: none; }
+
+  /* chapter card */
+  .card-col { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+  #cardTitle { font-size: 136px; margin-top: 34px; }
+  .dots { display: flex; gap: 18px; margin-top: 60px; }
+  .dots i { width: 18px; height: 18px; border-radius: 50%; background: var(--sand); display: block; }
+  .dots i.done { background: var(--sage); }
+  .dots i.on { background: var(--terracotta); transform: scale(1.35); }
+
+  /* app scene */
+  #chip { position: absolute; left: 240px; top: 24px; height: 56px; display: flex; align-items: center; gap: 18px; }
+  #chip b { width: 52px; height: 52px; border-radius: 50%; background: var(--sage); display: inline-flex; align-items: center; justify-content: center; font: 700 26px/1 var(--sans); }
+  #chip span { font: 700 36px/1 var(--serif); letter-spacing: -0.01em; }
+  #chip em { font: 700 20px/1 var(--sans); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); font-style: normal; margin-left: 6px; }
+  .pill { position: absolute; top: 34px; font: 700 18px/1 var(--sans); letter-spacing: 0.06em; border-radius: 999px; padding: 9px 16px; }
+  #tag { right: 240px; color: var(--muted); background: rgba(255,252,247,0.92); border: 1.5px solid var(--sand); }
+  #fast { right: 420px; color: #fffaf2; background: var(--terracotta); display: none; }
+  .win { position: absolute; left: 240px; top: 100px; width: 1440px; border-radius: 14px; overflow: hidden; background: #fff; box-shadow: 0 30px 80px rgba(59,47,42,0.28); }
+  .win .chrome { height: 44px; background: #ebe7e1; display: flex; align-items: center; position: relative; }
+  .win .chrome .dots3 { display: flex; gap: 9px; padding-left: 18px; }
+  .win .chrome .dots3 i { width: 13px; height: 13px; border-radius: 50%; display: block; }
+  .win .chrome .url { position: absolute; left: 50%; transform: translateX(-50%); background: #fff; border-radius: 9px; padding: 7px 26px; font: 600 16px/1 -apple-system, 'Helvetica Neue', Arial, sans-serif; color: #333; min-width: 420px; text-align: center; }
+  .win .view { position: relative; overflow: hidden; width: 1440px; height: 900px; }
+  .win .view img { position: absolute; left: 0; top: 0; width: 1440px; transform-origin: 0 0; }
+
+  /* outro */
+  #outroCol { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 0 160px; }
+  #outroHead { font-size: 110px; margin-top: 60px; color: var(--band-text); }
+  #outroSub { font: 600 42px/1.35 var(--sans); color: var(--band-muted); margin-top: 40px; max-width: 1300px; }
+  .url-pill { font: 700 46px/1 var(--sans); color: var(--band-text); margin-top: 50px; padding: 18px 48px; border: 2px solid var(--band-border); border-radius: 999px; background: var(--band-card); }
+  .band .wordmark { color: var(--band-text); }
+  .ai-note { position: absolute; left: 0; right: 0; bottom: 34px; text-align: center; font: 500 22px/1 var(--sans); color: var(--band-muted); opacity: 0.75; }
+</style>
+</head>
+<body>
+  <section class="scene cream" id="sc-title">
+    <div class="shape ring" style="width:320px;height:320px;right:-120px;bottom:-140px"></div>
+    <div class="shape dot" style="width:110px;height:110px;left:70px;bottom:90px"></div>
+    <div id="titleL">
+      <div class="logo-row"><img src="/src/assets/plotline-tile.svg" alt=""><span class="wordmark">plotline</span></div>
+      <h1 class="serif" id="titleHead">Set up <span class="hl">your venue.</span></h1>
+      <div class="sub" id="titleSub"></div>
+    </div>
+    <ol id="toc"></ol>
+  </section>
+
+  <section class="scene cream" id="sc-card">
+    <div class="shape ring" style="width:280px;height:280px;left:-120px;top:-120px"></div>
+    <div class="shape leaf" style="width:150px;height:150px;right:90px;bottom:110px;opacity:.75"></div>
+    <div class="card-col">
+      <div class="kicker" id="cardKicker"></div>
+      <h1 class="serif" id="cardTitle"></h1>
+      <div class="dots" id="cardDots"></div>
+    </div>
+  </section>
+
+  <section class="scene cream" id="sc-app">
+    <div id="chip"><b id="chipN"></b><span id="chipT"></span><em id="chipOf"></em></div>
+    <div class="pill" id="fast">Sped up</div>
+    <div class="pill" id="tag">Example data</div>
+    <div class="win">
+      <div class="chrome"><div class="dots3"><i style="background:#ee6a5f"></i><i style="background:#f5be4f"></i><i style="background:#62c554"></i></div><div class="url" id="url"></div></div>
+      <div class="view"><img id="shot" alt=""></div>
+    </div>
+  </section>
+
+  <section class="scene band" id="sc-outro">
+    <div id="outroCol">
+      <div class="logo-row" id="outroLogo"><img src="/src/assets/plotline-tile.svg" alt=""><span class="wordmark">plotline</span></div>
+      <h1 class="serif" id="outroHead">You’re ready for <span class="hl">bookings.</span></h1>
+      <div id="outroSub">Questions? Reply to your invite email, or message us on Facebook.</div>
+      <div class="url-pill" id="outroUrl">plotline.fit</div>
+    </div>
+    <div class="ai-note" id="aiNote">Narrated with an AI voice · Example venue and data</div>
+  </section>
+
+  <div id="cap"></div>
+
+<script type="module">
+import { buildTimeline, cameraAt, clipAt } from './timeline.mjs'
+
+const Q = new URLSearchParams(location.search)
+const $ = (s) => document.querySelector(s)
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x))
+const ease = (k) => 1 - Math.pow(1 - clamp(k), 3)
+const p = (t, a, d) => ease((t - a) / d)
+const enter = (el, k, dy = 30) => { el.style.opacity = k; el.style.transform = `translateY(${(1 - k) * dy}px)` }
+
+const json = (u) => fetch(u).then((r) => r.json())
+const narration = await json('narration.json')
+const durations = (await json('rec/voice/durations.json')).seconds
+const ids = narration.chapters.map((c) => c.id)
+const takes = Object.fromEntries(await Promise.all(ids.map(async (id) => [id, await json(`rec/${id}/take.json`)])))
+const TL = buildTimeline({ durations, takes, narration })
+window.timeline = TL
+window.TOTAL = TL.total
+
+// Each frame's address: the last one a frame carried, without the scheme or the invite link's tokens.
+for (const take of Object.values(takes)) {
+  let url = ''
+  for (const f of take.frames) { if (f.url) url = f.url; f.u = url.replace(/^https?:\/\//, '').replace(/#.*$/, '').replace(/\/$/, '') }
+}
+function frameAt(take, t) {
+  const f = takes[take].frames
+  let lo = 0, hi = f.length - 1
+  while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (f[mid].t <= t) lo = mid; else hi = mid - 1 }
+  return f[lo]
+}
+async function setSrc(img, src) {
+  if (img.dataset.src === src) return
+  img.dataset.src = src
+  img.src = src
+  await img.decode().catch(() => {})
+}
+
+// Title card text and the chapter list.
+const minutes = Math.round(TL.total / 60)
+$('#titleSub').textContent = `From your invite email to a live booking page, in about ${minutes} minutes.`
+narration.chapters.forEach((c, i) => {
+  const li = document.createElement('li')
+  li.innerHTML = `<b>${i + 1}</b>${c.title}`
+  $('#toc').append(li)
+})
+narration.chapters.forEach(() => $('#cardDots').append(document.createElement('i')))
+
+const scenes = ['#sc-title', '#sc-card', '#sc-app', '#sc-outro']
+const show = (id) => scenes.forEach((x) => { $(x).style.display = x === id ? 'block' : 'none' })
+const lineStart = (id) => TL.lines.find((l) => l.id === id).start
+
+function renderTitle(t, sc) {
+  show('#sc-title')
+  enter($('#titleL .logo-row'), p(t, sc.start, 0.5))
+  enter($('#titleHead'), p(t, sc.start + 0.25, 0.5))
+  enter($('#titleSub'), p(t, sc.start + 0.6, 0.5))
+  document.querySelectorAll('#toc li').forEach((li, i) => enter(li, p(t, lineStart('intro1') + 1.2 + i * 0.32, 0.4), 20))
+}
+
+function renderCard(t, sc) {
+  show('#sc-card')
+  $('#cardKicker').textContent = `Step ${sc.number} of ${sc.of}`
+  $('#cardTitle').textContent = sc.chapter.title
+  const k = p(t, sc.start, 0.35), out = clamp((sc.end - t) / 0.25)
+  enter($('#cardKicker'), k * out, 20)
+  enter($('#cardTitle'), p(t, sc.start + 0.1, 0.4) * out, 30)
+  $('#cardDots').style.opacity = k * out
+  ;[...$('#cardDots').children].forEach((d, i) => { d.className = i + 1 < sc.number ? 'done' : i + 1 === sc.number ? 'on' : '' })
+}
+
+async function renderApp(t, sc) {
+  show('#sc-app')
+  $('#chipN').textContent = sc.number
+  $('#chipT').textContent = sc.chapter.title
+  $('#chipOf').textContent = `Step ${sc.number} of ${narration.chapters.length}`
+  const { seg, clip } = clipAt(sc, t)
+  const frame = frameAt(sc.take, clip)
+  $('#url').textContent = frame.u
+  $('#fast').style.display = seg.fast ? 'block' : 'none'
+  if (seg.fast) $('#fast').textContent = `Sped up ×${seg.speed < 1.95 ? seg.speed.toFixed(1) : Math.round(seg.speed)}`
+  // The camera: scale about its focus point, kept inside the page's edges.
+  const VW = 1440, VH = 900, f = VW / 1280
+  const z = cameraAt(sc.keys, clip)
+  const tx = clamp(VW / 2 - z.x * f * z.s, VW - VW * z.s, 0), ty = clamp(VH / 2 - z.y * f * z.s, VH - VH * z.s, 0)
+  $('#shot').style.transform = `translate(${tx}px, ${ty}px) scale(${z.s})`
+  // The window rises in at the start of a chapter.
+  const k = p(t, sc.start, 0.4)
+  $('.win').style.opacity = k
+  $('.win').style.transform = `translateY(${(1 - k) * 40}px)`
+  await setSrc($('#shot'), `rec/${sc.take}/${frame.file}`)
+}
+
+function renderOutro(t, sc) {
+  show('#sc-outro')
+  enter($('#outroLogo'), p(t, sc.start, 0.45))
+  enter($('#outroHead'), p(t, sc.start + 0.3, 0.45))
+  enter($('#outroSub'), p(t, lineStart('outro2'), 0.45), 20)
+  enter($('#outroUrl'), p(t, lineStart('outro2') + 1.5, 0.45), 20)
+  $('#aiNote').style.opacity = 0.75 * p(t, lineStart('outro2') + 2.2, 0.5)
+}
+
+function renderCaption(t) {
+  const cap = $('#cap')
+  const c = TL.captions.filter((x) => t >= x.start && t < x.end).at(-1)
+  if (!c) { cap.style.display = 'none'; return }
+  cap.style.display = 'block'
+  cap.textContent = c.text
+}
+
+window.renderAt = async function (t) {
+  const sc = TL.scenes.find((s) => t >= s.start && t < s.end) ?? TL.scenes.at(-1)
+  if (sc.kind === 'title') renderTitle(t, sc)
+  else if (sc.kind === 'card') renderCard(t, sc)
+  else if (sc.kind === 'app') await renderApp(t, sc)
+  else renderOutro(t, sc)
+  renderCaption(t)
+}
+
+window.ready = Promise.all(["700 100px 'Fraunces'", "600 60px 'Fraunces'", "700 20px 'DM Sans'", "500 20px 'DM Sans'"].map((f) => document.fonts.load(f)))
+  .then(() => document.fonts.ready)
+  .then(() => Promise.all([...document.images].filter((i) => i.src).map((i) => i.decode().catch(() => {}))))
+  .then(() => window.renderAt(Number(Q.get('t') ?? 0)))
+</script>
+</body>
+</html>
