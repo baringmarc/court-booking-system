@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ownerEmail, ownerLinkAction } from './ownerInvite.ts'
+import { OWNER_SETUP_VIDEO_URL, ownerEmail, ownerLinkAction } from './ownerInvite.ts'
 
 describe('ownerLinkAction (T17.25)', () => {
   it('invites an email with no account', () => {
@@ -69,6 +69,22 @@ describe('ownerEmail (T17.25)', () => {
     expect(mail.text).not.toMatch(/reset|forgot/i)
     expect(mail.html).not.toMatch(/reset|forgot/i)
     expect(mail.text).not.toMatch(/token|verify/i)
+  })
+
+  it.each(['invite', 'link', 'welcome'] as const)('%s links the owner setup video, after the guide and before support', (kind) => {
+    const mail = ownerEmail({ ...base, kind, link: LINK })
+    for (const body of [mail.text, mail.html]) {
+      expect(body).toContain(OWNER_SETUP_VIDEO_URL)
+      expect(body).toMatch(/alongside/i)
+      expect(body.indexOf(GUIDE)).toBeLessThan(body.indexOf(OWNER_SETUP_VIDEO_URL))
+      expect(body.indexOf(OWNER_SETUP_VIDEO_URL)).toBeLessThan(body.indexOf('plotline.admin1@gmail.com'))
+    }
+    expect(mail.html).toContain(`href="${OWNER_SETUP_VIDEO_URL}"`)
+  })
+  it('staff emails leave the owner setup video out', () => {
+    const mail = ownerEmail({ ...base, kind: 'invite', link: LINK, role: 'staff' })
+    expect(mail.text).not.toContain(OWNER_SETUP_VIDEO_URL)
+    expect(mail.html).not.toContain(OWNER_SETUP_VIDEO_URL)
   })
 
   it('falls back to a generic venue name', () => {

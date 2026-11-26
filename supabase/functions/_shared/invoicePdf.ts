@@ -81,6 +81,30 @@ function right(page: PDFPage, s: string, xRight: number, y: number, font: PDFFon
   page.drawText(s, { x: xRight - font.widthOfTextAtSize(s, size), y, font, size, color })
 }
 
+/** The tallest a payment QR is drawn, in points (about 6 cm): big enough to scan from a screen or a printout. */
+export const QR_MAX = 170
+const QR_BOX_TOP = 34
+const QR_BOX_BOTTOM = 24
+/** The label, account name and number under each QR. */
+const QR_TEXT_H = 52
+
+/**
+ * The "How to pay" grid: one row, or two when that gives larger codes (4 or 5 accounts on a short invoice), each QR
+ * as large as the width and the height left above the footer allow, up to QR_MAX. Never smaller than the 80pt the
+ * single row used to draw, which the fullest invoice has room for.
+ */
+export function qrLayout(count: number, contentW: number, availH: number): { perRow: number; rows: number; size: number } {
+  let best = { perRow: count, rows: 1, size: 0 }
+  for (let rows = 1; rows <= Math.min(2, count); rows++) {
+    const perRow = Math.ceil(count / rows)
+    const byWidth = (contentW - 24) / perRow - 12
+    const byHeight = (availH - QR_BOX_TOP - QR_BOX_BOTTOM) / rows - QR_TEXT_H
+    const size = Math.floor(Math.min(QR_MAX, byWidth, byHeight))
+    if (size > best.size) best = { perRow, rows, size }
+  }
+  return best.size >= 80 ? best : { perRow: count, rows: 1, size: Math.floor(Math.min(80, (contentW - 24) / count - 12)) }
+}
+
 export async function buildInvoicePdf(data: InvoicePdfData, assets: InvoicePdfAssets): Promise<Uint8Array> {
   const doc = await PDFDocument.create()
   doc.registerFontkit(fontkit)
@@ -192,21 +216,25 @@ export async function buildInvoicePdf(data: InvoicePdfData, assets: InvoicePdfAs
   text(page, 'Thanks for your business.', left, y - 14, f.regular, 10)
   y -= 40
 
-  // How to pay: every account (at most 5, T26.3) in one row, each with its QR, so the page never overflows.
+  // How to pay: every account (at most 5, T26.3), each with its QR, as large as the space above the footer allows.
   const accounts = data.accounts.slice(0, 5)
   if (accounts.length) {
-    const cellW = (contentW - 24) / accounts.length
-    const qrSize = Math.min(80, cellW - 12)
-    const cellH = qrSize + 52
-    const boxH = 34 + cellH + 24
+    const layout = qrLayout(accounts.length, contentW, y - (MARGIN + 26))
+    const qrSize = layout.size
+    const cellW = (contentW - 24) / layout.perRow
+    const cellH = qrSize + QR_TEXT_H
+    const boxH = QR_BOX_TOP + layout.rows * cellH + QR_BOX_BOTTOM
     page.drawRectangle({ x: left, y: y - boxH, width: contentW, height: boxH, borderColor: LINE, borderWidth: 1, color: rgb(1, 1, 1) })
     text(page, 'How to pay', left + 12, y - 20, f.bold, 11)
     accounts.forEach((a, i) => {
-      const cx = left + 12 + i * cellW
-      const top = y - 34
+      const cx = left + 12 + (i % layout.perRow) * cellW
+      const top = y - QR_BOX_TOP - Math.floor(i / layout.perRow) * cellH
       const qr = qrs[i]
-      if (qr) page.drawImage(qr, { x: cx, y: top - qrSize, width: qrSize, height: qrSize })
-      else page.drawRectangle({ x: cx, y: top - qrSize, width: qrSize, height: qrSize, color: CREAM })
+      if (qr) {
+        // Keep the image's own proportions (uploads keep theirs, T11.11): a squashed QR scans badly.
+        const fit = qr.scaleToFit(qrSize, qrSize)
+        page.drawImage(qr, { x: cx + (qrSize - fit.width) / 2, y: top - qrSize + (qrSize - fit.height) / 2, width: fit.width, height: fit.height })
+      } else page.drawRectangle({ x: cx, y: top - qrSize, width: qrSize, height: qrSize, color: CREAM })
       const w = cellW - 12
       text(page, wrap(a.label, f.bold, 10, w, 1)[0] ?? '', cx, top - qrSize - 16, f.bold, 10)
       text(page, wrap(a.accountName, f.regular, 9, w, 1)[0] ?? '', cx, top - qrSize - 30, f.regular, 9)
