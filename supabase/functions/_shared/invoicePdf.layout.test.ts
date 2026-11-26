@@ -6,7 +6,7 @@ import sansRegularUrl from '../invoice-pdf/assets/dm-sans-latin-400-normal.woff?
 import sansBoldUrl from '../invoice-pdf/assets/dm-sans-latin-700-normal.woff?inline'
 import displayUrl from '../invoice-pdf/assets/fraunces-latin-600-normal.woff?inline'
 import logoUrl from '../invoice-pdf/assets/logo.png?inline'
-import { buildInvoicePdf, type InvoicePdfData } from './invoicePdf.ts'
+import { QR_MAX, buildInvoicePdf, qrLayout, type InvoicePdfData } from './invoicePdf.ts'
 
 const bytesOf = (url: string) => Uint8Array.from(atob(url.slice(url.indexOf(',') + 1)), (c) => c.charCodeAt(0))
 const assets = { sansRegular: bytesOf(sansRegularUrl), sansBold: bytesOf(sansBoldUrl), display: bytesOf(displayUrl), logo: bytesOf(logoUrl) }
@@ -50,5 +50,38 @@ describe('buildInvoicePdf layout', () => {
       expect(y, it.str).toBeLessThanOrEqual(height - 40)
       if (!footer.has(it.str)) expect(y, it.str).toBeGreaterThan(62)
     }
+  })
+
+  it('keeps the fullest invoice on one page with a QR image on every account', async () => {
+    const qr = { bytes: assets.logo, kind: 'png' as const }
+    const data = { ...fullest, accounts: fullest.accounts.map((a) => ({ ...a, qr })) }
+    const doc = await pdfjs.getDocument({ data: await buildInvoicePdf(data, assets), useSystemFonts: true }).promise
+    expect(doc.numPages).toBe(1)
+  })
+})
+
+describe('qrLayout', () => {
+  const contentW = 595.28 - 96
+  it('draws one to three accounts far larger than the old 80pt, in one row, on a short invoice', () => {
+    expect(qrLayout(1, contentW, 400)).toEqual({ perRow: 1, rows: 1, size: QR_MAX })
+    expect(qrLayout(2, contentW, 400)).toEqual({ perRow: 2, rows: 1, size: QR_MAX })
+    const three = qrLayout(3, contentW, 400)
+    expect(three.rows).toBe(1)
+    expect(three.size).toBeGreaterThanOrEqual(140)
+  })
+  it('wraps four or five accounts onto two rows when there is room, for larger codes', () => {
+    for (const n of [4, 5]) {
+      const l = qrLayout(n, contentW, 560)
+      expect(l.rows).toBe(2)
+      expect(l.perRow).toBe(Math.ceil(n / 2))
+      expect(l.size).toBeGreaterThan(qrLayout(n, contentW, 0).size)
+    }
+  })
+  it('fits the height left above the footer', () => {
+    const l = qrLayout(2, contentW, 200)
+    expect(34 + l.rows * (l.size + 52) + 24).toBeLessThanOrEqual(200)
+  })
+  it('never draws smaller than the old single 80pt row', () => {
+    for (const n of [1, 2, 3, 4, 5]) expect(qrLayout(n, contentW, 0)).toEqual({ perRow: n, rows: 1, size: Math.floor(Math.min(80, (contentW - 24) / n - 12)) })
   })
 })

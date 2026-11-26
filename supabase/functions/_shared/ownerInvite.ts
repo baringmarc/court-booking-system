@@ -62,6 +62,8 @@ export const OWNER_SUPPORT_EMAIL = 'plotline.admin1@gmail.com'
 export const OWNER_FACEBOOK_URL = 'https://www.facebook.com/profile.php?id=61595759948011'
 export const OWNER_MESSENGER_URL = 'https://m.me/61595759948011'
 export const OWNER_GUIDE_FILE = 'venue-owner-manual-v1.2.pdf'
+/** The owner setup walkthrough video (Google Drive, anyone with the link). Linked, not attached: it is about 50 MB. */
+export const OWNER_SETUP_VIDEO_URL = 'https://drive.google.com/file/d/1NfonHrIJLTC32LYJFzpGiPqm6k-BnFlY/view'
 
 /** The owner PDF's download link on the venue site (T17.24). */
 export function ownerGuideUrl(siteBase: string): string {
@@ -158,6 +160,7 @@ export function ownerEmail(input: OwnerEmailInput): { subject: string; html: str
   const siteLink = (label: string) => (live ? a(new URL('/', input.venueUrl).href, label) : escapeHtml(label))
 
   const guide = `Your venue owner guide is attached to help you get started, from setting up your venue to managing day-to-day operations. You can also download the guide here: ${input.guideUrl}`
+  const video = `Prefer to watch? Our owner setup video walks you through it step by step. Play it alongside your venue admin and set up your own venue account as you go: ${OWNER_SETUP_VIDEO_URL}`
   const help = `Need a hand? Reply to this email or contact us at ${OWNER_SUPPORT_EMAIL}. We’re also available on Facebook (${OWNER_FACEBOOK_URL}) and Messenger (${OWNER_MESSENGER_URL}).`
   const walkthrough = 'If you’d prefer a guided walkthrough, let us know and we’ll arrange a call.'
   const text = [
@@ -166,6 +169,7 @@ export function ownerEmail(input: OwnerEmailInput): { subject: string; html: str
     copy.does,
     ['What happens next:', ...steps((x) => x).map((step, i) => `${i + 1}. ${step}`)].join('\n'),
     guide,
+    video,
     help,
     walkthrough,
     'See you on court,\nThe Plotline team',
@@ -177,6 +181,7 @@ export function ownerEmail(input: OwnerEmailInput): { subject: string; html: str
     '<p><strong>What happens next</strong></p>',
     `<ol>${steps(siteLink).map((step) => `<li>${step}</li>`).join('')}</ol>`,
     `<p>Your <strong>venue owner guide</strong> is attached to help you get started, from setting up your venue to managing day-to-day operations. You can also ${a(input.guideUrl, 'download the guide here')}.</p>`,
+    `<p>Prefer to watch? Our ${a(OWNER_SETUP_VIDEO_URL, 'owner setup video')} walks you through it step by step. Play it alongside your venue admin and set up your own venue account as you go.</p>`,
     `<p>Need a hand? Reply to this email or contact us at ${a(`mailto:${OWNER_SUPPORT_EMAIL}`, OWNER_SUPPORT_EMAIL)}. We’re also available on ${a(OWNER_FACEBOOK_URL, 'Facebook')} and ${a(OWNER_MESSENGER_URL, 'Messenger')}.</p>`,
     `<p>${escapeHtml(walkthrough)}</p>`,
     '<p>See you on court,<br><strong>The Plotline team</strong></p>',
