@@ -84,8 +84,15 @@ test('a lead becomes a published, showcased venue', async ({ page }) => {
 
       await ownerPage.goto(`http://${slug}.localhost:5179/admin`)
       await expect(ownerPage.getByRole('listitem').filter({ hasText: 'Add payment instructions' }).getByText('Done')).toBeVisible()
+      // T35.1: on the draft, Today's courts explains instead of failing; right after publishing (no reload) it shows the grid.
+      const todaysCourts = ownerPage.locator('section[aria-labelledby="day-view-heading"]')
+      await expect(todaysCourts.getByText('Players can book once you publish your venue. Your courts and their free times show here then.')).toBeVisible()
+      await expect(todaysCourts).not.toContainText('This venue is not taking bookings right now.')
       await ownerPage.getByRole('button', { name: 'Publish venue' }).click()
       await expect(ownerPage.getByRole('heading', { name: 'Set up your venue' })).toHaveCount(0)
+      await expect(todaysCourts.getByRole('region', { name: 'Courts by hour' })).toBeVisible()
+      await expect(todaysCourts).not.toContainText('This venue is not taking bookings right now.')
+      await expect(todaysCourts.getByRole('button', { name: 'Try again' })).toHaveCount(0)
 
       // The venue can still save its city, but platform approval controls public listing.
       const { url, publishableKey } = localSupabase()

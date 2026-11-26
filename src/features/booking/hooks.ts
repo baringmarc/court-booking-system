@@ -34,12 +34,14 @@ export function usePlatformFee() {
   return useQuery({ queryKey: bookingKeys.platformFee, queryFn: fetchPlatformFee, staleTime: 5 * 60_000 })
 }
 
-export function useAvailability(date: string) {
+/** The public availability grid for one date. `enabled: false` skips it, as on a draft venue's dashboard (T35.1). */
+export function useAvailability(date: string, { enabled = true }: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: bookingKeys.availability(date),
     queryFn: () => fetchAvailability(date),
     staleTime: 15_000,
     refetchInterval: 60_000,
+    enabled,
   })
 }
 

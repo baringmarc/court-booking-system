@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <!-- Dinkhaus Pickleball: a fictional venue's logo for the open-slots video -->
+  <rect x="8" y="8" width="240" height="240" rx="56" fill="#14341e"/>
+  <circle cx="128" cy="128" r="84" fill="#d7e45a"/>
+  <g fill="#14341e" opacity="0.85">
+    <circle cx="128" cy="128" r="10"/>
+    <circle cx="128" cy="82" r="9"/><circle cx="128" cy="174" r="9"/>
+    <circle cx="88" cy="105" r="9"/><circle cx="168" cy="105" r="9"/>
+    <circle cx="88" cy="151" r="9"/><circle cx="168" cy="151" r="9"/>
+  </g>
+</svg>

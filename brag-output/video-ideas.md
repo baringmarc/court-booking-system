@@ -26,6 +26,7 @@ Saved 2026-11-24. Revised 2026-11-24 after a review: product claims corrected, o
 | 15 | Owner FAQ series | Owners | Not started |
 | 16 | From a Facebook post to a booking | Owners | Not started |
 | 17 | Founder walkthrough: what is Plotline? | Owners | **v2 2026-11-25** (hook A chosen, walk-ins added): AI narrator instead of a founder, real app recording, 16:9 + 9:16 (`what-is-plotline/`) |
+| 18 | Owner setup walkthrough: from the invite email to every setting | New owners (onboarding) | **Draft v1 2026-11-26**: AI narrator, real app recording, 16:9 desktop with chapters (`owner-setup/`) |
 
 **Suggested order:** #1 (the owner's problem), #2 (a concrete feature), #4 (the "what's the catch?" answer), #13 (meets owners where they already work), #17 (something to send an interested owner). Cut shorter versions from the strongest of these afterwards. #0 only after checking the launch video's text still reads in a vertical crop.
 
@@ -193,3 +194,11 @@ Saved 2026-11-24. Revised 2026-11-24 after a review: product claims corrected, o
 - **Why:** gives the brand a face, and works as a pinned introduction or something to send an interested owner.
 - **Format:** 60–90s, 16:9 plus a 9:16 cut.
 - **As built (2026-11-25, draft v1):** no founder on camera (the user's call): an AI narrator (Kokoro `af_heart`, run locally) speaks for Plotline and never claims to be a person, and the outro and caption disclose the AI voice. Real app footage recorded from `origin/master` with Playwright on the local stack, with the fictional Dinkhaus Pickleball created for the recording and deleted after. 16:9 with the desktop admin and 9:16 with the phone admin. "Your logo" in the script became "your courts", since the booking page doesn't show the logo. Two hooks tried; A ("Is 7 PM free?… your phone never stops") chosen over B ("What is Plotline?"). v2 adds a walk-in scene ("Walk-ins have no booking fee"), shown as on for every venue per the user's plan (today walk-ins are off by default and switched on per venue in the console). About 86 s. As built: `what-is-plotline/plan.md`.
+
+### 18. Owner setup walkthrough: from the invite email to every setting
+- **What:** a tutorial for an owner Plotline has just invited. It starts at the invite email, sets the password from its link, takes an empty draft venue through the setup checklist (courts, rates and photos, opening hours, payment account and instructions) to **Publish venue**, then introduces the five Settings sections and the day-to-day pages.
+- **Audience and use:** new owners, not ads. Something to link from the invite email, the owner guide or a pinned post, and to send after a sales call. It also covers the "Is this hard to set up?" question of #12.
+- **Decisions made (2026-11-26, the user's calls):** one 16:9 video with YouTube chapters (short clips can be cut from the chapters later); the desktop admin only; setup, all the Settings sections and a quick tour of the daily pages (Dashboard, Bookings, Open Play, Reports); the Kokoro `af_heart` AI voice of #17, disclosed in the outro.
+- **Accuracy:** the venue starts exactly as the console leaves it (`create_venue` plus a real invite link), and everything after that is the owner's own clicks on `origin/master`. Payments: "GCash, Maya or bank", no PayMongo. Confirmation is manual (receipt → review → **Approve and confirm**). Fees follow `docs/facts.json`. Staff logins are invited by Plotline (console), so the outro says "ask us".
+- **As built:** `owner-setup/plan.md`.
+

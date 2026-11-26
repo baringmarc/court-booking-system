@@ -82,6 +82,8 @@ function Dashboard({ settings, courts }: { settings: VenueSettings; courts: Cour
 
 function DashboardDay({ settings, courts, now, today }: { settings: VenueSettings; courts: Court[]; now: Date; today: string }) {
   const tz = settings.timezone
+  // The public availability refuses a draft venue (venue_unavailable), so a draft's grid waits for publishing (T35.1).
+  const draft = useVenue().status === 'draft'
   const currency = settings.currency
   // Earnings count money on today's calendar date (money is counted by day).
   const dayEnd = zonedLocalToISO(`${addDays(today, 1)}T00:00`, tz)
@@ -91,7 +93,7 @@ function DashboardDay({ settings, courts, now, today }: { settings: VenueSetting
   const schedule = useAdminBookings({ status: 'all', source: 'all', date: today, q: '', sort: null }, tz)
   // An overnight day also has bookings on the next calendar date.
   const scheduleNext = useAdminBookings({ status: 'all', source: 'all', date: addDays(today, 1), q: '', sort: null }, pastMidnight ? tz : undefined)
-  const availability = useAvailability(today)
+  const availability = useAvailability(today, { enabled: !draft })
   const openPlay = useUpcomingOpenPlay({ enabled: !!availability.data?.some((s) => s.status === 'open_play') })
   const queue = useProofQueueCount()
   const refundsOwed = useRefundsOwedCount()
@@ -106,7 +108,7 @@ function DashboardDay({ settings, courts, now, today }: { settings: VenueSetting
   ).filter((b) => ACTIVE.has(displayStatus(b, now)))
   const next = nextBooking(todays, now)
   const [posting, setPosting] = useState(false)
-  const gridReady = courts.length > 0 && !availability.isPending && !availability.isError && !schedulePending && !scheduleError
+  const gridReady = !draft && courts.length > 0 && !availability.isPending && !availability.isError && !schedulePending && !scheduleError
   // T27.7: each card opens the bookings it counts.
   const todayLink = `/admin/bookings?${filtersToParams({ ...DEFAULT_FILTERS, status: 'all', date: today })}`
   const refundsLink = `/admin/bookings?${filtersToParams({ ...DEFAULT_FILTERS, status: 'all', refund: 'owed' })}`
@@ -188,6 +190,8 @@ function DashboardDay({ settings, courts, now, today }: { settings: VenueSetting
             <p className="muted">No courts yet.</p>
             <Link to="/admin/courts/new" className="btn btn-small">Add court</Link>
           </div>
+        ) : draft ? (
+          <p className="muted">Players can book once you publish your venue. Your courts and their free times show here then.</p>
         ) : availability.isPending || schedulePending ? <PageLoader /> : availability.isError ? (
           <ErrorMessage error={availability.error} onRetry={() => availability.refetch()} />
         ) : scheduleError ? (
